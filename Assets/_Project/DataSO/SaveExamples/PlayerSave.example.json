@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "selectedCharacterType": 1,
+  "equippedItemIds": [],
+  "characters": [
+    {
+      "characterType": 1,
+      "permanentLevel": 5
+    }
+  ]
+}

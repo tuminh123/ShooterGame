@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0233a956da94f2d8ff81ae5713658cf, type: 3}
+  m_Name: MapDatabase
+  m_EditorClassIdentifier:
+  maps:
+  - key: grass
+    sprite: {fileID: 21300000, guid: 749bedb810f34ea08294982c9e1fc617, type: 3}
+  - key: temple
+    sprite: {fileID: 21300000, guid: e643c77e83c342cf9a51b480941122c7, type: 3}
+  - key: desert
+    sprite: {fileID: 21300000, guid: f2feac1aaf074d1cb01680d08458cf27, type: 3}
+  - key: forest
+    sprite: {fileID: 21300000, guid: c14b6de310e54c7da1eba740b8c90c03, type: 3}
+  - key: volcanic
+    sprite: {fileID: 21300000, guid: 7c5113637f5f447abb4bcf3e94437688, type: 3}

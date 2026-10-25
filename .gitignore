@@ -1,0 +1,54 @@
+# Unity-generated directories
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE-generated files
+/.vs/
+/.vscode/
+/.idea/
+/*.csproj
+/*.sln
+/*.slnx
+/*.user
+/*.suo
+/*.pidb
+/*.booproj
+/*.unityproj
+/*.opendb
+/*.VC.db
+*.csproj.meta
+*.sln.meta
+
+# Local tools, credentials and signing keys
+/.codex/
+/.agents/
+/.aws/
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.keystore
+*.jks
+
+# Local saves and crash reports
+*.es3
+*.es3.bac
+*.es3.tmp
+*.es3.meta
+sysinfo.txt
+*.stackdump
+crashlytics-build.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

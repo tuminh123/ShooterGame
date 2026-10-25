@@ -1,0 +1,131 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &7063367419269647426
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8577594272768695893, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695893, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.g
+      value: 0.44981623
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695893, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.r
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695912, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695913, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Name
+      value: Default Joystick (Blue)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695913, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695914, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.b
+      value: 0.6509434
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695914, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.g
+      value: 0.30778325
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695914, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.r
+      value: 0.015352436
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695915, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: ID
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695915, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: dragColor.b
+      value: 0.5566038
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695915, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: dragColor.g
+      value: 0.22196902
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594272768695915, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: dragColor.r
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282459, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.b
+      value: 0.7075472
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282459, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.g
+      value: 0.3331923
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282459, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_Color.r
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282460, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.b
+      value: 0.6509434
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282460, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.g
+      value: 0.27564973
+      objectReference: {fileID: 0}
+    - target: {fileID: 8577594273766282460, guid: 2339bf4c92ccc3d4d9f567ee367d8b45,
+        type: 3}
+      propertyPath: m_EffectColor.r
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 2339bf4c92ccc3d4d9f567ee367d8b45, type: 3}
