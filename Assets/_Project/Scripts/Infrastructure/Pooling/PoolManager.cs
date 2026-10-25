@@ -21,8 +21,7 @@ public sealed class PoolManager : IDisposable
     #region Pool State & Holders
 
     private readonly DiContainer container;  // * Container scene cung cấp dependency cho object mới.
-    // * Tra pool theo prefab, dùng lại qua các lượt spawn.
-    private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>();
+    private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>(); // * Tra pool theo prefab, dùng lại qua các lượt spawn.
     private readonly HashSet<LeanGameObjectPool> ownedPools = new HashSet<LeanGameObjectPool>();  // * Chỉ hủy pool tự tạo.
     private readonly HashSet<GameObject> injectedClones = new HashSet<GameObject>();  // * Inject một lần mỗi bản sao.
     private readonly HashSet<GameObject> activeClones = new HashSet<GameObject>();    // * Clone cần thu hồi khi kết thúc.
@@ -57,7 +56,7 @@ public sealed class PoolManager : IDisposable
 
     // * Spawn theo world-space; parent tùy chọn cho object có nhánh riêng như chunk.
     public GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation,
-        PoolGroup group = PoolGroup.Other, Transform parent = null)
+        PoolGroup group = PoolGroup.Other, Transform parent = null, Action<GameObject> beforeActivate = null)
     {
         if (prefab == null)
             throw new ArgumentNullException(nameof(prefab));
@@ -75,6 +74,8 @@ public sealed class PoolManager : IDisposable
                 injectedClones.Add(clone);
             }
             activeClones.Add(clone);
+            // * Gán runtime/controller khi clone còn ở Preparing; không để OnEnable nhìn thấy trạng thái cũ.
+            beforeActivate?.Invoke(clone);
             clone.transform.SetParent(holder, true);
             return clone;
         }
@@ -99,7 +100,7 @@ public sealed class PoolManager : IDisposable
     // * Thu hồi qua LeanPool; gọi hai lần không hủy nhầm clone đã nằm trong pool.
     public void Despawn(GameObject clone)
     {
-        if (disposed || clone == null)
+        if (clone == null)
             return;
         activeClones.Remove(clone);
         if (LeanPool.Links.ContainsKey(clone))
@@ -162,7 +163,10 @@ public sealed class PoolManager : IDisposable
         if (disposed)
             return;
         disposed = true;
-        foreach (GameObject clone in activeClones)
+        // * OnDisable của vỏ thu hồi cả visual con, làm thay đổi activeClones; duyệt bản sao để tránh lỗi collection.
+        GameObject[] remaining = new GameObject[activeClones.Count];
+        activeClones.CopyTo(remaining);
+        foreach (GameObject clone in remaining)
             if (clone != null && LeanPool.Links.ContainsKey(clone))
                 LeanPool.Despawn(clone);
         activeClones.Clear();

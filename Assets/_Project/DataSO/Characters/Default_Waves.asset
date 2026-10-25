@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afb73b7d5cb440e889a827b0654330a9, type: 3}
+  m_Name: Default_Waves
+  m_EditorClassIdentifier:
+  waves:
+  - duration: 60
+    spawnInterval: 0.5
+    maxAliveEnemies: 20
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}

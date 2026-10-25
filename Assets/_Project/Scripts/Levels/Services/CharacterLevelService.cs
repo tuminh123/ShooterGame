@@ -39,7 +39,8 @@ public sealed class CharacterLevelService : IDisposable
         // * Vòng duyệt thứ hai ghép type nhân vật với config, dùng chính enum đó làm key runtime/save.
         foreach (CharacterDataSO character in characters.Values)
         {
-            if (character.CharacterType == CharacterType.None)
+            // * Database chứa cả Enemy; chỉ Player có tiến trình level vĩnh viễn và trang bị trong hồ sơ.
+            if (character.Team != CharacterTeam.Player)
                 continue;
             if (!configsByType.TryGetValue(character.CharacterType, out PermanentLevelConfigSO config))
                 throw new InvalidOperationException($"Missing level config for character type: {character.CharacterType}.");

@@ -92,7 +92,7 @@ public class GroundChunkManager : MonoBehaviour
     }
 
     // * Tạm dừng nếu chưa có player, dựng lại vùng quanh nhân vật mới khi đã sẵn sàng.
-    private void OnPlayerChanged(Player current)
+    private void OnPlayerChanged(CharacterView current)
     {
         player = current != null ? current.transform : null;
         initialized = false;

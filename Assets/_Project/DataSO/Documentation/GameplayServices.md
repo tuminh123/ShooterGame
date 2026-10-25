@@ -1,70 +1,71 @@
-# Dịch vụ gameplay qua Zenject
+# Hệ thống nhân vật và dịch vụ gameplay
 
-Trong `SampleScene`, chọn `SceneContext` rồi xem component `GameSceneInstaller`:
+Thiết kế ưu tiên YAGNI/Simple → DRY → SOLID: tách dữ liệu, hành vi và vỏ Unity; không thêm lớp Character trung gian hoặc pool class thuần khi chưa cần.
 
-- **Player Prefab**: prefab có component `Player`; hiện gán `BlessedGladiator`.
-- **Joystick**: `VirtualJoystick` trên Canvas của scene.
+## Các thành phần
 
-`PlayerManager` và `PoolManager` là class thuần, được đăng ký singleton theo scene.
-Không cần gắn các manager này lên GameObject hoặc truy cập singleton static.
+| Thành phần | Trách nhiệm |
+| --- | --- |
+| CharacterDataSO | Mẫu theo loại: mã, phe, chỉ số gốc, visual, hitbox và tăng trưởng Enemy. |
+| CharacterRuntimeData | Dữ liệu riêng từng cá thể: HP, chỉ số sau bonus, level và bonus chốt khi spawn. |
+| CharacterView | Vỏ Unity chung: liên kết data/hành vi, giữ component và visual con, chuyển tiếp Tick/va chạm. |
+| PlayerController | Class thuần đọc joystick/bàn phím và tính di chuyển analog; hết HP thì dừng. |
+| EnemyController | Class thuần tự đuổi Player hiện tại; chết hoặc chạm Player thì về pool. |
+| ICharacterController | Hợp đồng Tick/tiếp xúc để vỏ gọi hành vi hiện tại. |
+| CharacterFactory | Ghép runtime, controller và visual vào vỏ khi vỏ còn tắt. |
+| PlayerManager | Tạo/gỡ Player, áp dụng level/trang bị và phát PlayerChanged. |
+| EnemySpawnManager | Chọn wave, loại và vị trí spawn; tính bonus lúc spawn, theo dõi quái đang sống. |
 
-## PlayerManager
+Controller không chứa bản sao HP/chỉ số. Runtime được gắn với view trong một vòng đời; controller nhận runtime khi xử lý. Hai controller có hành vi di chuyển độc lập, cùng gửi lệnh qua MovementManager.
 
-Zenject gọi `Initialize()` để tạo player bằng prefab tại `Vector3.zero`.
-Prefab được inject joystick trước khi bật. Không kéo joystick của scene vào prefab.
+## Prefab và cấu hình
 
-- `CurrentPlayer` / `PlayerTransform`: nhân vật đang chơi, có thể null.
-- `SpawnPlayer()`: tạo khi chưa có; gọi lặp lại không sinh trùng.
-- `RemovePlayer()`: thông báo gỡ player, tắt rồi hủy object.
-- `PlayerChanged`: truyền player mới hoặc null. Bên đăng ký phải đọc cả `CurrentPlayer`
-  vì player có thể đã được tạo trước khi bên đó đăng ký sự kiện.
+- Prefabs/Character.prefab là prefab gameplay duy nhất: CharacterView, Rigidbody2D và BoxCollider2D.
+- BlessedGladiator_Visual.prefab và ForagingMaggot_Visual.prefab chỉ chứa SpriteRenderer/Animator; lấy từ pool rồi gắn làm con khi spawn.
+- BlessedGladiator_Character.asset thuộc Player; ForagingMaggot_Character.asset thuộc Enemy.
+- Enemy mẫu có 20 HP, tốc độ 0.5; mỗi 50 giây cộng 5 HP cho cá thể mới của loại đó.
+- Default_Waves.asset giữ nhịp mẫu 0.5 giây/con, tối đa 20 quái; thêm wave/loại quái trong Inspector.
+- SampleScene đã gán Character Prefab ở GameSceneInstaller và Wave Config ở EnemySpawnManager.
 
-Camera, nền và enemy đều nhận `PlayerManager` qua injection. Khi tắt component,
-chúng hủy subscription; khi bật lại, chúng lấy player hiện tại rồi tiếp tục lắng nghe.
-Sự kiện này là thay đổi vòng đời, không phải tín hiệu di chuyển mỗi frame.
+CharacterType là khóa theo loại; CharacterTeam là phe. Boss thuộc Enemy. Database chung chứa cả hai phe, nhưng chỉ Player cần cấu hình level vĩnh viễn. Camera và nền nghe PlayerChanged(CharacterView).
 
-## PoolManager
-
-Enemy và đạn gọi dịch vụ này thay vì gọi trực tiếp `LeanPool`:
-
-```csharp
-GameObject enemy = poolManager.Spawn(
-    enemyPrefab, position, Quaternion.identity, PoolGroup.Enemies);
-
-GameObject bullet = poolManager.Spawn(
-    bulletPrefab, position, rotation, PoolGroup.Bullets);
-
-poolManager.Despawn(bullet);
-```
-
-Hierarchy lúc chạy:
+## Vòng đời spawn/pool
 
 ```text
-Pool Holders
-  Enemies
-  Bullets
-  World
-  Other
-  Pools
-    Preparing (inactive)
-    LeanPool (tên prefab)
-      các clone đã thu hồi
+Tạo runtime và controller riêng cho lần spawn
+→ lấy vỏ dưới Preparing đang tắt
+→ inject clone mới một lần
+→ beforeActivate: gán runtime/controller, hitbox, lấy visual con
+→ chuyển vỏ sang holder hoạt động
+→ OnEnable đăng ký movement và reset Animator
+→ Update chuyển tiếp sang controller tương ứng
 ```
 
-Một clone mới được lấy dưới nhánh `Preparing` đang tắt, inject một lần, sau đó
-chuyển sang holder hoạt động. Các lượt tái sử dụng không inject lại. Pool do
-dịch vụ tạo dùng `Notification=None`, nên component quản lý vòng đời qua
-`OnEnable` / `OnDisable`; không phụ thuộc callback `IPoolable.OnSpawn`.
+Khi thu hồi, gọi `CharacterFactory.Despawn(view)`: hủy movement, xóa runtime/controller, trả visual về pool, thông báo Released một lần rồi mới trả vỏ về pool. Chủ sở hữu bỏ tham chiếu để vỏ có thể đổi từ Enemy sang Player hoặc ngược lại. Khởi tạo lỗi cũng dọn phần trạng thái đang chuẩn bị dở.
 
-`Spawn` nhận vị trí world-space. Có thể truyền parent riêng ở tham số cuối;
-chunk dùng cách này để tiếp tục nằm dưới `Ground Chunk Manager`.
-Giữ transform của các holder ở giá trị mặc định.
+Không gọi PoolManager.Despawn trực tiếp cho vỏ nhân vật. OnDisable chỉ hủy movement, không đổi parent hoặc thu hồi visual vì Unity đang tắt hierarchy. Tắt/bật tạm thời giữ nguyên runtime và hành vi; OnEnable đăng ký movement lại. Destroy trực tiếp để Unity hủy cả visual con, không thu hồi visual từ OnDestroy.
 
-Đối tượng dùng `MovementManager` vẫn cần đăng ký khi bật, hủy đăng ký khi tắt,
-và tự quyết định hướng/tốc độ. PoolManager không quyết định cách di chuyển.
+Vỏ/visual dùng Lean Pool. Runtime/controller được new khi spawn, không tạo trong Update. Chưa thêm pool class thuần; chỉ bổ sung khi Profiler cho thấy cấp phát khi spawn gây vấn đề. Các lệnh pool/movement hiện gọi trên main thread.
 
-## Kết thúc scene
+## Đồng hồ loại quái và wave
 
-Installer cấu hình dispose theo thứ tự: pool, player, rồi buffer Jobs.
-Chỉ pool do dịch vụ tạo được hủy; không gọi thu hồi toàn cục lên các pool khác.
+EnemySpawnProgress giữ mốc spawn thành công đầu tiên của từng CharacterType:
 
+```text
+bậc = floor((thời gian game hiện tại - mốc đầu của loại) / GrowthInterval)
+bonus spawn = GrowthPerStep × bậc
+chỉ số mới = chỉ số gốc + bonus spawn
+HP ban đầu = maxHealth sau bonus
+```
+
+Spawn thêm cùng loại, hết quái sống, thu hồi vỏ và đổi wave không reset mốc. Quái đang sống giữ nguyên bonus đã nhận. Pause bằng timeScale = 0 dừng đồng hồ và không sinh thêm quái.
+
+Wave nối tiếp theo thời lượng, chọn ngẫu nhiên đều giữa các loại được cấu hình. Mỗi wave có nhịp và trần riêng; quái còn từ wave trước vẫn tính vào trần. Wave cuối tiếp tục chạy đến hết lượt. LevelManager.StartNewRun() reset wave/đồng hồ và thu hồi Enemy của lượt trước.
+
+## Kiểm tra và giới hạn
+
+Editor/CharacterSystemTests.cs có kiểm tra HP độc lập, đồng hồ theo loại, bonus chốt khi spawn, chuyển wave, database Enemy không cần level vĩnh viễn và tái sử dụng vỏ giữa hai phe. Chạy Test Runner > EditMode; bài kiểm tra vỏ tự vào Play Mode để kiểm tra callback Unity thật.
+
+Enemy chạm Player vẫn chỉ về pool như trước; chưa có sát thương va chạm, combat, game over hoặc điều kiện thắng wave. Skill trên SO vẫn là mẫu, chưa được khởi tạo/activate trong runtime. MovementManager tính bằng Jobs nhưng áp dụng Transform trên main thread, không thay thế bộ giải va chạm vật lý.
+
+Khi kết thúc scene, CharacterFactory thu hồi nhân vật theo thứ tự visual → vỏ trước, sau đó PoolManager giải phóng pool tổng quát; buffer movement được giải phóng sau cùng. Không thu hồi toàn cục các pool ngoài scene.

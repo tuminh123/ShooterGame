@@ -217,12 +217,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spawnCenter: {fileID: 519420032}
-  enemyPrefab: {fileID: 4700453359094026856, guid: 30895f67b71faeb47bd9ea4ceffd8c4a, type: 3}
+  waveConfig: {fileID: 11400000, guid: ab8b7fb8877c4f01a5f20d14548da409, type: 2}
   areaSize: {x: 10, y: 6}
   pointsPerSide: 4
   spawnZ: 0
-  spawnInterval: 0.5
-  maxAliveEnemies: 20
 --- !u!1 &1200030
 GameObject:
   m_ObjectHideFlags: 0
@@ -300,7 +298,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3fe2142060399a74080d543776fb1ff8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerPrefab: {fileID: 6849133883629349230, guid: 71e716e33fd232f43a10b5675cc70298, type: 3}
+  characterPrefab: {fileID: 6849133883629349230, guid: 71e716e33fd232f43a10b5675cc70298, type: 3}
   joystick: {fileID: 1615921478}
   playerSaveFile: PlayerSave.es3
   characterDatabase: {fileID: 11400000, guid: b2d25eaa2140499baa3ff69f92c5b88d, type: 2}

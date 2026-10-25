@@ -10,35 +10,70 @@ public class EnemySpawnManager : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform spawnCenter;   // * Tâm vùng sinh quái; mặc định lấy camera chính nếu chưa gán trong Inspector.
-    [SerializeField] private GameObject enemyPrefab;  // * Prefab quái để Lean Pool tạo mới hoặc lấy bản sao đã thu hồi.
+    [SerializeField] private WaveConfigSO waveConfig; // * Chọn loại quái/nhịp/trần theo wave; mọi loại dùng cùng vỏ từ CharacterFactory.
 
     [Header("Spawn Area")]
     // * Chiều rộng X và chiều cao Y của toàn vùng sinh, tính bằng world unit; chỉ sinh trên viền.
     [Tooltip("World-space width and height of the rectangular spawn perimeter.")]
-    [SerializeField] private Vector2 areaSize = new Vector2(10f, 6f);
+    [SerializeField] private Vector2 areaSize = new Vector2(10f, 6f); // * Kích thước toàn vùng spawn theo world unit, chỉ lấy điểm trên viền.
     // * Số điểm mỗi cạnh, tính cả góc; các góc chung chỉ thêm một lần.
     // * Tổng điểm = 4 * pointsPerSide - 4; giá trị 4 tạo 12 điểm.
     [Tooltip("Includes the two corners on each side. 4 creates 12 unique spawn points.")]
-    [SerializeField, Min(2)] private int pointsPerSide = 4;
+    [SerializeField, Min(2)] private int pointsPerSide = 4; // * Số điểm mỗi cạnh gồm hai góc; 4 tạo tổng cộng 12 điểm riêng biệt.
     [SerializeField] private float spawnZ = 0f;  // * Tọa độ Z của quái khi sinh; không phải khoảng cách ngẫu nhiên theo chiều sâu.
-
-    [Header("Spawn Rate")]
-    // * Khoảng cách giữa hai lần kiểm tra sinh, tính bằng giây theo thời gian game.
-    // ! Mỗi lượt sinh tối đa một quái, không sinh bù toàn bộ lượt bị trễ khi frame chậm.
-    [SerializeField, Min(0.01f)] private float spawnInterval = 0.5f;
-    [SerializeField, Min(1)] private int maxAliveEnemies = 20;  // * Giới hạn số quái đang hoạt động do manager này theo dõi.
 
     #endregion
 
     #region Spawn State & Dependencies
 
     // * Danh sách tọa độ XY trên viền; được xóa nội dung và dùng lại khi tính vùng mới.
-    private readonly List<Vector2> spawnPoints = new List<Vector2>();
-    // * Các quái đã sinh và chưa được loại khỏi danh sách; dọn lại theo mỗi nhịp spawn.
-    private readonly List<GameObject> activeEnemies = new List<GameObject>();
+    private readonly List<Vector2> spawnPoints = new List<Vector2>(); // * Buffer điểm spawn được xóa và tái sử dụng khi tâm di chuyển.
+    private readonly List<CharacterView> activeEnemies = new List<CharacterView>(); // * Được xóa ngay khi Released để tránh đếm nhầm vỏ đã dùng lại làm Player.
+    private readonly EnemySpawnProgress progress = new EnemySpawnProgress(); // * Đồng hồ riêng theo loại, giữ nguyên khi đổi wave hoặc không còn quái sống.
     private float nextSpawnTime;  // * Mốc Time.time sớm nhất được kiểm tra sinh tiếp, tính bằng giây.
+    private float runStartedAt; // * Mốc bắt đầu để chọn wave theo thời gian game, không dùng thời gian thực.
+    private WaveConfigSO.Wave currentWave; // * Nhận biết chuyển wave để áp dụng nhịp mới ngay.
+    private LevelManager levels; // * Nghe StartNewRun để reset wave, đồng hồ và thu hồi quái của lượt trước.
+    private CharacterFactory factory; // * Ghép runtime/hành vi với prefab vỏ chung.
+    private PlayerManager players; // * Truyền mục tiêu cho EnemyController và dừng spawn khi chưa có Player sống.
 
-    [Inject] private PoolManager poolManager;  // * Spawn kèm holder và injection cho bản sao mới.
+    [Inject]
+    public void Construct(CharacterFactory factory, PlayerManager players, LevelManager levels)
+    {
+        if (this.levels != null)
+            this.levels.RunReset -= ResetRun;
+        this.factory = factory;
+        this.players = players;
+        this.levels = levels;
+        this.levels.RunReset += ResetRun;
+    }
+
+    private void Start()
+    {
+        if (waveConfig == null)
+            throw new System.InvalidOperationException("Assign Wave Config on EnemySpawnManager.");
+        waveConfig.Validate();
+        ResetRun();
+    }
+
+    // * Reset chỉ khi bắt đầu lượt mới; tắt/bật spawner hoặc đổi wave không làm reset đồng hồ loại quái.
+    private void ResetRun()
+    {
+        while (activeEnemies.Count > 0)
+        {
+            int last = activeEnemies.Count - 1;
+            CharacterView enemy = activeEnemies[last];
+            activeEnemies.RemoveAt(last);
+            if (enemy == null)
+                continue;
+            enemy.Released -= OnEnemyReleased;
+            factory.Despawn(enemy);
+        }
+        progress.Reset();
+        runStartedAt = Time.time;
+        nextSpawnTime = Time.time;
+        currentWave = null;
+    }
 
     #endregion
 
@@ -51,21 +86,29 @@ public class EnemySpawnManager : MonoBehaviour
             spawnCenter = Camera.main.transform;
     }
 
-    // * Mỗi frame kiểm tra tham chiếu và thời gian; đến nhịp thì dọn danh sách, sinh nếu còn chỗ.
+    // * Mỗi frame chọn wave theo thời gian game; đến nhịp thì sinh nếu còn chỗ trong trần đang sống.
     private void Update()
     {
-        if (enemyPrefab == null || spawnCenter == null || Time.time < nextSpawnTime)
+        if (waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
+            !players.RuntimeData.IsAlive || Time.deltaTime <= 0f)
             return;
 
-        nextSpawnTime = Time.time + spawnInterval;
-        RemoveDespawnedEnemies();
+        WaveConfigSO.Wave wave = waveConfig.GetWave(Time.time - runStartedAt);
+        if (wave != currentWave)
+        {
+            currentWave = wave;
+            nextSpawnTime = Time.time;
+        }
+        if (wave == null || Time.time < nextSpawnTime)
+            return;
+        nextSpawnTime = Time.time + wave.spawnInterval;
 
-        if (activeEnemies.Count < maxAliveEnemies)
-            SpawnEnemy();
+        if (activeEnemies.Count < wave.maxAliveEnemies)
+            SpawnEnemy(wave.enemies[Random.Range(0, wave.enemies.Length)]);
     }
 
     // * Tính lại viền theo tâm hiện tại, chọn ngẫu nhiên một điểm và lấy quái từ Lean Pool.
-    private void SpawnEnemy()
+    private void SpawnEnemy(CharacterDataSO template)
     {
         BuildSpawnPoints();
         if (spawnPoints.Count == 0)
@@ -73,13 +116,16 @@ public class EnemySpawnManager : MonoBehaviour
 
         // * Chọn đều giữa các điểm có sẵn, không chọn liên tục mọi vị trí trên viền.
         Vector2 point = spawnPoints[Random.Range(0, spawnPoints.Count)];
-        GameObject enemy = poolManager.Spawn(
-            enemyPrefab,
-            new Vector3(point.x, point.y, spawnZ),
-            Quaternion.identity, PoolGroup.Enemies);
+        // * Bonus chốt vào runtime mới; không cộng vào SO, không cập nhật ngược các cá thể đang sống.
+        StatBonus bonus = progress.GetBonus(template, Time.time);
+        var runtime = new CharacterRuntimeData(template, 1, 1, default, default, default, bonus);
+        CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory),
+            new Vector3(point.x, point.y, spawnZ));
 
         if (enemy != null)
         {
+            progress.RecordSpawn(template.CharacterType, Time.time);
+            enemy.Released += OnEnemyReleased;
             activeEnemies.Add(enemy);
         }
     }
@@ -122,15 +168,17 @@ public class EnemySpawnManager : MonoBehaviour
 
     #region Active Enemy Tracking
 
-    // * Loại quái đã bị hủy hoặc bị tắt/thu hồi; duyệt ngược để xóa không làm bỏ sót phần tử.
-    private void RemoveDespawnedEnemies()
+    // * Loại ngay theo vòng đời, không đợi nhịp spawn rồi kiểm tra activeInHierarchy trên vỏ có thể đã đổi chủ.
+    private void OnEnemyReleased(CharacterView enemy)
     {
-        for (int i = activeEnemies.Count - 1; i >= 0; i--)
-        {
-            GameObject enemy = activeEnemies[i];
-            if (enemy == null || !enemy.activeInHierarchy)
-                activeEnemies.RemoveAt(i);
-        }
+        activeEnemies.Remove(enemy);
+    }
+
+    private void OnDestroy()
+    {
+        if (levels != null)
+            levels.RunReset -= ResetRun;
+        ResetRun();
     }
 
     #endregion

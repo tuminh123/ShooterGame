@@ -1,6 +1,6 @@
 
 // * Bộ dữ liệu chỉ số cơ bản; Serializable cho phép Unity lưu và hiển thị khi được chứa trong field phù hợp.
-// * CharacterRuntimeData sao chép bộ chỉ số này và áp dụng bonus cho Player; quái chưa nối runtime.
+// * CharacterRuntimeData sao chép bộ chỉ số này cho từng Player/Enemy và áp dụng bonus riêng của cá thể.
 [System.Serializable]
 public struct BaseStats
 {

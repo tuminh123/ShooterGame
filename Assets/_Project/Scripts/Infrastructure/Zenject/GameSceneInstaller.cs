@@ -9,7 +9,8 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     #region Scene References
 
-    [SerializeField] private Player playerPrefab;       // * Prefab tạo tại Vector3.zero khi vào game.
+    [SerializeField] private CharacterView characterPrefab; // * Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
+    [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, inject cho Player được tạo.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
 
@@ -28,8 +29,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     // * Một instance mỗi dịch vụ; Zenject quản lý Initialize, LateTick và Dispose.
     public override void InstallBindings()
     {
-        if (playerPrefab == null || joystick == null)
-            throw new InvalidOperationException("Assign Player Prefab and Joystick in GameSceneInstaller.");
+        if (characterPrefab == null || joystick == null)
+            throw new InvalidOperationException("Assign the shared Character Prefab and Joystick in GameSceneInstaller.");
         if (characterDatabase == null || levelDatabase == null)
             throw new InvalidOperationException("Assign Character Database and Level Database in GameSceneInstaller.");
         if (equipmentDatabase == null)
@@ -44,14 +45,17 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<CharacterLevelService>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<RunLevelService>().AsSingle().NonLazy();
         Container.Bind<LevelManager>().AsSingle().NonLazy();
-        Container.BindInstance(new PlayerManager.Settings(playerPrefab));
+        Container.BindInstance(new CharacterFactory.Settings(characterPrefab));
+        Container.BindInterfacesAndSelfTo<CharacterFactory>().AsSingle();
+        Container.BindInstance(new PlayerManager.Settings(defaultPlayerType));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<PlayerManager>(-100);
         Container.BindInitializableExecutionOrder<SaveManager>(-200);
-        // * Zenject dispose theo priority giảm dần: thu hồi pool trước, buffer Jobs sau cùng.
+        // * Thu hồi nhân vật theo thứ tự visual → vỏ trước khi pool tổng quát và buffer Jobs được giải phóng.
+        Container.BindDisposableExecutionOrder<CharacterFactory>(200);
         Container.BindDisposableExecutionOrder<PoolManager>(100);
         Container.BindDisposableExecutionOrder<PlayerManager>(50);
         Container.BindDisposableExecutionOrder<SaveManager>(-50);

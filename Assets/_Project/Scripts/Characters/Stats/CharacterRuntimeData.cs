@@ -7,6 +7,7 @@ public sealed class CharacterRuntimeData
     #region Character Identity
 
     public CharacterType CharacterType { get; }  // * Type được sao chép từ template khi tạo nhân vật.
+    public CharacterTeam Team { get; } // * Phe riêng của cá thể, sao chép từ template; boss thuộc Enemy.
 
     public string DisplayName { get; }  // * Tên được sao chép từ template khi tạo nhân vật.
 
@@ -35,6 +36,7 @@ public sealed class CharacterRuntimeData
     public StatBonus RunBonus { get; private set; }  // * Tổng chỉ số cộng thêm từ level trong trận: bonus mỗi cấp × (RunLevel - 1).
 
     public StatBonus EquipmentBonus { get; private set; }  // * Tổng bonus của trang bị đang mặc; bằng 0 khi chưa mặc trang bị.
+    public StatBonus SpawnBonus { get; } // * Bonus chốt tại lúc spawn; quái đang sống không nhận các mốc tăng sức mạnh tiếp theo.
 
     #endregion
 
@@ -53,7 +55,8 @@ public sealed class CharacterRuntimeData
         int runLevel,
         StatBonus permanentBonus,
         StatBonus runBonus,
-        StatBonus equipmentBonus)
+        StatBonus equipmentBonus,
+        StatBonus spawnBonus = default)
     {
         if (template == null)
         {
@@ -61,8 +64,10 @@ public sealed class CharacterRuntimeData
         }
 
         CharacterType = template.CharacterType;
+        Team = template.Team;
         DisplayName = template.DisplayName;
         BaseStats = template.BaseStats;
+        SpawnBonus = spawnBonus;
 
         Recalculate(permanentLevel, runLevel, permanentBonus, runBonus, equipmentBonus);
 
@@ -94,7 +99,7 @@ public sealed class CharacterRuntimeData
         EquipmentBonus = equipmentBonus;
 
         // * Cộng các nguồn bonus rồi áp dụng một lần lên bản chỉ số gốc.
-        FinalStats = (permanentBonus + runBonus + equipmentBonus).ApplyTo(BaseStats);
+        FinalStats = (permanentBonus + runBonus + equipmentBonus + SpawnBonus).ApplyTo(BaseStats);
 
         // * Giữ HP hiện tại; nếu MaxHealth giảm thì HP không được vượt giới hạn mới.
         CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);

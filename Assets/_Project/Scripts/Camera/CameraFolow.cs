@@ -49,7 +49,7 @@ public class CameraFolow : MonoBehaviour
     }
 
     // * Nhận nhân vật mới và reset quán tính bám mục tiêu cũ.
-    private void OnPlayerChanged(Player player)
+    private void OnPlayerChanged(CharacterView player)
     {
         target = player != null ? player.transform : null;
         velocity = Vector3.zero;
