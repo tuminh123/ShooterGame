@@ -61,7 +61,9 @@ public sealed class PlayerManager : IInitializable, IDisposable
     // * Zenject gọi khi scene bắt đầu; vị trí xuất hiện luôn là Vector3.zero.
     public void Initialize()
     {
-        SpawnPlayer();
+        // Keep the scene UI available so a failed save can be reset explicitly.
+        if (saves.IsLoaded)
+            SpawnPlayer();
     }
 
     #endregion

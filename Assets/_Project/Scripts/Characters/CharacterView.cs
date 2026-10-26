@@ -35,6 +35,16 @@ public sealed class CharacterView : MonoBehaviour
         if (template.CharacterType != runtime.CharacterType || template.Team != runtime.Team)
             throw new ArgumentException("Character template and runtime must match.");
 
+        // * Vỏ pool có thể vừa là Enemy rồi được dùng làm Player; luôn gán lại layer chứa hitbox.
+        // * Chỉ đổi layer của vỏ; visual con không tham gia truy vấn hàng xóm hoặc va chạm gameplay.
+        string layerName = template.Team == CharacterTeam.Enemy
+            ? GameConstants.PhysicsLayers.Enemy
+            : GameConstants.PhysicsLayers.Player;
+        int characterLayer = LayerMask.NameToLayer(layerName);
+        if (characterLayer < 0)
+            throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
+        gameObject.layer = characterLayer;
+
         Rigidbody2D body = GetComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
@@ -82,12 +92,23 @@ public sealed class CharacterView : MonoBehaviour
         controller.Tick(this, RuntimeData);
     }
 
-    public void Move(Vector2 direction, float speed, float maxDistance = float.PositiveInfinity)
+    // * Mặc định nhìn theo hướng chạy; Enemy có thể truyền hướng đến Player khi đang lùi ra khỏi hàng xóm.
+    // * facingDirection chỉ là lệnh hiển thị của frame hiện tại, không thêm dữ liệu cấu hình vào template chung.
+    public void Move(Vector2 direction, float speed, float maxDistance = float.PositiveInfinity,
+        float? facingDirection = null)
     {
-        if (Mathf.Abs(direction.x) > 0.01f && sprites != null)
-            foreach (SpriteRenderer sprite in sprites)
-                sprite.flipX = direction.x < 0f;
+        FaceDirection(facingDirection ?? direction.x);
         movement?.SetMovement(movementHandle, direction, speed, maxDistance);
+    }
+
+    private void FaceDirection(float horizontalDirection)
+    {
+        if (Mathf.Abs(horizontalDirection) <= 0.01f || sprites == null)
+            return;
+
+        bool flip = horizontalDirection < 0f;
+        foreach (SpriteRenderer sprite in sprites)
+            sprite.flipX = flip;
     }
 
     private void OnTriggerEnter2D(Collider2D other) => ForwardContact(other);

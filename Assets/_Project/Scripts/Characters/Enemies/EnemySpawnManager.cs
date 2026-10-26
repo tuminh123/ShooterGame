@@ -12,6 +12,9 @@ public class EnemySpawnManager : MonoBehaviour
     [SerializeField] private Transform spawnCenter;   // * Tâm vùng sinh quái; mặc định lấy camera chính nếu chưa gán trong Inspector.
     [SerializeField] private WaveConfigSO waveConfig; // * Chọn loại quái/nhịp/trần theo wave; mọi loại dùng cùng vỏ từ CharacterFactory.
 
+    [Header("Enemy Separation")]
+    [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings(); // * Một bộ cấu hình cho quái do spawner tạo; không thêm trạng thái né lên CharacterDataSO.
+
     [Header("Spawn Area")]
     // * Chiều rộng X và chiều cao Y của toàn vùng sinh, tính bằng world unit; chỉ sinh trên viền.
     [Tooltip("World-space width and height of the rectangular spawn perimeter.")]
@@ -119,7 +122,8 @@ public class EnemySpawnManager : MonoBehaviour
         // * Bonus chốt vào runtime mới; không cộng vào SO, không cập nhật ngược các cá thể đang sống.
         StatBonus bonus = progress.GetBonus(template, Time.time);
         var runtime = new CharacterRuntimeData(template, 1, 1, default, default, default, bonus);
-        CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory),
+        // * Controller mới mỗi lần spawn: hướng tách cache và lịch quét không đi theo vỏ được tái sử dụng.
+        CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory, separation),
             new Vector3(point.x, point.y, spawnZ));
 
         if (enemy != null)

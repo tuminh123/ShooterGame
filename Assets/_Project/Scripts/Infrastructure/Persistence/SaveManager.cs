@@ -88,6 +88,8 @@ public sealed class SaveManager : IInitializable, IDisposable
         }
         catch (Exception exception)
         {
+            data = null;
+            characterLookup.Clear();
             IsLoaded = false;
             LastError = exception;
             Debug.LogError($"Player save load failed; writing is blocked: {exception.Message}");
@@ -192,10 +194,42 @@ public sealed class SaveManager : IInitializable, IDisposable
         }
         catch (Exception exception)
         {
+            IsDirty = true;
             LastError = exception;
             Debug.LogError($"Player save write failed: {exception.Message}");
             return false;
         }
+    }
+
+    public bool SaveIfDirty()
+    {
+        // Application callbacks may arrive while the scene container is being disposed.
+        return !disposed && IsLoaded && (!IsDirty || Save());
+    }
+
+    // Explicit reset also works when loading failed. Delete only the configured player file.
+    // Commit RAM after deletion succeeds so Dispose cannot write the previous profile back.
+    public bool ResetData()
+    {
+        EnsureNotDisposed();
+        var defaults = new PlayerSaveData();
+        try
+        {
+            ES3.DeleteFile(storage);
+        }
+        catch (Exception exception)
+        {
+            LastError = exception;
+            Debug.LogError($"Player save reset failed: {exception.Message}");
+            return false;
+        }
+
+        data = defaults;
+        characterLookup.Clear();
+        IsLoaded = true;
+        IsDirty = false;
+        LastError = null;
+        return true;
     }
 
     // * Lưu thay đổi còn lại khi Zenject hủy scene; không thay thế việc Save ngay tại các mốc tiến trình quan trọng.

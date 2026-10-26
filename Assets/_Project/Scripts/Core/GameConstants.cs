@@ -2,6 +2,13 @@
 // ! Khi thêm giá trị mới, đặt vào nhóm phù hợp để tránh viết chuỗi trực tiếp ở nhiều script.
 public static class GameConstants
 {
+    // * Tên layer phải khớp ProjectSettings/TagManager; prefab vỏ được gán lại theo phe mỗi lần spawn.
+    public static class PhysicsLayers
+    {
+        public const string Player = "Player";
+        public const string Enemy = "Enemy";
+    }
+
     // * Tên file và key Easy Save dành riêng cho tiến trình người chơi.
     public static class SaveKeys
     {

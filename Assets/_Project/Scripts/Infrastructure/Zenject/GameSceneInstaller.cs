@@ -6,6 +6,7 @@ using Zenject;
 // * Điểm cấu hình prefab player, joystick và các dịch vụ class thuần cho scene.
 public sealed class GameSceneInstaller : MonoInstaller
 {
+    private SaveManager saves;
 
     #region Scene References
 
@@ -63,5 +64,22 @@ public sealed class GameSceneInstaller : MonoInstaller
     }
 
     #endregion
+
+    // Resolve after installation; SaveManager is bound by this installer itself.
+    public override void Start() => saves = Container.Resolve<SaveManager>();
+
+    private void OnApplicationPause(bool paused)
+    {
+        if (paused)
+            saves?.SaveIfDirty();
+    }
+
+    private void OnApplicationFocus(bool focused)
+    {
+        if (!focused)
+            saves?.SaveIfDirty();
+    }
+
+    private void OnApplicationQuit() => saves?.SaveIfDirty();
 
 }
