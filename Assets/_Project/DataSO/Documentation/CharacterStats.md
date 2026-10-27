@@ -4,11 +4,11 @@
 
 `CharacterDataSO` là template chứa `BaseStats` và hai danh sách `List<ISkill>`: bị động, chủ động. Player, enemy và boss có thể dùng chung cấu trúc này, mỗi loại có asset riêng.
 
-Code hiện tại chỉ khai báo dữ liệu. Những công thức dưới đây là quy tắc thiết kế để triển khai chiến đấu sau, chưa được nối vào Player, EnemyFollower hoặc MovementManager.
+Damage, crit theo bậc và defense đã được nối vào CharacterRuntimeData và skill bắn đạn. Chi tiết vòng đời skill, tìm kiếm và prefab nằm trong `CombatAndSkills.md`; các phần hiệu ứng bất lợi phía dưới vẫn là quy tắc dự kiến.
 
 Skill được lưu bằng `[SerializeReference]`: mỗi phần tử phải là class thuần có `[System.Serializable]` và triển khai `ISkill`. Không cần skill DataSO. Hai component cũ `PassiveSkill` và `ProactiveSkills` vẫn là MonoBehaviour, chưa triển khai ISkill và không dùng được trong các danh sách SerializeReference này. Chưa sửa hai component đó ở bước này.
 
-Inspector mặc định chưa có bộ chọn class để khởi tạo phần tử ISkill. Muốn chọn và thêm loại skill trong Inspector cần custom editor/property drawer riêng; bước này chưa triển khai phần đó. Hai property công khai cung cấp quyền đọc danh sách, chưa có API thêm/xóa skill. Việc thêm/xóa trong trận sẽ thuộc class runtime sau này.
+CharacterSkillEditor cung cấp nút thêm ProjectileSkill vào activeSkills. Mỗi mẫu được CreateRuntime để tách cooldown/trạng thái theo lượt spawn. Chưa có API thêm/xóa skill trong trận.
 
 ## 2. Các field và đơn vị nhập
 
@@ -20,6 +20,7 @@ Inspector mặc định chưa có bộ chọn class để khởi tạo phần t�
 | `critChance` | Xác suất và bậc crit | 0.05 = 5%; 1 = 100%; 2.5 = 250% | 0.05 |
 | `critDamageMultiplier` | Tổng hệ số crit bậc 1 | 1.5 = 150% tổng sát thương; tối thiểu 1 | 1.5 |
 | `moveSpeed` | Tốc độ chạy | Đơn vị Unity mỗi giây, không âm | 3 |
+| `range` | Phạm vi tìm mục tiêu | World unit, không âm | 2 |
 | `dodge` | Kháng hiệu ứng bất lợi | Điểm kháng, không phải phần trăm | 0 |
 | `accuracy` | Khả năng gây hiệu ứng bất lợi | Điểm chính xác, không phải phần trăm | 0 |
 
@@ -243,14 +244,14 @@ Giữ phép tính sát thương bằng float, chỉ làm tròn để hiển th�
 
 ## 12. Template và runtime sau này
 
-- Copy BaseStats theo giá trị, tạo hai danh sách skill runtime mới.
+- Copy BaseStats theo giá trị; CharacterSkills tạo danh sách runtime từ cả hai nhóm mẫu.
 - Mỗi phần tử ISkill có trạng thái như cooldown, thời lượng hoặc IsActive phải được tạo bản sao runtime riêng cho từng nhân vật. Chỉ tạo list mới sẽ vẫn dùng chung đối tượng skill và chưa đủ để cách ly trạng thái.
 - Thêm/xóa skill trong trận tác động danh sách runtime, không sửa asset template.
 - Nếu dùng MemberwiseClone cho class runtime, cần tự sao chép list và các trạng thái tham chiếu phải độc lập. Shallow copy không tự xử lý chúng.
-- Không cần clone toàn bộ ScriptableObject chỉ để lấy bộ chỉ số và danh sách skill. Cách clone từng skill sẽ được chốt khi triển khai runtime; ISkill hiện chưa có hợp đồng clone.
+- Không clone toàn bộ ScriptableObject. ISkill.CreateRuntime(context) tạo bản runtime riêng; CharacterSkills Activate/Tick/Deactivate theo vòng đời cá thể.
 
-Class runtime, API thêm/xóa skill, hành vi skill và kết nối vào nhân vật sẽ thực hiện ở bước sau. Việc khai báo DataSO chưa làm thay đổi tốc độ hoặc sức mạnh của nhân vật đang có trong scene.
+CharacterRuntimeData và ProjectileSkill đã được nối vào nhân vật. API thêm/xóa skill trong trận và skill hiệu ứng bất lợi chưa được triển khai.
 
 ## 13. Config level và save người chơi
 
-Đã bổ sung PermanentLevelConfigSO, RunLevelConfigSO, StatBonus, RunLevelProgress và SaveManager. Chi tiết công thức EXP, chi phí nâng cấp vĩnh viễn, quy tắc cộng bonus và ví dụ API nằm trong [hướng dẫn chung DataSO](../README.md). Những script này chưa tự nối vào luồng spawn hoặc thay thế chỉ số đang dùng trên nhân vật.
+PermanentLevelConfigSO, RunLevelConfigSO, StatBonus, RunLevelProgress và SaveManager đã được nối vào luồng spawn. Chi tiết EXP, nâng cấp vĩnh viễn và cộng bonus nằm trong [hướng dẫn chung DataSO](../README.md).

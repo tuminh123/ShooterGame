@@ -185,6 +185,8 @@ public sealed class MovementManager : ILateTickable, IDisposable
             float3 position = buffer[i].Position;
             entries[i].Target.position = new Vector3(position.x, position.y, position.z);
         }
+        // * Đánh dấu để nhóm truy vấn sau đồng bộ một lần, không đồng bộ từng Enemy.
+        CharacterSearch.InvalidatePhysics();
     }
 
     #endregion

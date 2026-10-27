@@ -12,6 +12,10 @@ public interface ISkill
     public void Activate();
     // * Yêu cầu ngừng kỹ năng; lớp triển khai tự xử lý việc gỡ hiệu ứng nếu có.
     public void Deactivate();
+    // * Mẫu SO tạo một runtime mới; tuyệt đối không Activate/Tick trực tiếp mẫu dùng chung.
+    ISkill CreateRuntime(SkillContext context);
+    // * CharacterSkills gọi theo đồng hồ game, không chạy khi pause hoặc chủ sở hữu đã chết.
+    void Tick(float deltaTime);
 
     #endregion
 

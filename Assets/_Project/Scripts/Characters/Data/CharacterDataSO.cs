@@ -45,7 +45,7 @@ public sealed class CharacterDataSO : ScriptableObject
     #region Starting Skill Templates
 
     // ! SerializeReference lưu class thuần có [System.Serializable] triển khai ISkill; không hỗ trợ MonoBehaviour hoặc ScriptableObject.
-    // ! Inspector mặc định chưa có bộ chọn loại class; muốn chọn/thêm loại skill trong Inspector cần custom editor riêng.
+    // * CharacterSkillEditor có nút thêm ProjectileSkill; các field mẫu vẫn chỉnh bằng Inspector.
     [SerializeReference] private List<ISkill> passiveSkills = new List<ISkill>();  // * Các skill bị động mẫu; mỗi phần tử là một đối tượng triển khai ISkill.
     [SerializeReference] private List<ISkill> activeSkills = new List<ISkill>();   // * Các skill chủ động mẫu; phân nhóm bằng danh sách chứa chúng.
 

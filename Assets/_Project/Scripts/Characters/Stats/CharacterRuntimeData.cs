@@ -111,7 +111,31 @@ public sealed class CharacterRuntimeData
 
     #region Health Changes
 
-    // * Số âm trừ HP, số dương hồi HP; công thức sát thương sẽ thuộc combat service.
+    // * Character tính đầu ra trước khi bắn; crit theo bậc cộng dồn trong tài liệu chỉ số.
+    public DamageInfo CreateDamage(float multiplier)
+    {
+        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
+            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        float chance = Mathf.Max(0f, FinalStats.critChance);
+        int tier = Mathf.FloorToInt(chance);
+        if (UnityEngine.Random.value < chance - tier)
+            tier++;
+        float critMultiplier = 1f + tier * (Mathf.Max(1f, FinalStats.critDamageMultiplier) - 1f);
+        return new DamageInfo(Mathf.Max(0f, FinalStats.damage) * multiplier * critMultiplier, Team, tier);
+    }
+
+    // * Luật nhận damage thuộc Character; nguồn đánh không biết defense hoặc HP của mục tiêu.
+    public DamageResult ReceiveDamage(DamageInfo damage)
+    {
+        if (!IsAlive || damage.SourceTeam == Team || damage.Amount <= 0f)
+            return default;
+        float before = CurrentHealth;
+        float received = damage.Amount * (100f / (100f + Mathf.Max(0f, FinalStats.defense)));
+        ApplyHealthChange(-received);
+        return new DamageResult(before - CurrentHealth, !IsAlive);
+    }
+
+    // * Số âm trừ HP, số dương hồi HP; hàm này chỉ thay đổi HP, không tự quyết định despawn.
     public void ApplyHealthChange(float amount)
     {
         if (float.IsNaN(amount) || float.IsInfinity(amount))

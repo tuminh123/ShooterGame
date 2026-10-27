@@ -30,8 +30,9 @@ public sealed class PlayerController : ICharacterController
         view.Move(input, runtime.FinalStats.moveSpeed * input.magnitude);
     }
 
-    public void OnContact(CharacterView view, CharacterRuntimeData runtime, CharacterView other)
+    public void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
-        // * Chưa có luật va chạm riêng cho Player; combat sẽ xử lý sát thương khi được bổ sung.
+        // * Giữ vỏ cho màn hình game over sau này; skill ngừng tick khi chủ sở hữu hết HP.
+        view.Move(Vector2.zero, 0f);
     }
 }

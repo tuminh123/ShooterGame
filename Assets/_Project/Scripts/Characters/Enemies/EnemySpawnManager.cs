@@ -15,6 +15,9 @@ public class EnemySpawnManager : MonoBehaviour
     [Header("Enemy Separation")]
     [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings(); // * Một bộ cấu hình cho quái do spawner tạo; không thêm trạng thái né lên CharacterDataSO.
 
+    [Header("Enemy Contact Attack")]
+    [SerializeField] private EnemyController.ContactSettings contactAttack = new EnemyController.ContactSettings(); // * Damage khi chạm và phản lực sau hit; mỗi controller chốt cấu hình tại spawn.
+
     [Header("Spawn Area")]
     // * Chiều rộng X và chiều cao Y của toàn vùng sinh, tính bằng world unit; chỉ sinh trên viền.
     [Tooltip("World-space width and height of the rectangular spawn perimeter.")]
@@ -123,7 +126,7 @@ public class EnemySpawnManager : MonoBehaviour
         StatBonus bonus = progress.GetBonus(template, Time.time);
         var runtime = new CharacterRuntimeData(template, 1, 1, default, default, default, bonus);
         // * Controller mới mỗi lần spawn: hướng tách cache và lịch quét không đi theo vỏ được tái sử dụng.
-        CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory, separation),
+        CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory, separation, contactAttack),
             new Vector3(point.x, point.y, spawnZ));
 
         if (enemy != null)

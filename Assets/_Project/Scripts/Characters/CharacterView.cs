@@ -4,8 +4,8 @@ using Zenject;
 
 // * Vỏ Unity dùng chung cho mọi nhân vật; không quyết định input hay AI.
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
-[RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
-public sealed class CharacterView : MonoBehaviour
+[RequireComponent(typeof(BoxCollider2D))]
+public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 {
     private MovementManager movement; // * Dịch vụ áp dụng chuyển động, nhận lệnh từ hành vi hiện tại qua Move.
     private PoolManager pools; // * Pool của vỏ và visual; visual được thu hồi riêng khi tháo vỏ.
@@ -14,15 +14,26 @@ public sealed class CharacterView : MonoBehaviour
     private GameObject visual; // * Bản sao visual con, lấy từ prefab được khai báo trong CharacterDataSO.
     private SpriteRenderer[] sprites; // * Cache để lật hướng hiển thị, không tìm component trong từng frame.
     private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
+    private BoxCollider2D hitbox; // * Một hitbox trên vỏ gốc; tìm kiếm dùng TryGetComponent tại cùng object.
+    private ProjectileService projectiles;
+    private CharacterSkills skills; // * Runtime skill riêng của lượt spawn, không sửa danh sách mẫu trên SO.
+    private Color[] originalSpriteColors; // * Màu visual trước hiệu ứng, cần phục hồi trước khi trả visual về pool.
+    private float damageFlashRemaining;
+
+    [Header("Damage Feedback")]
+    [SerializeField, Min(0.01f)] private float damageFlashDuration = 0.12f;
+    [SerializeField] private Color damageFlashColor = new Color(1f, 0.2f, 0.2f, 1f);
 
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
+    public Vector3 HitPosition => hitbox != null ? transform.TransformPoint(hitbox.offset) : transform.position;
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools)
+    public void Construct(MovementManager movement, PoolManager pools, ProjectileService projectiles)
     {
         this.movement = movement;
         this.pools = pools;
+        this.projectiles = projectiles;
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
@@ -45,13 +56,8 @@ public sealed class CharacterView : MonoBehaviour
             throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
         gameObject.layer = characterLayer;
 
-        Rigidbody2D body = GetComponent<Rigidbody2D>();
-        body.bodyType = RigidbodyType2D.Kinematic;
-        body.gravityScale = 0f;
-        body.useFullKinematicContacts = true;
-        body.velocity = Vector2.zero;
-        body.angularVelocity = 0f;
-        BoxCollider2D hitbox = GetComponent<BoxCollider2D>();
+        // * Di chuyển bằng MovementManager; collider chỉ phục vụ query, không cần Rigidbody2D.
+        hitbox = GetComponent<BoxCollider2D>();
         hitbox.enabled = true;
         hitbox.isTrigger = true;
         hitbox.size = template.ColliderSize;
@@ -70,6 +76,11 @@ public sealed class CharacterView : MonoBehaviour
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
+        originalSpriteColors = new Color[sprites.Length];
+        for (int i = 0; i < sprites.Length; i++)
+            originalSpriteColors[i] = sprites[i].color;
+        damageFlashRemaining = 0f;
+        skills = new CharacterSkills(template, new SkillContext(this, projectiles));
     }
 
     private void OnEnable()
@@ -77,6 +88,7 @@ public sealed class CharacterView : MonoBehaviour
         if (RuntimeData == null)
             return;
         movementHandle = movement.Register(transform);
+        CharacterSearch.InvalidatePhysics();
         foreach (Animator animator in animators)
         {
             animator.Rebind();
@@ -88,8 +100,12 @@ public sealed class CharacterView : MonoBehaviour
     {
         if (RuntimeData == null)
             return;
+        UpdateDamageFlash(Time.deltaTime);
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
+        // * Controller có thể despawn ngay trong Tick; luôn kiểm tra lại lượt đang hoạt động.
+        if (RuntimeData != null && RuntimeData.IsAlive && Time.deltaTime > 0f)
+            skills?.Tick(Time.deltaTime);
     }
 
     // * Mặc định nhìn theo hướng chạy; Enemy có thể truyền hướng đến Player khi đang lùi ra khỏi hàng xóm.
@@ -111,19 +127,93 @@ public sealed class CharacterView : MonoBehaviour
             sprite.flipX = flip;
     }
 
-    private void OnTriggerEnter2D(Collider2D other) => ForwardContact(other);
-    private void OnCollisionEnter2D(Collision2D other) => ForwardContact(other.collider);
-
-    private void ForwardContact(Component other)
+    #if UNITY_EDITOR
+    // * Bật Gizmos và chọn vỏ Enemy khi đang chơi để xem phạm vi quét tránh nhau.
+    // * Chỉ vẽ cho cá thể đang hoạt động; vỏ chưa khởi tạo hoặc đã trả về pool không có vòng debug.
+    // * Controller giữ bán kính và cách vẽ riêng của Enemy, vỏ chỉ chuyển tiếp callback từ Unity Editor.
+    private void OnDrawGizmosSelected()
     {
-        CharacterView target = other.GetComponentInParent<CharacterView>();
-        if (RuntimeData != null && RuntimeData.IsAlive && target != null && target != this)
-            controller.OnContact(this, RuntimeData, target);
+        if (isActiveAndEnabled && RuntimeData != null && RuntimeData.IsAlive &&
+            controller is EnemyController enemy)
+            enemy.DrawSeparationGizmo(transform.position);
     }
+    #endif
+
+    // * View chỉ nối hitbox tới luật nhận damage của Character runtime.
+    // * Hành vi riêng quyết định chết; Enemy thu hồi, Player dừng lại.
+    public DamageResult ReceiveDamage(DamageInfo damage)
+    {
+        if (!isActiveAndEnabled || RuntimeData == null)
+            return default;
+        CharacterRuntimeData current = RuntimeData;
+        DamageResult result = current.ReceiveDamage(damage);
+        // * Chỉ nháy khi Player thực sự mất HP; hit bị từ chối không tạo phản hồi giả.
+        // * Làm trước xử lý chết để đòn cuối vẫn được hiển thị trên vỏ Player còn giữ lại.
+        if (result.Accepted && current.Team == CharacterTeam.Player && ReferenceEquals(RuntimeData, current))
+            StartDamageFlash();
+        if (result.Killed && ReferenceEquals(RuntimeData, current))
+            controller.OnDeath(this, current);
+        return result;
+    }
+
+    #region Contact Geometry & Damage Feedback
+
+    // * Enemy đã có tham chiếu Player nên chỉ so hai hitbox, không quét lại toàn bộ layer.
+    // * Không dùng callback trigger hoặc Rigidbody2D; bounds loại nhanh cặp ở xa trước phép đo chính xác.
+    public bool Overlaps(CharacterView other)
+    {
+        if (other == null || other == this || !isActiveAndEnabled || !other.isActiveAndEnabled ||
+            hitbox == null || other.hitbox == null || !hitbox.enabled || !other.hitbox.enabled)
+            return false;
+        CharacterSearch.SynchronizePhysics();
+        if (!hitbox.bounds.Intersects(other.hitbox.bounds))
+            return false;
+        ColliderDistance2D contact = hitbox.Distance(other.hitbox);
+        return contact.isValid && contact.distance <= 0f;
+    }
+
+    private void StartDamageFlash()
+    {
+        damageFlashRemaining = Mathf.Max(0.01f, damageFlashDuration);
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            if (sprites[i] == null)
+                continue;
+            Color color = originalSpriteColors[i] * damageFlashColor;
+            color.a = originalSpriteColors[i].a;
+            sprites[i].color = color;
+        }
+    }
+
+    private void UpdateDamageFlash(float deltaTime)
+    {
+        if (damageFlashRemaining <= 0f || deltaTime <= 0f)
+            return;
+        damageFlashRemaining -= deltaTime;
+        if (damageFlashRemaining <= 0f)
+            RestoreSpriteColors();
+    }
+
+    private void RestoreSpriteColors()
+    {
+        damageFlashRemaining = 0f;
+        if (sprites == null || originalSpriteColors == null)
+            return;
+        for (int i = 0; i < sprites.Length; i++)
+            if (sprites[i] != null)
+                sprites[i].color = originalSpriteColors[i];
+    }
+
+    #endregion
 
     // * Unity đang thay đổi trạng thái cả hierarchy trong OnDisable: chỉ dừng movement, không thu hồi/reparent visual.
     // * Giữ data/hành vi để việc tắt rồi bật tạm thời có thể tiếp tục cùng cá thể.
-    private void OnDisable() => StopMovement();
+    private void OnDisable()
+    {
+        StopMovement();
+        RestoreSpriteColors();
+        CharacterSearch.InvalidatePhysics();
+    }
 
     private void StopMovement()
     {
@@ -136,10 +226,13 @@ public sealed class CharacterView : MonoBehaviour
     private void OnDestroy()
     {
         StopMovement();
+        skills?.Dispose();
+        skills = null;
         controller = null;
         RuntimeData = null;
         visual = null;
         sprites = null;
+        originalSpriteColors = null;
         animators = null;
         NotifyReleased();
     }
@@ -149,9 +242,15 @@ public sealed class CharacterView : MonoBehaviour
     internal void ClearSpawn()
     {
         StopMovement();
+        // * Visual có pool riêng: luôn trả màu gốc trước khi visual được cá thể khác mượn.
+        RestoreSpriteColors();
+        skills?.Dispose();
+        skills = null;
+        CharacterSearch.InvalidatePhysics();
         controller = null;
         RuntimeData = null;
         sprites = null;
+        originalSpriteColors = null;
         animators = null;
         if (visual != null)
         {

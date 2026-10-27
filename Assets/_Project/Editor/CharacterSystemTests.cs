@@ -108,6 +108,7 @@ public sealed class CharacterSystemTests
         var pools = new PoolManager(container);
         container.BindInstance(movement);
         container.BindInstance(pools);
+        container.BindInstance(new ProjectileService(pools));
         CharacterView prefab = Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>();
         var factory = new CharacterFactory(new CharacterFactory.Settings(prefab), pools);
         CharacterDataSO enemyData = Load<CharacterDataSO>(DataPath + "ForagingMaggot_Character.asset");
@@ -161,9 +162,9 @@ public sealed class CharacterSystemTests
             Assert.That(reused, Is.SameAs(enemy));
             Assert.That(reused.RuntimeData.CurrentHealth, Is.EqualTo(enemyData.BaseStats.maxHealth));
 
-            // * Regression theo lỗi thực tế: chạm Player phải đi qua factory, trả visual trước vỏ.
+            // * Hành vi chạm Player chỉ là test cũ; hiện chỉ damage gây chết mới trả visual/vỏ về pool.
             CharacterView target = factory.Spawn(playerData, Runtime(playerData), new PlayerController(null), Vector3.zero);
-            enemyBehavior.OnContact(reused, reused.RuntimeData, target);
+            reused.ReceiveDamage(new DamageInfo(100000f, CharacterTeam.Player));
             Assert.That(reused.RuntimeData, Is.Null);
             Assert.That(reused.transform.childCount, Is.Zero);
             Assert.That(movement.Count, Is.EqualTo(1));

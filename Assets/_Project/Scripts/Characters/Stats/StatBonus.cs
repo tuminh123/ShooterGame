@@ -62,6 +62,7 @@ public struct StatBonus
         source.damage = UnityEngine.Mathf.Max(0f, source.damage + damage);
         source.defense = UnityEngine.Mathf.Max(0f, source.defense + defense);
         source.moveSpeed = UnityEngine.Mathf.Max(0f, source.moveSpeed + moveSpeed);
+        source.range = UnityEngine.Mathf.Max(0f, source.range); // * Chưa có nguồn bonus range trong gameplay hiện tại.
         source.critChance = UnityEngine.Mathf.Max(0f, source.critChance + critChance);
         source.critDamageMultiplier = UnityEngine.Mathf.Max(1f, source.critDamageMultiplier + critDamageMultiplier);
         source.dodge = UnityEngine.Mathf.Max(0f, source.dodge + dodge);

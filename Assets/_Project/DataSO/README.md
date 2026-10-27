@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-Hai danh sách ISkill mẫu để rỗng vì chưa có class skill cụ thể và menu chọn skill. Không dùng skill DataSO.
+Blessed Gladiator có ProjectileSkill trong activeSkills; CharacterSkillEditor có nút thêm skill bắn. Skill dùng SerializeReference và tạo runtime riêng, không dùng skill DataSO. Xem `Documentation/CombatAndSkills.md` để chỉnh đạn, range, cooldown và hiểu vòng đời ArrayPool.
 
 ## 10. Phạm vi kết nối gameplay
 

@@ -11,6 +11,7 @@ public struct BaseStats
     [UnityEngine.Min(0f)] public float damage;     // * Sát thương cơ bản, nhân với hệ số skill trước khi tính crit và defense.
     [UnityEngine.Min(0f)] public float defense;    // * Điểm phòng thủ; sát thương nhận = sát thương đầu vào × 100 / (100 + defense).
     [UnityEngine.Min(0f)] public float moveSpeed;  // * Tốc độ chạy, tính bằng đơn vị Unity mỗi giây.
+    [UnityEngine.Min(0f)] public float range;      // * Bán kính tìm mục tiêu; không phải bán kính đạn hoặc vùng nổ.
 
     #endregion
 
@@ -37,6 +38,7 @@ public struct BaseStats
         damage = 10f,
         defense = 0f,
         moveSpeed = 3f,
+        range = 2f,
         critChance = 0.05f,
         critDamageMultiplier = 1.5f,
         dodge = 0f,
