@@ -11,6 +11,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Scene References
 
     [SerializeField] private CharacterView characterPrefab; // * Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
+    [SerializeField] private ProjectileView projectilePrefab; // Shared projectile shell, configured by each skill's projectile data.
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, inject cho Player được tạo.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
@@ -30,8 +31,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     // * Một instance mỗi dịch vụ; Zenject quản lý Initialize, LateTick và Dispose.
     public override void InstallBindings()
     {
-        if (characterPrefab == null || joystick == null)
-            throw new InvalidOperationException("Assign the shared Character Prefab and Joystick in GameSceneInstaller.");
+        if (characterPrefab == null || projectilePrefab == null || joystick == null)
+            throw new InvalidOperationException("Assign shared Character/Projectile prefabs and Joystick in GameSceneInstaller.");
         if (characterDatabase == null || levelDatabase == null)
             throw new InvalidOperationException("Assign Character Database and Level Database in GameSceneInstaller.");
         if (equipmentDatabase == null)
@@ -53,6 +54,12 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
         Container.Bind<ProjectileService>().AsSingle();
+        Container.BindInstance(new ProjectileService.Settings(projectilePrefab));
+        Container.Bind<ProjectileStrategyFactory>().AsSingle();
+        Container.Bind<ShootingPatternFactory>().AsSingle();
+        Container.Bind<ShootingService>().AsSingle();
+        Container.Bind<SkillFactory>().AsSingle();
+        Container.Bind<StatusEffectFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<PlayerManager>(-100);
         Container.BindInitializableExecutionOrder<SaveManager>(-200);

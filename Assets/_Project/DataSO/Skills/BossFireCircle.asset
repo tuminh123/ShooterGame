@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b240ab11be4704bf3af5a3e29a1cb21, type: 3}
+  m_Name: BossFireCircle
+  m_EditorClassIdentifier:
+  displayName: BossFireCircle
+  icon: {fileID: 0}
+  category: 0
+  cooldown: 1.5
+  autoCast: 1
+  retryInterval: 0.1
+  skill: {rid: 1001}
+  projectile: {fileID: 11400000, guid: 8aa420c34aa1db995b8c8dc61875f7f7, type: 2}
+  shootingPattern: {fileID: 11400000, guid: 816fd065d0b85dae7d26bef239583138, type: 2}
+  muzzleOffset: {x: 0, y: 0.02}
+  requiresTarget: 0
+  defaultDirection: {x: 1, y: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1001
+      type: {class: ProjectileSkill, ns: , asm: Assembly-CSharp}
+      data: {}
+

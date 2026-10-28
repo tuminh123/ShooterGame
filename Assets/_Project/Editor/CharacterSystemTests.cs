@@ -108,7 +108,12 @@ public sealed class CharacterSystemTests
         var pools = new PoolManager(container);
         container.BindInstance(movement);
         container.BindInstance(pools);
-        container.BindInstance(new ProjectileService(pools));
+        var projectiles = new ProjectileService(pools,
+            new ProjectileService.Settings(Load<GameObject>("Assets/_Project/Prefabs/HolyBolt.prefab").GetComponent<ProjectileView>()),
+            new ProjectileStrategyFactory());
+        container.BindInstance(new ShootingService(projectiles, new ShootingPatternFactory()));
+        container.BindInstance(new SkillFactory());
+        container.BindInstance(new StatusEffectFactory());
         CharacterView prefab = Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>();
         var factory = new CharacterFactory(new CharacterFactory.Settings(prefab), pools);
         CharacterDataSO enemyData = Load<CharacterDataSO>(DataPath + "ForagingMaggot_Character.asset");

@@ -38,17 +38,5 @@ MonoBehaviour:
     critDamageMultiplier: 1.5
     dodge: 0
     accuracy: 0
-  passiveSkills: []
-  activeSkills:
-  - rid: 1001
-  references:
-    version: 2
-    RefIds:
-    - rid: 1001
-      type: {class: ProjectileSkill, ns: , asm: Assembly-CSharp}
-      data:
-        projectilePrefab: {fileID: 11400000, guid: a4a85c2799524f0fac7baeca32842686, type: 3}
-        cooldown: 0.6
-        damageMultiplier: 1
-        targetSearchInterval: 0.1
-        muzzleOffset: {x: 0, y: 0.02}
+  skills:
+  - {fileID: 11400000, guid: 1ef7b84d25a43e6246c6ecf5047e73d9, type: 2}

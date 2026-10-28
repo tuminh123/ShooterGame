@@ -262,7 +262,7 @@ StatBonus total = levelManager.GetPermanentBonus(template.CharacterType)
 BaseStats currentStats = total.ApplyTo(template.BaseStats);
 ```
 
-Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; chưa clone skill.
+Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; skill được tạo qua SkillFactory và quản lý bằng CharacterSkillHandler.
 
 ### Sự kiện
 
@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-Blessed Gladiator có ProjectileSkill trong activeSkills; CharacterSkillEditor có nút thêm skill bắn. Skill dùng SerializeReference và tạo runtime riêng, không dùng skill DataSO. Xem `Documentation/CombatAndSkills.md` để chỉnh đạn, range, cooldown và hiểu vòng đời ArrayPool.
+Blessed Gladiator có mảng SkillDataSO[] với HolyBolt. SkillFactory dùng Dictionary<Type, ISkill>; CharacterSkillHandler quản lý active/passive và cooldown trong SkillRuntime. Xem Docs/Architecture/Skill-Shooting-Pipeline.md để cấu hình shooting pattern, đạn và hiệu ứng.
 
 ## 10. Phạm vi kết nối gameplay
 
@@ -366,6 +366,6 @@ equipmentService.SetEquippedItems(System.Array.Empty<string>());
 
 Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. SaveManager lưu danh sách và đánh dấu dirty; service thử save ngay rồi phát EquipmentChanged để runtime tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
 
-Chưa clone skill, chưa nối EXP nhặt được, chưa có UI chọn thưởng hoặc ví tài nguyên để mua level vĩnh viễn. Runtime có HP nhưng pipeline sát thương và hành vi chết/despawn chưa được nối. Quái chưa dùng CharacterRuntimeData. Các tài liệu trong Docs/Architecture là blueprint cho phần combat và skill tiếp theo.
+Skill, shooting, đạn và hiệu ứng đã được nối vào Character runtime. Enemy dùng chung vỏ/runtime và chết qua pipeline damage/despawn. Chưa nối EXP nhặt được, UI chọn thưởng, ví tài nguyên hoặc game over/chơi lại hoàn chỉnh. Các blueprint kiến trúc cũ cần được đối chiếu với mã hiện tại; tài liệu Skill-Shooting-Pipeline.md mô tả phần đã triển khai.
 
 Do schema config đã đổi từ danh sách sang công thức, các config do người dùng tự tạo trước đó cần chuyển giá trị sang Bonus Per Level và các tham số mới. Hai asset mẫu trong project đã được cập nhật. Save nhân vật đã chuyển sang schema 2, lưu level theo CharacterType thay cho string ID.

@@ -31,8 +31,4 @@ MonoBehaviour:
     critDamageMultiplier: 1.5
     dodge: 0
     accuracy: 0
-  passiveSkills: []
-  activeSkills: []
-  references:
-    version: 2
-    RefIds: []
+  skills: []

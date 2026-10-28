@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // * Dữ liệu riêng của một nhân vật đang chơi; chỉ sao chép giá trị, không sửa template SO.
 public sealed class CharacterRuntimeData
 {
+    private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>();
+    private readonly Dictionary<long, float> speedMultipliers = new Dictionary<long, float>();
+    private long nextModifierId;
     #region Character Identity
 
     public CharacterType CharacterType { get; }  // * Type được sao chép từ template khi tạo nhân vật.
@@ -99,7 +103,7 @@ public sealed class CharacterRuntimeData
         EquipmentBonus = equipmentBonus;
 
         // * Cộng các nguồn bonus rồi áp dụng một lần lên bản chỉ số gốc.
-        FinalStats = (permanentBonus + runBonus + equipmentBonus + SpawnBonus).ApplyTo(BaseStats);
+        RebuildFinalStats();
 
         // * Giữ HP hiện tại; nếu MaxHealth giảm thì HP không được vượt giới hạn mới.
         CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);
@@ -108,6 +112,44 @@ public sealed class CharacterRuntimeData
     }
 
     #endregion
+
+    public IDisposable AddTemporaryBonus(StatBonus bonus)
+    {
+        long id = checked(++nextModifierId);
+        temporaryBonuses.Add(id, bonus);
+        RefreshModifiers();
+        return new StatModifierLease(() => { if (temporaryBonuses.Remove(id)) RefreshModifiers(); });
+    }
+
+    public IDisposable AddSpeedMultiplier(float multiplier)
+    {
+        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f || multiplier > 1f)
+            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        long id = checked(++nextModifierId);
+        speedMultipliers.Add(id, multiplier);
+        RefreshModifiers();
+        return new StatModifierLease(() => { if (speedMultipliers.Remove(id)) RefreshModifiers(); });
+    }
+
+    private void RebuildFinalStats()
+    {
+        StatBonus total = PermanentBonus + RunBonus + EquipmentBonus + SpawnBonus;
+        foreach (StatBonus bonus in temporaryBonuses.Values) total += bonus;
+        BaseStats stats = total.ApplyTo(BaseStats);
+        float speedMultiplier = 1f;
+        // Strongest slow wins; independent lifetimes restore weaker effects when it expires.
+        foreach (float multiplier in speedMultipliers.Values)
+            speedMultiplier = Mathf.Min(speedMultiplier, multiplier);
+        stats.moveSpeed *= speedMultiplier;
+        FinalStats = stats;
+    }
+
+    private void RefreshModifiers()
+    {
+        RebuildFinalStats();
+        CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);
+        Changed?.Invoke();
+    }
 
     #region Health Changes
 

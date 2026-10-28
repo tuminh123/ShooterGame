@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -44,13 +43,9 @@ public sealed class CharacterDataSO : ScriptableObject
 
     #region Starting Skill Templates
 
-    // ! SerializeReference lưu class thuần có [System.Serializable] triển khai ISkill; không hỗ trợ MonoBehaviour hoặc ScriptableObject.
-    // * CharacterSkillEditor có nút thêm ProjectileSkill; các field mẫu vẫn chỉnh bằng Inspector.
-    [SerializeReference] private List<ISkill> passiveSkills = new List<ISkill>();  // * Các skill bị động mẫu; mỗi phần tử là một đối tượng triển khai ISkill.
-    [SerializeReference] private List<ISkill> activeSkills = new List<ISkill>();   // * Các skill chủ động mẫu; phân nhóm bằng danh sách chứa chúng.
-
-    public IReadOnlyList<ISkill> PassiveSkills => passiveSkills;  // * Đọc các skill mẫu; runtime cần sao chép cả list và trạng thái skill bên trong.
-    public IReadOnlyList<ISkill> ActiveSkills => activeSkills;    // * Không Activate/Deactivate skill mẫu trực tiếp trên asset khi chơi.
+    // Category is authored on each skill asset; cooldown and passive state belong to its runtime.
+    [SerializeField] private SkillDataSO[] skills = System.Array.Empty<SkillDataSO>();
+    public SkillDataSO[] Skills => skills;
 
     #endregion
 }

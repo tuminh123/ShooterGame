@@ -19,8 +19,10 @@ Player hỗ trợ joystick và bàn phím WASD/phím mũi tên trong Editor ho�
 - `ProjectSettings`: cấu hình dự án.
 - `Docs/Architecture`: tài liệu thiết kế; một số phần là blueprint chưa triển khai.
 
-Luồng hiện có gồm di chuyển Player/quái, pooling, nền theo chunk, level vĩnh viễn và level trong trận, lưu tiến trình và chỉ số runtime của Player. Database trang bị hiện rỗng. Combat và skill chưa hoàn thiện.
+Luồng hiện có gồm di chuyển Player/quái, pooling, nền theo chunk, level vĩnh viễn và level trong trận, lưu tiến trình và chỉ số runtime của Player. Database trang bị hiện rỗng. Combat đã có skill dùng SkillDataSO, hệ shooting chung với kiểu bắn thẳng/quạt/vòng tròn/xoắn ốc, đạn dùng chung vỏ và hiệu ứng làm chậm/cháy/độc. Luồng nhận EXP, game over và chơi lại chưa hoàn chỉnh.
 
 Xem `Assets/_Project/DataSO/README.md` để biết cách cấu hình dữ liệu gameplay.
 
 Các thư viện và asset bên thứ ba tuân theo giấy phép của tác giả tương ứng. Repository chưa cấp giấy phép riêng cho mã nguồn của dự án.
+
+Xem Docs/Architecture/Skill-Shooting-Pipeline.md để cấu hình skill, kiểu bắn, đạn và hiệu ứng.

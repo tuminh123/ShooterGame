@@ -309,6 +309,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   characterPrefab: {fileID: 6849133883629349230, guid: 71e716e33fd232f43a10b5675cc70298, type: 3}
+  projectilePrefab: {fileID: 11400000, guid: a4a85c2799524f0fac7baeca32842686, type: 3}
   defaultPlayerType: 1
   joystick: {fileID: 1615921478}
   playerSaveFile: PlayerSave.es3

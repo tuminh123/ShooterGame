@@ -15,8 +15,11 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private SpriteRenderer[] sprites; // * Cache để lật hướng hiển thị, không tìm component trong từng frame.
     private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
     private BoxCollider2D hitbox; // * Một hitbox trên vỏ gốc; tìm kiếm dùng TryGetComponent tại cùng object.
-    private ProjectileService projectiles;
-    private CharacterSkills skills; // * Runtime skill riêng của lượt spawn, không sửa danh sách mẫu trên SO.
+    private ShootingService shooting;
+    private SkillFactory skillFactory;
+    private StatusEffectFactory effectFactory;
+    public CharacterSkillHandler Skills { get; private set; }
+    public CharacterEffectHandler Effects { get; private set; }
     private Color[] originalSpriteColors; // * Màu visual trước hiệu ứng, cần phục hồi trước khi trả visual về pool.
     private float damageFlashRemaining;
 
@@ -29,11 +32,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools, ProjectileService projectiles)
+    public void Construct(MovementManager movement, PoolManager pools, ShootingService shooting,
+        SkillFactory skillFactory, StatusEffectFactory effectFactory)
     {
         this.movement = movement;
         this.pools = pools;
-        this.projectiles = projectiles;
+        this.shooting = shooting;
+        this.skillFactory = skillFactory;
+        this.effectFactory = effectFactory;
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
@@ -80,7 +86,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         for (int i = 0; i < sprites.Length; i++)
             originalSpriteColors[i] = sprites[i].color;
         damageFlashRemaining = 0f;
-        skills = new CharacterSkills(template, new SkillContext(this, projectiles));
+        Effects = new CharacterEffectHandler(this, effectFactory);
+        Skills = new CharacterSkillHandler(template.Skills, skillFactory, new SkillContext(this, shooting));
     }
 
     private void OnEnable()
@@ -101,11 +108,15 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         if (RuntimeData == null)
             return;
         UpdateDamageFlash(Time.deltaTime);
+        CharacterRuntimeData identity = RuntimeData;
+        Effects?.Tick(Time.deltaTime);
+        if (!ReferenceEquals(RuntimeData, identity))
+            return;
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
         // * Controller có thể despawn ngay trong Tick; luôn kiểm tra lại lượt đang hoạt động.
         if (RuntimeData != null && RuntimeData.IsAlive && Time.deltaTime > 0f)
-            skills?.Tick(Time.deltaTime);
+            Skills?.Tick(Time.deltaTime);
     }
 
     // * Mặc định nhìn theo hướng chạy; Enemy có thể truyền hướng đến Player khi đang lùi ra khỏi hàng xóm.
@@ -152,7 +163,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         if (result.Accepted && current.Team == CharacterTeam.Player && ReferenceEquals(RuntimeData, current))
             StartDamageFlash();
         if (result.Killed && ReferenceEquals(RuntimeData, current))
-            controller.OnDeath(this, current);
+        {
+            Skills?.Dispose();
+            Effects?.Dispose();
+            if (ReferenceEquals(RuntimeData, current))
+                controller.OnDeath(this, current);
+        }
         return result;
     }
 
@@ -226,8 +242,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void OnDestroy()
     {
         StopMovement();
-        skills?.Dispose();
-        skills = null;
+        Skills?.Dispose();
+        Skills = null;
+        Effects?.Dispose();
+        Effects = null;
         controller = null;
         RuntimeData = null;
         visual = null;
@@ -244,8 +262,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         StopMovement();
         // * Visual có pool riêng: luôn trả màu gốc trước khi visual được cá thể khác mượn.
         RestoreSpriteColors();
-        skills?.Dispose();
-        skills = null;
+        Skills?.Dispose();
+        Skills = null;
+        Effects?.Dispose();
+        Effects = null;
         CharacterSearch.InvalidatePhysics();
         controller = null;
         RuntimeData = null;

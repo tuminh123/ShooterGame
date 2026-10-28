@@ -1,129 +1,83 @@
 using UnityEngine;
 
-public enum ProjectileFlight
-{
-    Straight,
-    Homing
-}
-
-// * Đạn không có collider/Rigidbody: hình tròn query là vùng trúng của đạn.
-// * Mục tiêu ban đầu chỉ điều hướng; Character thực sự nằm trong vùng trúng mới nhận damage.
+// Shared shell: all element/flight/hit settings come from runtime data before activation.
+[RequireComponent(typeof(SpriteRenderer))]
 public sealed class ProjectileView : MonoBehaviour
 {
-    #region Projectile Configuration
-
-    [SerializeField] private ProjectileFlight flight;
-    [SerializeField, Min(0.01f)] private float speed = 2.4f;
-    [SerializeField, Min(0.01f)] private float hitRadius = 0.035f;
-    [SerializeField, Min(0.01f)] private float lifetime = 3f;
-    [SerializeField, Min(0.01f)] private float visualWidth = 0.18f;
-    [SerializeField] private ImpactVfx impactPrefab;
-
-    #endregion
-
     private ProjectileService service;
-    private CharacterTarget target;
-    private DamageInfo damage;
-    private Vector2 direction;
-    private float age;
+    public ProjectileRuntimeData RuntimeData { get; private set; }
     private bool flying;
 
-    internal void Initialize(ProjectileService service, CharacterTarget target, DamageInfo damage, Vector2 direction)
+    internal void Initialize(ProjectileService owner, ProjectileRuntimeData runtime)
     {
-        this.service = service;
-        this.target = target;
-        this.damage = damage;
-        this.direction = direction;
-        age = 0f;
+        service = owner;
+        RuntimeData = runtime;
+        SpriteRenderer sprite = GetComponent<SpriteRenderer>();
+        sprite.sprite = runtime.Data.Sprite;
+        sprite.color = runtime.Data.Color;
+        transform.localScale = Vector3.one * (runtime.Data.VisualWidth / sprite.sprite.bounds.size.x);
         flying = true;
-        // * Chuẩn hóa kích thước theo world unit, không phụ thuộc độ phân giải ảnh nguồn.
-        if (TryGetComponent(out SpriteRenderer sprite) && sprite.sprite != null)
-            transform.localScale = Vector3.one * (visualWidth / sprite.sprite.bounds.size.x);
         FaceFlightDirection();
     }
 
     private void Update()
     {
-        if (!flying || Time.deltaTime <= 0f)
-            return;
-        age += Time.deltaTime;
-        if (age >= Mathf.Max(0.01f, lifetime))
+        if (!flying || RuntimeData == null || Time.deltaTime <= 0f) return;
+        RuntimeData.Age += Time.deltaTime;
+        if (RuntimeData.Age >= RuntimeData.Data.Lifetime)
         {
             flying = false;
             service.Release(this);
             return;
         }
-
-        if (flight == ProjectileFlight.Homing && target.TryGetCharacter(out CharacterView character))
-        {
-            Vector2 toTarget = character.HitPosition - transform.position;
-            if (toTarget.sqrMagnitude > 0.000001f)
-                direction = toTarget.normalized;
-        }
-        // * Mục tiêu mất/chết/đổi lượt spawn: giữ direction cuối, không tự chọn mục tiêu mới.
+        RuntimeData.Direction = RuntimeData.Flight.GetDirection(RuntimeData, transform.position);
         FaceFlightDirection();
-        if (TryHit())
-            return;
-
-        // * Vẫn dùng các hình tròn tại vị trí, không cast đường bay.
-        // * Chia bước dài thành các bước nhỏ để các vùng kiểm tra không bị cách quá xa khi FPS giảm.
-        // * Trần bước tránh đột biến query khi hitch; frame quá dài làm đạn tiến ít hơn thay vì xuyên mục tiêu.
-        float radius = Mathf.Max(0.01f, hitRadius);
-        float distance = Mathf.Min(Mathf.Max(0f, speed) * Time.deltaTime, radius * 32f);
+        if (TryHit()) return;
+        float radius = RuntimeData.Data.HitRadius;
+        // Bound queries during a hitch. Every substep checks the actual hit geometry.
+        float distance = Mathf.Min(RuntimeData.Data.Speed * Time.deltaTime, radius * 32f);
         int steps = Mathf.Max(1, Mathf.CeilToInt(distance / radius));
-        Vector3 step = (Vector3)(direction * (distance / steps));
+        Vector3 step = (Vector3)(RuntimeData.Direction * (distance / steps));
         for (int i = 0; i < steps; i++)
         {
             transform.position += step;
-            if (TryHit())
-                return;
+            if (TryHit()) return;
         }
     }
 
     private bool TryHit()
     {
-        CharacterTarget contact = CharacterSearch.FindNearest(transform.position,
-            Mathf.Max(0.01f, hitRadius), CharacterSearch.OpponentOf(damage.SourceTeam));
-        if (!contact.TryGetCharacter(out CharacterView character))
-            return false;
-
-        // * Đóng lượt đạn trước callback: không gây damage lặp dù callback tạo đòn đánh mới.
+        CharacterTarget target = CharacterSearch.FindNearest(transform.position,
+            RuntimeData.Data.HitRadius, CharacterSearch.OpponentOf(RuntimeData.Damage.SourceTeam));
+        if (!target.TryGetCharacter(out _)) return false;
         flying = false;
-        Vector3 hitPosition = transform.position;
+        ProjectileRuntimeData runtime = RuntimeData;
         ProjectileService owner = service;
-        ImpactVfx impact = impactPrefab;
+        Vector3 position = transform.position;
         try
         {
-            DamageResult result = character.ReceiveDamage(damage);
-            if (result.Accepted)
-                owner.PlayImpact(impact, hitPosition);
+            if (runtime.Hit.Apply(runtime, target)) owner.PlayImpact(runtime.Data.ImpactPrefab, position);
         }
-        finally
-        {
-            owner.Release(this);
-        }
+        finally { owner.Release(this); }
         return true;
     }
-
     private void FaceFlightDirection()
     {
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0f, 0f, angle);
+        Vector2 direction = RuntimeData.Direction;
+        transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
     }
-
     private void OnDisable()
     {
         flying = false;
-        target = default;
-        damage = default;
+        RuntimeData = null;
         service = null;
     }
-
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
+        if (RuntimeData == null) return;
         using (new UnityEditor.Handles.DrawingScope(Color.cyan, Matrix4x4.identity))
-            UnityEditor.Handles.DrawWireDisc(transform.position, Vector3.forward, Mathf.Max(0.01f, hitRadius));
+            UnityEditor.Handles.DrawWireDisc(transform.position, Vector3.forward, RuntimeData.Data.HitRadius);
     }
-    #endif
+#endif
 }

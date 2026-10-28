@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e17882ace18bf7069d9aefe821aea38d, type: 3}
+  m_Name: Ice
+  m_EditorClassIdentifier:
+  sprite: {fileID: 21300000, guid: 3238b243044641f4ac198585140c57d4, type: 3}
+  color: {r: 0.3, g: 0.8, b: 1, a: 1}
+  visualWidth: 0.18
+  speed: 2.4
+  hitRadius: 0.035
+  lifetime: 3
+  damageMultiplier: 1
+  impactPrefab: {fileID: 11400000, guid: 203b70ef700543ff8a9bc792e5d76aa1, type: 3}
+  flight: {rid: 1001}
+  hit: {rid: 1002}
+  effects:
+  - {fileID: 11400000, guid: f8c071b259f6c55d37f8dfd9d3ae9387, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1001
+      type: {class: HomingProjectileFlight, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1002
+      type: {class: SingleTargetProjectileHit, ns: , asm: Assembly-CSharp}
+      data: {}
+

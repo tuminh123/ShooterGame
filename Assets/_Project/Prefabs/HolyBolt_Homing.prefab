@@ -98,9 +98,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c247da746f364546bf59a2d0480bbb5f, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  flight: 1
-  speed: 2.4
-  hitRadius: 0.035
-  lifetime: 3
-  visualWidth: 0.18
-  impactPrefab: {fileID: 11400000, guid: 203b70ef700543ff8a9bc792e5d76aa1, type: 3}
