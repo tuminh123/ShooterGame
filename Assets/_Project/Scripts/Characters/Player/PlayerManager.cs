@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Terresquall;
 using UnityEngine;
 using Zenject;
@@ -14,10 +17,15 @@ public sealed class PlayerManager : IInitializable, IDisposable
     {
         public readonly CharacterType DefaultType; // * Nhân vật mặc định khi save chưa chọn; hình ảnh được tra từ CharacterDataSO.
 
+        public readonly float DamageFlashDuration;
+        public readonly Color DamageFlashColor;
+
         // * Chỉ lưu cấu hình, chưa tạo GameObject trong bước dựng container.
-        public Settings(CharacterType defaultType)
+        public Settings(CharacterType defaultType, float damageFlashDuration, Color damageFlashColor)
         {
             DefaultType = defaultType;
+            DamageFlashDuration = Mathf.Max(0.01f, damageFlashDuration);
+            DamageFlashColor = damageFlashColor;
         }
     }
 
@@ -27,6 +35,9 @@ public sealed class PlayerManager : IInitializable, IDisposable
     private readonly SaveManager saves; // * Đọc nhân vật đã chọn và tiến trình đã load, không ghi HP của lượt chơi.
     private readonly LevelManager levels; // * Tính bonus Player và thông báo khi level thay đổi.
     private readonly PlayerEquipmentService equipment;  // * Cung cấp bonus và thông báo khi trang bị thay đổi.
+    private IReadOnlyList<SpriteRenderer> playerSprites;
+    private Color[] originalSpriteColors;
+    private CancellationTokenSource damageFlashCancellation;
     private bool disposed;                   // * Chặn tạo player sau khi dịch vụ kết thúc.
 
     #endregion
@@ -89,6 +100,12 @@ public sealed class PlayerManager : IInitializable, IDisposable
         CurrentPlayer = factory.Spawn(template, runtime, new PlayerController(joystick), Vector3.zero);
         if (CurrentPlayer == null)
             throw new InvalidOperationException("Could not spawn the Player shell.");
+        playerSprites = CurrentPlayer.Sprites;
+        originalSpriteColors = new Color[playerSprites.Count];
+        for (int i = 0; i < playerSprites.Count; i++)
+            originalSpriteColors[i] = playerSprites[i].color;
+        CurrentPlayer.DamageReceived += OnDamageReceived;
+        CurrentPlayer.Deactivated += StopDamageFlash;
         CurrentPlayer.Released += OnPlayerReleased;
         PlayerChanged?.Invoke(CurrentPlayer);
         return CurrentPlayer;
@@ -100,7 +117,7 @@ public sealed class PlayerManager : IInitializable, IDisposable
         CharacterView previous = CurrentPlayer;
         if (previous == null)
             return;
-        previous.Released -= OnPlayerReleased;
+        DetachPlayer(previous);
         CurrentPlayer = null;
         PlayerChanged?.Invoke(null);
         factory.Despawn(previous);
@@ -111,9 +128,65 @@ public sealed class PlayerManager : IInitializable, IDisposable
     {
         if (!ReferenceEquals(CurrentPlayer, player))
             return;
-        player.Released -= OnPlayerReleased;
+        DetachPlayer(player);
         CurrentPlayer = null;
         PlayerChanged?.Invoke(null);
+    }
+
+    private void DetachPlayer(CharacterView player)
+    {
+        player.DamageReceived -= OnDamageReceived;
+        player.Deactivated -= StopDamageFlash;
+        player.Released -= OnPlayerReleased;
+        StopDamageFlash();
+        playerSprites = null;
+        originalSpriteColors = null;
+    }
+
+    #endregion
+
+    #region Player Damage Feedback
+
+    private void OnDamageReceived(DamageInfo damage, DamageResult result)
+    {
+        if (disposed || CurrentPlayer == null || !CurrentPlayer.isActiveAndEnabled || !result.Accepted)
+            return;
+        StopDamageFlash();
+        for (int i = 0; i < playerSprites.Count; i++)
+        {
+            if (playerSprites[i] == null)
+                continue;
+            Color color = originalSpriteColors[i] * settings.DamageFlashColor;
+            color.a = originalSpriteColors[i].a;
+            playerSprites[i].color = color;
+        }
+        damageFlashCancellation = new CancellationTokenSource();
+        RestoreAfterFlashAsync(damageFlashCancellation).Forget();
+    }
+
+    private async UniTask RestoreAfterFlashAsync(CancellationTokenSource cancellation)
+    {
+        bool cancelled = await UniTask.Delay(TimeSpan.FromSeconds(settings.DamageFlashDuration),
+            ignoreTimeScale: false, cancellationToken: cancellation.Token).SuppressCancellationThrow();
+        // An older task must never restore the colors of a newer flash or another spawn.
+        if (!cancelled && ReferenceEquals(damageFlashCancellation, cancellation))
+            StopDamageFlash();
+    }
+
+    private void StopDamageFlash()
+    {
+        CancellationTokenSource previous = damageFlashCancellation;
+        damageFlashCancellation = null;
+        if (previous != null)
+        {
+            previous.Cancel();
+            previous.Dispose();
+        }
+        if (playerSprites == null || originalSpriteColors == null)
+            return;
+        for (int i = 0; i < playerSprites.Count; i++)
+            if (playerSprites[i] != null)
+                playerSprites[i].color = originalSpriteColors[i];
     }
 
     #endregion

@@ -120,8 +120,8 @@ public sealed class SkillPipelineTests
         container.BindInstance(shooting);
         container.BindInstance(new SkillFactory());
         container.BindInstance(new StatusEffectFactory());
-        var factory = new CharacterFactory(new CharacterFactory.Settings(
-            Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>()), pools);
+        var factory = new CharacterFactory(
+            Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>(), pools);
         try
         {
             var playerData = Load<CharacterDataSO>(Root + "Characters/BlessedGladiator_Character.asset");

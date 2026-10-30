@@ -18,6 +18,10 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     #endregion
 
+    [Header("Player Damage Feedback")]
+    [SerializeField, Min(0.01f)] private float damageFlashDuration = 0.12f;
+    [SerializeField] private Color damageFlashColor = new Color(1f, 0.2f, 0.2f, 1f);
+
     #region Gameplay Databases
 
     [SerializeField] private CharacterDatabaseSO characterDatabase;  // * Danh mục template nhân vật, dùng để dựng dictionary theo ID.
@@ -47,9 +51,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<CharacterLevelService>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<RunLevelService>().AsSingle().NonLazy();
         Container.Bind<LevelManager>().AsSingle().NonLazy();
-        Container.BindInstance(new CharacterFactory.Settings(characterPrefab));
-        Container.BindInterfacesAndSelfTo<CharacterFactory>().AsSingle();
-        Container.BindInstance(new PlayerManager.Settings(defaultPlayerType));
+        Container.BindInterfacesAndSelfTo<CharacterFactory>().AsSingle().WithArguments(characterPrefab);
+        Container.BindInstance(new PlayerManager.Settings(defaultPlayerType, damageFlashDuration, damageFlashColor));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();

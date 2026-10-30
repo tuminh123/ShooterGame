@@ -186,7 +186,7 @@ public sealed class EnemyController : ICharacterController
 
     private bool TryContactAttack(CharacterView view, CharacterRuntimeData runtime, CharacterView target)
     {
-        if (Time.time < nextContactTime || !view.Overlaps(target))
+        if (Time.time < nextContactTime || !CharacterSearch.Overlaps(view, target))
             return false;
 
         // * Chốt hướng trước callback nhận damage; không phụ thuộc mục tiêu sau khi xử lý chết.

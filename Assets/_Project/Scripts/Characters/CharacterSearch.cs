@@ -64,6 +64,25 @@ public static class CharacterSearch
         lastSyncFrame = Time.frameCount;
     }
 
+    // Known pair: test their hitboxes directly rather than querying the whole layer.
+    public static bool Overlaps(CharacterView first, CharacterView second)
+    {
+        if (first == null || second == null || first == second ||
+            !first.isActiveAndEnabled || !second.isActiveAndEnabled ||
+            first.RuntimeData == null || second.RuntimeData == null ||
+            !first.RuntimeData.IsAlive || !second.RuntimeData.IsAlive)
+            return false;
+        Collider2D firstHitbox = first.Hitbox;
+        Collider2D secondHitbox = second.Hitbox;
+        if (firstHitbox == null || secondHitbox == null || !firstHitbox.enabled || !secondHitbox.enabled)
+            return false;
+        SynchronizePhysics();
+        if (!firstHitbox.bounds.Intersects(secondHitbox.bounds))
+            return false;
+        ColliderDistance2D contact = firstHitbox.Distance(secondHitbox);
+        return contact.isValid && contact.distance <= 0f;
+    }
+
     public static CharacterTeam OpponentOf(CharacterTeam team)
     {
         if (team == CharacterTeam.Player) return CharacterTeam.Enemy;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
@@ -20,14 +21,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private StatusEffectFactory effectFactory;
     public CharacterSkillHandler Skills { get; private set; }
     public CharacterEffectHandler Effects { get; private set; }
-    private Color[] originalSpriteColors; // * Màu visual trước hiệu ứng, cần phục hồi trước khi trả visual về pool.
-    private float damageFlashRemaining;
-
-    [Header("Damage Feedback")]
-    [SerializeField, Min(0.01f)] private float damageFlashDuration = 0.12f;
-    [SerializeField] private Color damageFlashColor = new Color(1f, 0.2f, 0.2f, 1f);
-
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
+    public IReadOnlyList<SpriteRenderer> Sprites => sprites;
+    public Collider2D Hitbox => hitbox;
+    public event Action<DamageInfo, DamageResult> DamageReceived;
+    // Raised before visual cleanup, and on temporary disable, so owners can cancel presentation tasks.
+    public event Action Deactivated;
     public Vector3 HitPosition => hitbox != null ? transform.TransformPoint(hitbox.offset) : transform.position;
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
@@ -82,10 +81,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
-        originalSpriteColors = new Color[sprites.Length];
-        for (int i = 0; i < sprites.Length; i++)
-            originalSpriteColors[i] = sprites[i].color;
-        damageFlashRemaining = 0f;
         Effects = new CharacterEffectHandler(this, effectFactory);
         Skills = new CharacterSkillHandler(template.Skills, skillFactory, new SkillContext(this, shooting));
     }
@@ -107,7 +102,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         if (RuntimeData == null)
             return;
-        UpdateDamageFlash(Time.deltaTime);
         CharacterRuntimeData identity = RuntimeData;
         Effects?.Tick(Time.deltaTime);
         if (!ReferenceEquals(RuntimeData, identity))
@@ -158,10 +152,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             return default;
         CharacterRuntimeData current = RuntimeData;
         DamageResult result = current.ReceiveDamage(damage);
-        // * Chỉ nháy khi Player thực sự mất HP; hit bị từ chối không tạo phản hồi giả.
-        // * Làm trước xử lý chết để đòn cuối vẫn được hiển thị trên vỏ Player còn giữ lại.
-        if (result.Accepted && current.Team == CharacterTeam.Player && ReferenceEquals(RuntimeData, current))
-            StartDamageFlash();
+        if (result.Accepted && ReferenceEquals(RuntimeData, current))
+            DamageReceived?.Invoke(damage, result);
         if (result.Killed && ReferenceEquals(RuntimeData, current))
         {
             Skills?.Dispose();
@@ -172,62 +164,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         return result;
     }
 
-    #region Contact Geometry & Damage Feedback
-
-    // * Enemy đã có tham chiếu Player nên chỉ so hai hitbox, không quét lại toàn bộ layer.
-    // * Không dùng callback trigger hoặc Rigidbody2D; bounds loại nhanh cặp ở xa trước phép đo chính xác.
-    public bool Overlaps(CharacterView other)
-    {
-        if (other == null || other == this || !isActiveAndEnabled || !other.isActiveAndEnabled ||
-            hitbox == null || other.hitbox == null || !hitbox.enabled || !other.hitbox.enabled)
-            return false;
-        CharacterSearch.SynchronizePhysics();
-        if (!hitbox.bounds.Intersects(other.hitbox.bounds))
-            return false;
-        ColliderDistance2D contact = hitbox.Distance(other.hitbox);
-        return contact.isValid && contact.distance <= 0f;
-    }
-
-    private void StartDamageFlash()
-    {
-        damageFlashRemaining = Mathf.Max(0.01f, damageFlashDuration);
-        for (int i = 0; i < sprites.Length; i++)
-        {
-            if (sprites[i] == null)
-                continue;
-            Color color = originalSpriteColors[i] * damageFlashColor;
-            color.a = originalSpriteColors[i].a;
-            sprites[i].color = color;
-        }
-    }
-
-    private void UpdateDamageFlash(float deltaTime)
-    {
-        if (damageFlashRemaining <= 0f || deltaTime <= 0f)
-            return;
-        damageFlashRemaining -= deltaTime;
-        if (damageFlashRemaining <= 0f)
-            RestoreSpriteColors();
-    }
-
-    private void RestoreSpriteColors()
-    {
-        damageFlashRemaining = 0f;
-        if (sprites == null || originalSpriteColors == null)
-            return;
-        for (int i = 0; i < sprites.Length; i++)
-            if (sprites[i] != null)
-                sprites[i].color = originalSpriteColors[i];
-    }
-
-    #endregion
-
     // * Unity đang thay đổi trạng thái cả hierarchy trong OnDisable: chỉ dừng movement, không thu hồi/reparent visual.
     // * Giữ data/hành vi để việc tắt rồi bật tạm thời có thể tiếp tục cùng cá thể.
     private void OnDisable()
     {
         StopMovement();
-        RestoreSpriteColors();
+        Deactivated?.Invoke();
         CharacterSearch.InvalidatePhysics();
     }
 
@@ -242,6 +184,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void OnDestroy()
     {
         StopMovement();
+        Deactivated?.Invoke();
         Skills?.Dispose();
         Skills = null;
         Effects?.Dispose();
@@ -250,7 +193,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         RuntimeData = null;
         visual = null;
         sprites = null;
-        originalSpriteColors = null;
         animators = null;
         NotifyReleased();
     }
@@ -260,8 +202,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     internal void ClearSpawn()
     {
         StopMovement();
-        // * Visual có pool riêng: luôn trả màu gốc trước khi visual được cá thể khác mượn.
-        RestoreSpriteColors();
+        Deactivated?.Invoke();
         Skills?.Dispose();
         Skills = null;
         Effects?.Dispose();
@@ -270,7 +211,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         controller = null;
         RuntimeData = null;
         sprites = null;
-        originalSpriteColors = null;
         animators = null;
         if (visual != null)
         {
@@ -285,6 +225,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         Action<CharacterView> released = Released;
         Released = null;
+        DamageReceived = null;
+        Deactivated = null;
         released?.Invoke(this);
     }
 }

@@ -115,7 +115,7 @@ public sealed class CharacterSystemTests
         container.BindInstance(new SkillFactory());
         container.BindInstance(new StatusEffectFactory());
         CharacterView prefab = Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>();
-        var factory = new CharacterFactory(new CharacterFactory.Settings(prefab), pools);
+        var factory = new CharacterFactory(prefab, pools);
         CharacterDataSO enemyData = Load<CharacterDataSO>(DataPath + "ForagingMaggot_Character.asset");
         CharacterDataSO playerData = Load<CharacterDataSO>(DataPath + "BlessedGladiator_Character.asset");
         try
@@ -193,6 +193,117 @@ public sealed class CharacterSystemTests
         finally
         {
             factory.Dispose();
+            pools.Dispose();
+            movement.Dispose();
+        }
+        yield return new ExitPlayMode();
+    }
+
+    [UnityTest]
+    public IEnumerator DamageEvents_PlayerFlashAndContactQuery_RespectPoolLifetimes()
+    {
+        yield return new EnterPlayMode();
+        var container = new DiContainer();
+        var movement = new MovementManager();
+        var pools = new PoolManager(container);
+        container.BindInstance(movement);
+        container.BindInstance(pools);
+        var projectiles = new ProjectileService(pools,
+            new ProjectileService.Settings(Load<GameObject>("Assets/_Project/Prefabs/HolyBolt.prefab").GetComponent<ProjectileView>()),
+            new ProjectileStrategyFactory());
+        container.BindInstance(new ShootingService(projectiles, new ShootingPatternFactory()));
+        container.BindInstance(new SkillFactory());
+        container.BindInstance(new StatusEffectFactory());
+        var factory = new CharacterFactory(
+            Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>(), pools);
+        var saves = new SaveManager(new SaveManager.Settings("DamageFeedbackTest_" + System.Guid.NewGuid().ToString("N") + ".es3"));
+        Assert.That(saves.Load(), Is.True);
+        var characters = new CharacterLevelService(saves,
+            Load<CharacterDatabaseSO>(DatabasePath + "CharacterDatabase.asset"),
+            Load<LevelDatabaseSO>(DatabasePath + "LevelDatabase.asset"));
+        var run = new RunLevelService(Load<LevelDatabaseSO>(DatabasePath + "LevelDatabase.asset"));
+        var equipment = new PlayerEquipmentService(saves,
+            Load<EquipmentDatabaseSO>(DatabasePath + "EquipmentDatabase.asset"));
+        var players = new PlayerManager(factory, null,
+            new PlayerManager.Settings(CharacterType.BlessedGladiator, 0.2f, Color.red),
+            saves, new LevelManager(characters, run), equipment);
+        float originalTimeScale = Time.timeScale;
+        try
+        {
+            Time.timeScale = 1f;
+            CharacterView player = players.SpawnPlayer();
+            SpriteRenderer sprite = player.Sprites[0];
+            Color original = sprite.color;
+            int received = 0;
+            player.DamageReceived += (damage, result) =>
+            {
+                received++;
+                Assert.That(result.HealthLost, Is.GreaterThan(0f));
+            };
+            player.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Player));
+            player.ReceiveDamage(new DamageInfo(0f, CharacterTeam.Enemy));
+            Assert.That(received, Is.Zero);
+            Assert.That(sprite.color, Is.EqualTo(original));
+
+            player.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Enemy));
+            Assert.That(received, Is.EqualTo(1));
+            Assert.That(sprite.color, Is.EqualTo(original * Color.red));
+            Time.timeScale = 0f;
+            yield return new WaitForSecondsRealtime(0.25f);
+            Assert.That(sprite.color, Is.EqualTo(original * Color.red), "Pause must stop the flash timer.");
+            player.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Enemy));
+            yield return null; // Let the cancelled first task finish; it must not erase the new flash.
+            Assert.That(sprite.color, Is.EqualTo(original * Color.red));
+            Time.timeScale = 1f;
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(sprite.color, Is.EqualTo(original));
+
+            player.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Enemy));
+            player.gameObject.SetActive(false);
+            Assert.That(sprite.color, Is.EqualTo(original));
+            player.gameObject.SetActive(true);
+
+            CharacterDataSO enemyData = Load<CharacterDataSO>(DataPath + "ForagingMaggot_Character.asset");
+            CharacterView enemy = factory.Spawn(enemyData, Runtime(enemyData), new EnemyController(players, factory),
+                player.transform.position);
+            Assert.That(CharacterSearch.Overlaps(enemy, player), Is.True);
+            enemy.transform.position += Vector3.right * 100f;
+            CharacterSearch.InvalidatePhysics();
+            Assert.That(CharacterSearch.Overlaps(enemy, player), Is.False);
+            bool lethalNotified = false;
+            enemy.DamageReceived += (damage, result) =>
+            {
+                lethalNotified = result.Killed && enemy.RuntimeData != null;
+            };
+            enemy.ReceiveDamage(new DamageInfo(100000f, CharacterTeam.Player));
+            Assert.That(lethalNotified, Is.True, "Enemy also publishes damage before death releases its shell.");
+            Assert.That(enemy.RuntimeData, Is.Null);
+
+            player.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Enemy));
+            factory.Despawn(player); // External release must restore the visual before it returns to its pool.
+            Assert.That(players.CurrentPlayer, Is.Null);
+            Assert.That(sprite.color, Is.EqualTo(original));
+            CharacterView replacement = players.SpawnPlayer();
+            SpriteRenderer replacementSprite = replacement.Sprites[0];
+            Assert.That(replacementSprite.color, Is.EqualTo(original));
+            int oldNotifications = received;
+            replacement.ReceiveDamage(new DamageInfo(1f, CharacterTeam.Enemy));
+            Assert.That(received, Is.EqualTo(oldNotifications), "Old spawn listeners must be cleared.");
+            players.Dispose();
+            Assert.That(replacementSprite.color, Is.EqualTo(original));
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(replacementSprite.color, Is.EqualTo(original));
+            LogAssert.NoUnexpectedReceived();
+        }
+        finally
+        {
+            Time.timeScale = originalTimeScale;
+            players.Dispose();
+            factory.Dispose();
+            equipment.Dispose();
+            run.Dispose();
+            characters.Dispose();
+            saves.Dispose();
             pools.Dispose();
             movement.Dispose();
         }

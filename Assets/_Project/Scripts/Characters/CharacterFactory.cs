@@ -5,21 +5,14 @@ using UnityEngine;
 // * Ghép dữ liệu, hành vi và vỏ tại một chỗ; Player/Enemy dùng chính xác cùng prefab và pool của vỏ.
 public sealed class CharacterFactory : IDisposable
 {
-    public sealed class Settings
-    {
-        public readonly CharacterView Prefab; // * Prefab vỏ duy nhất do GameSceneInstaller cấu hình.
-
-        public Settings(CharacterView prefab) => Prefab = prefab;
-    }
-
-    private readonly Settings settings; // * Cấu hình vỏ dùng chung, không có prefab gameplay theo từng loại nhân vật.
+    private readonly CharacterView prefab; // * Prefab vỏ duy nhất do GameSceneInstaller truyền vào.
     private readonly PoolManager pools; // * Chuẩn bị clone dưới nhánh tắt trước khi cho OnEnable chạy.
     private readonly HashSet<CharacterView> activeCharacters = new HashSet<CharacterView>(); // * Chỉ thu hồi các cá thể do factory này tạo, kể cả lúc đóng scene.
     private bool disposed; // * Ngăn tạo thêm nhân vật khi scene đang giải phóng dịch vụ.
 
-    public CharacterFactory(Settings settings, PoolManager pools)
+    public CharacterFactory(CharacterView prefab, PoolManager pools)
     {
-        this.settings = settings;
+        this.prefab = prefab;
         this.pools = pools;
     }
 
@@ -28,13 +21,13 @@ public sealed class CharacterFactory : IDisposable
     {
         if (disposed)
             throw new ObjectDisposedException(nameof(CharacterFactory));
-        if (template == null || settings.Prefab == null)
+        if (template == null || prefab == null)
             throw new InvalidOperationException("Assign character data and the shared Character prefab.");
         PoolGroup group = template.Team == CharacterTeam.Enemy ? PoolGroup.Enemies : PoolGroup.Other;
-        GameObject shell = pools.Spawn(settings.Prefab.gameObject, position, Quaternion.identity, group,
+        GameObject shell = pools.Spawn(prefab.gameObject, position, Quaternion.identity, group,
             beforeActivate: clone =>
             {
-                clone.transform.localScale = settings.Prefab.transform.localScale;
+                clone.transform.localScale = prefab.transform.localScale;
                 CharacterView view = clone.GetComponent<CharacterView>();
                 try
                 {

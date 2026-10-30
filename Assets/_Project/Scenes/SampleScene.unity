@@ -219,7 +219,7 @@ MonoBehaviour:
   spawnCenter: {fileID: 519420032}
   waveConfig: {fileID: 11400000, guid: ab8b7fb8877c4f01a5f20d14548da409, type: 2}
   separation:
-    radius: 0.1
+    radius: 0.15
     offsetY: 0.05
     strength: 2
     scanInterval: 0.1
