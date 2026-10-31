@@ -10,24 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2b240ab11be4704bf3af5a3e29a1cb21, type: 3}
-  m_Name: BossFireCircle
+  m_Name: IceBolt
   m_EditorClassIdentifier:
-  displayName: BossFireCircle
+  displayName: IceBolt
   icon: {fileID: 0}
-  category: 0
-  cooldown: 1.5
+  cooldown: 1
   autoCast: 1
   retryInterval: 0.1
-  skill: {rid: 1001}
-  projectile: {fileID: 11400000, guid: 8aa420c34aa1db995b8c8dc61875f7f7, type: 2}
-  shootingPattern: {fileID: 11400000, guid: 816fd065d0b85dae7d26bef239583138, type: 2}
+  projectile: {fileID: 11400000, guid: 774d3f927f1985f6c55a4f0ebefce51c, type: 2}
+  shootingPattern: {fileID: 11400000, guid: 0c287b84bb4c9b7d38475a6c7e35c283, type: 2}
   muzzleOffset: {x: 0, y: 0.02}
-  requiresTarget: 0
+  requiresTarget: 1
   defaultDirection: {x: 1, y: 0}
-  references:
-    version: 2
-    RefIds:
-    - rid: 1001
-      type: {class: ProjectileSkill, ns: , asm: Assembly-CSharp}
-      data: {}
-

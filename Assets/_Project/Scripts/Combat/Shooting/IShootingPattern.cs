@@ -7,6 +7,8 @@ public interface IShootingPattern
 }
 public sealed class ShootingRuntime
 {
+    public float CooldownRemaining { get; internal set; }
+    internal float RetryRemaining;
     public float Phase { get; internal set; }
     public long CastCount { get; internal set; }
 }

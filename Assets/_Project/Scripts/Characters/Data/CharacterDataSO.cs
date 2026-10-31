@@ -43,9 +43,14 @@ public sealed class CharacterDataSO : ScriptableObject
 
     #region Starting Skill Templates
 
-    // Category is authored on each skill asset; cooldown and passive state belong to its runtime.
-    [SerializeField] private SkillDataSO[] skills = System.Array.Empty<SkillDataSO>();
-    public SkillDataSO[] Skills => skills;
+    [SerializeField] private SkillDataSO[] activeSkills = System.Array.Empty<SkillDataSO>();
+    [SerializeField] private SkillDataSO[] passiveSkills = System.Array.Empty<SkillDataSO>();
+    public SkillDataSO[] ActiveSkills => activeSkills;
+    public SkillDataSO[] PassiveSkills => passiveSkills;
+
+    // Projectile attacks remain standalone during the skill migration.
+    [SerializeField] private ShootingDataSO[] shooting = System.Array.Empty<ShootingDataSO>();
+    public ShootingDataSO[] Shooting => shooting;
 
     #endregion
 }

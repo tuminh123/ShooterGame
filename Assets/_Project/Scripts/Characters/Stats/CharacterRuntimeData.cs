@@ -154,6 +154,8 @@ public sealed class CharacterRuntimeData
     #region Health Changes
 
     // * Character tính đầu ra trước khi bắn; crit theo bậc cộng dồn trong tài liệu chỉ số.
+    public DamageInfo CreateDamage() => CreateDamage(1f);
+
     public DamageInfo CreateDamage(float multiplier)
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)

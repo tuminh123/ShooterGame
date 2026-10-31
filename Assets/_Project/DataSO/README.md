@@ -262,7 +262,7 @@ StatBonus total = levelManager.GetPermanentBonus(template.CharacterType)
 BaseStats currentStats = total.ApplyTo(template.BaseStats);
 ```
 
-Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; skill được tạo qua SkillFactory và quản lý bằng CharacterSkillHandler.
+Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; skill được đăng ký và quản lý tập trung bằng SkillManager.
 
 ### Sự kiện
 
@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-Blessed Gladiator có mảng SkillDataSO[] với HolyBolt. SkillFactory dùng Dictionary<Type, ISkill>; CharacterSkillHandler quản lý active/passive và cooldown trong SkillRuntime. Xem Docs/Architecture/Skill-Shooting-Pipeline.md để cấu hình shooting pattern, đạn và hiệu ứng.
+Blessed Gladiator giữ HolyBolt trong mảng ShootingDataSO[] riêng để bắn đạn tiếp tục hoạt động. CharacterDataSO có hai mảng ActiveSkills/PassiveSkills chứa SkillDataSO; mỗi skill gồm SkillData struct, SkillVisual và ISkill chỉ có Execute. SkillManager quản lý vòng đời và cooldown. Enemy đánh thường dùng Skills/EnemyNormalAttack.asset và lấy damage từ chỉ số nhân vật. Xem Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 

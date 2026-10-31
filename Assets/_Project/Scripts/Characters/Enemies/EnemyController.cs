@@ -15,12 +15,10 @@ public sealed class EnemyController : ICharacterController
         [Min(0.01f)] public float scanInterval = 0.1f; // * Số giây game giữa hai lần quét; không quét lại trong mọi Update.
     }
 
-    // * Luật chạm thuộc hành vi Enemy; không đưa cooldown/knockback vào data chung của Character.
+    // Recoil is movement configuration. Attack behavior and cooldown come from the skill asset/manager.
     [System.Serializable]
-    public sealed class ContactSettings
+    public sealed class RecoilSettings
     {
-        [Min(0.01f)] public float cooldown = 0.8f; // * Khoảng chờ riêng mỗi Enemy, không phải miễn thương toàn Player.
-        [Min(0f)] public float damageMultiplier = 1f; // * Nhân với damage và crit do Character nguồn tính.
         [Min(0f)] public float knockbackDistance = 0.35f; // * Chính Enemy lùi ra xa Player sau khi gây damage thành công.
         [Min(0.01f)] public float knockbackDuration = 0.18f; // * Dịch chuyển bằng MovementManager, không dùng lực Rigidbody.
     }
@@ -38,16 +36,13 @@ public sealed class EnemyController : ICharacterController
     private Vector2 separationDirection; // * Hướng ra xa đã tính ở lượt quét trước; dùng lại giữa các lần quét.
     private float nextScanTime; // * Mốc Time.time cho lượt quét tiếp; pause không làm đồng hồ này chạy tiếp.
     private bool scanScheduled; // * Lần Tick đầu mới biết vỏ hiện tại để chia lịch; controller mới không giữ cache của lượt spawn cũ.
-    private readonly float contactCooldown;
-    private readonly float contactDamageMultiplier;
     private readonly float knockbackDistance;
     private readonly float knockbackDuration;
-    private float nextContactTime; // * Cooldown riêng của lượt spawn hiện tại.
     private float knockbackRemaining; // * Thời gian game còn lại; pause không làm phản lực chạy tiếp.
     private Vector2 knockbackDirection; // * Hướng lùi chốt lúc trúng, không đổi theo Player trong lúc lùi.
 
     public EnemyController(PlayerManager players, CharacterFactory characters,
-        SeparationSettings separation = null, ContactSettings contact = null)
+        SeparationSettings separation = null, RecoilSettings recoil = null)
     {
         this.players = players;
         this.characters = characters;
@@ -56,11 +51,9 @@ public sealed class EnemyController : ICharacterController
         separationOffsetY = separation.offsetY;
         separationStrength = Mathf.Max(0f, separation.strength);
         scanInterval = Mathf.Max(0.01f, separation.scanInterval);
-        contact = contact ?? new ContactSettings();
-        contactCooldown = Mathf.Max(0.01f, contact.cooldown);
-        contactDamageMultiplier = Mathf.Max(0f, contact.damageMultiplier);
-        knockbackDistance = Mathf.Max(0f, contact.knockbackDistance);
-        knockbackDuration = Mathf.Max(0.01f, contact.knockbackDuration);
+        recoil = recoil ?? new RecoilSettings();
+        knockbackDistance = Mathf.Max(0f, recoil.knockbackDistance);
+        knockbackDuration = Mathf.Max(0.01f, recoil.knockbackDuration);
     }
 
     #endregion
@@ -89,7 +82,10 @@ public sealed class EnemyController : ICharacterController
             return;
         }
 
-        if (TryContactAttack(view, runtime, target) && ApplyKnockback(view))
+        bool attacked = TryContactAttack(view, runtime, target);
+        if (!ReferenceEquals(view.RuntimeData, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive)
+            return;
+        if (attacked && ApplyKnockback(view))
             return;
 
         UpdateSeparation(view);
@@ -186,16 +182,14 @@ public sealed class EnemyController : ICharacterController
 
     private bool TryContactAttack(CharacterView view, CharacterRuntimeData runtime, CharacterView target)
     {
-        if (Time.time < nextContactTime || !CharacterSearch.Overlaps(view, target))
-            return false;
-
         // * Chốt hướng trước callback nhận damage; không phụ thuộc mục tiêu sau khi xử lý chết.
         Vector2 away = view.HitPosition - target.HitPosition;
         if (away.sqrMagnitude <= 0.000001f)
             away = GetOverlapDirection(view.GetInstanceID(), target.GetInstanceID());
-        nextContactTime = Time.time + contactCooldown;
-        DamageResult result = target.ReceiveDamage(runtime.CreateDamage(contactDamageMultiplier));
-        if (!result.Accepted || knockbackDistance <= 0f)
+        // Slot zero is the normal attack configured on this enemy's CharacterDataSO.
+        bool succeeded = view.TryUseSkill(0, new CharacterTarget(target));
+        if (!succeeded || !ReferenceEquals(view.RuntimeData, runtime) || !runtime.IsAlive ||
+            !view.isActiveAndEnabled || knockbackDistance <= 0f)
             return false;
 
         knockbackDirection = away.normalized;

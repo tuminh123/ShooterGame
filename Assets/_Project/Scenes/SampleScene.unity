@@ -223,9 +223,7 @@ MonoBehaviour:
     offsetY: 0.05
     strength: 2
     scanInterval: 0.1
-  contactAttack:
-    cooldown: 0.8
-    damageMultiplier: 1
+  recoil:
     knockbackDistance: 0.35
     knockbackDuration: 0.18
   areaSize: {x: 10, y: 6}

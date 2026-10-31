@@ -31,4 +31,7 @@ MonoBehaviour:
     critDamageMultiplier: 1.5
     dodge: 0
     accuracy: 0
-  skills: []
+  activeSkills:
+  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
+  passiveSkills: []
+  shooting: []

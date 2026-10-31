@@ -1,10 +1,11 @@
 using System;
+using UnityEngine;
 [Serializable]
 public sealed class StatBonusSkill : ISkill
 {
-    public SkillExecution Execute(SkillContext context, SkillRuntime runtime)
-    {
-        var data = (StatBonusSkillDataSO)runtime.Data;
-        return new SkillExecution(true, context.Owner.RuntimeData.AddTemporaryBonus(data.Bonus));
-    }
+    [SerializeField] private StatBonus bonus;
+
+    public (bool succeeded, IDisposable lifetime) Execute(
+        CharacterView owner, CharacterTarget target, in SkillData data)
+        => (true, owner.RuntimeData.AddTemporaryBonus(bonus));
 }

@@ -28,35 +28,33 @@ public sealed class SkillPipelineTests
         {
             var data = Load<SkillDataSO>(AssetDatabase.GUIDToAssetPath(guid));
             Assert.DoesNotThrow(data.Validate, data.name);
-            Assert.That(new SkillFactory().Create(data, new SkillContext(null, null)), Is.Not.Null);
+            Assert.That(data.Behavior, Is.Not.Null);
             count++;
         }
-        Assert.That(count, Is.GreaterThanOrEqualTo(7));
+        Assert.That(count, Is.GreaterThanOrEqualTo(2));
         foreach (string guid in AssetDatabase.FindAssets("t:ProjectileDataSO", new[] { Root }))
             Assert.DoesNotThrow(Load<ProjectileDataSO>(AssetDatabase.GUIDToAssetPath(guid)).Validate);
         foreach (string guid in AssetDatabase.FindAssets("t:ShootingPatternDataSO", new[] { Root }))
             Assert.That(new ShootingPatternFactory().Resolve(
                 Load<ShootingPatternDataSO>(AssetDatabase.GUIDToAssetPath(guid))), Is.Not.Null);
         var player = Load<CharacterDataSO>(Root + "Characters/BlessedGladiator_Character.asset");
-        Assert.That(player.Skills.Length, Is.EqualTo(1));
-        Assert.That(player.Skills[0], Is.SameAs(Load<SkillDataSO>(Root + "Skills/HolyBolt.asset")));
+        Assert.That(player.Shooting.Length, Is.EqualTo(1));
+        Assert.That(player.Shooting[0], Is.SameAs(Load<ShootingDataSO>(Root + "Shooting/HolyBolt.asset")));
+        var enemy = Load<CharacterDataSO>(Root + "Characters/ForagingMaggot_Character.asset");
+        Assert.That(enemy.ActiveSkills[0].Behavior, Is.TypeOf<NormalAttackSkill>());
     }
 
     [Test]
-    public void Factory_SharesBehaviorButSeparatesRuntimePerSkillAndOwner()
+    public void SkillData_IsCopiedByValue_AndRejectsInvalidLevels()
     {
-        var factory = new SkillFactory();
-        var context = new SkillContext(null, null);
-        SkillRuntime fire = factory.Create(Load<SkillDataSO>(Root + "Skills/FireBolt.asset"), context);
-        SkillRuntime ice = factory.Create(Load<SkillDataSO>(Root + "Skills/IceBolt.asset"), context);
-        SkillRuntime secondFire = factory.Create(fire.Data, context);
-        Assert.That(fire.Strategy, Is.SameAs(ice.Strategy));
-        Assert.That(fire, Is.Not.SameAs(secondFire));
-        Assert.That(fire.Shooting, Is.Not.SameAs(secondFire.Shooting));
-        fire.Dispose();
-        Assert.That(secondFire.IsAttached, Is.True);
+        var skill = Load<SkillDataSO>(Root + "Skills/EnemyNormalAttack.asset");
+        SkillData copy = skill.Data;
+        copy.level++;
+        Assert.That(skill.Data.level, Is.EqualTo(1));
+        copy.level = copy.maxLevel + 1;
+        Assert.Throws<InvalidOperationException>(() => copy.Validate());
+        Assert.That(typeof(ISkill).GetMethods().Length, Is.EqualTo(1));
     }
-
     [Test]
     public void CircleHasNoDuplicateSeam_AndFanUsesConfiguredSpread()
     {
@@ -105,7 +103,7 @@ public sealed class SkillPipelineTests
     }
 
     [UnityTest]
-    public IEnumerator SharedPipeline_ConnectsPatternsCooldownPassivesEffectsAndPoolReuse()
+    public IEnumerator SharedPipeline_PreservesStandaloneShootingEffectsAndPoolReuse()
     {
         yield return new EnterPlayMode();
         var container = new DiContainer();
@@ -118,7 +116,8 @@ public sealed class SkillPipelineTests
         container.BindInstance(movement);
         container.BindInstance(pools);
         container.BindInstance(shooting);
-        container.BindInstance(new SkillFactory());
+        var skills = new SkillManager();
+        container.BindInstance(skills);
         container.BindInstance(new StatusEffectFactory());
         var factory = new CharacterFactory(
             Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>(), pools);
@@ -131,10 +130,10 @@ public sealed class SkillPipelineTests
             CharacterView enemy = factory.Spawn(enemyData, Runtime(enemyData), new EnemyController(null, factory),
                 new Vector3(100.2f, 100f));
             CharacterRuntimeData source = player.RuntimeData;
-            var circle = Load<ProjectileSkillDataSO>(Root + "Skills/BossFireCircle.asset");
+            var circle = Load<ShootingDataSO>(Root + "Shooting/BossFireCircle.asset");
             Assert.That(shooting.Fire(circle, new ShootingRuntime(), source, player.HitPosition,
                 Vector2.right, default), Is.EqualTo(12));
-            var spiral = Load<ProjectileSkillDataSO>(Root + "Skills/BossFireSpiral.asset");
+            var spiral = Load<ShootingDataSO>(Root + "Shooting/BossFireSpiral.asset");
             var first = new ShootingRuntime();
             var second = new ShootingRuntime();
             shooting.Fire(spiral, first, source, player.HitPosition, Vector2.right, default);
@@ -143,23 +142,14 @@ public sealed class SkillPipelineTests
             Assert.That(first.Phase, Is.EqualTo(30f));
             Assert.That(second.Phase, Is.EqualTo(15f));
 
-            SkillRuntime fire = player.Skills.AddSkill(Load<SkillDataSO>(Root + "Skills/FireBolt.asset"));
-            SkillRuntime ice = player.Skills.AddSkill(Load<SkillDataSO>(Root + "Skills/IceBolt.asset"));
-            Assert.That(player.Skills.TryUse(fire), Is.True);
-            Assert.That(player.Skills.TryUse(fire), Is.False);
-            Assert.That(player.Skills.TryUse(ice), Is.True);
-            Assert.That(fire.CooldownRemaining, Is.EqualTo(0.8f));
-            Assert.That(ice.CooldownRemaining, Is.EqualTo(1f));
-            SkillRuntime passive = player.Skills.AddSkill(Load<SkillDataSO>(Root + "Skills/Toughness.asset"));
-            player.Skills.Tick(0.01f);
-            player.Skills.Tick(0.01f);
-            Assert.That(source.FinalStats.defense, Is.EqualTo(playerData.BaseStats.defense + 2f));
-            int triggers = 0;
-            Assert.That(player.Skills.TryTriggerPassive(passive, () => { triggers++; return true; }), Is.True);
-            Assert.That(player.Skills.TryTriggerPassive(passive, () => { triggers++; return true; }), Is.False);
-            Assert.That(triggers, Is.EqualTo(1), "Passive internal cooldown belongs to the character handler.");
-            player.Skills.RemoveSkill(passive);
-            Assert.That(source.FinalStats.defense, Is.EqualTo(playerData.BaseStats.defense));
+            // The standalone scheduler still fires the player's configured shot.
+            int scheduledShots = pools.GetHolder(PoolGroup.Bullets).childCount;
+            var scheduledState = new ShootingRuntime();
+            shooting.Tick(player, playerData.Shooting, new[] { scheduledState }, 0.01f);
+            Assert.That(pools.GetHolder(PoolGroup.Bullets).childCount, Is.EqualTo(scheduledShots + 1));
+            Assert.That(scheduledState.CooldownRemaining, Is.EqualTo(playerData.Shooting[0].Cooldown));
+            shooting.Tick(player, playerData.Shooting, new[] { scheduledState }, 0.01f);
+            Assert.That(pools.GetHolder(PoolGroup.Bullets).childCount, Is.EqualTo(scheduledShots + 1));
 
             var iceData = Load<ProjectileDataSO>(Root + "Projectiles/Ice.asset");
             var strategies = new ProjectileStrategyFactory();
@@ -200,7 +190,122 @@ public sealed class SkillPipelineTests
             }
             LogAssert.NoUnexpectedReceived();
         }
-        finally { factory.Dispose(); pools.Dispose(); movement.Dispose(); }
+        finally { factory.Dispose(); skills.Dispose(); pools.Dispose(); movement.Dispose(); }
+        yield return new ExitPlayMode();
+    }
+
+    [UnityTest]
+    public IEnumerator SkillManager_UsesCharacterDamageAndOwnsCooldownLevelsPassivesAndSpawnLifetimes()
+    {
+        yield return new EnterPlayMode();
+        var container = new DiContainer();
+        var movement = new MovementManager();
+        var pools = new PoolManager(container);
+        var skills = new SkillManager();
+        var projectiles = new ProjectileService(pools,
+            new ProjectileService.Settings(Load<GameObject>("Assets/_Project/Prefabs/HolyBolt.prefab")
+                .GetComponent<ProjectileView>()), new ProjectileStrategyFactory());
+        container.BindInstance(movement);
+        container.BindInstance(pools);
+        container.BindInstance(skills);
+        container.BindInstance(new ShootingService(projectiles, new ShootingPatternFactory()));
+        container.BindInstance(new StatusEffectFactory());
+        var factory = new CharacterFactory(
+            Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>(), pools);
+        var enemyTemplate = Object.Instantiate(Load<CharacterDataSO>(Root + "Characters/ForagingMaggot_Character.asset"));
+        var playerTemplate = Object.Instantiate(Load<CharacterDataSO>(Root + "Characters/BlessedGladiator_Character.asset"));
+        try
+        {
+            // Same asset in two slots and on two owners must have independent runtime data/timers.
+            var serialized = new SerializedObject(enemyTemplate);
+            serialized.FindProperty("activeSkills").arraySize = 2;
+            serialized.FindProperty("activeSkills").GetArrayElementAtIndex(1).objectReferenceValue = enemyTemplate.ActiveSkills[0];
+            serialized.FindProperty("passiveSkills").arraySize = 1;
+            serialized.FindProperty("passiveSkills").GetArrayElementAtIndex(0).objectReferenceValue =
+                Load<SkillDataSO>(Root + "Skills/Toughness.asset");
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            serialized = new SerializedObject(playerTemplate);
+            serialized.FindProperty("baseStats").FindPropertyRelative("maxHealth").floatValue = 1000f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            CharacterRuntimeData Attacker() => new CharacterRuntimeData(enemyTemplate, 1, 1, default, default, default,
+                new StatBonus { damage = 7f, critChance = -enemyTemplate.BaseStats.critChance });
+            var position = new Vector3(100f, 100f);
+            CharacterView victim = factory.Spawn(playerTemplate, Runtime(playerTemplate), new PlayerController(null), position);
+            CharacterView first = factory.Spawn(enemyTemplate, Attacker(), new EnemyController(null, factory), position);
+            CharacterView second = factory.Spawn(enemyTemplate, Attacker(), new EnemyController(null, factory), position);
+            SkillManager.Handle oldHandle = first.SkillHandle;
+            CharacterTarget target = new CharacterTarget(victim);
+            Assert.That(first.RuntimeData.FinalStats.defense, Is.EqualTo(enemyTemplate.BaseStats.defense + 2f));
+            skills.Activate(oldHandle);
+            Assert.That(first.RuntimeData.FinalStats.defense, Is.EqualTo(enemyTemplate.BaseStats.defense + 2f));
+
+            float before = victim.RuntimeData.CurrentHealth;
+            Assert.That(first.TryUseSkill(0, target), Is.True);
+            float expected = first.RuntimeData.FinalStats.damage * 100f / (100f + victim.RuntimeData.FinalStats.defense);
+            Assert.That(before - victim.RuntimeData.CurrentHealth, Is.EqualTo(expected).Within(0.0001f),
+                "Normal attack must use character BaseStats plus bonuses, with no skill damage multiplier.");
+            Assert.That(first.TryUseSkill(0, target), Is.False);
+            Assert.That(first.TryUseSkill(1, target), Is.True, "Duplicate asset slots have independent cooldowns.");
+            Assert.That(second.TryUseSkill(0, target), Is.True, "Owners never share cooldowns.");
+
+            float cooldown = enemyTemplate.ActiveSkills[0].Data.cooldown;
+            first.gameObject.SetActive(false);
+            skills.Simulate(cooldown);
+            Assert.That(skills.GetCooldown(oldHandle, 0), Is.EqualTo(cooldown));
+            first.gameObject.SetActive(true);
+            skills.Simulate(cooldown);
+            Assert.That(first.TryUseSkill(0, target), Is.True);
+            Assert.That(skills.TryLevelUp(oldHandle, SkillCategory.Active, 0), Is.True);
+            Assert.That(skills.TryGetData(oldHandle, SkillCategory.Active, 0, out SkillData leveled), Is.True);
+            Assert.That(leveled.level, Is.EqualTo(2));
+            skills.TryGetData(second.SkillHandle, SkillCategory.Active, 0, out SkillData other);
+            Assert.That(other.level, Is.EqualTo(1));
+            Assert.That(enemyTemplate.ActiveSkills[0].Data.level, Is.EqualTo(1));
+            while (skills.TryLevelUp(oldHandle, SkillCategory.Active, 0)) { }
+            skills.TryGetData(oldHandle, SkillCategory.Active, 0, out leveled);
+            Assert.That(leveled.level, Is.EqualTo(leveled.maxLevel));
+            Assert.That(skills.TryLevelUp(oldHandle, SkillCategory.Passive, 0), Is.True);
+            Assert.That(first.RuntimeData.FinalStats.defense, Is.EqualTo(enemyTemplate.BaseStats.defense + 2f),
+                "Reapplying a leveled passive must remove its previous modifier.");
+
+            // Failed contact never consumes cooldown.
+            skills.Simulate(cooldown);
+            first.transform.position += Vector3.right * 5f;
+            CharacterSearch.InvalidatePhysics();
+            Assert.That(first.TryUseSkill(0, target), Is.False);
+            Assert.That(skills.GetCooldown(oldHandle, 0), Is.Zero);
+            first.transform.position = position;
+            CharacterSearch.InvalidatePhysics();
+
+            CharacterRuntimeData releasedData = first.RuntimeData;
+            factory.Despawn(first);
+            Assert.That(skills.IsRegistered(oldHandle), Is.False);
+            Assert.That(releasedData.FinalStats.defense, Is.EqualTo(enemyTemplate.BaseStats.defense));
+            CharacterView reused = factory.Spawn(enemyTemplate, Attacker(), new EnemyController(null, factory), position);
+            Assert.That(reused, Is.SameAs(first));
+            Assert.That(skills.TryExecute(oldHandle, 0, target), Is.False, "Stale handles cannot control a reused shell.");
+            skills.TryGetData(reused.SkillHandle, SkillCategory.Active, 0, out SkillData fresh);
+            Assert.That(fresh.level, Is.EqualTo(1));
+            Assert.That(reused.TryUseSkill(0, target), Is.True);
+
+            // A damage callback may release the caster before Execute returns.
+            var callbackHandle = second.SkillHandle;
+            CharacterRuntimeData callbackData = second.RuntimeData;
+            victim.DamageReceived += (_, __) => factory.Despawn(second);
+            skills.Simulate(cooldown);
+            Assert.That(skills.TryExecute(callbackHandle, 0, target), Is.False);
+            Assert.That(skills.IsRegistered(callbackHandle), Is.False);
+            Assert.That(callbackData.FinalStats.defense, Is.EqualTo(enemyTemplate.BaseStats.defense));
+            var deadHandle = reused.SkillHandle;
+            reused.ReceiveDamage(new DamageInfo(100000f, CharacterTeam.Player));
+            Assert.That(skills.IsRegistered(deadHandle), Is.False);
+            LogAssert.NoUnexpectedReceived();
+        }
+        finally
+        {
+            factory.Dispose(); skills.Dispose(); pools.Dispose(); movement.Dispose();
+            Object.DestroyImmediate(enemyTemplate); Object.DestroyImmediate(playerTemplate);
+        }
         yield return new ExitPlayMode();
     }
 }

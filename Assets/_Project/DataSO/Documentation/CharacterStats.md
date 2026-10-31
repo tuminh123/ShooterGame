@@ -2,14 +2,13 @@
 
 ## 1. Phạm vi triển khai
 
-`CharacterDataSO` là template chứa `BaseStats` và hai danh sách `List<ISkill>`: bị động, chủ động. Player, enemy và boss có thể dùng chung cấu trúc này, mỗi loại có asset riêng.
+CharacterDataSO chứa BaseStats, hai mảng SkillDataSO[] (ActiveSkills, PassiveSkills) và mảng ShootingDataSO[] chạy bắn đạn riêng trong bước chuyển đổi hiện tại.
 
-Damage, crit theo bậc và defense đã được nối vào CharacterRuntimeData và skill bắn đạn. Chi tiết vòng đời skill, tìm kiếm và prefab nằm trong `CombatAndSkills.md`; các phần hiệu ứng bất lợi phía dưới vẫn là quy tắc dự kiến.
+Mỗi SkillDataSO chứa SkillData struct (level, maxLevel, cooldown), SkillVisual class (tên, mô tả, icon) và một hành vi ISkill chỉ có Execute. SkillManager dùng chung quản lý data riêng của từng slot, cooldown và vòng đời. Character/Controller gửi yêu cầu trực tiếp; không có lớp Combat trung gian.
 
-Skill được lưu bằng `[SerializeReference]`: mỗi phần tử phải là class thuần có `[System.Serializable]` và triển khai `ISkill`. Không cần skill DataSO. Hai component cũ `PassiveSkill` và `ProactiveSkills` vẫn là MonoBehaviour, chưa triển khai ISkill và không dùng được trong các danh sách SerializeReference này. Chưa sửa hai component đó ở bước này.
+Đánh thường enemy lấy damage và crit từ CharacterRuntimeData.FinalStats: BaseStats trên CharacterDataSO cộng các bonus hiện tại. Skill đánh thường không có damage hoặc damageMultiplier riêng. Xem CombatAndSkills.md và Docs/Architecture/Skill-Shooting-Pipeline.md cho luồng hiện tại.
 
-CharacterSkillEditor cung cấp nút thêm ProjectileSkill vào activeSkills. Mỗi mẫu được CreateRuntime để tách cooldown/trạng thái theo lượt spawn. Chưa có API thêm/xóa skill trong trận.
-
+Các phần công thức dự kiến phía dưới cần được phân biệt với quy tắc đã triển khai; công thức effect hiện tại được ghi trong tài liệu pipeline.
 ## 2. Các field và đơn vị nhập
 
 | Field | Ý nghĩa | Cách nhập | Mặc định |
@@ -242,16 +241,14 @@ Crit không tự tăng xác suất độc. Độc mạnh bao nhiêu, kéo dài b
 
 Giữ phép tính sát thương bằng float, chỉ làm tròn để hiển thị. Chưa có luật tối thiểu 1 sát thương, hồi máu từ sát thương âm hoặc các cơ chế chưa thống nhất.
 
-## 12. Template và runtime sau này
+## 12. Template và runtime
 
-- Copy BaseStats theo giá trị; CharacterSkills tạo danh sách runtime từ cả hai nhóm mẫu.
-- Mỗi phần tử ISkill có trạng thái như cooldown, thời lượng hoặc IsActive phải được tạo bản sao runtime riêng cho từng nhân vật. Chỉ tạo list mới sẽ vẫn dùng chung đối tượng skill và chưa đủ để cách ly trạng thái.
-- Thêm/xóa skill trong trận tác động danh sách runtime, không sửa asset template.
-- Nếu dùng MemberwiseClone cho class runtime, cần tự sao chép list và các trạng thái tham chiếu phải độc lập. Shallow copy không tự xử lý chúng.
-- Không clone toàn bộ ScriptableObject. ISkill.CreateRuntime(context) tạo bản runtime riêng; CharacterSkills Activate/Tick/Deactivate theo vòng đời cá thể.
-
-CharacterRuntimeData và ProjectileSkill đã được nối vào nhân vật. API thêm/xóa skill trong trận và skill hiệu ứng bất lợi chưa được triển khai.
-
+- BaseStats và SkillData được sao chép theo giá trị, không sửa asset trong lúc chơi.
+- SkillManager giữ level, cooldown và IDisposable riêng cho từng slot của từng nhân vật; cùng asset vẫn có trạng thái độc lập.
+- ISkill trên asset chỉ chứa hành vi/cấu hình cố định, không giữ owner, target hoặc timer.
+- Tắt tạm thời giữ trạng thái và ngừng đếm giờ; chết/despawn hủy đăng ký và thu hồi passive.
+- Pool spawn lại tạo đăng ký mới. Handle cũ không điều khiển được lượt spawn mới.
+- Nâng level skill hiện chỉ cập nhật level tới maxLevel; chưa tự tăng damage hoặc giảm cooldown.
 ## 13. Config level và save người chơi
 
 PermanentLevelConfigSO, RunLevelConfigSO, StatBonus, RunLevelProgress và SaveManager đã được nối vào luồng spawn. Chi tiết EXP, nâng cấp vĩnh viễn và cộng bonus nằm trong [hướng dẫn chung DataSO](../README.md).

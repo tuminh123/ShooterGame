@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using UnityEditor;
+using UnityEngine;
 
 // Select stateless strategy types without hand-editing SerializeReference YAML.
 [CustomEditor(typeof(SkillDataSO), true)]
@@ -8,12 +10,15 @@ public sealed class CharacterSkillEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        DrawPropertiesExcluding(serializedObject, "m_Script", "skill");
-        if (target is ProjectileSkillDataSO)
-            StrategySelector.Draw(serializedObject.FindProperty("skill"), typeof(ProjectileSkill));
-        else if (target is StatBonusSkillDataSO)
-            StrategySelector.Draw(serializedObject.FindProperty("skill"), typeof(StatBonusSkill));
+        DrawPropertiesExcluding(serializedObject, "m_Script", "behavior");
+        Type[] behaviors = TypeCache.GetTypesDerivedFrom<ISkill>()
+            .Where(type => !type.IsAbstract && !type.IsInterface && type.IsSerializable &&
+                           type.GetConstructor(Type.EmptyTypes) != null)
+            .OrderBy(type => type.Name).ToArray();
+        StrategySelector.Draw(serializedObject.FindProperty("behavior"), behaviors);
         serializedObject.ApplyModifiedProperties();
+        try { ((SkillDataSO)target).Validate(); }
+        catch (Exception exception) { EditorGUILayout.HelpBox(exception.Message, MessageType.Error); }
     }
 }
 
@@ -60,5 +65,16 @@ internal static class StrategySelector
         int selected = EditorGUILayout.Popup(property.displayName, current, names);
         if (selected != current)
             property.managedReferenceValue = selected == 0 ? null : Activator.CreateInstance(types[selected - 1]);
+        if (property.managedReferenceValue != null)
+        {
+            SerializedProperty child = property.Copy();
+            SerializedProperty end = property.GetEndProperty();
+            bool enterChildren = true;
+            while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
+            {
+                EditorGUILayout.PropertyField(child, true);
+                enterChildren = false;
+            }
+        }
     }
 }

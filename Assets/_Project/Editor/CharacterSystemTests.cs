@@ -112,7 +112,8 @@ public sealed class CharacterSystemTests
             new ProjectileService.Settings(Load<GameObject>("Assets/_Project/Prefabs/HolyBolt.prefab").GetComponent<ProjectileView>()),
             new ProjectileStrategyFactory());
         container.BindInstance(new ShootingService(projectiles, new ShootingPatternFactory()));
-        container.BindInstance(new SkillFactory());
+        var skills = new SkillManager();
+        container.BindInstance(skills);
         container.BindInstance(new StatusEffectFactory());
         CharacterView prefab = Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>();
         var factory = new CharacterFactory(prefab, pools);
@@ -193,7 +194,9 @@ public sealed class CharacterSystemTests
         finally
         {
             factory.Dispose();
+            skills.Dispose();
             pools.Dispose();
+            skills.Dispose();
             movement.Dispose();
         }
         yield return new ExitPlayMode();
@@ -212,7 +215,8 @@ public sealed class CharacterSystemTests
             new ProjectileService.Settings(Load<GameObject>("Assets/_Project/Prefabs/HolyBolt.prefab").GetComponent<ProjectileView>()),
             new ProjectileStrategyFactory());
         container.BindInstance(new ShootingService(projectiles, new ShootingPatternFactory()));
-        container.BindInstance(new SkillFactory());
+        var skills = new SkillManager();
+        container.BindInstance(skills);
         container.BindInstance(new StatusEffectFactory());
         var factory = new CharacterFactory(
             Load<GameObject>("Assets/_Project/Prefabs/Character.prefab").GetComponent<CharacterView>(), pools);
@@ -305,6 +309,7 @@ public sealed class CharacterSystemTests
             characters.Dispose();
             saves.Dispose();
             pools.Dispose();
+            skills.Dispose();
             movement.Dispose();
         }
         yield return new ExitPlayMode();

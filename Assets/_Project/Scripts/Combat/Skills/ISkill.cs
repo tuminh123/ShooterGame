@@ -1,12 +1,8 @@
 using System;
+
+// Shared behavior only. Per-character state and returned lifetimes belong to SkillManager.
 public interface ISkill
 {
-    SkillExecution Execute(SkillContext context, SkillRuntime runtime);
-}
-public readonly struct SkillExecution
-{
-    public bool Succeeded { get; }
-    public IDisposable Lifetime { get; }
-    public SkillExecution(bool succeeded, IDisposable lifetime = null)
-    { Succeeded = succeeded; Lifetime = lifetime; }
+    (bool succeeded, IDisposable lifetime) Execute(
+        CharacterView owner, CharacterTarget target, in SkillData data);
 }

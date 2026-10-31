@@ -1,88 +1,53 @@
-# Skill, shooting, projectile và hiệu ứng
+# Skill lifecycle and standalone shooting
 
-## Phân chia trách nhiệm
+## Skill structure
 
-- CharacterDataSO giữ một mảng SkillDataSO[].
-- SkillDataSO phân loại bằng SkillCategory.Active/Passive. Field SerializeReference skill chỉ chọn Type của Strategy, không chứa cấu hình hoặc trạng thái riêng.
-- SkillFactory đăng ký Dictionary<Type, ISkill>. Các Strategy không có trạng thái và được dùng chung.
-- Mỗi lần gắn skill, factory tạo SkillRuntime riêng. Runtime giữ data, Strategy, cooldown, retry timer, góc pattern và quyền thu hồi passive.
-- CharacterSkillHandler quản lý runtime, active tự động/thủ công, cooldown và việc gắn/gỡ passive. ISkill chỉ Execute và trả SkillExecution.
-- ShootingService là đường bắn chung của Player, Enemy và boss.
-- ShootingPatternFactory chọn IShootingPattern: Straight (một hướng/quạt), Circular hoặc Spiral.
-- ProjectileService dùng một prefab vỏ duy nhất từ GameSceneInstaller. ProjectileDataSO chọn sprite, màu, damage multiplier, tốc độ, vùng trúng, lifetime, flight, hit và mảng hiệu ứng.
-- ProjectileStrategyFactory chọn flight Straight/Homing và hit SingleTarget.
-- CharacterEffectHandler sở hữu Slow/Burn/Poison trên mục tiêu; đạn despawn không xóa hiệu ứng đã áp dụng.
+Each `SkillDataSO` contains exactly three serialized parts:
 
-## Cách cấu hình
+- `SkillData`: a value-type struct containing initial level, maximum level and cooldown.
+- `SkillVisual`: a plain class containing display name, description and icon.
+- `ISkill`: a serialized behavior with only one method, `Execute(owner, target, in data)`.
 
-1. Chọn nhân vật trong DataSO/Characters, chỉnh mảng Skills.
-2. Kéo asset trong DataSO/Skills vào mảng. Mỗi phần tử có cooldown riêng, kể cả khi dùng cùng Type Strategy.
-3. Chọn skill để chỉnh Category, Cooldown, Auto Cast và Retry Interval.
-4. ProjectileSkillDataSO chọn Projectile và Shooting Pattern. Inspector có dropdown để chọn Strategy.
-5. Requires Target bật: tìm đối thủ gần nhất theo FinalStats.range. Tắt: phát đạn theo Default Direction, phù hợp pattern boss.
-6. Auto Cast tắt: gameplay/UI gọi CharacterView.Skills.TryUse(runtime). Handler vẫn kiểm tra cooldown, owner và membership.
-7. Gỡ skill bằng RemoveSkill(runtime) để thu hồi passive; không sửa asset trong lúc chơi.
+`Execute` returns `(bool succeeded, IDisposable lifetime)`. A successful instant action returns a null lifetime. Persistent modifiers/subscriptions return a disposable owned by the manager. Behavior instances are shared asset configuration; never store per-owner targets, timers or mutable state on them.
 
-Mảng mẫu của Blessed Gladiator vẫn chỉ có HolyBolt với cooldown 0,6 giây. Các skill FireBolt, IceBolt, PoisonBolt và Toughness là ví dụ để kéo thêm vào Inspector; không tự gắn vào nhân vật.
+`CharacterDataSO.ActiveSkills` and `PassiveSkills` contain skill assets. Category is determined by the character array, not duplicated on the asset.
 
-## Kiểu phát đạn và đường bay
+## Shared manager
 
-Hai khái niệm độc lập:
+Zenject creates one `SkillManager` and ticks it before normal character Updates. Characters register their definitions while initializing inactive shells. OnEnable activates passives after setup; each successfully applied passive runs once. The manager copies each asset's `SkillData` into private per-slot state, owns cooldowns and disposables, and never changes the asset.
 
-| Cấu hình | Quyết định |
-|---|---|
-| Shooting pattern | Số viên và hướng ban đầu của từng viên trong một lần dùng skill |
-| Projectile flight | Hướng di chuyển của từng viên sau khi đã sinh |
-| Projectile hit | Cách xử lý khi viên đạn chạm mục tiêu |
+`CharacterView.TryUseSkill(index, target)` forwards to `SkillManager.TryExecute`. Controllers supply targets directly; there is no Combat layer. The manager validates registration, owner identity, alive/active state, slot index and cooldown. Behavior checks its own action conditions. Only successful active execution starts cooldown. A per-slot execution guard prevents recursive use of that slot without blocking unrelated skills.
 
-Straight phát một viên hoặc quạt theo Spread Angle.
-Circular chia đều 360 độ, không lặp viên ở đường nối 0/360.
-Spiral phát các nhánh chia đều rồi tăng góc sau mỗi lần dùng skill. Đây là chuỗi phát xoắn ốc, không phải mỗi viên tự bay theo đường cong.
+Temporary disable preserves levels, cooldowns and applied passive lifetimes; timers pause. Death/despawn/destroy unregisters the current handle and disposes its resources. Every registration has a new handle, so callbacks cannot use stale handles against a pooled shell's next lifetime. Callback-triggered despawns are checked again after behavior execution before retaining returned resources.
 
-BossFireCircle: 12 viên mỗi 1,5 giây, không cần mục tiêu.
-BossFireSpiral: 3 nhánh mỗi 0,12 giây, xoay 15 độ mỗi lần phát, không cần mục tiêu.
-Hai nhân vật dùng cùng asset Spiral vẫn có Phase và CastCount riêng.
+`TryGetData` returns a copy; `TryLevelUp` increments only the selected slot up to maxLevel. Level currently has no automatic damage/cooldown scaling. A leveled passive is removed and reapplied with its new data. A failed passive application is retried on its configured cooldown.
 
-Các asset pattern nằm trong DataSO/Shooting. Có thể ghép bất kỳ pattern với loại đạn nào thông qua skill. Prefab HolyBolt hiện là vỏ dùng chung; prefab HolyBolt_Homing cũ cũng chỉ là vỏ và không quyết định flight.
+## Enemy normal attack
 
-## Hiệu ứng và chỉ số
+`ForagingMaggot_Character.asset` has `EnemyNormalAttack.asset` in active slot zero. Its data starts at level 1, max level 5 and cooldown 0.8 seconds. `EnemyController` requests slot zero against the current Player. `NormalAttackSkill` validates contact/opposing teams and sends `owner.RuntimeData.CreateDamage()` to the victim.
 
-- Ice mang Slow: giảm tốc 30% trong 2 giây.
-- Fire mang Burn: damage mỗi giây bằng 20% damage nguồn, trong 3 giây.
-- Poison mang Poison: damage mỗi giây bằng 25% damage nguồn, trong 4 giây.
-- Damage trực tiếp chốt crit khi bắn. Damage theo thời gian dùng damage gốc của nguồn lúc bắn, không roll crit lại, và đi qua defense một lần mỗi tick.
-- Khi damage trực tiếp giết mục tiêu, không thêm hiệu ứng lên vỏ đã bị thu hồi.
-- Range giữ từ BaseStats, không có bonus nâng range.
-- Slow là modifier tạm thời trên tốc độ sau bonus. Nhiều Slow dùng mức mạnh nhất; mỗi hiệu ứng có thời hạn riêng.
-- Cùng asset hiệu ứng được áp dụng lại sẽ làm mới thời gian và dữ liệu nguồn, không cộng tầng. Lịch tick DOT được giữ để bắn liên tục không trì hoãn damage.
-- Burn và Poison dùng hai asset riêng nên có thể cùng tồn tại.
+Normal attack damage and crit come exclusively from the character's current FinalStats, which combine CharacterDataSO BaseStats and current bonuses. No skill damage field, multiplier or level-based damage formula is added. The victim computes defense and HP loss using the existing receive-damage path.
 
-Mỗi hiệu ứng có Application Chance và Use Accuracy And Dodge. Khi bật, quy tắc hiện tại là:
+EnemyController owns chase, separation and recoil movement. EnemySpawnManager only configures recoil distance/duration; attack cooldown is edited on the skill asset.
 
-    chance = baseChance * (100 + max(0, accuracy))
-                        / (100 + max(0, accuracy) + max(0, dodge))
+## Projectile attacks remain separate
 
-Kết quả giới hạn 0–1. Đây là quy tắc cân bằng mặc định, có thể thay tập trung tại CharacterEffectHandler.ApplicationChance. Tắt Use Accuracy And Dodge để chỉ dùng xác suất trên asset. Dodge không né damage trực tiếp.
+For this migration, `CharacterDataSO.Shooting` holds `ShootingDataSO[]`. Blessed Gladiator keeps HolyBolt here. The shot assets were moved from DataSO/Skills to DataSO/Shooting with their GUIDs preserved. `ShootingDataSO` is an independent ScriptableObject and has no ISkill behavior or SkillDataSO inheritance.
 
-## Passive và vòng đời
+CharacterView keeps one ShootingRuntime per configured shot and calls ShootingService.Tick. This temporary shooting path owns its own cooldown/retry counters and target search, preserving previous auto-fire behavior. ShootingService.Fire still delegates pattern geometry and projectile spawning to the existing services.
 
-Toughness dùng StatBonusSkill, cộng defense một lần khi handler được tick và gỡ khi mất skill, chết hoặc despawn. Recalculate do level/trang bị thay đổi vẫn giữ modifier đang gắn.
+Projectile pattern/flight/hit definitions and status effects are unchanged. Burn/Poison use source damage snapshotted at fire time; Slow uses temporary stat modifiers. Projectile damage multipliers remain part of the existing projectile configuration; enemy normal attack does not use them.
 
-ISkill có thể trả IDisposable trong SkillExecution.Lifetime để handler thu hồi tác dụng/subscription. Implementation passive mẫu là cộng chỉ số liên tục. API TryTriggerPassive(runtime, effect) cho phép Strategy đăng ký sự kiện rồi yêu cầu handler kiểm tra cooldown nội bộ trước khi kích hoạt; chưa có asset passive sự kiện mẫu hoặc UI chọn skill.
+## Authoring
 
-Khi chết hoặc despawn: handler skill dispose, handler hiệu ứng dispose, modifier được thu hồi. Khi spawn lại: tạo runtime và handler mới. Tắt GameObject tạm thời giữ cùng runtime, các bộ đếm dùng deltaTime chỉ tiếp tục khi object hoạt động trở lại.
+1. Create an asset using Shooter Game / Skills / Skill.
+2. Set Data (level, maxLevel, cooldown) and Visual.
+3. Select Behavior in the Inspector. Serializable ISkill implementations with public default constructors are discovered automatically, and their serialized fields are editable below the selector.
+4. Put the asset into a character's Active Skills or Passive Skills list.
+5. Request active use through CharacterView.TryUseSkill with a zero-based slot index and a CharacterTarget. No factory registration is necessary.
 
-## Mở rộng
+The old SkillFactory, SkillContext, SkillRuntime, CharacterSkillHandler, ProjectileSkill and specialized skill SO subclasses have been removed.
 
-- Hành vi skill mới: triển khai ISkill, tạo data phù hợp, đăng ký ở SkillFactory và thêm lựa chọn Inspector.
-- Pattern mới: triển khai IShootingPattern, đăng ký ShootingPatternFactory; không sửa ProjectileService hoặc từng nguyên tố.
-- Đường bay mới: triển khai IProjectileFlight và đăng ký ProjectileStrategyFactory.
-- Hit mới: triển khai IProjectileHit và đăng ký ProjectileStrategyFactory.
-- Hiệu ứng mới: tạo data/Strategy, đăng ký StatusEffectFactory.
+## Validation
 
-Không lưu owner, cooldown, góc xoắn ốc hay thời hạn hiệu ứng trên ScriptableObject/Strategy dùng chung.
-
-## Kiểm tra
-
-SkillPipelineTests kiểm tra tham chiếu asset, runtime độc lập, hình học vòng/quạt, modifier/range, accuracy/dodge và pipeline Play Mode qua pooling.
-CharacterSystemTests tiếp tục kiểm tra vỏ dùng chung, dữ liệu runtime và tăng trưởng Enemy.
+SkillPipelineTests covers asset wiring, struct data isolation, character-derived normal attack damage, independent owner/slot cooldowns, paused timers, levels, passive cleanup/reapplication, stale pool handles, callback despawns, standalone auto-fire, patterns, effects and projectile pool reuse. CharacterSystemTests retains character factory/pooling and damage feedback coverage with the shared manager injected.

@@ -61,7 +61,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.Bind<ProjectileStrategyFactory>().AsSingle();
         Container.Bind<ShootingPatternFactory>().AsSingle();
         Container.Bind<ShootingService>().AsSingle();
-        Container.Bind<SkillFactory>().AsSingle();
+        Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle();
+        Container.BindTickableExecutionOrder<SkillManager>(-100);
         Container.Bind<StatusEffectFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<PlayerManager>(-100);
@@ -70,6 +71,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindDisposableExecutionOrder<CharacterFactory>(200);
         Container.BindDisposableExecutionOrder<PoolManager>(100);
         Container.BindDisposableExecutionOrder<PlayerManager>(50);
+        Container.BindDisposableExecutionOrder<SkillManager>(-75);
         Container.BindDisposableExecutionOrder<SaveManager>(-50);
         Container.BindDisposableExecutionOrder<MovementManager>(-100);
     }
