@@ -16,12 +16,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private SpriteRenderer[] sprites; // * Cache để lật hướng hiển thị, không tìm component trong từng frame.
     private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
     private BoxCollider2D hitbox; // * Một hitbox trên vỏ gốc; tìm kiếm dùng TryGetComponent tại cùng object.
-    private ShootingService shooting;
-    private SkillManager skills;
-    private ShootingDataSO[] shots;
-    private ShootingRuntime[] shotStates;
     private StatusEffectFactory effectFactory;
-    public SkillManager.Handle SkillHandle { get; private set; }
     public CharacterEffectHandler Effects { get; private set; }
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
@@ -30,16 +25,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // Raised before visual cleanup, and on temporary disable, so owners can cancel presentation tasks.
     public event Action Deactivated;
     public Vector3 HitPosition => hitbox != null ? transform.TransformPoint(hitbox.offset) : transform.position;
+    public event Action<CharacterView> Died;
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools, ShootingService shooting,
-        SkillManager skills, StatusEffectFactory effectFactory)
+    public void Construct(MovementManager movement, PoolManager pools, StatusEffectFactory effectFactory)
     {
         this.movement = movement;
         this.pools = pools;
-        this.shooting = shooting;
-        this.skills = skills;
         this.effectFactory = effectFactory;
     }
 
@@ -84,15 +77,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
         Effects = new CharacterEffectHandler(this, effectFactory);
-        SkillHandle = skills.Register(this, template);
-        shots = template.Shooting;
-        shotStates = new ShootingRuntime[shots.Length];
-        for (int i = 0; i < shots.Length; i++)
-        {
-            if (shots[i] == null) throw new ArgumentException("Assign all standalone shooting definitions.");
-            shots[i].Validate();
-            shotStates[i] = new ShootingRuntime();
-        }
     }
 
     private void OnEnable()
@@ -106,7 +90,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             animator.Rebind();
             animator.Update(0f);
         }
-        skills.Activate(SkillHandle);
     }
 
     private void Update()
@@ -119,13 +102,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             return;
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
-        // * Controller có thể despawn ngay trong Tick; luôn kiểm tra lại lượt đang hoạt động.
-        if (ReferenceEquals(RuntimeData, identity) && RuntimeData.IsAlive && Time.deltaTime > 0f)
-            shooting.Tick(this, shots, shotStates, Time.deltaTime);
     }
-
-    public bool TryUseSkill(int activeSkillIndex, CharacterTarget target)
-        => skills != null && skills.TryExecute(SkillHandle, activeSkillIndex, target);
 
     // * Mặc định nhìn theo hướng chạy; Enemy có thể truyền hướng đến Player khi đang lùi ra khỏi hàng xóm.
     // * facingDirection chỉ là lệnh hiển thị của frame hiện tại, không thêm dữ liệu cấu hình vào template chung.
@@ -158,24 +135,28 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     }
     #endif
 
-    // * View chỉ nối hitbox tới luật nhận damage của Character runtime.
-    // * Hành vi riêng quyết định chết; Enemy thu hồi, Player dừng lại.
+    // Unity damage endpoint only; the controller owns shield/HP/death behavior.
     public DamageResult ReceiveDamage(DamageInfo damage)
     {
-        if (!isActiveAndEnabled || RuntimeData == null)
-            return default;
-        CharacterRuntimeData current = RuntimeData;
-        DamageResult result = current.ReceiveDamage(damage);
-        if (result.Accepted && ReferenceEquals(RuntimeData, current))
-            DamageReceived?.Invoke(damage, result);
-        if (result.Killed && ReferenceEquals(RuntimeData, current))
-        {
-            skills?.Unregister(SkillHandle);
-            Effects?.Dispose();
-            if (ReferenceEquals(RuntimeData, current))
-                controller.OnDeath(this, current);
-        }
-        return result;
+        return controller != null ? controller.ReceiveDamage(this, RuntimeData, damage) : default;
+    }
+
+    public void ChangeHealth(float amount) => controller?.ChangeHealth(this, RuntimeData, amount);
+    public void GrantShield(float amount) => controller?.GrantShield(this, RuntimeData, amount);
+
+    public DamageResult DealDamage(CharacterTarget target, float multiplier = 1f)
+        => controller != null ? controller.DealDamage(this, RuntimeData, target, multiplier) : default;
+
+    internal void NotifyDamageReceived(DamageInfo damage, DamageResult result)
+    {
+        if (result.Accepted) DamageReceived?.Invoke(damage, result);
+    }
+
+    internal void EndCombatLifetime()
+    {
+        CharacterRuntimeData identity = RuntimeData;
+        try { Died?.Invoke(this); }
+        finally { if (ReferenceEquals(RuntimeData, identity)) Effects?.Dispose(); }
     }
 
     // * Unity đang thay đổi trạng thái cả hierarchy trong OnDisable: chỉ dừng movement, không thu hồi/reparent visual.
@@ -199,10 +180,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         StopMovement();
         Deactivated?.Invoke();
-        skills?.Unregister(SkillHandle);
-        SkillHandle = default;
-        shots = null;
-        shotStates = null;
         Effects?.Dispose();
         Effects = null;
         controller = null;
@@ -219,10 +196,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         StopMovement();
         Deactivated?.Invoke();
-        skills?.Unregister(SkillHandle);
-        SkillHandle = default;
-        shots = null;
-        shotStates = null;
         Effects?.Dispose();
         Effects = null;
         CharacterSearch.InvalidatePhysics();
@@ -243,6 +216,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         Action<CharacterView> released = Released;
         Released = null;
+        Died = null;
         DamageReceived = null;
         Deactivated = null;
         released?.Invoke(this);

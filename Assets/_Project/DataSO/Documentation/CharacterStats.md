@@ -1,254 +1,257 @@
-# Chỉ số nhân vật và công thức chiến đấu
+# Hệ thống chỉ số và công thức tính
 
-## 1. Phạm vi triển khai
+Tài liệu mô tả các chỉ số trong `StatBonus`, ý nghĩa, đơn vị và công thức tính cuối cùng.
 
-CharacterDataSO chứa BaseStats, hai mảng SkillDataSO[] (ActiveSkills, PassiveSkills) và mảng ShootingDataSO[] chạy bắn đạn riêng trong bước chuyển đổi hiện tại.
+## 0. Quy ước chung
 
-Mỗi SkillDataSO chứa SkillData struct (level, maxLevel, cooldown), SkillVisual class (tên, mô tả, icon) và một hành vi ISkill chỉ có Execute. SkillManager dùng chung quản lý data riêng của từng slot, cooldown và vòng đời. Character/Controller gửi yêu cầu trực tiếp; không có lớp Combat trung gian.
+- **Đơn vị phần trăm**: mọi chỉ số tỉ lệ (`critChance`, `critDamageMultiplier`, `effectHit`, `effectResistance`) dùng thang **100 = 100%**. Ví dụ `critChance = 25` nghĩa là 25%.
+- **Không clamp trong struct**: `StatBonus` chỉ cộng dồn. Việc kẹp giá trị (trần/sàn) làm ở bước tính kết quả cuối cùng.
+- **Thứ tự tính chỉ số**: `chỉ số cuối = base + tổng StatBonus` (từ level, item, skill...), rồi mới đưa vào các công thức bên dưới.
+- Phép `+` cộng từng field, phép `* count` nhân bonus với số lần lên cấp.
 
-Đánh thường enemy lấy damage và crit từ CharacterRuntimeData.FinalStats: BaseStats trên CharacterDataSO cộng các bonus hiện tại. Skill đánh thường không có damage hoặc damageMultiplier riêng. Xem CombatAndSkills.md và Docs/Architecture/Skill-Shooting-Pipeline.md cho luồng hiện tại.
+| Chỉ số | Đơn vị | Loại | Ghi chú |
+|---|---|---|---|
+| `maxHealth` | điểm | cộng phẳng | HP tối đa, không tự hồi HP hiện tại |
+| `damage` | điểm | cộng phẳng | Sát thương cơ bản |
+| `defense` | điểm | cộng phẳng | Chuyển thành **giáp ảo** |
+| `moveSpeed` | Unity unit/giây | cộng phẳng | Có trần |
+| `critChance` | % | cộng phẳng | Có thể vượt 100 |
+| `critDamageMultiplier` | % | cộng phẳng | Cộng thêm vào sát thương khi crit |
+| `effectHit` (cũ: `accuracy`) | % | cộng phẳng | Tăng tỉ lệ gây debuff |
+| `effectResistance` (cũ: `dodge`) | % | cộng phẳng | Giảm tỉ lệ bị dính debuff |
 
-Các phần công thức dự kiến phía dưới cần được phân biệt với quy tắc đã triển khai; công thức effect hiện tại được ghi trong tài liệu pipeline.
-## 2. Các field và đơn vị nhập
+> Nên đổi tên `accuracy` thành `effectHit` và `dodge` thành `effectResistance`, vì cả hai chỉ áp dụng cho debuff. Trong game hành động, `dodge` dễ bị hiểu là né đòn.
 
-| Field | Ý nghĩa | Cách nhập | Mặc định |
-|---|---|---|---:|
-| `maxHealth` | Máu tối đa | Điểm máu, tối thiểu 1 | 100 |
-| `damage` | Sát thương cơ bản | Điểm sát thương, không âm | 10 |
-| `defense` | Giảm sát thương nhận | Điểm phòng thủ, không âm | 0 |
-| `critChance` | Xác suất và bậc crit | 0.05 = 5%; 1 = 100%; 2.5 = 250% | 0.05 |
-| `critDamageMultiplier` | Tổng hệ số crit bậc 1 | 1.5 = 150% tổng sát thương; tối thiểu 1 | 1.5 |
-| `moveSpeed` | Tốc độ chạy | Đơn vị Unity mỗi giây, không âm | 3 |
-| `range` | Phạm vi tìm mục tiêu | World unit, không âm | 2 |
-| `dodge` | Kháng hiệu ứng bất lợi | Điểm kháng, không phải phần trăm | 0 |
-| `accuracy` | Khả năng gây hiệu ứng bất lợi | Điểm chính xác, không phải phần trăm | 0 |
+---
 
-Giá trị mặc định chỉ là mốc ban đầu, chưa được cân bằng bằng chơi thử. `BaseStats.Default` trả về bộ giá trị trên; `new BaseStats()` hoặc `default(BaseStats)` vẫn có toàn bộ field bằng 0.
+## 1. maxHealth
 
-Các thuộc tính `Min` hỗ trợ nhập trong Inspector, không bảo vệ dữ liệu khi gán bằng code. Khi triển khai runtime cần kiểm tra giới hạn, từ chối NaN/infinity và không clamp critChance về 1.
+HP tối đa. Cộng phẳng, không hồi máu hiện tại khi tăng.
 
-## 3. HP: máu hiện tại và máu tối đa
-
-```text
-Máu hiện tại mới = max(0, máu hiện tại cũ − sát thương nhận)
+```csharp
+float maxHP = baseMaxHealth + bonus.maxHealth;
 ```
 
-Ví dụ đang có 100 HP, nhận 30 sát thương sau phòng thủ thì còn 70 HP. Về 0 thì chết.
+Khi `maxHealth` tăng, giữ nguyên `current` (hoặc kẹp `current <= max` khi max giảm).
 
-`maxHealth` là sức chứa tối đa. `currentHealth` là máu hiện tại, sẽ nằm riêng trong runtime của từng nhân vật. Nhân vật mới khởi đầu với currentHealth bằng maxHealth.
+---
 
-Quy tắc dự kiến khi thay đổi maxHealth:
+## 2. damage
 
-- Tăng maxHealth không tự hồi máu; nâng cấp muốn hồi phải thực hiện riêng.
-- Giảm maxHealth thì giới hạn currentHealth xuống maxHealth mới nếu đang vượt quá.
-- Hồi máu không vượt maxHealth.
+Sát thương cơ bản trước khi tính crit.
 
-## 4. Damage: sức mạnh đòn đánh
-
-```text
-Sát thương thường = damage của nhân vật × hệ số sát thương của skill
+```csharp
+float baseDamage = baseDamageStat + bonus.damage;
 ```
 
-Nhân vật có 20 damage:
+---
 
-| Hệ số skill | Sát thương thường |
-|---:|---:|
-| 0.5 | 10 |
-| 1 | 20 |
-| 2 | 40 |
+## 3. critChance và critDamageMultiplier
 
-Đây là sát thương trước crit và defense. Hệ số skill sẽ thuộc cấu hình skill, chưa nằm trong BaseStats. Skill nhiều đạn cần quy định rõ hệ số tính cho từng viên hay cả loạt.
+### Ý nghĩa
 
-## 5. Defense: giảm sát thương ổn định cho mỗi đòn trúng
+- `critChance`: tỉ lệ ra đòn chí mạng (%).
+- `critDamageMultiplier`: phần sát thương **cộng thêm** khi crit (%).
+- Khi `critChance` vượt 100%: tỉ lệ crit thật chỉ là 100%, phần dư được **quy đổi thành crit multiplier**. Mỗi **20%** dư cho **+5%** multiplier.
 
-Defense không tiêu hao khi bị đánh, không phải thanh shield và không roll xác suất block.
+### Công thức
 
-```text
-Hệ số sát thương nhận = 100 / (100 + defense)
-Tỷ lệ giảm sát thương = defense / (100 + defense)
-Sát thương nhận = sát thương sau crit × hệ số sát thương nhận
+```
+overflow        = max(0, critChance - 100)
+bonusMultiplier = overflow / 20 * 5            (= overflow * 0.25)
+finalChance     = min(critChance, 100)
+finalMultiplier = critDamageMultiplier + bonusMultiplier
+
+Khi crit:   damage = damage + damage * finalMultiplier / 100
+Không crit: damage = damage
 ```
 
-Nếu đòn đánh gây 100 sát thương trước phòng thủ:
+### Code
 
-| Defense | Giảm sát thương | Sát thương nhận |
-|---:|---:|---:|
-| 0 | 0% | 100 |
-| 50 | 33.33% | 66.67 |
-| 100 | 50% | 50 |
-| 200 | 66.67% | 33.33 |
-| 400 | 80% | 20 |
+```csharp
+public static class CritCalculator
+{
+    const float OverflowStep = 20f;   // mỗi 20% crit dư...
+    const float BonusPerStep = 5f;    // ...cộng 5% crit multiplier
 
-Có 100 defense, nhận ba đòn 100 damage thì mỗi đòn mất 50 HP, tổng mất 150 HP. Defense vẫn là 100 sau đó.
+    public struct CritResult
+    {
+        public float chance;       // tỉ lệ crit thật (0..100)
+        public float multiplier;   // crit multiplier cuối (đơn vị %)
+    }
 
-Số 100 trong công thức là mốc cân bằng chung. Khi triển khai nên đưa vào cấu hình toàn game, không lưu lặp trong từng nhân vật. Tăng mốc này làm cùng lượng defense giảm ít sát thương hơn.
+    public static CritResult Resolve(float critChance, float critMultiplier)
+    {
+        float overflow = Mathf.Max(0f, critChance - 100f);
+        float bonusMult = overflow / OverflowStep * BonusPerStep;
 
-Phần trăm giảm sát thương tăng chậm dần. Tuy nhiên, khi chưa xét hồi máu, khả năng chịu sát thương gốc được tính bằng:
+        return new CritResult
+        {
+            chance = Mathf.Min(critChance, 100f),
+            multiplier = critMultiplier + bonusMult
+        };
+    }
 
-```text
-Máu hiệu dụng = maxHealth × (1 + defense / 100)
+    public static float RollDamage(float damage, float critChance, float critMultiplier)
+    {
+        var crit = Resolve(critChance, critMultiplier);
+        bool isCrit = Random.value * 100f < crit.chance;
+        return isCrit ? damage + damage * crit.multiplier / 100f : damage;
+    }
+}
 ```
 
-Ví dụ 1,000 HP và 100 defense chịu được khoảng 2,000 sát thương gốc. HP và defense hỗ trợ nhau; phần trăm giảm sát thương tăng chậm không có nghĩa mỗi điểm defense giảm giá trị máu hiệu dụng.
+### Ví dụ
 
-Shield, block, xuyên giáp và sát thương bỏ qua phòng thủ chưa thuộc bước này.
+| critChance | critMultiplier gốc | Kết quả |
+|---|---|---|
+| 25 | 50 | 25% crit, multiplier 50 |
+| 100 | 50 | 100% crit, multiplier 50 |
+| 160 | 50 | 100% crit, dư 60 nên +15, multiplier 65, damage 100 thành 165 |
 
-## 6. Crit chance: xác suất chí mạng và bậc chí mạng
+### Lưu ý cân bằng
 
-Cho phép vượt 100%, dùng cách cộng thêm phần thưởng theo bậc.
+- Cơ chế dư giúp `critChance` **không bao giờ vô ích** sau mốc 100%, nên không cần trần cứng.
+- Dùng cách quy đổi **liên tục** (30% dư thì +7.5). Nếu muốn theo bậc thì dùng `Mathf.Floor(overflow / 20f) * 5f`, dễ hiển thị nhưng phí điểm lẻ.
+- Sát thương kỳ vọng khi chance <= 100: `damage * (1 + chance/100 * mult/100)`.
 
-```text
-Bậc chắc chắn = floor(critChance)
-Xác suất thêm một bậc = critChance − bậc chắc chắn
-Bậc cuối = bậc chắc chắn + (roll thành công ? 1 : 0)
+---
+
+## 4. defense (giáp ảo)
+
+### Ý nghĩa
+
+`defense` **không giảm sát thương**. Nó chuyển thành **giáp ảo** (shield): một lớp máu phụ hấp thụ sát thương trước, **mất hết là hết** (không hồi).
+
+### Công thức
+
+```
+maxShield = defense * ShieldPerDefense     (khởi điểm: ShieldPerDefense = 1)
+
+Khi nhận sát thương X:
+  absorbed = min(shield, X)
+  shield  -= absorbed
+  health  -= (X - absorbed)
 ```
 
-`floor` là lấy phần nguyên xuống dưới. Roll một số ngẫu nhiên r trong [0, 1); thành công nếu r nhỏ hơn xác suất thêm bậc. Chỉ cần một lần roll cho mỗi hit hợp lệ, không cần lặp qua từng bậc. Bậc 0 nghĩa là đòn thường.
+### Code
 
-| Crit chance | Kết quả |
-|---:|---|
-| 0% | Luôn bậc 0 |
-| 50% | 50% bậc 0, 50% bậc 1 |
-| 100% | Luôn bậc 1 |
-| 150% | 50% bậc 1, 50% bậc 2 |
-| 200% | Luôn bậc 2 |
-| 250% | 50% bậc 2, 50% bậc 3 |
-| 300% | Luôn bậc 3 |
+```csharp
+public class Health
+{
+    public float current, max;
+    public float shield, maxShield;
 
-Tỷ lệ là xác suất trên từng hit, không bảo đảm cứ hai hit ở mức 50% sẽ có đúng một crit.
-
-## 7. Crit damage: sát thương tăng theo bậc
-
-```text
-Hệ số sát thương cuối = 1 + bậc crit × (critDamageMultiplier − 1)
-Sát thương sau crit = sát thương thường × hệ số sát thương cuối
+    public void TakeDamage(float amount)
+    {
+        float absorbed = Mathf.Min(shield, amount);
+        shield -= absorbed;
+        current -= amount - absorbed;   // phần dư mới trừ vào máu
+    }
+}
 ```
 
-Ví dụ sát thương thường 100, critDamageMultiplier = 1.5:
+### Lưu ý cân bằng
 
-| Bậc crit | Hệ số cuối | Sát thương sau crit |
-|---:|---:|---:|
-| 0 | 1 | 100 |
-| 1 | 1.5 | 150 |
-| 2 | 2 | 200 |
-| 3 | 2.5 | 250 |
+- Giáp không hồi nên giá trị gần bằng HP: bắt đầu với **1 giáp ≈ 1 HP** (hoặc thấp hơn một chút).
+- Vì là số phẳng nên cân bằng giống `maxHealth`, không cần công thức giảm sát thương.
+- Nếu sau này muốn giáp thú vị hơn, có thể chọn một trong các hướng: hồi đầy đầu mỗi màn/wave, hồi sau X giây không bị đánh, hoặc chỉ nhặt thêm. Nếu giáp có thể hồi thì tăng giá trị của nó lên (khoảng 1 giáp = 1.5 HP).
 
-Mỗi bậc cộng thêm 50% sát thương thường. Không tính theo 1.5 mũ bậc và không nhân chồng 150 → 225 → 337.5.
+---
 
-Nếu multiplier tăng lên 2 thì bậc 0/1/2/3 gây 100/200/300/400. Crit chance vượt 100% không sửa field multiplier; nó tăng bậc và từ đó tăng hệ số thực tế của đòn.
+## 5. moveSpeed
 
-### Sát thương trung bình để cân bằng nâng cấp
-
-```text
-Sát thương trung bình trước defense
-    = sát thương thường × [1 + critChance × (critDamageMultiplier − 1)]
+```csharp
+float speed = Mathf.Min(baseSpeed + bonus.moveSpeed, baseSpeed * MaxSpeedRatio); // MaxSpeedRatio ~ 2
 ```
 
-Dùng critChance dạng số thực: 150% = 1.5. Với sát thương thường 100 và multiplier 1.5, critChance 0%/100%/200%/300% cho sát thương trung bình 100/150/200/250.
+Luôn có **trần cứng** (khoảng 2 lần tốc độ gốc), vì tốc độ quá cao làm hỏng camera, va chạm và cảm giác điều khiển.
 
-Đây là trung bình qua nhiều hit. Crit chance và crit damage cùng tăng sẽ hỗ trợ nhau; cần cân bằng chi phí và độ hiếm của nâng cấp. Chưa đặt trần gameplay cho critChance ở bước này.
+---
 
-Quy tắc ban đầu: sát thương trực tiếp được crit nếu skill cho phép. Độc/đốt theo thời gian và hiệu ứng phát sinh không mặc định crit; sẽ có luật riêng khi xây các hệ thống đó.
+## 6. effectHit và effectResistance (chỉ áp dụng cho debuff)
 
-## 8. Move speed: di chuyển được bao xa
+### Ý nghĩa
 
-```text
-Quãng đường = moveSpeed × thời gian
+- Mỗi debuff/skill có `baseChance` riêng (ví dụ choáng 50%, làm chậm 70%, độc 100%).
+- `effectHit` của người gây: tăng tỉ lệ dính debuff.
+- `effectResistance` của người nhận: giảm tỉ lệ dính debuff.
+
+### Công thức (khuyên dùng: nhân)
+
+```
+resCapped = min(effectResistance, 80)
+chance    = baseChance * (1 + effectHit / 100) * (1 - resCapped / 100)
+chance    = clamp(chance, 0, 100)
 ```
 
-moveSpeed = 3 nghĩa là đi 3 đơn vị Unity mỗi giây. Đi 2 giây được 6 đơn vị nếu không bị cản.
+```csharp
+public static float EffectChance(float baseChance, float effectHit, float effectRes)
+{
+    float resCapped = Mathf.Min(effectRes, 80f);   // kháng tối đa 80%
+    float chance = baseChance * (1f + effectHit / 100f) * (1f - resCapped / 100f);
+    return Mathf.Clamp(chance, 0f, 100f);
+}
 
-Đây không phải tốc độ đánh, tốc độ đạn hoặc hồi skill. Trong bullet hell, chạy nhanh giúp người chơi chủ động né đạn nên chỉ số này cũng có giá trị phòng thủ.
-
-## 9. Accuracy và dodge: hiệu ứng có áp dụng thành công không
-
-Accuracy thuộc bên gây hiệu ứng, dodge thuộc bên nhận. Cả hai là điểm. Dodge chỉ chống hiệu ứng bất lợi, không né va chạm và không tự giảm sát thương.
-
-Mỗi hiệu ứng có xác suất gốc p, trong khoảng 0..1, do cấu hình skill/hiệu ứng quyết định sau này.
-
-```text
-Chênh lệch = accuracy bên gây − dodge bên nhận
-Hệ số = 1 + chênh lệch / (100 + abs(chênh lệch))
-Xác suất cuối = clamp01(p × hệ số)
+public static bool Roll(float baseChance, float effectHit, float effectRes)
+{
+    return Random.value * 100f < EffectChance(baseChance, effectHit, effectRes);
+}
 ```
 
-abs là giá trị tuyệt đối: abs(-100) = 100. clamp01 giới hạn kết quả từ 0 đến 1. Roll riêng một số r trong [0, 1); hiệu ứng thành công nếu r nhỏ hơn xác suất cuối.
+### Ví dụ
 
-Với skill có xác suất gốc 50%:
+| baseChance | effectHit | effectResistance | Kết quả |
+|---|---|---|---|
+| 50 | 20 | 30 | 50 x 1.2 x 0.7 = **42%** |
+| 50 | 0 | 80 | 50 x 1 x 0.2 = **10%** |
+| 80 | 50 | 0 | 80 x 1.5 = 120, kẹp còn **100%** |
 
-| Accuracy | Dodge | Hệ số | Xác suất cuối |
-|---:|---:|---:|---:|
-| 0 | 0 | 1 | 50% |
-| 100 | 100 | 1 | 50% |
-| 100 | 0 | 1.5 | 75% |
-| 0 | 100 | 0.5 | 25% |
-| 200 | 0 | khoảng 1.667 | khoảng 83.33% |
+### Vì sao dùng nhân thay vì cộng/trừ
 
-Ví dụ accuracy 0, dodge 100: chênh lệch = -100; hệ số = 1 - 100/200 = 0.5; xác suất cuối = 50% × 0.5 = 25%.
+Cách cộng trừ (`base + hit - res`) dễ tính nhẩm nhưng: debuff gốc 50% mà kháng 50 thì về 0%, kháng cao làm mọi debuff yếu vô dụng. Cách nhân giảm **theo tỉ lệ**, không bao giờ trừ về 0 đột ngột.
 
-Hệ quả của công thức:
+### Lưu ý cân bằng
 
-- Điểm bằng nhau giữ nguyên xác suất gốc của skill.
-- Xác suất gốc 0% vẫn là 0% dù accuracy cao.
-- Xác suất gốc 100% vẫn có thể giảm nếu dodge cao hơn accuracy.
-- Hệ số tăng tiến gần 2; skill có xác suất gốc thấp không tự đạt chắc chắn chỉ nhờ accuracy.
-- Accuracy không tăng thời lượng hoặc sức mạnh hiệu ứng.
-- Miễn nhiễm và hiệu ứng bắt buộc áp dụng cần luật riêng.
+- Đặt trần kháng khoảng **75-80%**.
+- Giữ `baseChance` của debuff mạnh ở mức **40-70%**. Nếu gốc quá cao (80-100%) thì `effectHit` bị phí vì chạm trần 100%.
+- **Boss** nên có kháng/miễn nhiễm khống chế riêng, không dựa vào chỉ số chung.
+- **Chống khống chế liên tục**: sau khi bị choáng thì miễn choáng 3-5 giây, hoặc mỗi lần bị khống chế liên tiếp giảm thời gian.
+- Debuff gây sát thương (độc, cháy) có thể dùng kháng để giảm thời gian/sát thương thay vì quyết định trúng hay không.
 
-Mốc 100 ở đây là mốc cân bằng hiệu ứng, độc lập với mốc 100 của defense. Có thể điều chỉnh hai mốc riêng.
+---
 
-## 10. Buff và nâng cấp chỉ số
+## 7. Gợi ý quy trình cân bằng
 
-Quy tắc dự kiến cho maxHealth, damage, defense, moveSpeed, dodge và accuracy:
+1. **Chọn mốc TTK** (thời gian giết): ví dụ người chơi giết quái thường trong 2-3 giây, quái giết người chơi trong 10-15 giây. Từ đó suy ra `damage` và `maxHealth` theo level.
+2. **Quy về hai đại lượng**: DPS (sát thương mỗi giây, gồm crit) và EHP (máu + giáp ảo). Mọi chỉ số nên được đánh giá bằng đóng góp vào hai thứ này.
+3. **Lập bảng tính** (Google Sheets): cột level, tổng `StatBonus`, DPS, EHP. Vẽ biểu đồ để thấy chỉ số nào tăng quá nhanh.
+4. **Ngân sách điểm**: mỗi level/item có số điểm cố định để chia cho các chỉ số. Chỉ số dễ vỡ cân bằng (crit, tốc độ, kháng) cho giá cao hơn.
+5. **Mô phỏng**: viết script giả lập hàng nghìn trận giữa build mạnh nhất và yếu nhất ở cùng level để kiểm tra chênh lệch.
+6. **Đưa hệ số vào ScriptableObject**: `OverflowStep`, `BonusPerStep`, `ShieldPerDefense`, trần kháng, trần tốc độ... để chỉnh mà không phải sửa code.
 
-```text
-Chỉ số cuối = (chỉ số gốc + tổng cộng thẳng) × (1 + tổng phần trăm thay đổi)
-```
+---
 
-Ví dụ speed gốc 3, cộng 1, buff +20%, slow -30%:
+## 8. Bảng tổng hợp hệ số cần chỉnh
 
-```text
-(3 + 1) × (1 + 0.2 − 0.3) = 3.6
-```
+| Hệ số | Giá trị khởi điểm | Dùng ở |
+|---|---|---|
+| `OverflowStep` | 20 (%) | Crit dư |
+| `BonusPerStep` | 5 (%) | Crit dư |
+| `ShieldPerDefense` | 1 | Defense thành giáp |
+| `MaxEffectResistance` | 80 (%) | Trần kháng debuff |
+| `MaxSpeedRatio` | 2 | Trần tốc độ |
+| `baseChance` debuff | 40-70 (%) | Từng skill/debuff |
 
-Giới hạn kết quả: maxHealth tối thiểu 1; các điểm còn lại tối thiểu 0. Các buff phần trăm cộng với nhau, không nhân chồng từng buff. Chưa thiết kế luật riêng cho stun hoặc kháng slow.
+## 9. Ranh giới triển khai trong project
 
-Crit chance cộng theo điểm phần trăm: 20% + 5 điểm phần trăm = 25%; trong code là 0.2 + 0.05 = 0.25. Khác với tăng tương đối 5% của 20%, chỉ thành 21%.
-
-Crit damage cộng trực tiếp vào hệ số: 1.5 + 0.25 = 1.75, tức từ tổng sát thương crit 150% lên 175%. Nội dung nâng cấp cần ghi rõ đơn vị.
-
-Runtime nên giữ chỉ số gốc và modifier riêng, tính lại khi modifier thay đổi. Không liên tục cộng/trừ vào template khi bật/tắt buff. Các quy tắc buff này mới là thiết kế, chưa có code thực thi.
-
-## 11. Ví dụ tính một đòn hoàn chỉnh
-
-Bên đánh: damage 40, critChance 150%, critDamageMultiplier 1.5, accuracy 100. Skill: hệ số sát thương 2, cơ hội gây độc gốc 50%. Mục tiêu: defense 100, dodge 0, currentHealth 200.
-
-```text
-Sát thương thường = 40 × 2 = 80
-150% crit → 50% bậc 1 hoặc 50% bậc 2
-
-Bậc 1: 80 × 1.5 = 120 trước defense → mất 60 HP → còn 140 HP
-Bậc 2: 80 × 2 = 160 trước defense → mất 80 HP → còn 120 HP
-
-Gây độc roll riêng:
-Chênh lệch = 100 − 0 = 100
-Xác suất độc = 50% × (1 + 100 / 200) = 75%
-```
-
-Thứ tự xử lý: damage × hệ số skill → crit → defense → trừ HP. Sau đó xử lý hiệu ứng theo điều kiện của skill; ví dụ trên giả sử mục tiêu còn sống và không miễn nhiễm.
-
-Crit không tự tăng xác suất độc. Độc mạnh bao nhiêu, kéo dài bao lâu và có cộng dồn không thuộc cấu hình hiệu ứng riêng.
-
-Giữ phép tính sát thương bằng float, chỉ làm tròn để hiển thị. Chưa có luật tối thiểu 1 sát thương, hồi máu từ sát thương âm hoặc các cơ chế chưa thống nhất.
-
-## 12. Template và runtime
-
-- BaseStats và SkillData được sao chép theo giá trị, không sửa asset trong lúc chơi.
-- SkillManager giữ level, cooldown và IDisposable riêng cho từng slot của từng nhân vật; cùng asset vẫn có trạng thái độc lập.
-- ISkill trên asset chỉ chứa hành vi/cấu hình cố định, không giữ owner, target hoặc timer.
-- Tắt tạm thời giữ trạng thái và ngừng đếm giờ; chết/despawn hủy đăng ký và thu hồi passive.
-- Pool spawn lại tạo đăng ký mới. Handle cũ không điều khiển được lượt spawn mới.
-- Nâng level skill hiện chỉ cập nhật level tới maxLevel; chưa tự tăng damage hoặc giảm cooldown.
-## 13. Config level và save người chơi
-
-PermanentLevelConfigSO, RunLevelConfigSO, StatBonus, RunLevelProgress và SaveManager đã được nối vào luồng spawn. Chi tiết EXP, nâng cấp vĩnh viễn và cộng bonus nằm trong [hướng dẫn chung DataSO](../README.md).
+- `CharacterDataSO.BaseStats` giữ chỉ số gốc; `range` vẫn là bán kính tìm mục tiêu, không có bonus range trong đợt này.
+- `CharacterRuntimeData` giữ danh tính, base/final stats, HP và giáp hiện tại; chỉ tính damage đầu ra, không xử lý nhận đòn hoặc tiến trình lên cấp.
+- `CharacterControllerBase` xử lý gây/nhận damage, hồi/trừ HP và chết. `PlayerController` và `EnemyController` kế thừa; `CharacterView` chuyển tiếp lời gọi và hiển thị.
+- `CharacterLevelService` và `RunLevelService` giữ level/EXP. `PlayerManager` cộng bonus bên ngoài rồi truyền tổng vào runtime; không sao chép level trong màn vào runtime.
+- `CharacterEffectHandler` giữ danh sách slow, token và luật slow mạnh nhất. Runtime chỉ áp dụng hệ số di chuyển đã được Effect tính.
+- Spawn mới khởi tạo đầy HP và giáp; bonus skill được áp dụng qua scheduler; defense được cấp thêm chỉ bổ sung lượng giáp mới tương ứng. Tắt/bật tạm thời không hồi giáp. Tăng maxHealth hoặc defense trong khi chơi không tự hồi HP hoặc giáp; giảm giới hạn thì kẹp giá trị hiện tại.
+- Đòn chỉ làm mất giáp vẫn là đòn đánh được chấp nhận và phát thông báo damage. `DamageResult` có `HealthLost`, `ShieldLost`, `TotalLost`; `DamageInfo.IsCritical` thay cho bậc crit cũ.
+- Các asset hiện có đã chuyển crit chance từ 0..1 sang phần trăm, crit multiplier từ tổng hệ số sang phần trăm cộng thêm, và application chance của effect từ 0..1 sang 0..100. `slowFraction` vẫn là phần tốc độ bị giảm trong 0..1.
+- Hệ số đang triển khai: shield/defense = 1; speed cap/base = 2; resistance cap = 80%; crit overflow = 0.25. Gợi ý đưa chúng vào SO ở phần trên là hướng mở rộng, chưa thêm SO cấu hình mới trong đợt này.
+- SkillManager hiện chỉ có ISkill.TryExecute và lịch chạy; CharacterSkillBridge kết nối hai hệ thống qua callback. Cấu hình skill vốn có nằm trong CharacterSkillLoadouts.asset, không nằm trong CharacterDataSO.

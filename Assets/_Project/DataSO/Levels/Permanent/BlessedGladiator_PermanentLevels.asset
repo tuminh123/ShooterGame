@@ -19,9 +19,9 @@ MonoBehaviour:
     damage: 2
     defense: 2
     moveSpeed: 0.02
-    critChance: 0.01
-    critDamageMultiplier: 0.05
-    dodge: 1
-    accuracy: 1
+    critChance: 1
+    critDamageMultiplier: 5
+    effectResistance: 1
+    effectHit: 1
   initialUpgradeCost: 100
   upgradeCostMultiplier: 1.2

@@ -4,7 +4,7 @@ public sealed class ProjectileRuntimeData
 {
     public ProjectileDataSO Data { get; }
     public DamageInfo Damage { get; }
-    public float SourceAccuracy { get; }
+    public float SourceEffectHit { get; }
     public float SourceDamage { get; }
     public CharacterTarget Target { get; }
     public IProjectileFlight Flight { get; }
@@ -17,7 +17,7 @@ public sealed class ProjectileRuntimeData
     {
         Data = data;
         Damage = source.CreateDamage(data.DamageMultiplier);
-        SourceAccuracy = source.FinalStats.accuracy;
+        SourceEffectHit = source.FinalStats.effectHit;
         SourceDamage = source.FinalStats.damage;
         Target = target;
         Direction = direction.normalized;

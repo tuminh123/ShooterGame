@@ -3,7 +3,7 @@ using UnityEngine;
 
 // * Hành vi riêng của người chơi: hướng di chuyển hoàn toàn do joystick/bàn phím quyết định.
 // * Không giữ HP, không tự tạo visual và không chứa AI của Enemy.
-public sealed class PlayerController : ICharacterController
+public sealed class PlayerController : CharacterControllerBase
 {
     private readonly VirtualJoystick joystick; // * Input của scene; không lưu tham chiếu scene trên prefab hoặc SO.
 
@@ -12,7 +12,7 @@ public sealed class PlayerController : ICharacterController
         this.joystick = joystick;
     }
 
-    public void Tick(CharacterView view, CharacterRuntimeData runtime)
+    public override void Tick(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Player hết HP thì ngừng di chuyển; luật game over sẽ được bổ sung trong hành vi Player.
         if (!runtime.IsAlive)
@@ -30,7 +30,7 @@ public sealed class PlayerController : ICharacterController
         view.Move(input, runtime.FinalStats.moveSpeed * input.magnitude);
     }
 
-    public void OnDeath(CharacterView view, CharacterRuntimeData runtime)
+    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Giữ vỏ cho màn hình game over sau này; skill ngừng tick khi chủ sở hữu hết HP.
         view.Move(Vector2.zero, 0f);

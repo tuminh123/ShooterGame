@@ -20,7 +20,7 @@ MonoBehaviour:
     moveSpeed: 0
     critChance: 0
     critDamageMultiplier: 0
-    dodge: 0
-    accuracy: 0
+    effectResistance: 0
+    effectHit: 0
   initialExperience: 10
   experienceIncreasePerLevel: 5

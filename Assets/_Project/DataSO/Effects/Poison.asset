@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Poison
   m_EditorClassIdentifier:
   duration: 4
-  applicationChance: 1
-  useAccuracyAndDodge: 1
+  applicationChance: 100
+  useEffectStats: 1
   tickInterval: 1
   damageMultiplierPerTick: 0.25

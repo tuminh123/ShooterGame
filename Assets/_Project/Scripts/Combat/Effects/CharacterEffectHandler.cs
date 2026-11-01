@@ -8,39 +8,77 @@ public sealed class CharacterEffectHandler : IDisposable
     private readonly CharacterRuntimeData identity;
     private readonly StatusEffectFactory factory;
     private readonly List<StatusEffectRuntime> effects = new List<StatusEffectRuntime>();
+    private readonly Dictionary<long, float> speedMultipliers = new Dictionary<long, float>();
+    private long nextModifierId;
     private bool disposed;
     public int Count => effects.Count;
 
     public CharacterEffectHandler(CharacterView owner, StatusEffectFactory factory)
     { this.owner = owner; identity = owner.RuntimeData; this.factory = factory; }
 
-    public static float ApplicationChance(float baseChance, float accuracy, float dodge)
+    // All inputs and the result are percentages: 100 = 100%.
+    public static float ApplicationChance(float baseChance, float effectHit, float effectResistance)
     {
-        double attack = 100d + Mathf.Max(0f, accuracy);
-        return Mathf.Clamp01((float)(baseChance * attack / (attack + Mathf.Max(0f, dodge))));
+        float resistance = Mathf.Clamp(effectResistance, 0f, 80f);
+        return Mathf.Clamp(baseChance * (1f + Mathf.Max(0f, effectHit) / 100f) *
+            (1f - resistance / 100f), 0f, 100f);
     }
 
-    public bool TryApply(StatusEffectDataSO data, CharacterTeam sourceTeam, float sourceDamage, float accuracy)
+    public bool TryApply(StatusEffectDataSO data, CharacterTeam sourceTeam, float sourceDamage, float effectHit)
     {
         if (disposed || owner.RuntimeData != identity || !identity.IsAlive || sourceTeam == identity.Team)
             return false;
         if (data == null) throw new ArgumentNullException(nameof(data));
         data.Validate();
         if (float.IsNaN(sourceDamage) || float.IsInfinity(sourceDamage) || sourceDamage < 0f ||
-            float.IsNaN(accuracy) || float.IsInfinity(accuracy))
+            float.IsNaN(effectHit) || float.IsInfinity(effectHit))
             throw new ArgumentOutOfRangeException(nameof(sourceDamage));
-        float chance = data.UseAccuracyAndDodge
-            ? ApplicationChance(data.ApplicationChance, accuracy, identity.FinalStats.dodge)
+        float chance = data.UseEffectStats
+            ? ApplicationChance(data.ApplicationChance, effectHit, identity.FinalStats.effectResistance)
             : data.ApplicationChance;
-        if (chance <= 0f || (chance < 1f && UnityEngine.Random.value >= chance)) return false;
+        if (chance <= 0f || (chance < 100f && UnityEngine.Random.value * 100f >= chance)) return false;
         foreach (StatusEffectRuntime runtime in effects)
         {
             if (runtime.Data != data) continue;
             runtime.Refresh(sourceTeam, sourceDamage);
             return true;
         }
-        effects.Add(factory.Create(data, identity, sourceTeam, sourceDamage));
+        StatusEffectRuntime created = factory.Create(data, this, sourceTeam, sourceDamage);
+        if (disposed || owner.RuntimeData != identity || !identity.IsAlive)
+        {
+            created.Dispose();
+            return false;
+        }
+        effects.Add(created);
         return true;
+    }
+
+    // Slow ownership and strongest-slow selection belong to Effect, not character data.
+    internal IDisposable AddSpeedMultiplier(float multiplier)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(CharacterEffectHandler));
+        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f || multiplier > 1f)
+            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        long id = checked(++nextModifierId);
+        speedMultipliers.Add(id, multiplier);
+        try { RefreshMovementScale(); }
+        catch
+        {
+            speedMultipliers.Remove(id);
+            RefreshMovementScale();
+            throw;
+        }
+        return new StatModifierLease(() =>
+        {
+            if (speedMultipliers.Remove(id)) RefreshMovementScale();
+        });
+    }
+
+    private void RefreshMovementScale()
+    {
+        float scale = 1f;
+        foreach (float multiplier in speedMultipliers.Values) scale = Mathf.Min(scale, multiplier);
+        identity.SetMovementScale(scale);
     }
 
     public void Tick(float deltaTime)

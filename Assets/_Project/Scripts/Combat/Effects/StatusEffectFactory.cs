@@ -4,18 +4,18 @@ using UnityEngine;
 
 public interface IStatusEffect
 {
-    void Attach(StatusEffectRuntime runtime, CharacterRuntimeData target);
+    void Attach(StatusEffectRuntime runtime, CharacterEffectHandler target);
     void Tick(StatusEffectRuntime runtime, CharacterView target, float deltaTime);
 }
 public sealed class SlowStatusEffect : IStatusEffect
 {
-    public void Attach(StatusEffectRuntime runtime, CharacterRuntimeData target)
+    public void Attach(StatusEffectRuntime runtime, CharacterEffectHandler target)
         => runtime.Modifier = target.AddSpeedMultiplier(1f - ((SlowEffectDataSO)runtime.Data).SlowFraction);
     public void Tick(StatusEffectRuntime runtime, CharacterView target, float deltaTime) { }
 }
 public sealed class PeriodicDamageStatusEffect : IStatusEffect
 {
-    public void Attach(StatusEffectRuntime runtime, CharacterRuntimeData target) { }
+    public void Attach(StatusEffectRuntime runtime, CharacterEffectHandler target) { }
     public void Tick(StatusEffectRuntime runtime, CharacterView target, float deltaTime)
     {
         var data = (DamageOverTimeEffectDataSO)runtime.Data;
@@ -38,7 +38,7 @@ public sealed class StatusEffectFactory
         Register(typeof(DamageOverTimeEffectDataSO), new PeriodicDamageStatusEffect());
     }
     public void Register(Type dataType, IStatusEffect strategy) => strategies.Add(dataType, strategy);
-    public StatusEffectRuntime Create(StatusEffectDataSO data, CharacterRuntimeData target,
+    public StatusEffectRuntime Create(StatusEffectDataSO data, CharacterEffectHandler target,
         CharacterTeam sourceTeam, float sourceDamage)
     {
         data.Validate();

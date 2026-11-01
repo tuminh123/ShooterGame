@@ -14,9 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   displayName: BossFireSpiral
   icon: {fileID: 0}
-  cooldown: 0.12
-  autoCast: 1
-  retryInterval: 0.1
   projectile: {fileID: 11400000, guid: 8aa420c34aa1db995b8c8dc61875f7f7, type: 2}
   shootingPattern: {fileID: 11400000, guid: 42f00ea005e020d456c5b325d72a2771, type: 2}
   muzzleOffset: {x: 0, y: 0.02}

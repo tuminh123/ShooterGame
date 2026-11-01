@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Slow
   m_EditorClassIdentifier:
   duration: 2
-  applicationChance: 1
-  useAccuracyAndDodge: 1
+  applicationChance: 100
+  useEffectStats: 1
   slowFraction: 0.3

@@ -1,32 +1,35 @@
 using System;
 
-// * Đầu ra đã tính ở Character nguồn; đạn chỉ giữ bản sao, không tính lại theo stat mới.
+// Snapshot calculated by the source. Crit is a single roll; overflow increases its damage.
 public readonly struct DamageInfo
 {
     public float Amount { get; }
     public CharacterTeam SourceTeam { get; }
-    public int CritTier { get; }
+    public bool IsCritical { get; }
 
-    public DamageInfo(float amount, CharacterTeam sourceTeam, int critTier = 0)
+    public DamageInfo(float amount, CharacterTeam sourceTeam, bool isCritical = false)
     {
         if (float.IsNaN(amount) || float.IsInfinity(amount) || amount < 0f)
             throw new ArgumentOutOfRangeException(nameof(amount));
         Amount = amount;
         SourceTeam = sourceTeam;
-        CritTier = critTier;
+        IsCritical = isCritical;
     }
 }
 
-// * Trả lượng HP thực sự mất để phần hiển thị dùng kết quả, không tự tính lại công thức.
+// Shield-only hits are accepted hits too, so projectiles, skills and feedback still respond.
 public readonly struct DamageResult
 {
     public float HealthLost { get; }
-    public bool Accepted => HealthLost > 0f;
+    public float ShieldLost { get; }
+    public float TotalLost => HealthLost + ShieldLost;
+    public bool Accepted => TotalLost > 0f;
     public bool Killed { get; }
 
-    public DamageResult(float healthLost, bool killed)
+    public DamageResult(float healthLost, float shieldLost, bool killed)
     {
         HealthLost = healthLost;
+        ShieldLost = shieldLost;
         Killed = killed;
     }
 }

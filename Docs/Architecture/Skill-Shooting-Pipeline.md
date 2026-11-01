@@ -1,53 +1,43 @@
-# Skill lifecycle and standalone shooting
+# Independent skill scheduling and character composition
 
-## Skill structure
+## Boundaries
 
-Each `SkillDataSO` contains exactly three serialized parts:
+- ISkill has only bool TryExecute(). It does not receive a character, target or shared capability context.
+- SkillManager is pure C#: two registration lists, cooldowns, a reusable tick snapshot and cleanup tokens. It has no Unity or Character dependency.
+- CharacterManager tracks initialized characters and publishes added, removed and died events. CharacterDataSO and character controllers do not refer to skills or shooting.
+- Integration/CharacterSkills/CharacterSkillBridge is the composition boundary. It observes character lifetime, creates per-registration behavior instances and supplies callbacks.
+- CharacterSkillLoadoutSO maps CharacterType to SkillDataSO assets. The mapping lives outside both systems.
 
-- `SkillData`: a value-type struct containing initial level, maximum level and cooldown.
-- `SkillVisual`: a plain class containing display name, description and icon.
-- `ISkill`: a serialized behavior with only one method, `Execute(owner, target, in data)`.
+## Configuration and execution
 
-`Execute` returns `(bool succeeded, IDisposable lifetime)`. A successful instant action returns a null lifetime. Persistent modifiers/subscriptions return a disposable owned by the manager. Behavior instances are shared asset configuration; never store per-owner targets, timers or mutable state on them.
+SkillDataSO retains Data, Visual and a SerializeReference ISkill behavior template. Never register that shared template directly. The bridge copies its configuration into a fresh behavior with dependencies appropriate to that character's spawn identity.
 
-`CharacterDataSO.ActiveSkills` and `PassiveSkills` contain skill assets. Category is determined by the character array, not duplicated on the asset.
+SkillManager.Add receives a behavior, cooldown, run/innate scope and an optional generic availability predicate. All skills execute automatically. New registrations start ready; success starts cooldown, failure leaves the skill ready for a future tick. A zero cooldown permits at most one attempt per tick. There are no active/passive or manual-button categories.
 
-## Shared manager
+The availability predicate supplied by the bridge freezes timers while a character is inactive. It checks runtime identity and alive state. Death/despawn disposes the corresponding tokens before shell reuse. Applying a persistent stat bonus owns an idempotent lease; a late lease returned after synchronous despawn is disposed immediately.
 
-Zenject creates one `SkillManager` and ticks it before normal character Updates. Characters register their definitions while initializing inactive shells. OnEnable activates passives after setup; each successfully applied passive runs once. The manager copies each asset's `SkillData` into private per-slot state, owns cooldowns and disposables, and never changes the asset.
+Callbacks may remove or add skills during a tick. A reusable snapshot prevents enumeration corruption; newly added entries wait until the next tick. A behavior exception removes that registration, allows other entries to finish and is reported by the bridge. Cleanup attempts every registration even when a disposer fails.
 
-`CharacterView.TryUseSkill(index, target)` forwards to `SkillManager.TryExecute`. Controllers supply targets directly; there is no Combat layer. The manager validates registration, owner identity, alive/active state, slot index and cooldown. Behavior checks its own action conditions. Only successful active execution starts cooldown. A per-slot execution guard prevents recursive use of that slot without blocking unrelated skills.
+Level and EXP remain in LevelManager/RunLevelService. The bridge exposes AddRunSkill(character, selectedAsset) for a future selection UI. Duplicate run selections currently return false; no upgrade formula or revival policy is invented. ClearRunSkills removes the run scope, and RunReset invokes it automatically. A future explicit end-run coordinator should call the same method on leaving a run.
 
-Temporary disable preserves levels, cooldowns and applied passive lifetimes; timers pause. Death/despawn/destroy unregisters the current handle and disposes its resources. Every registration has a new handle, so callbacks cannot use stale handles against a pooled shell's next lifetime. Callback-triggered despawns are checked again after behavior execution before retaining returned resources.
+## Existing attacks
 
-`TryGetData` returns a copy; `TryLevelUp` increments only the selected slot up to maxLevel. Level currently has no automatic damage/cooldown scaling. A leveled passive is removed and reapplied with its new data. A failed passive application is retried on its configured cooldown.
+- BlessedGladiator maps to Skills/HolyBolt.asset.
+- ForagingMaggot maps to Skills/EnemyNormalAttack.asset.
+- NormalAttackSkill receives an attack callback. The bridge finds a nearby opponent, validates contact and invokes CharacterView.DealDamage. EnemyController responds to a successful attack through its combat hook to apply recoil; it does not activate skills.
+- ShootingSkill references ShootingDataSO, which now contains only projectile geometry/configuration. The bridge supplies a fire callback with its own ShootingRuntime for phase/cast count. ShootingService.Fire creates projectiles; it has no scheduler.
+- Existing shooting assets keep their GUIDs. Each has a new SkillDataSO wrapper carrying its migrated cooldown.
+- Regeneration and EmergencyShield sample assets are available but are not automatically equipped. The former heals when injured, then waits two seconds; the latter grants shield at <=20% HP, then waits five seconds and can repeat while still under the threshold.
+- StatBonusSkill applies once, holds its modifier lease and removes it on disposal. New defense granted by this modifier adds only the newly granted shield points, not previously spent shield.
 
-## Enemy normal attack
+## Shield grants
 
-`ForagingMaggot_Character.asset` has `EnemyNormalAttack.asset` in active slot zero. Its data starts at level 1, max level 5 and cooldown 0.8 seconds. `EnemyController` requests slot zero against the current Player. `NormalAttackSkill` validates contact/opposing teams and sends `owner.RuntimeData.CreateDamage()` to the victim.
-
-Normal attack damage and crit come exclusively from the character's current FinalStats, which combine CharacterDataSO BaseStats and current bonuses. No skill damage field, multiplier or level-based damage formula is added. The victim computes defense and HP loss using the existing receive-damage path.
-
-EnemyController owns chase, separation and recoil movement. EnemySpawnManager only configures recoil distance/duration; attack cooldown is edited on the skill asset.
-
-## Projectile attacks remain separate
-
-For this migration, `CharacterDataSO.Shooting` holds `ShootingDataSO[]`. Blessed Gladiator keeps HolyBolt here. The shot assets were moved from DataSO/Skills to DataSO/Shooting with their GUIDs preserved. `ShootingDataSO` is an independent ScriptableObject and has no ISkill behavior or SkillDataSO inheritance.
-
-CharacterView keeps one ShootingRuntime per configured shot and calls ShootingService.Tick. This temporary shooting path owns its own cooldown/retry counters and target search, preserving previous auto-fire behavior. ShootingService.Fire still delegates pattern geometry and projectile spawning to the existing services.
-
-Projectile pattern/flight/hit definitions and status effects are unchanged. Burn/Poison use source damage snapshotted at fire time; Slow uses temporary stat modifiers. Projectile damage multipliers remain part of the existing projectile configuration; enemy normal attack does not use them.
+Explicit controller GrantShield calls may extend shield capacity for the current spawn. They add current shield; recalculation, healing and temporary disable never refill it. Defense-derived starting shield and explicit grants are both consumed before HP. Grants remain until consumed; no shield duration or stacking cap has been configured.
 
 ## Authoring
 
-1. Create an asset using Shooter Game / Skills / Skill.
-2. Set Data (level, maxLevel, cooldown) and Visual.
-3. Select Behavior in the Inspector. Serializable ISkill implementations with public default constructors are discovered automatically, and their serialized fields are editable below the selector.
-4. Put the asset into a character's Active Skills or Passive Skills list.
-5. Request active use through CharacterView.TryUseSkill with a zero-based slot index and a CharacterTarget. No factory registration is necessary.
-
-The old SkillFactory, SkillContext, SkillRuntime, CharacterSkillHandler, ProjectileSkill and specialized skill SO subclasses have been removed.
-
-## Validation
-
-SkillPipelineTests covers asset wiring, struct data isolation, character-derived normal attack damage, independent owner/slot cooldowns, paused timers, levels, passive cleanup/reapplication, stale pool handles, callback despawns, standalone auto-fire, patterns, effects and projectile pool reuse. CharacterSystemTests retains character factory/pooling and damage feedback coverage with the shared manager injected.
+1. Create/configure a SkillDataSO using the existing inspector behavior selector.
+2. Add the dependency wiring for a new concrete behavior in CharacterSkillBridge.CreateBehavior.
+3. Equip innate assets in DataSO/Databases/CharacterSkillLoadouts.asset.
+4. Pass selected run assets through CharacterSkillBridge.AddRunSkill.
+5. Persistent behaviors optionally implement IDisposable; ISkill does not force all skills to have cleanup.

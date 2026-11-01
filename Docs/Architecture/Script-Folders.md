@@ -41,12 +41,14 @@ Scripts/
 ## Cách tìm code
 
 - Tạo nhân vật, input hoặc AI: `Characters`.
-- Điều kiện dùng skill và cooldown: `Combat/Skills`.
+- Skill behaviors and pure cooldown scheduling: Combat/Skills; character dependency wiring: Integration/CharacterSkills.
 - Số lượng và hướng các viên đạn trong một lượt bắn: `Combat/Shooting`.
 - Đạn bay, trúng mục tiêu hoặc hết thời gian: `Combat/Projectiles`.
 - Áp dụng và hết hạn slow, cháy, độc: `Combat/Effects`.
 - Dữ liệu truyền sát thương: `Combat/Damage`.
-- Công thức crit, defense và thay đổi HP hiện vẫn nằm trong `Characters/Stats/CharacterRuntimeData.cs`.
+- Chỉ số, HP/giáp hiện tại và tính damage đầu ra: `Characters/Stats/CharacterRuntimeData.cs`.
+- Gây/nhận damage, thay đổi HP và quyết định chết: `Characters/CharacterControllerBase.cs`; Player/Enemy controller kế thừa.
+- Level/EXP trong trận: `Levels/Services/RunLevelService.cs`; runtime nhân vật chỉ nhận tổng bonus.
 - Đánh chạm của Enemy hiện vẫn nằm trong `Characters/Enemies/EnemyController.cs`.
 
 Đợt sắp xếp này chỉ di chuyển file và giữ nguyên `.meta`, không đổi class, namespace hoặc hành vi gameplay. Các tài liệu review/blueprint cũ có thể dùng đường dẫn trước khi sắp xếp; dùng cấu trúc này để tra vị trí hiện tại.

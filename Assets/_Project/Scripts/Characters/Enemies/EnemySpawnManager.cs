@@ -125,7 +125,7 @@ public class EnemySpawnManager : MonoBehaviour
         Vector2 point = spawnPoints[Random.Range(0, spawnPoints.Count)];
         // * Bonus chốt vào runtime mới; không cộng vào SO, không cập nhật ngược các cá thể đang sống.
         StatBonus bonus = progress.GetBonus(template, Time.time);
-        var runtime = new CharacterRuntimeData(template, 1, 1, default, default, default, bonus);
+        var runtime = new CharacterRuntimeData(template, bonus);
         // * Controller mới mỗi lần spawn: hướng tách cache và lịch quét không đi theo vỏ được tái sử dụng.
         CharacterView enemy = factory.Spawn(template, runtime, new EnemyController(players, factory, separation, recoil),
             new Vector3(point.x, point.y, spawnZ));

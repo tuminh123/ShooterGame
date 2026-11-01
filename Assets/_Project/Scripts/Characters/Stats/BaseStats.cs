@@ -1,50 +1,37 @@
+using System;
+using UnityEngine;
+using UnityEngine.Serialization;
 
-// * Bộ dữ liệu chỉ số cơ bản; Serializable cho phép Unity lưu và hiển thị khi được chứa trong field phù hợp.
-// * CharacterRuntimeData sao chép bộ chỉ số này cho từng Player/Enemy và áp dụng bonus riêng của cá thể.
-[System.Serializable]
+// All percentage stats use 100 = 100%. Crit damage is the additional percentage.
+[Serializable]
 public struct BaseStats
 {
+    [Min(1f)] public float maxHealth;
+    [Min(0f)] public float damage;
+    [Min(0f)] public float defense; // Consumable shield, not damage reduction.
+    [Min(0f)] public float moveSpeed;
+    [Min(0f)] public float range;
+    [Min(0f)] public float critChance;
+    [Min(0f)] public float critDamageMultiplier;
+    [FormerlySerializedAs("dodge"), Min(0f)] public float effectResistance;
+    [FormerlySerializedAs("accuracy"), Min(0f)] public float effectHit;
 
-    #region Base Attributes
-
-    [UnityEngine.Min(1f)] public float maxHealth;  // * Máu tối đa; máu hiện tại sẽ nằm riêng trong dữ liệu runtime.
-    [UnityEngine.Min(0f)] public float damage;     // * Sát thương cơ bản, nhân với hệ số skill trước khi tính crit và defense.
-    [UnityEngine.Min(0f)] public float defense;    // * Điểm phòng thủ; sát thương nhận = sát thương đầu vào × 100 / (100 + defense).
-    [UnityEngine.Min(0f)] public float moveSpeed;  // * Tốc độ chạy, tính bằng đơn vị Unity mỗi giây.
-    [UnityEngine.Min(0f)] public float range;      // * Bán kính tìm mục tiêu; không phải bán kính đạn hoặc vùng nổ.
-
-    #endregion
-
-    #region Combat Chances & Multipliers
-
-    [UnityEngine.Min(0f)] public float critChance;            // * 1 = 100%, 1.5 = 150%; cho phép vượt 100% để tăng bậc crit.
-    [UnityEngine.Min(1f)] public float critDamageMultiplier;  // * Tổng hệ số crit bậc 1; 1.5 tương ứng 150% sát thương đòn thường.
-
-    #endregion
-
-    #region Status Effect Accuracy & Resistance
-
-    [UnityEngine.Min(0f)] public float dodge;     // * Điểm kháng hiệu ứng bất lợi; không né sát thương hoặc va chạm đạn.
-    [UnityEngine.Min(0f)] public float accuracy;  // * Điểm chính xác hiệu ứng; đối kháng với dodge của mục tiêu.
-
-    #endregion
-
-    #region Default Template
-
-    // * Trả về bản sao bộ chỉ số mặc định; new BaseStats() và default(BaseStats) vẫn có toàn bộ field bằng 0.
     public static BaseStats Default => new BaseStats
     {
-        maxHealth = 100f,
-        damage = 10f,
-        defense = 0f,
-        moveSpeed = 3f,
-        range = 2f,
-        critChance = 0.05f,
-        critDamageMultiplier = 1.5f,
-        dodge = 0f,
-        accuracy = 0f
+        maxHealth = 100f, damage = 10f, moveSpeed = 3f, range = 2f,
+        critChance = 5f, critDamageMultiplier = 50f
     };
 
-    #endregion
+    public void Validate()
+    {
+        if (!Finite(maxHealth) || !Finite(damage) || !Finite(defense) || !Finite(moveSpeed) ||
+            !Finite(range) || !Finite(critChance) || !Finite(critDamageMultiplier) ||
+            !Finite(effectResistance) || !Finite(effectHit))
+            throw new ArgumentException("Character stats must be finite.");
+        if (maxHealth < 1f || damage < 0f || defense < 0f || moveSpeed < 0f || range < 0f ||
+            critChance < 0f || critDamageMultiplier < 0f || effectResistance < 0f || effectHit < 0f)
+            throw new ArgumentException("Character base stats must be non-negative, with at least one max HP.");
+    }
 
+    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 }

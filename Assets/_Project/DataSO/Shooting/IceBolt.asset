@@ -14,9 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   displayName: IceBolt
   icon: {fileID: 0}
-  cooldown: 1
-  autoCast: 1
-  retryInterval: 0.1
   projectile: {fileID: 11400000, guid: 774d3f927f1985f6c55a4f0ebefce51c, type: 2}
   shootingPattern: {fileID: 11400000, guid: 0c287b84bb4c9b7d38475a6c7e35c283, type: 2}
   muzzleOffset: {x: 0, y: 0.02}

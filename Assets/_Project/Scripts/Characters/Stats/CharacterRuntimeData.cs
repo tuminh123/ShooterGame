@@ -2,202 +2,155 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// * Dữ liệu riêng của một nhân vật đang chơi; chỉ sao chép giá trị, không sửa template SO.
+// State of one spawned character. Services own levels, EXP and the origins of bonuses.
 public sealed class CharacterRuntimeData
 {
     private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>();
-    private readonly Dictionary<long, float> speedMultipliers = new Dictionary<long, float>();
     private long nextModifierId;
-    #region Character Identity
+    private StatBonus externalBonus;
+    private float movementScale = 1f;
+    private float grantedShieldCapacity;
 
-    public CharacterType CharacterType { get; }  // * Type được sao chép từ template khi tạo nhân vật.
-    public CharacterTeam Team { get; } // * Phe riêng của cá thể, sao chép từ template; boss thuộc Enemy.
+    public CharacterType CharacterType { get; }
+    public CharacterTeam Team { get; }
+    public string DisplayName { get; }
+    public BaseStats BaseStats { get; }
+    public BaseStats FinalStats { get; private set; }
+    public float CurrentHealth { get; private set; }
+    public float MaxShield => FinalStats.defense + grantedShieldCapacity;
+    public float CurrentShield { get; private set; }
+    public bool IsAlive => CurrentHealth > 0f;
+    public event Action Changed;
 
-    public string DisplayName { get; }  // * Tên được sao chép từ template khi tạo nhân vật.
-
-    #endregion
-
-    #region Character Stats & Health
-
-    public BaseStats BaseStats { get; }  // * Chỉ số gốc sao chép từ CharacterDataSO; giữ làm mốc để tính lại bonus.
-
-    public BaseStats FinalStats { get; private set; }  // * Chỉ số thực tế sau khi cộng bonus; Player đọc tốc độ di chuyển từ đây.
-
-    public float CurrentHealth { get; private set; }  // * HP hiện tại, tách riêng khỏi maxHealth trong bộ chỉ số.
-
-    public bool IsAlive => CurrentHealth > 0f;  // * Nhân vật còn sống khi HP lớn hơn 0.
-
-    #endregion
-
-    #region Levels & Stat Bonuses
-
-    public int PermanentLevel { get; private set; }  // * Level vĩnh viễn lấy từ hồ sơ đã load, giữ lại giữa các lượt chơi.
-
-    public int RunLevel { get; private set; }  // * Level trong lượt hiện tại; StartNewRun đưa level này về 1.
-
-    public StatBonus PermanentBonus { get; private set; }  // * Tổng chỉ số cộng thêm từ level vĩnh viễn: bonus mỗi cấp × (PermanentLevel - 1).
-
-    public StatBonus RunBonus { get; private set; }  // * Tổng chỉ số cộng thêm từ level trong trận: bonus mỗi cấp × (RunLevel - 1).
-
-    public StatBonus EquipmentBonus { get; private set; }  // * Tổng bonus của trang bị đang mặc; bằng 0 khi chưa mặc trang bị.
-    public StatBonus SpawnBonus { get; } // * Bonus chốt tại lúc spawn; quái đang sống không nhận các mốc tăng sức mạnh tiếp theo.
-
-    #endregion
-
-    #region Runtime Notifications
-
-    public event Action Changed;  // * Đọc FinalStats/CurrentHealth sau thông báo để UI lấy trạng thái mới nhất.
-
-    #endregion
-
-    #region Runtime Initialization
-
-    // * Tạo dữ liệu riêng từ template và các nguồn bonus; nhân vật mới bắt đầu đầy HP.
-    public CharacterRuntimeData(
-        CharacterDataSO template,
-        int permanentLevel,
-        int runLevel,
-        StatBonus permanentBonus,
-        StatBonus runBonus,
-        StatBonus equipmentBonus,
-        StatBonus spawnBonus = default)
+    public CharacterRuntimeData(CharacterDataSO template, StatBonus bonus = default)
     {
-        if (template == null)
-        {
-            throw new ArgumentNullException(nameof(template));
-        }
-
+        if (template == null) throw new ArgumentNullException(nameof(template));
+        template.ValidateStats();
         CharacterType = template.CharacterType;
         Team = template.Team;
         DisplayName = template.DisplayName;
         BaseStats = template.BaseStats;
-        SpawnBonus = spawnBonus;
-
-        Recalculate(permanentLevel, runLevel, permanentBonus, runBonus, equipmentBonus);
-
-        CurrentHealth = FinalStats.maxHealth;
-    }
-
-    #endregion
-
-    #region Stat Recalculation
-
-    // * Luôn tính lại từ gốc, không cộng bonus lên kết quả cũ hoặc tự hồi HP khi tăng MaxHealth.
-    internal void Recalculate(
-        int permanentLevel,
-        int runLevel,
-        StatBonus permanentBonus,
-        StatBonus runBonus,
-        StatBonus equipmentBonus)
-    {
-        if (permanentLevel < 1 || runLevel < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(permanentLevel), "Levels must be at least 1.");
-        }
-
-        PermanentLevel = permanentLevel;
-        RunLevel = runLevel;
-
-        PermanentBonus = permanentBonus;
-        RunBonus = runBonus;
-        EquipmentBonus = equipmentBonus;
-
-        // * Cộng các nguồn bonus rồi áp dụng một lần lên bản chỉ số gốc.
+        externalBonus = bonus;
         RebuildFinalStats();
-
-        // * Giữ HP hiện tại; nếu MaxHealth giảm thì HP không được vượt giới hạn mới.
-        CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);
-
-        Changed?.Invoke();
+        CurrentHealth = FinalStats.maxHealth;
+        CurrentShield = MaxShield;
     }
 
-    #endregion
+    // The caller combines progression/equipment bonuses. Runtime does not know their origins.
+    internal void SetExternalBonus(StatBonus bonus)
+    {
+        StatBonus previous = externalBonus;
+        externalBonus = bonus;
+        try { RebuildFinalStats(); }
+        catch { externalBonus = previous; throw; }
+        ClampVitalsAndNotify();
+    }
 
     public IDisposable AddTemporaryBonus(StatBonus bonus)
     {
         long id = checked(++nextModifierId);
         temporaryBonuses.Add(id, bonus);
-        RefreshModifiers();
-        return new StatModifierLease(() => { if (temporaryBonuses.Remove(id)) RefreshModifiers(); });
+        try { RebuildFinalStats(); }
+        catch { temporaryBonuses.Remove(id); throw; }
+        float health = CurrentHealth, shield = CurrentShield;
+        try { ClampVitalsAndNotify(); }
+        catch
+        {
+            temporaryBonuses.Remove(id);
+            RebuildFinalStats();
+            CurrentHealth = health;
+            CurrentShield = shield;
+            throw;
+        }
+        return new StatModifierLease(() =>
+        {
+            if (!temporaryBonuses.Remove(id)) return;
+            RebuildFinalStats();
+            ClampVitalsAndNotify();
+        });
     }
 
-    public IDisposable AddSpeedMultiplier(float multiplier)
+    // Effect owns stacking and duration. Runtime only applies its resolved movement multiplier.
+    internal void SetMovementScale(float scale)
     {
-        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f || multiplier > 1f)
-            throw new ArgumentOutOfRangeException(nameof(multiplier));
-        long id = checked(++nextModifierId);
-        speedMultipliers.Add(id, multiplier);
-        RefreshModifiers();
-        return new StatModifierLease(() => { if (speedMultipliers.Remove(id)) RefreshModifiers(); });
+        if (float.IsNaN(scale) || float.IsInfinity(scale) || scale < 0f || scale > 1f)
+            throw new ArgumentOutOfRangeException(nameof(scale));
+        if (movementScale == scale) return;
+        float previous = movementScale;
+        movementScale = scale;
+        try { RebuildFinalStats(); }
+        catch { movementScale = previous; throw; }
+        ClampVitalsAndNotify();
     }
 
     private void RebuildFinalStats()
     {
-        StatBonus total = PermanentBonus + RunBonus + EquipmentBonus + SpawnBonus;
+        StatBonus total = externalBonus;
         foreach (StatBonus bonus in temporaryBonuses.Values) total += bonus;
         BaseStats stats = total.ApplyTo(BaseStats);
-        float speedMultiplier = 1f;
-        // Strongest slow wins; independent lifetimes restore weaker effects when it expires.
-        foreach (float multiplier in speedMultipliers.Values)
-            speedMultiplier = Mathf.Min(speedMultiplier, multiplier);
-        stats.moveSpeed *= speedMultiplier;
+        // Check before clamping so invalid bonuses cannot hide NaN/infinity behind a limit.
+        ValidateFinite(stats);
+        stats.maxHealth = Mathf.Max(1f, stats.maxHealth);
+        stats.damage = Mathf.Max(0f, stats.damage);
+        stats.defense = Mathf.Max(0f, stats.defense);
+        stats.moveSpeed = Mathf.Clamp(stats.moveSpeed, 0f, BaseStats.moveSpeed * 2f) * movementScale;
+        stats.range = Mathf.Max(0f, stats.range);
+        stats.critChance = Mathf.Max(0f, stats.critChance);
+        stats.critDamageMultiplier = Mathf.Max(0f, stats.critDamageMultiplier);
+        stats.effectHit = Mathf.Max(0f, stats.effectHit);
+        stats.effectResistance = Mathf.Clamp(stats.effectResistance, 0f, 80f);
         FinalStats = stats;
     }
 
-    private void RefreshModifiers()
+    private static void ValidateFinite(BaseStats stats)
     {
-        RebuildFinalStats();
+        float[] values = { stats.maxHealth, stats.damage, stats.defense, stats.moveSpeed, stats.range,
+            stats.critChance, stats.critDamageMultiplier, stats.effectHit, stats.effectResistance };
+        foreach (float value in values)
+            if (float.IsNaN(value) || float.IsInfinity(value))
+                throw new ArgumentException("Stat totals must be finite.");
+    }
+
+    private void ClampVitalsAndNotify()
+    {
         CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);
+        CurrentShield = Mathf.Clamp(CurrentShield, 0f, MaxShield);
         Changed?.Invoke();
     }
 
-    #region Health Changes
+    // Mutation only. Controllers own damage, healing and death decisions.
+    internal void AddShield(float amount)
+    {
+        float shield = CurrentShield + amount;
+        if (float.IsNaN(shield) || float.IsInfinity(shield) || amount < 0f)
+            throw new ArgumentOutOfRangeException(nameof(amount));
+        // Explicit grants can extend shield capacity for this spawn; stat recalculation never refills it.
+        grantedShieldCapacity = Mathf.Max(grantedShieldCapacity, shield - FinalStats.defense);
+        SetVitals(CurrentHealth, shield);
+    }
 
-    // * Character tính đầu ra trước khi bắn; crit theo bậc cộng dồn trong tài liệu chỉ số.
-    public DamageInfo CreateDamage() => CreateDamage(1f);
+    internal void SetVitals(float health, float shield)
+    {
+        if (float.IsNaN(health) || float.IsInfinity(health) ||
+            float.IsNaN(shield) || float.IsInfinity(shield))
+            throw new ArgumentOutOfRangeException(nameof(health));
+        health = Mathf.Clamp(health, 0f, FinalStats.maxHealth);
+        shield = Mathf.Clamp(shield, 0f, MaxShield);
+        if (health == CurrentHealth && shield == CurrentShield) return;
+        CurrentHealth = health;
+        CurrentShield = shield;
+        Changed?.Invoke();
+    }
 
-    public DamageInfo CreateDamage(float multiplier)
+    // Calculation only; existing skill/projectile callers keep using this without skill changes.
+    public DamageInfo CreateDamage(float multiplier = 1f)
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
             throw new ArgumentOutOfRangeException(nameof(multiplier));
-        float chance = Mathf.Max(0f, FinalStats.critChance);
-        int tier = Mathf.FloorToInt(chance);
-        if (UnityEngine.Random.value < chance - tier)
-            tier++;
-        float critMultiplier = 1f + tier * (Mathf.Max(1f, FinalStats.critDamageMultiplier) - 1f);
-        return new DamageInfo(Mathf.Max(0f, FinalStats.damage) * multiplier * critMultiplier, Team, tier);
+        float chance = Mathf.Min(FinalStats.critChance, 100f);
+        float critBonus = FinalStats.critDamageMultiplier + Mathf.Max(0f, FinalStats.critChance - 100f) * 0.25f;
+        bool critical = chance >= 100f || (chance > 0f && UnityEngine.Random.value * 100f < chance);
+        float amount = FinalStats.damage * multiplier * (critical ? 1f + critBonus / 100f : 1f);
+        return new DamageInfo(amount, Team, critical);
     }
-
-    // * Luật nhận damage thuộc Character; nguồn đánh không biết defense hoặc HP của mục tiêu.
-    public DamageResult ReceiveDamage(DamageInfo damage)
-    {
-        if (!IsAlive || damage.SourceTeam == Team || damage.Amount <= 0f)
-            return default;
-        float before = CurrentHealth;
-        float received = damage.Amount * (100f / (100f + Mathf.Max(0f, FinalStats.defense)));
-        ApplyHealthChange(-received);
-        return new DamageResult(before - CurrentHealth, !IsAlive);
-    }
-
-    // * Số âm trừ HP, số dương hồi HP; hàm này chỉ thay đổi HP, không tự quyết định despawn.
-    public void ApplyHealthChange(float amount)
-    {
-        if (float.IsNaN(amount) || float.IsInfinity(amount))
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount));
-        }
-
-        float health = Mathf.Clamp(CurrentHealth + amount, 0f, FinalStats.maxHealth);
-
-        if (health == CurrentHealth)
-        {
-            return;
-        }
-
-        CurrentHealth = health;
-
-        Changed?.Invoke();
-    }
-
-    #endregion
 }

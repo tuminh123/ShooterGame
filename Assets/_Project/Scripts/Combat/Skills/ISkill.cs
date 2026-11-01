@@ -1,8 +1,5 @@
-using System;
-
-// Shared behavior only. Per-character state and returned lifetimes belong to SkillManager.
+// The scheduler knows only this behavior. Dependencies belong to each concrete skill.
 public interface ISkill
 {
-    (bool succeeded, IDisposable lifetime) Execute(
-        CharacterView owner, CharacterTarget target, in SkillData data);
+    bool TryExecute();
 }

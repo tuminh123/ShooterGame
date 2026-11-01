@@ -27,11 +27,7 @@ MonoBehaviour:
     defense: 0
     moveSpeed: 0.5
     range: 0.2
-    critChance: 0.05
-    critDamageMultiplier: 1.5
-    dodge: 0
-    accuracy: 0
-  activeSkills:
-  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
-  passiveSkills: []
-  shooting: []
+    critChance: 5
+    critDamageMultiplier: 50
+    effectResistance: 0
+    effectHit: 0

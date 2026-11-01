@@ -14,9 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   displayName: FireBolt
   icon: {fileID: 0}
-  cooldown: 0.8
-  autoCast: 1
-  retryInterval: 0.1
   projectile: {fileID: 11400000, guid: 8aa420c34aa1db995b8c8dc61875f7f7, type: 2}
   shootingPattern: {fileID: 11400000, guid: 0c287b84bb4c9b7d38475a6c7e35c283, type: 2}
   muzzleOffset: {x: 0, y: 0.02}

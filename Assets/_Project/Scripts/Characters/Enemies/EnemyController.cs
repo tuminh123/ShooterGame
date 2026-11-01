@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // * Hành vi riêng của quái: tự tìm hướng đến Player hiện tại, hoàn toàn không đọc joystick.
-public sealed class EnemyController : ICharacterController
+public sealed class EnemyController : CharacterControllerBase
 {
     #region Separation Configuration
 
@@ -60,7 +60,7 @@ public sealed class EnemyController : ICharacterController
 
     #region Chase & Separation Movement
 
-    public void Tick(CharacterView view, CharacterRuntimeData runtime)
+    public override void Tick(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
         if (!runtime.IsAlive)
@@ -81,12 +81,6 @@ public sealed class EnemyController : ICharacterController
             view.Move(Vector2.zero, 0f);
             return;
         }
-
-        bool attacked = TryContactAttack(view, runtime, target);
-        if (!ReferenceEquals(view.RuntimeData, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive)
-            return;
-        if (attacked && ApplyKnockback(view))
-            return;
 
         UpdateSeparation(view);
         Vector2 toPlayer = target.transform.position - view.transform.position;
@@ -180,22 +174,12 @@ public sealed class EnemyController : ICharacterController
 
     #region Contact Attack & Recoil
 
-    private bool TryContactAttack(CharacterView view, CharacterRuntimeData runtime, CharacterView target)
+    protected override void OnAttack(CharacterView view, CharacterRuntimeData runtime, Vector2 away)
     {
-        // * Chốt hướng trước callback nhận damage; không phụ thuộc mục tiêu sau khi xử lý chết.
-        Vector2 away = view.HitPosition - target.HitPosition;
-        if (away.sqrMagnitude <= 0.000001f)
-            away = GetOverlapDirection(view.GetInstanceID(), target.GetInstanceID());
-        // Slot zero is the normal attack configured on this enemy's CharacterDataSO.
-        bool succeeded = view.TryUseSkill(0, new CharacterTarget(target));
-        if (!succeeded || !ReferenceEquals(view.RuntimeData, runtime) || !runtime.IsAlive ||
-            !view.isActiveAndEnabled || knockbackDistance <= 0f)
-            return false;
-
+        if (knockbackDistance <= 0f || !view.isActiveAndEnabled) return;
         knockbackDirection = away.normalized;
         knockbackRemaining = knockbackDuration;
         separationDirection = Vector2.zero;
-        return true;
     }
 
     private bool ApplyKnockback(CharacterView view)
@@ -233,7 +217,7 @@ public sealed class EnemyController : ICharacterController
     #region Death Behavior
 
     // * Chết mới thu hồi; bỏ hoàn toàn hành vi test chạm Player thì biến mất.
-    public void OnDeath(CharacterView view, CharacterRuntimeData runtime) => characters.Despawn(view);
+    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime) => characters.Despawn(view);
 
     #endregion
 }

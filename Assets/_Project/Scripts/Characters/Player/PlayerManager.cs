@@ -95,8 +95,7 @@ public sealed class PlayerManager : IInitializable, IDisposable
         if (template.Team != CharacterTeam.Player)
             throw new InvalidOperationException($"Selected character {type} must belong to the Player team.");
         var runtime = new CharacterRuntimeData(template,
-            levels.GetPermanentLevel(type), levels.RunLevel,
-            levels.GetPermanentBonus(type), levels.RunBonus, equipment.TotalBonus);
+            levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus);
         CurrentPlayer = factory.Spawn(template, runtime, new PlayerController(joystick), Vector3.zero);
         if (CurrentPlayer == null)
             throw new InvalidOperationException("Could not spawn the Player shell.");
@@ -210,8 +209,7 @@ public sealed class PlayerManager : IInitializable, IDisposable
         if (disposed || runtime == null)
             return;
         CharacterType type = runtime.CharacterType;
-        runtime.Recalculate(levels.GetPermanentLevel(type), levels.RunLevel,
-            levels.GetPermanentBonus(type), levels.RunBonus, equipment.TotalBonus);
+        runtime.SetExternalBonus(levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus);
     }
 
     #endregion

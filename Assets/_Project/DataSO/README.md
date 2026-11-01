@@ -17,7 +17,7 @@
 | Trạng thái level trận | RunLevelProgress | Chi tiết tính tiến trình nội bộ do RunLevelService sở hữu |
 | Dữ liệu lưu lâu dài | PlayerSaveData | Nhân vật đang chọn và level vĩnh viễn của từng nhân vật |
 | IO và quản lý hồ sơ | SaveManager | Load/save Easy Save 3, kiểm tra dữ liệu và quản lý thay đổi chưa lưu |
-| Runtime nhân vật | CharacterRuntimeData | Bản chỉ số gốc, tổng chỉ số, level và HP riêng của Player |
+| Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
 | Danh mục trang bị | EquipmentDatabaseSO | Tra bonus cộng thẳng bằng ID vật phẩm |
 | Trang bị đang mặc | PlayerEquipmentService | Đọc/thay loadout đã lưu, tính tổng bonus và phát sự kiện |
 
@@ -54,19 +54,19 @@ None là trạng thái chưa chọn, không dùng cho template, config hoặc b�
 
 ## 3. StatBonus khác BaseStats
 
-BaseStats là bộ chỉ số gốc đầy đủ. StatBonus chỉ là lượng cộng thêm vào từng field, mặc định tất cả bằng 0. Không dùng BaseStats.Default để biểu diễn bonus vì nó có sẵn 100 HP, 10 damage và hệ số crit 1.5.
+BaseStats là bộ chỉ số gốc đầy đủ. StatBonus chỉ là lượng cộng thêm vào từng field, mặc định tất cả bằng 0. Không dùng BaseStats.Default để biểu diễn bonus vì nó có sẵn 100 HP, 10 damage, 5% crit chance và 50% sát thương cộng thêm khi crit. Công thức chuẩn xem [CharacterStats](Documentation/CharacterStats.md).
 
 Ví dụ bonus một lần lên cấp:
 
 ```text
 maxHealth = 20
 damage = 2
-critChance = 0.05           → cộng 5 điểm phần trăm
-critDamageMultiplier = 0.1 → hệ số 1.5 thành 1.6
+critChance = 5            → cộng 5 điểm phần trăm
+critDamageMultiplier = 10 → bonus sát thương crit từ 50% thành 60%
 Các field còn lại = 0
 ```
 
-Bonus hiện chỉ cộng thẳng, không có phần trăm nhân chỉ số. Có thể nhập số âm nếu cần thiết kế đánh đổi; bên cấu hình chịu trách nhiệm nhập số hữu hạn, không NaN/infinity. ApplyTo giới hạn kết quả HP tối đa tối thiểu 1, crit multiplier tối thiểu 1, các chỉ số còn lại tối thiểu 0; không giới hạn crit chance ở 100%.
+Bonus hiện chỉ cộng thẳng. Có thể nhập số âm nếu cần thiết kế đánh đổi; dữ liệu phải hữu hạn. ApplyTo chỉ cộng giá trị; runtime kẹp kết quả cuối: maxHealth ít nhất 1, tốc độ tối đa 2 lần tốc độ gốc, effectResistance tối đa 80%, các chỉ số khác không âm. Crit chance dư 100% đổi sang bonus sát thương crit theo hệ số 0.25.
 
 Khi có nhiều nguồn, cộng các StatBonus trước rồi ApplyTo một lần lên chỉ số gốc. Không ApplyTo lặp lại trên kết quả cũ khi tính lại chỉ số.
 
@@ -326,9 +326,9 @@ Khi tự setup, gán Character Database, Level Database và Equipment Database t
 | Defense | 0 | +2 | 8 |
 | Move speed | 3 | +0.02 | 3.08 |
 | Crit chance | 5% | +1 điểm phần trăm | 9% |
-| Crit multiplier | 1.5 | +0.05 | 1.7 |
-| Dodge | 0 | +1 | 4 |
-| Accuracy | 0 | +1 | 4 |
+| Crit damage cộng thêm | 50% | +5 điểm phần trăm | 70% |
+| Effect resistance | 0% | +1 điểm phần trăm | 4% |
+| Effect hit | 0% | +1 điểm phần trăm | 4% |
 
 Level vĩnh viễn mẫu dùng giá đầu 100, hệ số 1.2, trần 10. Level trong trận mẫu dùng A = 10, B = 5, trần 10, mỗi cấp +5 HP và +1 damage. Nhân vật vĩnh viễn level 5, trong trận level 3 có maxHealth = 100 + 4×20 + 2×5 = 190; damage = 10 + 4×2 + 2×1 = 20.
 
@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-Blessed Gladiator giữ HolyBolt trong mảng ShootingDataSO[] riêng để bắn đạn tiếp tục hoạt động. CharacterDataSO có hai mảng ActiveSkills/PassiveSkills chứa SkillDataSO; mỗi skill gồm SkillData struct, SkillVisual và ISkill chỉ có Execute. SkillManager quản lý vòng đời và cooldown. Enemy đánh thường dùng Skills/EnemyNormalAttack.asset và lấy damage từ chỉ số nhân vật. Xem Docs/Architecture/Skill-Shooting-Pipeline.md.
+CharacterSkillLoadouts.asset maps character types to SkillDataSO assets. CharacterSkillBridge creates independent behaviors and connects CharacterManager lifetime events with the pure SkillManager scheduler. CharacterDataSO no longer owns skill or shooting arrays. HolyBolt and enemy normal attack are automatically scheduled. See Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 
@@ -352,9 +352,9 @@ SaveManager.Load (priority -200)
     -> PlayerChanged thông báo nhân vật đã sẵn sàng
 ```
 
-Chỉ số tổng = BaseStats + PermanentBonus + RunBonus + EquipmentBonus. Runtime sao chép struct từ template, không Instantiate hoặc chỉnh sửa asset SO. Khi level vĩnh viễn của nhân vật, level trận, reset trận hoặc trang bị đổi, PlayerManager tính lại từ bản gốc. HP hiện tại giữ nguyên và được giới hạn về MaxHealth mới; tăng MaxHealth không tự hồi HP. Spawn Player mới tạo runtime mới đầy HP. Spawn lại trong cùng lượt vẫn dùng level trận hiện tại; StartNewRun reset level, không tự hồi HP hoặc tạo lại nhân vật.
+PlayerManager cộng bonus vĩnh viễn, bonus trong trận và trang bị trước khi truyền tổng vào CharacterRuntimeData. Runtime không giữ level hoặc phân loại nguồn bonus; CharacterLevelService và RunLevelService sở hữu tiến trình. Khi các nguồn đổi, runtime tính lại từ base và modifier đang có. Tăng maxHealth/defense không tự hồi HP/giáp; khi giới hạn giảm thì kẹp lượng hiện tại. Spawn mới đầy HP và giáp, bonus skill được áp dụng bởi scheduler sau khi đăng ký; defense mới chỉ cấp thêm lượng giáp mới tương ứng. Bật lại sau disable không hồi giáp. StartNewRun reset tiến trình, không tự hồi HP hoặc tạo lại nhân vật.
 
-Đọc runtime qua Player.RuntimeData hoặc PlayerManager.RuntimeData. Stats và BaseStats trả về bản sao struct; thay đổi HP qua ApplyHealthChange (âm để trừ, dương để hồi), nghe Changed để cập nhật UI. Player gửi Stats.moveSpeed sang MovementManager, giữ mức nghiêng joystick và dừng di chuyển khi HP bằng 0. Với template mẫu level 1, tốc độ bây giờ là 3 thay cho 2 từng khai báo riêng trong prefab.
+Đọc runtime qua CharacterView.RuntimeData hoặc PlayerManager.RuntimeData. FinalStats và BaseStats trả bản sao struct. Gọi CharacterView.ReceiveDamage hoặc ChangeHealth (âm trừ HP trực tiếp, dương hồi HP); view chuyển tiếp tới CharacterControllerBase. Controller chung xử lý giáp hấp thụ trước HP, thông báo và chết; PlayerController/EnemyController kế thừa và định nghĩa hành vi chết riêng. Nghe Changed để cập nhật UI. Effect sở hữu thời hạn, danh sách slow và luật slow mạnh nhất; runtime chỉ nhận hệ số di chuyển đã tổng hợp.
 
 Thêm vật phẩm vào danh sách Items của EquipmentDatabase: ID ổn định, tên hiển thị và bonus. Inject PlayerEquipmentService vào bên quản lý trang bị rồi gọi SetEquippedItems với toàn bộ ID đang mặc; danh sách rỗng để tháo hết. Ví dụ, sau khi đã khai báo ID boots trong database:
 

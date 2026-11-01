@@ -40,7 +40,7 @@ public sealed class SingleTargetProjectileHit : IProjectileHit
         if (target.TryGetCharacter(out character))
             foreach (StatusEffectDataSO effect in runtime.Data.Effects)
                 applied |= character.Effects.TryApply(effect, runtime.Damage.SourceTeam, runtime.SourceDamage,
-                    runtime.SourceAccuracy);
+                    runtime.SourceEffectHit);
         return applied;
     }
 }

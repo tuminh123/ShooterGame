@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// * Template chỉ số và skill khởi đầu, dùng chung cấu trúc cho player, enemy và boss.
+// * Template chỉ số và hình ảnh, dùng chung cấu trúc cho player, enemy và boss.
 // ! Không lưu máu hiện tại, cooldown hoặc thay đổi trong trận trên asset; các trạng thái đó thuộc runtime riêng.
 [CreateAssetMenu(fileName = "CharacterData", menuName = "Shooter Game/Data/Character")]
 public sealed class CharacterDataSO : ScriptableObject
@@ -34,23 +34,13 @@ public sealed class CharacterDataSO : ScriptableObject
 
     #region Base Stats Template
 
-    [SerializeField] private BaseStats baseStats = global::BaseStats.Default;  // * Chỉ số gốc; critChance nhập 1.5 tương ứng 150%.
+    [SerializeField] private BaseStats baseStats = BaseStats.Default; // Percent stats: 100 = 100%; crit damage is additional percent.
 
     // * Trả về bản sao struct; sửa bản sao không làm thay đổi dữ liệu của asset.
     public BaseStats BaseStats => baseStats;
 
-    #endregion
-
-    #region Starting Skill Templates
-
-    [SerializeField] private SkillDataSO[] activeSkills = System.Array.Empty<SkillDataSO>();
-    [SerializeField] private SkillDataSO[] passiveSkills = System.Array.Empty<SkillDataSO>();
-    public SkillDataSO[] ActiveSkills => activeSkills;
-    public SkillDataSO[] PassiveSkills => passiveSkills;
-
-    // Projectile attacks remain standalone during the skill migration.
-    [SerializeField] private ShootingDataSO[] shooting = System.Array.Empty<ShootingDataSO>();
-    public ShootingDataSO[] Shooting => shooting;
+    public void ValidateStats() => baseStats.Validate();
 
     #endregion
+
 }
