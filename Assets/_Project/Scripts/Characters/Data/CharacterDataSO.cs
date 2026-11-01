@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// * Template chỉ số và hình ảnh, dùng chung cấu trúc cho player, enemy và boss.
+// * Template chỉ số, hình ảnh và danh sách skill vốn có, dùng chung cấu trúc cho player, enemy và boss.
 // ! Không lưu máu hiện tại, cooldown hoặc thay đổi trong trận trên asset; các trạng thái đó thuộc runtime riêng.
 [CreateAssetMenu(fileName = "CharacterData", menuName = "Shooter Game/Data/Character")]
 public sealed class CharacterDataSO : ScriptableObject
@@ -43,4 +43,7 @@ public sealed class CharacterDataSO : ScriptableObject
 
     #endregion
 
+    [Header("Skills")]
+    [SerializeField] private SkillDataSO[] skills = System.Array.Empty<SkillDataSO>(); // * Danh sách cấu hình skill vốn có; không lưu cooldown hoặc trạng thái chạy trên asset.
+    public System.Collections.Generic.IReadOnlyList<SkillDataSO> Skills => skills; // * Bridge đọc skill của từng nhân vật từ cấu hình này.
 }

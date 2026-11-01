@@ -7,8 +7,8 @@ See [Skill-Shooting-Pipeline](../../../../Docs/Architecture/Skill-Shooting-Pipel
 - SkillManager only schedules independent behavior instances and owns innate/run registration lists.
 - CharacterManager publishes character lifetime events; it does not know SkillManager.
 - CharacterSkillBridge connects both systems, checks spawn identity and wires behavior dependencies.
-- CharacterSkillLoadouts.asset maps character types to innate skill assets.
-- CharacterDataSO, CharacterView and controllers no longer reference the skill system or a shooting scheduler.
+- CharacterDataSO.Skills is the single list of innate skill assets, without active/passive categories.
+- CharacterView and controllers do not call SkillManager or a shooting scheduler. The bridge reads CharacterDataSO.Skills.
 - HolyBolt is an automatically scheduled ShootingSkill; ShootingService only fires projectile patterns.
 - Normal attack is automatically scheduled; enemy recoil remains in EnemyController.
 - Level/EXP remain in LevelManager. Run selection calls AddRunSkill; RunReset clears run registrations.

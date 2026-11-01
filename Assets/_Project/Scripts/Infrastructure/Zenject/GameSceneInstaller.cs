@@ -33,7 +33,6 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Service Bindings
 
     // * Một instance mỗi dịch vụ; Zenject quản lý Initialize, LateTick và Dispose.
-    [SerializeField] private CharacterSkillLoadoutSO characterSkillLoadouts;
 
     public override void InstallBindings()
     {
@@ -43,15 +42,12 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Character Database and Level Database in GameSceneInstaller.");
         if (equipmentDatabase == null)
             throw new InvalidOperationException("Assign Equipment Database in GameSceneInstaller.");
-        if (characterSkillLoadouts == null)
-            throw new InvalidOperationException("Assign Character Skill Loadouts.");
         SignalBusInstaller.Install(Container);
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInterfacesAndSelfTo<SaveManager>().AsSingle().NonLazy();
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();
         Container.Bind<LevelDatabaseSO>().FromInstance(levelDatabase).AsSingle();
         Container.Bind<EquipmentDatabaseSO>().FromInstance(equipmentDatabase).AsSingle();
-        Container.BindInstance(characterSkillLoadouts);
         Container.BindInterfacesAndSelfTo<CharacterManager>().AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerEquipmentService>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<CharacterLevelService>().AsSingle().NonLazy();

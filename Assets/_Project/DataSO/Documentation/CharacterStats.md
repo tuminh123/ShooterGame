@@ -254,4 +254,4 @@ Cách cộng trừ (`base + hit - res`) dễ tính nhẩm nhưng: debuff gốc 5
 - Đòn chỉ làm mất giáp vẫn là đòn đánh được chấp nhận và phát thông báo damage. `DamageResult` có `HealthLost`, `ShieldLost`, `TotalLost`; `DamageInfo.IsCritical` thay cho bậc crit cũ.
 - Các asset hiện có đã chuyển crit chance từ 0..1 sang phần trăm, crit multiplier từ tổng hệ số sang phần trăm cộng thêm, và application chance của effect từ 0..1 sang 0..100. `slowFraction` vẫn là phần tốc độ bị giảm trong 0..1.
 - Hệ số đang triển khai: shield/defense = 1; speed cap/base = 2; resistance cap = 80%; crit overflow = 0.25. Gợi ý đưa chúng vào SO ở phần trên là hướng mở rộng, chưa thêm SO cấu hình mới trong đợt này.
-- SkillManager hiện chỉ có ISkill.TryExecute và lịch chạy; CharacterSkillBridge kết nối hai hệ thống qua callback. Cấu hình skill vốn có nằm trong CharacterSkillLoadouts.asset, không nằm trong CharacterDataSO.
+- SkillManager hiện chỉ có ISkill.TryExecute và lịch chạy; CharacterSkillBridge kết nối hai hệ thống qua callback. Cấu hình skill vốn có nằm trong một danh sách Skills trên CharacterDataSO, không phân chủ động/bị động và không có loadout riêng.

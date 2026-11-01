@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-CharacterSkillLoadouts.asset maps character types to SkillDataSO assets. CharacterSkillBridge creates independent behaviors and connects CharacterManager lifetime events with the pure SkillManager scheduler. CharacterDataSO no longer owns skill or shooting arrays. HolyBolt and enemy normal attack are automatically scheduled. See Docs/Architecture/Skill-Shooting-Pipeline.md.
+CharacterDataSO stores one Skills list of SkillDataSO assets. CharacterSkillBridge creates independent behaviors and connects CharacterManager lifetime events with the pure SkillManager scheduler. The bridge reads that list from each registered character; no separate loadout configuration is needed. HolyBolt and enemy normal attack are automatically scheduled. See Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 

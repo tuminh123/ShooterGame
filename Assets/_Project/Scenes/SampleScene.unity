@@ -314,7 +314,6 @@ MonoBehaviour:
   characterDatabase: {fileID: 11400000, guid: b2d25eaa2140499baa3ff69f92c5b88d, type: 2}
   levelDatabase: {fileID: 11400000, guid: 76b686c4c01140c5be22751af9852108, type: 2}
   equipmentDatabase: {fileID: 11400000, guid: d4bc36b0b0464700be54d5ae4494256b, type: 2}
-  characterSkillLoadouts: {fileID: 11400000, guid: 6ba12ec61e3e40489c6835b3a9313766, type: 2}
 --- !u!1 &256504759
 GameObject:
   m_ObjectHideFlags: 0

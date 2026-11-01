@@ -38,3 +38,5 @@ MonoBehaviour:
     critDamageMultiplier: 50
     effectResistance: 0
     effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}

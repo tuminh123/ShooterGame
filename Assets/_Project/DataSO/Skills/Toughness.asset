@@ -12,14 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
   m_Name: Toughness
   m_EditorClassIdentifier:
-  data:
-    level: 1
-    maxLevel: 5
-    cooldown: 1
-  visual:
-    displayName: Toughness
-    description: Grants two defense while this passive is attached.
-    icon: {fileID: 0}
+  level: 1
+  maxLevel: 5
+  cooldown: 1
+  displayName: Toughness
+  description: Grants two defense while this passive is attached.
+  icon: {fileID: 0}
   behavior: {rid: 1001}
   references:
     version: 2

@@ -4,19 +4,35 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Shooter Game/Skills/Skill")]
 public sealed class SkillDataSO : ScriptableObject
 {
-    [SerializeField] private SkillData data = new SkillData { level = 1, maxLevel = 5, cooldown = 0.8f };
-    [SerializeField] private SkillVisual visual = new SkillVisual();
+    [Header("Configuration")]
+    [SerializeField, Min(1)] private int level = 1;
+    [SerializeField, Min(1)] private int maxLevel = 5;
+    [SerializeField, Min(0f)] private float cooldown = 0.8f;
+
+    [Header("Display")]
+    [SerializeField] private string displayName;
+    [SerializeField, TextArea] private string description;
+    [SerializeField] private Sprite icon;
+
     [SerializeReference] private ISkill behavior;
-    public SkillData Data => data;
-    public SkillVisual Visual => visual;
+
+    public int Level => level;
+    public int MaxLevel => maxLevel;
+    public float Cooldown => cooldown;
+    public string DisplayName => displayName;
+    public string Description => description;
+    public Sprite Icon => icon;
+
     // This is a shared configuration template, never registered directly with SkillManager.
     public ISkill Behavior => behavior;
 
     public void Validate()
     {
-        data.Validate();
-        if (behavior == null || visual == null)
-            throw new InvalidOperationException($"Assign skill behavior and visual: {name}.");
+        if (level < 1 || maxLevel < level || float.IsNaN(cooldown) ||
+            float.IsInfinity(cooldown) || cooldown < 0f)
+            throw new InvalidOperationException($"Invalid skill level or cooldown: {name}.");
+        if (behavior == null)
+            throw new InvalidOperationException($"Assign skill behavior: {name}.");
         if (behavior is ShootingSkill shot)
         {
             if (shot.Shooting == null) throw new InvalidOperationException($"Assign shooting data: {name}.");

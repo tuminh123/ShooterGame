@@ -12,14 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
   m_Name: EmergencyShield
   m_EditorClassIdentifier:
-  data:
-    level: 1
-    maxLevel: 5
-    cooldown: 5
-  visual:
-    displayName: EmergencyShield
-    description: Grants thirty shield at or below twenty percent HP, with a five-second cooldown.
-    icon: {fileID: 0}
+  level: 1
+  maxLevel: 5
+  cooldown: 5
+  displayName: EmergencyShield
+  description: Grants thirty shield at or below twenty percent HP, with a five-second cooldown.
+  icon: {fileID: 0}
   behavior: {rid: 1001}
   references:
     version: 2
