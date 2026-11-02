@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Pattern geometry and projectile creation only. Scheduling belongs to SkillManager.
+// Projectile creation only. CharacterSkills schedules innate shots; SkillManager schedules run shots.
 public sealed class ShootingService
 {
     private readonly ProjectileService projectiles;

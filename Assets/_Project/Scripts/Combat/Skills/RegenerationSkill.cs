@@ -5,16 +5,24 @@ using UnityEngine;
 public sealed class RegenerationSkill : ISkill
 {
     [SerializeField, Min(0f)] private float healAmount = 1f;
-    [NonSerialized] private readonly Func<bool> canHeal;
-    [NonSerialized] private readonly Action<float> heal;
+    [NonSerialized] private readonly CharacterSkills owner;
+
     public float HealAmount => healAmount;
+
     public RegenerationSkill() { }
-    public RegenerationSkill(float amount, Func<bool> canHeal, Action<float> heal)
-    { healAmount = amount; this.canHeal = canHeal; this.heal = heal; }
+
+    public RegenerationSkill(CharacterSkills owner, float healAmount)
+    {
+        this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        this.healAmount = healAmount;
+    }
+
     public bool TryExecute()
     {
-        if (canHeal == null || heal == null || !canHeal() || healAmount <= 0f) return false;
-        heal(healAmount);
+        if (owner == null || !owner.CanRun || healAmount <= 0f) return false;
+        if (owner.Identity.CurrentHealth >= owner.Identity.FinalStats.maxHealth) return false;
+
+        owner.Owner.ChangeHealth(healAmount);
         return true;
     }
 }

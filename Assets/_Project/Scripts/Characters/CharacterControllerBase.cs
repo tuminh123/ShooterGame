@@ -1,11 +1,24 @@
 using System;
 using UnityEngine;
 
-// Shared combat behavior. Player and enemy controllers only specialize movement and death.
+// Shared combat and innate-skill activation. Derived controllers specialize movement and death.
 public abstract class CharacterControllerBase : ICharacterController
 {
     private CharacterRuntimeData deathHandled;
-    public abstract void Tick(CharacterView view, CharacterRuntimeData runtime);
+    public void Tick(CharacterView view, CharacterRuntimeData runtime)
+    {
+        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
+
+        try { view.Skills?.Tick(Time.deltaTime); }
+        catch (Exception exception) { Debug.LogException(exception, view); }
+
+        // A skill can kill, disable or despawn its owner synchronously.
+        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
+
+        TickMovement(view, runtime);
+    }
+
+    protected abstract void TickMovement(CharacterView view, CharacterRuntimeData runtime);
     public abstract void OnDeath(CharacterView view, CharacterRuntimeData runtime);
 
     public DamageResult ReceiveDamage(CharacterView view, CharacterRuntimeData runtime, DamageInfo damage)

@@ -63,17 +63,15 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.Bind<ProjectileStrategyFactory>().AsSingle();
         Container.Bind<ShootingPatternFactory>().AsSingle();
         Container.Bind<ShootingService>().AsSingle();
-        Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle();
-        Container.BindInterfacesAndSelfTo<CharacterSkillBridge>().AsSingle().NonLazy();
-        Container.BindInitializableExecutionOrder<CharacterSkillBridge>(-150);
-        Container.BindTickableExecutionOrder<CharacterSkillBridge>(-100);
+        Container.Bind<SkillFactory>().AsSingle();
+        Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle().NonLazy();
+        Container.BindTickableExecutionOrder<SkillManager>(-100);
         Container.Bind<StatusEffectFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<PlayerManager>(-100);
         Container.BindInitializableExecutionOrder<SaveManager>(-200);
         // * Thu hồi nhân vật theo thứ tự visual → vỏ trước khi pool tổng quát và buffer Jobs được giải phóng.
         Container.BindDisposableExecutionOrder<CharacterFactory>(200);
-        Container.BindDisposableExecutionOrder<CharacterSkillBridge>(150);
         Container.BindDisposableExecutionOrder<CharacterManager>(125);
         Container.BindDisposableExecutionOrder<PoolManager>(100);
         Container.BindDisposableExecutionOrder<PlayerManager>(50);

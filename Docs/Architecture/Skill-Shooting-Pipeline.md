@@ -1,43 +1,60 @@
-# Independent skill scheduling and character composition
+# Character skills and independent run skills
 
 ## Boundaries
 
-- ISkill has only bool TryExecute(). It does not receive a character, target or shared capability context.
-- SkillManager is pure C#: exactly two runtime lists, cooldowns and manager-owned cleanup. It has no Unity or Character dependency.
-- CharacterManager tracks initialized characters and publishes added, removed and died events. CharacterDataSO holds skill asset references; character controllers do not schedule or execute skills directly.
-- Integration/CharacterSkills/CharacterSkillBridge is the composition boundary. It observes character lifetime, creates per-registration behavior instances and supplies callbacks.
-- CharacterDataSO has one Skills list of SkillDataSO assets. The bridge reads it from each character registered with CharacterManager; there is no separate loadout asset.
+- `CharacterManager` tracks characters in the scene; it does not schedule skills.
+- `CharacterView.Skills` (`CharacterSkills`) owns only innate skills from `CharacterDataSO.Skills`.
+- `CharacterControllerBase.Tick` advances innate skills before calling the derived movement hook. The view only forwards its frame update to the controller.
+- The scene `SkillManager` independently owns run skills received from an external source. It has no character, character factory, position anchor or character stats dependency.
+- `SkillRuntime` is a live behavior and cooldown entry. It has no owner/character dependency. Each collection decides when to tick and dispose its entries.
+- `SkillFactory` currently creates only character-bound behaviors through explicit constructor calls. Combat and bonus calculations remain inside the behaviors.
 
-## Configuration and execution
+## Innate skill flow
 
-SkillDataSO directly stores level, maxLevel, cooldown, displayName, description, icon and a SerializeReference ISkill behavior template. There are no separate SkillData or SkillVisual containers. Never register that shared template directly. The bridge copies its configuration into a fresh behavior with dependencies appropriate to that character's spawn identity.
+1. `CharacterView.Initialize` creates `CharacterSkills` from the character data before activating the pooled shell.
+2. The factory creates fresh behaviors bound to that spawn; shared asset templates are never executed or mutated.
+3. The base controller advances only the character's innate collection. The collection checks active/alive/spawn identity before each entry.
+4. Disable freezes innate cooldowns. Death, despawn and destruction dispose only that character's innate skills and persistent modifiers.
+5. Character cleanup never calls `SkillManager` or removes run registrations.
 
-SkillManager.Add receives a behavior, cooldown, run/innate scope and an optional generic availability predicate. All skills execute automatically. New registrations start ready; success starts cooldown, failure leaves the skill ready for a future tick. A zero cooldown permits at most one attempt per tick. There are no active/passive or manual-button categories.
+## Run skills: integration deferred
 
-The availability predicate supplied by the bridge freezes timers while a character is inactive. It checks runtime identity and alive state. Death/despawn asks SkillManager.Remove(runtime) to remove the corresponding skills before shell reuse. SkillRuntime is a standalone value-type struct: it has no manager reference, owning collection, Dispose method or self-removal behavior. Only the owning manager changes list membership and cleans up the behavior. Applying a persistent stat bonus owns an idempotent lease; a late lease returned after synchronous despawn is disposed immediately.
+The card/reward source is not implemented. There are currently no gameplay callers that grant run skills.
 
-Callbacks may remove or add skills during a tick. The manager captures both initial counts, marks removals inactive and compacts the two lists after iteration; newly added entries wait until the next tick. No third update buffer or temporary skill snapshot list is needed. Struct updates are written back to the list. Returned runtimes are snapshots, not live references; removal uses a globally unique registration ID, so old copies and runtimes from another manager cannot remove the wrong entry. A behavior exception removes that registration, allows other entries to finish and is reported by the bridge. Cleanup attempts every registration even when a disposer fails.
+The integration entry point is:
 
-Level and EXP remain in LevelManager/RunLevelService. The bridge exposes AddRunSkill(character, selectedAsset) for a future selection UI. Duplicate run selections currently return false; no upgrade formula or revival policy is invented. ClearRunSkills removes the run scope, and RunReset invokes it automatically. A future explicit end-run coordinator should call the same method on leaving a run.
+```csharp
+skillManager.AddSkill(selectedDefinition, runtimeBehavior);
+```
 
-## Existing attacks
+- A future external source supplies the `SkillDataSO` configuration and a separately created `ISkill` instance.
+- The manager registers the instance and advances its cooldown through Zenject's tick. It does not create character-bound behaviors or discover assets automatically.
+- The shared behavior template cannot be registered directly. Duplicate live definitions are rejected within the run collection.
+- Position sourcing, standalone run-skill damage/range, card selection and progression are intentionally not connected yet. Do not obtain them from character runtime as an implicit fallback.
+- Character disable, death, despawn or replacement does not reset or remove run skills.
+- `LevelManager.RunReset` clears only run skills. Explicit run-exit coordination can call `ClearRunSkills()` later. Innate skills and their timers are untouched.
 
-- BlessedGladiator maps to Skills/HolyBolt.asset.
-- ForagingMaggot maps to Skills/EnemyNormalAttack.asset.
-- NormalAttackSkill receives an attack callback. The bridge finds a nearby opponent, validates contact and invokes CharacterView.DealDamage. EnemyController responds to a successful attack through its combat hook to apply recoil; it does not activate skills.
-- ShootingSkill references ShootingDataSO, which now contains only projectile geometry/configuration. The bridge supplies a fire callback with its own ShootingRuntime for phase/cast count. ShootingService.Fire creates projectiles; it has no scheduler.
-- Existing shooting assets keep their GUIDs. Each has a new SkillDataSO wrapper carrying its migrated cooldown.
-- Regeneration and EmergencyShield sample assets are available but are not automatically equipped. The former heals when injured, then waits two seconds; the latter grants shield at <=20% HP, then waits five seconds and can repeat while still under the threshold.
-- StatBonusSkill applies once, holds its modifier lease and removes it on disposal. New defense granted by this modifier adds only the newly granted shield points, not previously spent shield.
+## Common scheduling rules
 
-## Shield grants
+- New entries start ready. A successful `TryExecute()` starts cooldown; failure leaves the entry ready for a future tick.
+- A skill attempts at most once per tick. Zero delta does not execute skills.
+- Run registrations added during a manager tick wait until its next tick.
+- Execution failure disposes the failed entry and is logged while other skills continue.
+- Cleanup marks entries inactive before releasing modifiers and attempts every affected entry even when a disposer fails.
 
-Explicit controller GrantShield calls may extend shield capacity for the current spawn. They add current shield; recalculation, healing and temporary disable never refill it. Defense-derived starting shield and explicit grants are both consumed before HP. Grants remain until consumed; no shield duration or stacking cap has been configured.
+## Character behaviors
+
+- `NormalAttackSkill` finds an opponent, checks contact and asks its character to deal damage.
+- `ShootingSkill` owns cast/phase state and uses character stats only as part of this innate character-bound implementation.
+- `RegenerationSkill` heals its injured owner; the sample heals 1 HP every 2 seconds after success.
+- `EmergencyShieldSkill` grants 30 shield at <=20% HP, with a 5-second cooldown.
+- `StatBonusSkill` applies once and owns an idempotent modifier lease. It grants only newly added defense-derived shield capacity, never refilling previously spent shield. Synchronous despawn during application releases the lease.
 
 ## Authoring
 
-1. Create/configure a SkillDataSO using the existing inspector behavior selector.
-2. Add the dependency wiring for a new concrete behavior in CharacterSkillBridge.CreateBehavior.
-3. Equip innate assets in the single Skills list on CharacterDataSO.
-4. Pass selected run assets through CharacterSkillBridge.AddRunSkill.
-5. Persistent behaviors optionally implement IDisposable; ISkill does not force all skills to have cleanup.
+1. Configure a `SkillDataSO` using the inspector behavior selector.
+2. For a new character behavior, implement its gameplay logic and add its constructor call to `SkillFactory`.
+3. Equip innate assets in `CharacterDataSO.Skills`.
+4. Connect the future card source to the independent manager entry point when run behavior creation and its inputs are defined.
+
+Skill upgrades, permanent skill progression and selection UI are not implemented. Character/EXP level progression remains in the existing level services.

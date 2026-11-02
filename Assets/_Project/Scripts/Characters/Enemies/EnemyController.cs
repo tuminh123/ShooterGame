@@ -60,7 +60,7 @@ public sealed class EnemyController : CharacterControllerBase
 
     #region Chase & Separation Movement
 
-    public override void Tick(CharacterView view, CharacterRuntimeData runtime)
+    protected override void TickMovement(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
         if (!runtime.IsAlive)

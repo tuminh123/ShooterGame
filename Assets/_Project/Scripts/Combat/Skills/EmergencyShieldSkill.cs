@@ -6,18 +6,28 @@ public sealed class EmergencyShieldSkill : ISkill
 {
     [SerializeField, Range(0f, 100f)] private float healthThreshold = 20f;
     [SerializeField, Min(0f)] private float shieldAmount = 30f;
-    [NonSerialized] private readonly Func<float> getHealthPercent;
-    [NonSerialized] private readonly Action<float> grantShield;
+    [NonSerialized] private readonly CharacterSkills owner;
+
     public float HealthThreshold => healthThreshold;
     public float ShieldAmount => shieldAmount;
+
     public EmergencyShieldSkill() { }
-    public EmergencyShieldSkill(float threshold, float amount, Func<float> healthPercent, Action<float> grantShield)
-    { healthThreshold = threshold; shieldAmount = amount; getHealthPercent = healthPercent; this.grantShield = grantShield; }
+
+    public EmergencyShieldSkill(CharacterSkills owner, float healthThreshold, float shieldAmount)
+    {
+        this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        this.healthThreshold = healthThreshold;
+        this.shieldAmount = shieldAmount;
+    }
+
     public bool TryExecute()
     {
-        if (getHealthPercent == null || grantShield == null || shieldAmount <= 0f ||
-            getHealthPercent() > healthThreshold) return false;
-        grantShield(shieldAmount);
+        if (owner == null || !owner.CanRun || shieldAmount <= 0f) return false;
+
+        float healthPercent = owner.Identity.CurrentHealth / owner.Identity.FinalStats.maxHealth * 100f;
+        if (healthPercent > healthThreshold) return false;
+
+        owner.Owner.GrantShield(shieldAmount);
         return true;
     }
 }

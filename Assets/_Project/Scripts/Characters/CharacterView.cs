@@ -17,6 +17,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
     private BoxCollider2D hitbox; // * Một hitbox trên vỏ gốc; tìm kiếm dùng TryGetComponent tại cùng object.
     private StatusEffectFactory effectFactory;
+    private SkillFactory skillFactory;
+    public CharacterSkills Skills { get; private set; }
     public CharacterEffectHandler Effects { get; private set; }
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
@@ -29,11 +31,13 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools, StatusEffectFactory effectFactory)
+    public void Construct(MovementManager movement, PoolManager pools, StatusEffectFactory effectFactory,
+        SkillFactory skillFactory)
     {
         this.movement = movement;
         this.pools = pools;
         this.effectFactory = effectFactory;
+        this.skillFactory = skillFactory;
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
@@ -77,6 +81,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
         Effects = new CharacterEffectHandler(this, effectFactory);
+        Skills = new CharacterSkills(this, template.Skills, skillFactory);
     }
 
     private void OnEnable()
@@ -99,6 +104,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         CharacterRuntimeData identity = RuntimeData;
         Effects?.Tick(Time.deltaTime);
         if (!ReferenceEquals(RuntimeData, identity))
+            return;
+        if (!isActiveAndEnabled)
             return;
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
@@ -156,7 +163,22 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         CharacterRuntimeData identity = RuntimeData;
         try { Died?.Invoke(this); }
-        finally { if (ReferenceEquals(RuntimeData, identity)) Effects?.Dispose(); }
+        finally
+        {
+            if (ReferenceEquals(RuntimeData, identity))
+            {
+                try { ClearSkills(); }
+                finally { if (ReferenceEquals(RuntimeData, identity)) Effects?.Dispose(); }
+            }
+        }
+    }
+
+    private void ClearSkills()
+    {
+        CharacterSkills previous = Skills;
+        Skills = null;
+        try { previous?.Dispose(); }
+        catch (Exception exception) { Debug.LogException(exception, this); }
     }
 
     // * Unity đang thay đổi trạng thái cả hierarchy trong OnDisable: chỉ dừng movement, không thu hồi/reparent visual.
@@ -179,6 +201,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void OnDestroy()
     {
         StopMovement();
+        ClearSkills();
         Deactivated?.Invoke();
         Effects?.Dispose();
         Effects = null;
@@ -195,6 +218,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     internal void ClearSpawn()
     {
         StopMovement();
+        ClearSkills();
         Deactivated?.Invoke();
         Effects?.Dispose();
         Effects = null;

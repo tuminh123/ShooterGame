@@ -262,7 +262,7 @@ StatBonus total = levelManager.GetPermanentBonus(template.CharacterType)
 BaseStats currentStats = total.ApplyTo(template.BaseStats);
 ```
 
-Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; skill được đăng ký và quản lý tập trung bằng SkillManager.
+Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; mỗi nhân vật cập nhật cooldown skill vốn có qua CharacterSkills; SkillManager chỉ quản lý skill nhận trong trận.
 
 ### Sự kiện
 
@@ -336,7 +336,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-CharacterDataSO stores one Skills list of SkillDataSO assets. CharacterSkillBridge creates independent behaviors and connects CharacterManager lifetime events with the pure SkillManager scheduler. The bridge reads that list from each registered character; no separate loadout configuration is needed. HolyBolt and enemy normal attack are automatically scheduled. See Docs/Architecture/Skill-Shooting-Pipeline.md.
+CharacterDataSO stores one Skills list of SkillDataSO assets. Each CharacterView owns CharacterSkills and advances its innate cooldowns. The scene SkillManager independently schedules run instances supplied by a future external card/reward source. It does not receive a character or use player stats; that integration is deferred. SkillFactory creates fresh behaviors through an explicit switch; each behavior owns its gameplay logic. CharacterView initializes and disposes innate skills; CharacterControllerBase updates them; CharacterManager only tracks characters. Character cleanup never removes run skills. HolyBolt and enemy normal attack execute automatically. See Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 

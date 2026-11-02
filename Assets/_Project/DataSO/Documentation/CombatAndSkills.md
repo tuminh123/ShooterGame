@@ -1,15 +1,14 @@
-# Skills, character composition and projectiles
+# Character skills and independent run skills
 
-See [Skill-Shooting-Pipeline](../../../../Docs/Architecture/Skill-Shooting-Pipeline.md) for the current implementation.
+See [Skill-Shooting-Pipeline](../../../../Docs/Architecture/Skill-Shooting-Pipeline.md) for the full flow.
 
-- SkillDataSO retains configuration, visuals and an ISkill template.
-- ISkill only exposes bool TryExecute(); concrete behaviors own their specific fields and supplied callbacks.
-- SkillManager only schedules independent behavior instances and owns innate/run registration lists.
-- CharacterManager publishes character lifetime events; it does not know SkillManager.
-- CharacterSkillBridge connects both systems, checks spawn identity and wires behavior dependencies.
-- CharacterDataSO.Skills is the single list of innate skill assets, without active/passive categories.
-- CharacterView and controllers do not call SkillManager or a shooting scheduler. The bridge reads CharacterDataSO.Skills.
-- HolyBolt is an automatically scheduled ShootingSkill; ShootingService only fires projectile patterns.
-- Normal attack is automatically scheduled; enemy recoil remains in EnemyController.
-- Level/EXP remain in LevelManager. Run selection calls AddRunSkill; RunReset clears run registrations.
-- Temporary disable freezes skill timers. Death/despawn cleans up owned registrations and persistent modifiers.
+- `CharacterView.Skills` owns innate skills from character data. `CharacterControllerBase` advances their cooldowns.
+- `SkillFactory` creates those character-bound strategies. Each behavior owns its gameplay logic.
+- The scene `SkillManager` independently schedules run skills supplied by an external system. It has no character dependency.
+- Future integration calls `skillManager.AddSkill(skillData, runtimeBehavior)`. No card/reward source is connected yet.
+- Run-skill position and combat stats are deferred. They are not implicitly taken from the player.
+- `SkillRuntime` holds one live behavior and its cooldown without knowing a character.
+- Character cleanup affects only innate skills. Run reset or explicit run cleanup affects only manager-owned skills.
+- Shared skill assets remain configuration/templates, never live state.
+- `CharacterManager` only tracks characters; `ShootingService` only creates projectiles.
+- Skill upgrades and selection UI are not implemented yet.

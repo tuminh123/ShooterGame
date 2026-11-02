@@ -1,24 +1,61 @@
 using System;
 
-// * Dữ liệu của MỘT skill; không biết manager, danh sách hoặc cách tự gỡ.
-// * Đây là kiểu giá trị: bản sao không tự đồng bộ cooldown/trạng thái với bản manager đang giữ.
-public struct SkillRuntime
+// One live skill instance. Its owning collection decides when to tick and dispose it.
+public sealed class SkillRuntime : IDisposable
 {
-    public long Id { get; } // * Mã duy nhất của lần đăng ký; dùng để tìm đúng runtime dù bên ngoài đang giữ bản sao cũ.
-    internal readonly ISkill Behavior; // * Instance hành vi riêng; sao chép struct chỉ sao chép tham chiếu, không nhân bản behavior.
-    internal readonly Func<bool> CanRun; // * Hàm cho phép cập nhật; false thì manager tạm dừng cả timer, null thì không chặn.
-    internal readonly float Cooldown; // * Thời gian chờ sau mỗi lần thực hiện thành công, tính bằng giây.
-    public bool IsActive { get; internal set; } // * Trạng thái tại thời điểm đọc; manager sở hữu bản dữ liệu hiện hành.
-    public float CooldownRemaining { get; internal set; } // * Số giây còn chờ; manager ghi lại vào danh sách sau khi cập nhật.
+    private readonly ISkill behavior;
+    private readonly float cooldown;
 
-    // * Chỉ khởi tạo dữ liệu; default(SkillRuntime) có Id = 0 và không đại diện cho skill đã đăng ký.
-    internal SkillRuntime(long id, ISkill behavior, float cooldown, Func<bool> canRun)
+    public SkillDataSO Definition { get; }
+    public bool IsActive { get; private set; } = true;
+    public float CooldownRemaining { get; private set; }
+
+    internal SkillRuntime(SkillDataSO definition, ISkill behavior)
     {
-        Id = id;
-        Behavior = behavior;
-        Cooldown = cooldown;
-        CanRun = canRun;
-        IsActive = true;
-        CooldownRemaining = 0f;
+        Definition = definition ?? throw new ArgumentNullException(nameof(definition));
+        this.behavior = behavior ?? throw new ArgumentNullException(nameof(behavior));
+        cooldown = definition.Cooldown;
+    }
+
+    internal void Tick(float deltaTime)
+    {
+        if (!IsActive) return;
+
+        CooldownRemaining = Math.Max(0f, CooldownRemaining - deltaTime);
+        if (CooldownRemaining > 0f) return;
+
+        try
+        {
+            if (behavior.TryExecute() && IsActive)
+                CooldownRemaining = cooldown;
+        }
+        catch (Exception execution)
+        {
+            try { Dispose(); }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException("Skill execution and cleanup failed.", execution, cleanup);
+            }
+            throw;
+        }
+    }
+
+    internal bool UsesBehavior(ISkill instance)
+    {
+        return ReferenceEquals(behavior, instance);
+    }
+
+    public void Dispose()
+    {
+        if (!IsActive) return;
+        IsActive = false;
+        if (behavior is IDisposable disposable)
+            disposable.Dispose();
+    }
+
+    internal static void ValidateDeltaTime(float deltaTime)
+    {
+        if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime < 0f)
+            throw new ArgumentOutOfRangeException(nameof(deltaTime));
     }
 }

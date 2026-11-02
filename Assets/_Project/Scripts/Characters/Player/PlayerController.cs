@@ -12,7 +12,7 @@ public sealed class PlayerController : CharacterControllerBase
         this.joystick = joystick;
     }
 
-    public override void Tick(CharacterView view, CharacterRuntimeData runtime)
+    protected override void TickMovement(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Player hết HP thì ngừng di chuyển; luật game over sẽ được bổ sung trong hành vi Player.
         if (!runtime.IsAlive)
