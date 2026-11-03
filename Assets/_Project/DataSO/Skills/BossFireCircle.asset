@@ -25,4 +25,19 @@ MonoBehaviour:
     - rid: 1001
       type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
       data:
-        shooting: {fileID: 11400000, guid: 275023bb96b5f141da10aabb104e091b, type: 2}
+        shooterType: CircularShooter
+        bulletType: 1
+        projectileCount: 12
+        spreadAngle: 0
+        startAngle: 0
+        rotationPerCast: 0
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 0
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        hitRadius: 0.035
+        lifetime: 3
+        damageMultiplier: 1
+        homing: 0
+        effects:
+        - {fileID: 11400000, guid: d2a4c8b535f04c37b88f269dbab68ad2, type: 2}

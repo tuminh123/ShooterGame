@@ -113,18 +113,60 @@ public static class CharacterSearch
         }
     }
 
-    public static CharacterSearchResult FindAll(Vector2 center, float radius,
-        CharacterTeam targetTeam, CharacterView exclude = null)
+    // Sweep the whole movement segment, including fast bullets and long frames.
+    public static CharacterTarget FindFirstOnPath(Vector2 origin, float radius, Vector2 direction,
+        float distance, CharacterTeam targetTeam, out Vector2 hitPosition)
     {
-        if (!IsFinite(center.x) || !IsFinite(center.y) || !IsFinite(radius) || radius < 0f)
-            throw new ArgumentOutOfRangeException(nameof(radius), "Search geometry must be finite and radius nonnegative.");
+        hitPosition = origin;
+        ContactFilter2D filter = TargetFilter(targetTeam);
+        SynchronizePhysics();
+        RaycastHit2D[] hits = ArrayPool<RaycastHit2D>.Shared.Rent(16);
+        try
+        {
+            int count;
+            while (true)
+            {
+                count = Physics2D.CircleCast(origin, radius, direction, filter, hits, distance);
+                if (count < hits.Length) break;
+                RaycastHit2D[] larger = ArrayPool<RaycastHit2D>.Shared.Rent(checked(hits.Length * 2));
+                ArrayPool<RaycastHit2D>.Shared.Return(hits, clearArray: true);
+                hits = larger;
+            }
+            CharacterTarget nearest = default;
+            float bestDistance = float.PositiveInfinity;
+            for (int i = 0; i < count; i++)
+            {
+                if (hits[i].collider == null ||
+                    !hits[i].collider.TryGetComponent(out CharacterView view) ||
+                    view.RuntimeData == null || view.RuntimeData.Team != targetTeam ||
+                    !new CharacterTarget(view).TryGetCharacter(out _) || hits[i].distance >= bestDistance)
+                    continue;
+                bestDistance = hits[i].distance;
+                nearest = new CharacterTarget(view);
+                hitPosition = hits[i].centroid;
+            }
+            return nearest;
+        }
+        finally { ArrayPool<RaycastHit2D>.Shared.Return(hits, clearArray: true); }
+    }
+
+    private static ContactFilter2D TargetFilter(CharacterTeam targetTeam)
+    {
         string layer = targetTeam == CharacterTeam.Player ? GameConstants.PhysicsLayers.Player :
             targetTeam == CharacterTeam.Enemy ? GameConstants.PhysicsLayers.Enemy :
             throw new ArgumentOutOfRangeException(nameof(targetTeam));
         int layerIndex = LayerMask.NameToLayer(layer);
         if (layerIndex < 0)
             throw new InvalidOperationException($"Add the {layer} layer in Project Settings.");
-        var filter = new ContactFilter2D { useLayerMask = true, layerMask = 1 << layerIndex, useTriggers = true };
+        return new ContactFilter2D { useLayerMask = true, layerMask = 1 << layerIndex, useTriggers = true };
+    }
+
+    public static CharacterSearchResult FindAll(Vector2 center, float radius,
+        CharacterTeam targetTeam, CharacterView exclude = null)
+    {
+        if (!IsFinite(center.x) || !IsFinite(center.y) || !IsFinite(radius) || radius < 0f)
+            throw new ArgumentOutOfRangeException(nameof(radius), "Search geometry must be finite and radius nonnegative.");
+        ContactFilter2D filter = TargetFilter(targetTeam);
 
         // * Gộp đồng bộ Transform; đạn không có collider nên di chuyển đạn không làm bẩn physics.
         SynchronizePhysics();

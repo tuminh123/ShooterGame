@@ -22,30 +22,21 @@ public sealed class CharacterSkillEditor : Editor
     }
 }
 
-[CustomEditor(typeof(ShootingPatternDataSO))]
-public sealed class ShootingPatternEditor : Editor
+[CustomPropertyDrawer(typeof(ShooterTypeAttribute))]
+public sealed class ShooterTypeDrawer : PropertyDrawer
 {
-    public override void OnInspectorGUI()
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
-        serializedObject.Update();
-        DrawPropertiesExcluding(serializedObject, "m_Script", "pattern");
-        StrategySelector.Draw(serializedObject.FindProperty("pattern"),
-            typeof(StraightShootingPattern), typeof(CircularShootingPattern), typeof(SpiralShootingPattern));
-        serializedObject.ApplyModifiedProperties();
-    }
-}
-
-[CustomEditor(typeof(ProjectileDataSO))]
-public sealed class ProjectileDataEditor : Editor
-{
-    public override void OnInspectorGUI()
-    {
-        serializedObject.Update();
-        DrawPropertiesExcluding(serializedObject, "m_Script", "flight", "hit");
-        StrategySelector.Draw(serializedObject.FindProperty("flight"),
-            typeof(StraightProjectileFlight), typeof(HomingProjectileFlight));
-        StrategySelector.Draw(serializedObject.FindProperty("hit"), typeof(SingleTargetProjectileHit));
-        serializedObject.ApplyModifiedProperties();
+        Type[] types = TypeCache.GetTypesDerivedFrom<IShooter>()
+            .Where(type => !type.IsAbstract && !type.IsInterface)
+            .OrderBy(type => type.Name).ToArray();
+        string[] names = new[] { "(Select shooter)" }.Concat(types.Select(type => type.Name)).ToArray();
+        int current = Array.FindIndex(types, type => type.FullName == property.stringValue) + 1;
+        EditorGUI.BeginProperty(position, label, property);
+        int selected = EditorGUI.Popup(position, label.text, current, names);
+        if (selected != current)
+            property.stringValue = selected == 0 ? string.Empty : types[selected - 1].FullName;
+        EditorGUI.EndProperty();
     }
 }
 

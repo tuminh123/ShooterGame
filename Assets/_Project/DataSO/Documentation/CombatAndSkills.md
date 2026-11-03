@@ -10,5 +10,7 @@ See [Skill-Shooting-Pipeline](../../../../Docs/Architecture/Skill-Shooting-Pipel
 - `SkillRuntime` holds one live behavior and its cooldown without knowing a character.
 - Character cleanup affects only innate skills. Run reset or explicit run cleanup affects only manager-owned skills.
 - Shared skill assets remain configuration/templates, never live state.
-- `CharacterManager` only tracks characters; `ShootingService` only creates projectiles.
+- `CharacterManager` only tracks characters. `ShootingSkill` selects a shooter from `Dictionary<Type, IShooter>`; `CombatSpawner` creates bullets and visual effects through the pool.
+- Edit shooting/gameplay settings directly on each skill behavior. `CombatAssets` in `DataSO/Databases` holds the shared bullet prefab, bullet visuals and effect prefabs.
+- Bullet phase belongs to each live skill. Damage is snapshotted per bullet, and gameplay status effects remain separate from visual impacts.
 - Skill upgrades and selection UI are not implemented yet.

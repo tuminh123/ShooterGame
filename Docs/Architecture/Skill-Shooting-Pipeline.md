@@ -45,7 +45,7 @@ skillManager.AddSkill(selectedDefinition, runtimeBehavior);
 ## Character behaviors
 
 - `NormalAttackSkill` finds an opponent, checks contact and asks its character to deal damage.
-- `ShootingSkill` owns cast/phase state and uses character stats only as part of this innate character-bound implementation.
+- `ShootingSkill` owns its shooting settings and phase. It selects `IShooter` directly from the scene's `Dictionary<Type, IShooter>` and uses character stats for damage and targeting.
 - `RegenerationSkill` heals its injured owner; the sample heals 1 HP every 2 seconds after success.
 - `EmergencyShieldSkill` grants 30 shield at <=20% HP, with a 5-second cooldown.
 - `StatBonusSkill` applies once and owns an idempotent modifier lease. It grants only newly added defense-derived shield capacity, never refilling previously spent shield. Synchronous despawn during application releases the lease.
@@ -56,5 +56,20 @@ skillManager.AddSkill(selectedDefinition, runtimeBehavior);
 2. For a new character behavior, implement its gameplay logic and add its constructor call to `SkillFactory`.
 3. Equip innate assets in `CharacterDataSO.Skills`.
 4. Connect the future card source to the independent manager entry point when run behavior creation and its inputs are defined.
+
+## Shooting and visual effects
+
+`ShootingSkill.TryExecute` finds the target and calls the selected shooter. `StraightShooter` emits a single bullet or fan, `CircularShooter` emits a ring, and `SpiralShooter` emits a ring offset by this skill's phase. The shared shooters are stateless. A successful cast advances only its own skill's phase and cooldown.
+
+- Shooting settings are edited directly on the `ShootingSkill` behavior inside `SkillDataSO`: shooter type, bullet type, count, spread, targeting, speed, lifetime, damage multiplier, homing and status effects.
+- Unity stores the shooter type name as a string. The Inspector provides an `IShooter` type dropdown; the runtime resolves it once when the skill is created. New shooters must also be registered in the single dictionary in `GameSceneInstaller`.
+- `CombatAssetsSO` is the resource catalog: one shared `ProjectileView` prefab, sprite/color/width and impact effect type per bullet type, and pooled `EffectView` prefabs per effect type. It contains no damage, cooldown or live phase.
+- `CombatSpawner` reads the catalog and initializes bullets/effects before the pool activates them. `EffectType.None` skips visual effect spawning.
+- `ProjectileView` copies gameplay values and snapshots damage/crit/source effect stats at spawn. It handles straight or homing movement and single-target hits directly, without flight/hit factories or a separate runtime object.
+- Bullet collision checks initial overlaps and sweeps the entire movement segment with a circle cast. It selects the first valid opponent without clamping travel distance during slow frames.
+- A hit applies damage and status effects, then spawns its visual impact and releases the shell. Spawn identity is checked again after damage callbacks. Pooled views reset their state when disabled.
+- Gameplay status effects (burn, poison and slow) remain separate from visual effects and keep their existing duration, application chance and modifier ownership.
+
+The previous `ShootingDataSO`, pattern assets, per-projectile assets, pattern/flight/hit factories and separate projectile runtime are removed. The unused homing prefab is also removed; homing uses the same bullet shell.
 
 Skill upgrades, permanent skill progression and selection UI are not implemented. Character/EXP level progression remains in the existing level services.

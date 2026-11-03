@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Terresquall;
 using UnityEngine;
 using Zenject;
@@ -11,7 +12,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Scene References
 
     [SerializeField] private CharacterView characterPrefab; // * Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
-    [SerializeField] private ProjectileView projectilePrefab; // Shared projectile shell, configured by each skill's projectile data.
+    [SerializeField] private CombatAssetsSO combatAssets; // Shared bullet shell, bullet sprites and effect prefabs.
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, inject cho Player được tạo.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
@@ -36,8 +37,9 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     public override void InstallBindings()
     {
-        if (characterPrefab == null || projectilePrefab == null || joystick == null)
-            throw new InvalidOperationException("Assign shared Character/Projectile prefabs and Joystick in GameSceneInstaller.");
+        if (characterPrefab == null || combatAssets == null || joystick == null)
+            throw new InvalidOperationException("Assign Character prefab, Combat Assets and Joystick in GameSceneInstaller.");
+        combatAssets.Validate();
         if (characterDatabase == null || levelDatabase == null)
             throw new InvalidOperationException("Assign Character Database and Level Database in GameSceneInstaller.");
         if (equipmentDatabase == null)
@@ -58,11 +60,14 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
-        Container.Bind<ProjectileService>().AsSingle();
-        Container.BindInstance(new ProjectileService.Settings(projectilePrefab));
-        Container.Bind<ProjectileStrategyFactory>().AsSingle();
-        Container.Bind<ShootingPatternFactory>().AsSingle();
-        Container.Bind<ShootingService>().AsSingle();
+        Container.BindInstance(combatAssets);
+        Container.Bind<CombatSpawner>().AsSingle();
+        Container.BindInstance(new Dictionary<Type, IShooter>
+        {
+            [typeof(StraightShooter)] = new StraightShooter(),
+            [typeof(CircularShooter)] = new CircularShooter(),
+            [typeof(SpiralShooter)] = new SpiralShooter()
+        });
         Container.Bind<SkillFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle().NonLazy();
         Container.BindTickableExecutionOrder<SkillManager>(-100);

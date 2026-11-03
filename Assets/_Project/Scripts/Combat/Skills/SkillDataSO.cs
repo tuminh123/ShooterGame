@@ -34,10 +34,7 @@ public sealed class SkillDataSO : ScriptableObject
         if (behavior == null)
             throw new InvalidOperationException($"Assign skill behavior: {name}.");
         if (behavior is ShootingSkill shot)
-        {
-            if (shot.Shooting == null) throw new InvalidOperationException($"Assign shooting data: {name}.");
-            shot.Shooting.Validate();
-        }
+            shot.Validate();
         if (behavior is RegenerationSkill heal && !Positive(heal.HealAmount))
             throw new InvalidOperationException($"Invalid healing amount: {name}.");
         if (behavior is EmergencyShieldSkill shield &&

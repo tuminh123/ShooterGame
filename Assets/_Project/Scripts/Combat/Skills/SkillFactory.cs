@@ -6,9 +6,10 @@ public sealed class SkillFactory
 {
     private readonly Dictionary<Type, Func<ISkill, CharacterSkills, ISkill>> creators;
 
-    public SkillFactory(ShootingService shooting)
+    public SkillFactory(CombatSpawner spawner, Dictionary<Type, IShooter> shooters)
     {
-        if (shooting == null) throw new ArgumentNullException(nameof(shooting));
+        if (spawner == null) throw new ArgumentNullException(nameof(spawner));
+        if (shooters == null) throw new ArgumentNullException(nameof(shooters));
 
         creators = new Dictionary<Type, Func<ISkill, CharacterSkills, ISkill>>
         {
@@ -21,7 +22,7 @@ public sealed class SkillFactory
                 (template, owner) =>
                 {
                     var config = (ShootingSkill)template;
-                    return new ShootingSkill(owner, config.Shooting, shooting);
+                    return new ShootingSkill(owner, config, spawner, shooters);
                 }
             },
             {
