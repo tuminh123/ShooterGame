@@ -1,127 +1,137 @@
-using System.Collections.Generic;
 using UnityEngine;
+using Zenject;
 
-// One pooled shell. Copy gameplay values at spawn; never keep the owning skill alive.
 [RequireComponent(typeof(SpriteRenderer))]
 public sealed class ProjectileView : MonoBehaviour
 {
-    private CombatSpawner spawner;
-    private SpriteRenderer sprite;
-    private Vector2 direction;
-    private CharacterTarget target;
-    private DamageInfo damage;
-    private IReadOnlyList<StatusEffectDataSO> effects;
-    private EffectType impactEffect;
-    private float sourceDamage;
-    private float sourceEffectHit;
-    private float speed;
-    private float hitRadius;
-    private float remaining;
-    private bool homing;
-    private bool flying;
+    private MovementManager movementManager; // Đăng ký và thực hiện di chuyển Transform.
+    private ProjectileManager projectileManager; // Gọi Tick chung, thay Update trên từng viên.
+    private MovementHandle movementHandle; // Đăng ký di chuyển của lượt spawn hiện tại.
+    private CombatSpawner spawner; // Trả viên đạn về pool khi trúng hoặc hết tuổi thọ.
+    private SpriteRenderer spriteRenderer; // Hiển thị hình ảnh và màu viên đạn.
+    private Vector2 flightDirection; // Hướng bay hiện tại, có thể đổi khi đuổi mục tiêu.
+    private CharacterTarget homingTarget; // Đúng lượt spawn của mục tiêu, tránh bám object pool đã đổi chủ.
+    private DamageInfo damageInfo; // Sát thương và phe được chốt khi tạo đạn.
+    private IProjectileMove projectileMovement; // Strategy chỉ tính hướng bay.
+    private float movementSpeed; // Tốc độ lấy từ skill, world unit/giây.
+    private float hitRadius; // Bán kính kiểm tra trúng quái.
+    private float remainingLifetime; // Số giây còn lại trước khi thu hồi.
+    private bool isFlying; // Chặn cập nhật hoặc gây sát thương lặp sau khi trúng.
 
-    internal void Initialize(CombatSpawner spawner, CombatAssetsSO.BulletVisual visual,
-        ShootingSkill skill, CharacterRuntimeData source, Vector2 direction, CharacterTarget target)
+    [Inject]
+    public void Construct(MovementManager movementManager, ProjectileManager projectileManager)
+    {
+        this.movementManager = movementManager;
+        this.projectileManager = projectileManager;
+    }
+
+    internal void Initialize(CombatSpawner spawner, CombatAssetsSO.BulletVisual bulletVisual,
+        ProjectileSpawnData projectileData,
+        Vector2 flightDirection, CharacterTarget homingTarget)
     {
         this.spawner = spawner;
-        this.direction = direction.normalized;
-        this.target = target;
-        damage = source.CreateDamage(skill.DamageMultiplier);
-        sourceDamage = source.FinalStats.damage;
-        sourceEffectHit = source.FinalStats.effectHit;
-        effects = skill.Effects;
-        impactEffect = visual.impactEffect;
-        speed = skill.Speed;
-        hitRadius = skill.HitRadius;
-        remaining = skill.Lifetime;
-        homing = skill.Homing;
-        if (sprite == null) sprite = GetComponent<SpriteRenderer>();
-        sprite.sprite = visual.sprite;
-        sprite.color = visual.color;
-        transform.localScale = Vector3.one * (visual.visualWidth / sprite.sprite.bounds.size.x);
-        flying = true;
+        this.flightDirection = flightDirection.normalized;
+        this.homingTarget = homingTarget;
+        damageInfo = projectileData.Damage;
+        projectileMovement = projectileData.Movement;
+        movementSpeed = projectileData.Speed;
+        hitRadius = projectileData.HitRadius;
+        remainingLifetime = projectileData.Lifetime;
+        if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+        spriteRenderer.sprite = bulletVisual.sprite;
+        spriteRenderer.color = bulletVisual.color;
+        transform.localScale = Vector3.one * (bulletVisual.visualWidth / spriteRenderer.sprite.bounds.size.x);
+        isFlying = true;
         FaceFlightDirection();
     }
 
-    private void Update()
+    private void OnEnable()
     {
-        if (!flying || Time.deltaTime <= 0f) return;
-        remaining -= Time.deltaTime;
-        if (remaining <= 0f)
-        {
-            flying = false;
-            spawner.Release(gameObject);
-            return;
-        }
-        if (homing && target.TryGetCharacter(out CharacterView victim))
-        {
-            Vector2 toward = (Vector2)victim.HitPosition - (Vector2)transform.position;
-            if (toward.sqrMagnitude > 0.000001f) direction = toward.normalized;
-        }
-        FaceFlightDirection();
-
-        CharacterTeam opponent = CharacterSearch.OpponentOf(damage.SourceTeam);
-        CharacterTarget hit = CharacterSearch.FindNearest(transform.position, hitRadius, opponent);
-        if (hit.TryGetCharacter(out _))
-        {
-            Hit(hit);
-            return;
-        }
-
-        float distance = speed * Time.deltaTime;
-        hit = CharacterSearch.FindFirstOnPath(transform.position, hitRadius, direction,
-            distance, opponent, out Vector2 hitPosition);
-        if (hit.TryGetCharacter(out _))
-        {
-            transform.position = new Vector3(hitPosition.x, hitPosition.y, transform.position.z);
-            Hit(hit);
-            return;
-        }
-        transform.position += (Vector3)(direction * distance);
+        if (!isFlying) return;
+        movementHandle = movementManager.Register(transform);
+        projectileManager.Register(this, movementHandle);
     }
 
-    private void Hit(CharacterTarget hit)
+    // ProjectileManager gọi trước MovementManager.LateTick; không tự đổi vị trí tại đây.
+    internal void Tick(float deltaTime)
     {
-        flying = false;
-        CombatSpawner owner = spawner;
-        Vector3 position = transform.position;
+        if (!isFlying) return;
+        remainingLifetime -= deltaTime;
+        if (remainingLifetime <= 0f)
+        {
+            Release();
+            return;
+        }
+
+        flightDirection = projectileMovement.GetDirection(transform.position, flightDirection, homingTarget).normalized;
+        FaceFlightDirection();
+
+        CharacterTeam opponentTeam = CharacterSearch.OpponentOf(damageInfo.SourceTeam);
+        CharacterTarget hitTarget = CharacterSearch.FindNearest(transform.position, hitRadius, opponentTeam);
+        if (hitTarget.TryGetCharacter(out _))
+        {
+            ApplyHitAndRelease(hitTarget);
+            return;
+        }
+
+        // Quét đoạn sắp đi để đạn nhanh không bỏ qua quái giữa hai frame.
+        float travelDistance = movementSpeed * deltaTime;
+        hitTarget = CharacterSearch.FindFirstOnPath(transform.position, hitRadius, flightDirection,
+            travelDistance, opponentTeam, out _);
+        if (hitTarget.TryGetCharacter(out _))
+        {
+            ApplyHitAndRelease(hitTarget);
+            return;
+        }
+
+        movementManager.SetMovement(movementHandle, flightDirection, movementSpeed);
+    }
+
+    private void ApplyHitAndRelease(CharacterTarget hitTarget)
+    {
+        isFlying = false;
+        CombatSpawner owningSpawner = spawner;
+        MovementHandle hitRegistration = movementHandle;
         try
         {
-            if (!hit.TryGetCharacter(out CharacterView character)) return;
-            bool applied = character.ReceiveDamage(damage).Accepted;
-            // Damage can despawn/reuse the target shell. Check spawn identity again.
-            if (hit.TryGetCharacter(out character))
-                foreach (StatusEffectDataSO effect in effects)
-                {
-                    if (!hit.TryGetCharacter(out character)) break;
-                    applied |= character.Effects.TryApply(effect, damage.SourceTeam, sourceDamage, sourceEffectHit);
-                }
-            if (applied) owner.SpawnEffect(impactEffect, position);
+            if (hitTarget.TryGetCharacter(out CharacterView character)) character.ReceiveDamage(damageInfo);
+            // TODO: Thêm hiệu ứng trúng đòn qua hệ thống riêng.
         }
-        finally { owner.Release(gameObject); }
+        finally
+        {
+            // Callback có thể despawn/spawn lại object; chỉ thu hồi đúng lượt vừa gây sát thương.
+            if (movementManager.IsRegistered(hitRegistration)) owningSpawner.Release(gameObject);
+        }
+    }
+
+    internal void Release()
+    {
+        isFlying = false;
+        spawner.Release(gameObject);
     }
 
     private void FaceFlightDirection()
         => transform.rotation = Quaternion.Euler(0f, 0f,
-            Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+            Mathf.Atan2(flightDirection.y, flightDirection.x) * Mathf.Rad2Deg);
 
     private void OnDisable()
     {
-        flying = false;
+        projectileManager?.Unregister(movementHandle);
+        movementManager?.Unregister(movementHandle);
+        movementHandle = default;
+        isFlying = false;
         spawner = null;
-        effects = null;
-        target = default;
-        damage = default;
-        direction = default;
-        impactEffect = EffectType.None;
-        sourceDamage = sourceEffectHit = speed = hitRadius = remaining = 0f;
-        homing = false;
+        projectileMovement = null;
+        homingTarget = default;
+        damageInfo = default;
+        flightDirection = default;
+        movementSpeed = hitRadius = remainingLifetime = 0f;
     }
 
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
-        if (!flying) return;
+        if (!isFlying) return;
         using (new UnityEditor.Handles.DrawingScope(Color.cyan, Matrix4x4.identity))
             UnityEditor.Handles.DrawWireDisc(transform.position, Vector3.forward, hitRadius);
     }

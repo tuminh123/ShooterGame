@@ -1,125 +1,88 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public sealed class ShootingSkill : ISkill
+public sealed class ShootingSkill : ISkillData
 {
     [Header("Shooting")]
-    [SerializeField, ShooterType] private string shooterType = "StraightShooter";
-    [SerializeField] private BulletType bulletType;
-    [SerializeField, Min(1)] private int projectileCount = 1;
-    [SerializeField, Range(0f, 360f)] private float spreadAngle;
-    [SerializeField] private float startAngle;
-    [SerializeField] private float rotationPerCast = 15f;
-    [SerializeField] private Vector2 muzzleOffset = new Vector2(0f, 0.02f);
-    [SerializeField] private bool requiresTarget = true;
-    [SerializeField] private Vector2 defaultDirection = Vector2.right;
+    [SerializeReference] private IShooter shooter = new StraightShooter(); // Kiểu bắn và thông số riêng của nó.
+    [SerializeField] private BulletType bulletType; // Chọn hình ảnh viên đạn trong CombatAssetsSO.
+    [SerializeField, Min(1)] private int projectileCount = 1; // Số viên tạo trong một lượt bắn.
+    [SerializeField] private Vector2 muzzleOffset = new Vector2(0f, 0.02f); // Độ lệch điểm bắn so với tâm nhân vật.
+    [SerializeField] private bool requiresTarget = true; // Cần tìm được đối thủ mới thực hiện lượt bắn.
+    [SerializeField] private Vector2 defaultDirection = Vector2.right; // Hướng dùng khi không cần mục tiêu.
 
-    [Header("Bullet Gameplay")]
-    [SerializeField, Min(0.01f)] private float speed = 2.4f;
-    [SerializeField, Min(0.001f)] private float hitRadius = 0.035f;
-    [SerializeField, Min(0.01f)] private float lifetime = 3f;
-    [SerializeField, Min(0f)] private float damageMultiplier = 1f;
-    [SerializeField] private bool homing;
-    [SerializeField] private StatusEffectDataSO[] effects = Array.Empty<StatusEffectDataSO>();
+    [SerializeReference] private IProjectileMove projectileMove = new StraightProjectileMove(); // Cách cập nhật hướng bay.
 
-    [NonSerialized] private readonly CharacterSkills owner;
-    [NonSerialized] private readonly CombatSpawner spawner;
-    [NonSerialized] private readonly Dictionary<Type, IShooter> shooters;
-    [NonSerialized] private readonly Type selectedType;
-    [NonSerialized] private float phase;
+    [Header("Projectile")]
+    [SerializeField, Min(0.01f)] private float speed = 2.4f; // Tốc độ world unit/giây, gửi cho MovementManager.
+    [SerializeField, Min(0.001f)] private float hitRadius = 0.035f; // Bán kính kiểm tra trúng quái.
+    [SerializeField, Min(0.01f)] private float lifetime = 3f; // Số giây tối đa trước khi thu hồi đạn.
+    [SerializeField, Min(0f)] private float damage = 10f; // Sát thương mỗi viên, chưa tính effect.
+    // TODO: Cấu hình hiệu ứng trúng đòn riêng.
 
+    public IShooter Shooter => shooter;
+    public IProjectileMove ProjectileMove => projectileMove;
     public BulletType BulletType => bulletType;
     public int ProjectileCount => projectileCount;
-    public float SpreadAngle => spreadAngle;
-    public float StartAngle => startAngle;
-    public float Phase => phase;
+    public Vector2 MuzzleOffset => muzzleOffset;
+    public bool RequiresTarget => requiresTarget;
+    public Vector2 DefaultDirection => defaultDirection;
     public float Speed => speed;
     public float HitRadius => hitRadius;
     public float Lifetime => lifetime;
-    public float DamageMultiplier => damageMultiplier;
-    public bool Homing => homing;
-    public IReadOnlyList<StatusEffectDataSO> Effects => effects;
+    public float Damage => damage;
 
-    public ShootingSkill() { }
-
-    public ShootingSkill(CharacterSkills owner, ShootingSkill template, CombatSpawner spawner,
-        Dictionary<Type, IShooter> shooters)
+    // Mỗi skill đang chạy có shooter riêng; không thay đổi trạng thái của bản lưu trong asset.
+    internal ShootingSkill CreateRuntime()
     {
-        this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        this.spawner = spawner ?? throw new ArgumentNullException(nameof(spawner));
-        this.shooters = shooters ?? throw new ArgumentNullException(nameof(shooters));
-        if (template == null) throw new ArgumentNullException(nameof(template));
-        template.Validate();
-        selectedType = Type.GetType(template.shooterType);
-        if (!shooters.ContainsKey(selectedType))
-            throw new InvalidOperationException($"Unregistered shooter: {template.shooterType}.");
-
-        shooterType = template.shooterType;
-        bulletType = template.bulletType;
-        projectileCount = template.projectileCount;
-        spreadAngle = template.spreadAngle;
-        startAngle = template.startAngle;
-        rotationPerCast = template.rotationPerCast;
-        muzzleOffset = template.muzzleOffset;
-        requiresTarget = template.requiresTarget;
-        defaultDirection = template.defaultDirection;
-        speed = template.speed;
-        hitRadius = template.hitRadius;
-        lifetime = template.lifetime;
-        damageMultiplier = template.damageMultiplier;
-        homing = template.homing;
-        effects = (StatusEffectDataSO[])template.effects.Clone();
+        var runtimeSkill = (ShootingSkill)MemberwiseClone();
+        runtimeSkill.shooter = shooter.CreateRuntime();
+        return runtimeSkill;
     }
 
-    public bool TryExecute()
+    // Thực hiện trọn một lượt bắn; bên gọi đã chuẩn bị vị trí, hướng và phe.
+    public int ExecuteSkill(CombatSpawner spawner, ShootBehaviorFactory shootFactory,
+        ProjectileMoveFactory moveFactory, CharacterTeam sourceTeam, Vector2 spawnPosition,
+        Vector2 aimDirection, CharacterTarget target = default)
     {
-        if (owner == null || !owner.CanRun) return false;
+        if (spawner == null) throw new ArgumentNullException(nameof(spawner));
+        if (shootFactory == null) throw new ArgumentNullException(nameof(shootFactory));
+        if (moveFactory == null) throw new ArgumentNullException(nameof(moveFactory));
+        Validate();
 
-        CharacterView character = owner.Owner;
-        CharacterRuntimeData runtime = owner.Identity;
-        CharacterTarget target = default;
-        Vector2 position = (Vector2)character.HitPosition + muzzleOffset;
-        Vector2 direction = defaultDirection.normalized;
-
-        if (requiresTarget)
+        IProjectileMove movement = moveFactory.Create(projectileMove);
+        var projectileData = new ProjectileSpawnData(bulletType, new DamageInfo(damage, sourceTeam),
+            speed, lifetime, hitRadius, movement);
+        int spawnedBulletCount = 0;
+        for (int projectileIndex = 0; projectileIndex < projectileCount; projectileIndex++)
         {
-            target = CharacterSearch.FindNearest(character.HitPosition, runtime.FinalStats.range,
-                CharacterSearch.OpponentOf(runtime.Team), character);
-            if (!target.TryGetCharacter(out CharacterView victim)) return false;
-            Vector2 toward = (Vector2)victim.HitPosition - position;
-            if (toward.sqrMagnitude > 0.000001f) direction = toward.normalized;
+            Vector2 bulletDirection = shootFactory.ShootingHandle(shooter, aimDirection.normalized,
+                projectileIndex, projectileCount);
+            if (spawner.SpawnBullet(projectileData, spawnPosition, bulletDirection, target))
+                spawnedBulletCount++;
         }
 
-        int fired = shooters[selectedType].Shoot(this, position, direction, target);
-        if (fired == 0) return false;
-        phase = Mathf.Repeat(phase + rotationPerCast, 360f);
-        return true;
+        // Chỉ thông báo kết quả; kiểu bắn tự cập nhật trạng thái riêng nếu cần.
+        if (spawnedBulletCount > 0) shooter.OnShotCompleted();
+        return spawnedBulletCount;
     }
-
-    internal bool SpawnBullet(Vector2 position, Vector2 direction, CharacterTarget target)
-        => owner.CanRun && spawner.SpawnBullet(this, owner.Identity, position, direction, target);
 
     public void Validate()
     {
-        Type type = string.IsNullOrEmpty(shooterType) ? null : Type.GetType(shooterType, false);
-        if (type == null || type.IsAbstract || !typeof(IShooter).IsAssignableFrom(type) ||
+        if (shooter == null || projectileMove == null ||
             !Enum.IsDefined(typeof(BulletType), bulletType) || projectileCount < 1 || projectileCount > 1024 ||
-            !Finite(spreadAngle) || spreadAngle < 0f || spreadAngle > 360f ||
-            !Finite(startAngle) || !Finite(rotationPerCast) ||
-            !Finite(muzzleOffset.x) || !Finite(muzzleOffset.y) ||
-            !Finite(defaultDirection.x) || !Finite(defaultDirection.y) || defaultDirection.sqrMagnitude < 0.000001f ||
-            !Positive(speed) || !Positive(hitRadius) || !Positive(lifetime) ||
-            !Finite(damageMultiplier) || damageMultiplier < 0f || effects == null)
+            !IsFiniteNumber(muzzleOffset.x) || !IsFiniteNumber(muzzleOffset.y) ||
+            !IsFiniteNumber(defaultDirection.x) || !IsFiniteNumber(defaultDirection.y) || defaultDirection.sqrMagnitude < 0.000001f ||
+            !IsPositiveFiniteNumber(speed) || !IsPositiveFiniteNumber(hitRadius) || !IsPositiveFiniteNumber(lifetime) ||
+            !IsFiniteNumber(damage) || damage < 0f)
             throw new InvalidOperationException("Invalid shooting skill configuration.");
-        foreach (StatusEffectDataSO effect in effects)
-        {
-            if (effect == null) throw new InvalidOperationException("Missing bullet status effect.");
-            effect.Validate();
-        }
+        shooter.Validate();
     }
 
-    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
-    private static bool Positive(float value) => value > 0f && Finite(value);
+    // Góc/offset có thể âm hoặc bằng 0; chỉ loại NaN và vô cực.
+    private static bool IsFiniteNumber(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+    // Tốc độ, bán kính và tuổi thọ phải hữu hạn và lớn hơn 0.
+    private static bool IsPositiveFiniteNumber(float value) => value > 0f && IsFiniteNumber(value);
 }

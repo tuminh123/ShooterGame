@@ -145,6 +145,8 @@ public static class CharacterSearch
                 nearest = new CharacterTarget(view);
                 hitPosition = hits[i].centroid;
             }
+            DrawSearchPath(origin, radius, direction, distance,
+                float.IsPositiveInfinity(bestDistance) ? (Vector2?)null : hitPosition);
             return nearest;
         }
         finally { ArrayPool<RaycastHit2D>.Shared.Return(hits, clearArray: true); }
@@ -199,6 +201,7 @@ public static class CharacterSearch
                 // * Chốt danh tính lúc quét để callback damage không đổi kết quả sang cá thể pool mới.
                 identities[validCount++] = view.RuntimeData;
             }
+            DrawSearchCircle(center, radius);
             return new CharacterSearchResult(hits, identities, validCount);
         }
         catch
@@ -210,5 +213,52 @@ public static class CharacterSearch
         }
     }
 
-    private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+     private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+    #region Search Gizmos
+
+    // Queries run outside OnDrawGizmos, so draw debug lines visible with Scene Gizmos enabled.
+    // Conditional calls (including argument evaluation) are removed from player builds.
+    private const float SearchGizmoDuration = 0.1f;
+    private const int SearchGizmoSegments = 32;
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR")]
+    public static void DrawSearchCircle(Vector2 center, float radius)
+    {
+        DrawSearchRing(center, radius, Color.yellow);
+    }
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR")]
+    public static void DrawSearchPath(Vector2 origin, float radius, Vector2 direction,
+        float distance, Vector2? hitPosition = null)
+    {
+        Vector2 heading = direction.normalized;
+        Vector2 end = origin + heading * distance;
+        Vector2 side = new Vector2(-heading.y, heading.x) * radius;
+        DrawSearchRing(origin, radius, Color.cyan);
+        DrawSearchRing(end, radius, Color.cyan);
+        Debug.DrawLine(origin + side, end + side, Color.cyan, SearchGizmoDuration, false);
+        Debug.DrawLine(origin - side, end - side, Color.cyan, SearchGizmoDuration, false);
+        Debug.DrawLine(origin, end, Color.cyan, SearchGizmoDuration, false);
+
+        if (hitPosition.HasValue)
+            DrawSearchRing(hitPosition.Value, radius, Color.red);
+    }
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR")]
+    private static void DrawSearchRing(Vector2 center, float radius, Color color)
+    {
+        Vector2 previous = center + Vector2.right * radius;
+        for (int i = 1; i <= SearchGizmoSegments; i++)
+        {
+            float angle = i * (Mathf.PI * 2f / SearchGizmoSegments);
+            Vector2 next = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            Debug.DrawLine(previous, next, color, SearchGizmoDuration, false);
+            previous = next;
+        }
+    }
+
+    #endregion
+
+   
 }

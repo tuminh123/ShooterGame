@@ -3,7 +3,6 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-// Select stateless strategy types without hand-editing SerializeReference YAML.
 [CustomEditor(typeof(SkillDataSO), true)]
 public sealed class CharacterSkillEditor : Editor
 {
@@ -11,61 +10,55 @@ public sealed class CharacterSkillEditor : Editor
     {
         serializedObject.Update();
         DrawPropertiesExcluding(serializedObject, "m_Script", "behavior");
-        Type[] behaviors = TypeCache.GetTypesDerivedFrom<ISkill>()
-            .Where(type => !type.IsAbstract && !type.IsInterface && type.IsSerializable &&
-                           type.GetConstructor(Type.EmptyTypes) != null)
-            .OrderBy(type => type.Name).ToArray();
-        StrategySelector.Draw(serializedObject.FindProperty("behavior"), behaviors);
+        StrategySelector.Draw(serializedObject.FindProperty("behavior"), StrategySelector.GetTypes<ISkillData>());
         serializedObject.ApplyModifiedProperties();
         try { ((SkillDataSO)target).Validate(); }
         catch (Exception exception) { EditorGUILayout.HelpBox(exception.Message, MessageType.Error); }
     }
 }
 
-[CustomPropertyDrawer(typeof(ShooterTypeAttribute))]
-public sealed class ShooterTypeDrawer : PropertyDrawer
-{
-    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
-    {
-        Type[] types = TypeCache.GetTypesDerivedFrom<IShooter>()
-            .Where(type => !type.IsAbstract && !type.IsInterface)
-            .OrderBy(type => type.Name).ToArray();
-        string[] names = new[] { "(Select shooter)" }.Concat(types.Select(type => type.Name)).ToArray();
-        int current = Array.FindIndex(types, type => type.FullName == property.stringValue) + 1;
-        EditorGUI.BeginProperty(position, label, property);
-        int selected = EditorGUI.Popup(position, label.text, current, names);
-        if (selected != current)
-            property.stringValue = selected == 0 ? string.Empty : types[selected - 1].FullName;
-        EditorGUI.EndProperty();
-    }
-}
-
+// Dùng cùng một bộ chọn cho skill, kiểu bắn và kiểu di chuyển; không cần custom attribute.
 internal static class StrategySelector
 {
+    public static Type[] GetTypes<T>()
+        => TypeCache.GetTypesDerivedFrom<T>()
+            .Where(type => !type.IsAbstract && !type.IsInterface && type.IsSerializable &&
+                           type.GetConstructor(Type.EmptyTypes) != null)
+            .OrderBy(type => type.Name).ToArray();
+
     public static void Draw(SerializedProperty property, params Type[] types)
     {
         var names = new string[types.Length + 1];
         names[0] = "(Select strategy)";
         int current = 0;
         Type actual = property.managedReferenceValue?.GetType();
-        for (int i = 0; i < types.Length; i++)
+        for (int index = 0; index < types.Length; index++)
         {
-            names[i + 1] = types[i].Name;
-            if (actual == types[i]) current = i + 1;
+            names[index + 1] = types[index].Name;
+            if (actual == types[index]) current = index + 1;
         }
         int selected = EditorGUILayout.Popup(property.displayName, current, names);
         if (selected != current)
             property.managedReferenceValue = selected == 0 ? null : Activator.CreateInstance(types[selected - 1]);
-        if (property.managedReferenceValue != null)
+        if (property.managedReferenceValue == null) return;
+
+        SerializedProperty child = property.Copy();
+        SerializedProperty end = property.GetEndProperty();
+        bool enterChildren = true;
+        while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
         {
-            SerializedProperty child = property.Copy();
-            SerializedProperty end = property.GetEndProperty();
-            bool enterChildren = true;
-            while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
+            // Các interface lồng bên trong cũng cần chọn lớp cụ thể để Unity lưu lại.
+            if (child.propertyType == SerializedPropertyType.ManagedReference &&
+                (child.name == "shooter" || child.name == "projectileMove"))
             {
-                EditorGUILayout.PropertyField(child, true);
-                enterChildren = false;
+                Type[] nestedTypes = child.name == "shooter" ? GetTypes<IShooter>() : GetTypes<IProjectileMove>();
+                EditorGUI.indentLevel++;
+                Draw(child, nestedTypes);
+                EditorGUI.indentLevel--;
             }
+            else
+                EditorGUILayout.PropertyField(child, true);
+            enterChildren = false;
         }
     }
 }

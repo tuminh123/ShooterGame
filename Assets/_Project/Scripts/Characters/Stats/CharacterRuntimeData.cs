@@ -94,7 +94,6 @@ public sealed class CharacterRuntimeData
         stats.damage = Mathf.Max(0f, stats.damage);
         stats.defense = Mathf.Max(0f, stats.defense);
         stats.moveSpeed = Mathf.Clamp(stats.moveSpeed, 0f, BaseStats.moveSpeed * 2f) * movementScale;
-        stats.range = Mathf.Max(0f, stats.range);
         stats.critChance = Mathf.Max(0f, stats.critChance);
         stats.critDamageMultiplier = Mathf.Max(0f, stats.critDamageMultiplier);
         stats.effectHit = Mathf.Max(0f, stats.effectHit);
@@ -104,7 +103,7 @@ public sealed class CharacterRuntimeData
 
     private static void ValidateFinite(BaseStats stats)
     {
-        float[] values = { stats.maxHealth, stats.damage, stats.defense, stats.moveSpeed, stats.range,
+        float[] values = { stats.maxHealth, stats.damage, stats.defense, stats.moveSpeed,
             stats.critChance, stats.critDamageMultiplier, stats.effectHit, stats.effectResistance };
         foreach (float value in values)
             if (float.IsNaN(value) || float.IsInfinity(value))

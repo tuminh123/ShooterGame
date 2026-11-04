@@ -15,6 +15,7 @@ MonoBehaviour:
   level: 1
   maxLevel: 5
   cooldown: 1
+  range: 2
   displayName: IceBolt
   description: Automatically fires the configured projectile pattern.
   icon: {fileID: 0}
@@ -25,19 +26,24 @@ MonoBehaviour:
     - rid: 1001
       type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
       data:
-        shooterType: StraightShooter
+        shooter: {rid: 1003}
+        projectileMove: {rid: 1002}
         bulletType: 2
         projectileCount: 1
-        spreadAngle: 0
-        startAngle: 0
-        rotationPerCast: 0
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
         hitRadius: 0.035
         lifetime: 3
-        damageMultiplier: 1
-        homing: 1
+        damage: 10
         effects:
         - {fileID: 11400000, guid: f8c071b259f6c55d37f8dfd9d3ae9387, type: 2}
+    - rid: 1002
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1003
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 0
+        startAngle: 0

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public sealed class EmergencyShieldSkill : ISkill
+public sealed class EmergencyShieldSkill : ISkill, ISkillData
 {
     [SerializeField, Range(0f, 100f)] private float healthThreshold = 20f;
     [SerializeField, Min(0f)] private float shieldAmount = 30f;

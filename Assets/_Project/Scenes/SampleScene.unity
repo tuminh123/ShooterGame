@@ -171,7 +171,7 @@ MonoBehaviour:
   mapDatabase: {fileID: 11400000, guid: 7195740e1df5488d9811ed551c684f18, type: 2}
   initialMapKey: desert
   chunkSize: 2
-  visibleRadius: 1
+  visibleRadius: 2
 --- !u!1 &1200010
 GameObject:
   m_ObjectHideFlags: 0
@@ -311,6 +311,8 @@ MonoBehaviour:
   defaultPlayerType: 1
   joystick: {fileID: 1615921478}
   playerSaveFile: PlayerSave.es3
+  damageFlashDuration: 0.12
+  damageFlashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
   characterDatabase: {fileID: 11400000, guid: b2d25eaa2140499baa3ff69f92c5b88d, type: 2}
   levelDatabase: {fileID: 11400000, guid: 76b686c4c01140c5be22751af9852108, type: 2}
   equipmentDatabase: {fileID: 11400000, guid: d4bc36b0b0464700be54d5ae4494256b, type: 2}

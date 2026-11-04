@@ -4,49 +4,46 @@ using System.Collections.Generic;
 // Only creates runtime behaviors from their shared configuration templates.
 public sealed class SkillFactory
 {
-    private readonly Dictionary<Type, Func<ISkill, CharacterSkills, ISkill>> creators;
+    private readonly Dictionary<Type, Func<ISkillData, CharacterSkills, float, ISkill>> creators;
+    private readonly CombatSpawner combatSpawner;
+    private readonly ShootBehaviorFactory shootFactory;
+    private readonly ProjectileMoveFactory moveFactory;
 
-    public SkillFactory(CombatSpawner spawner, Dictionary<Type, IShooter> shooters)
+    public SkillFactory(CombatSpawner spawner, ShootBehaviorFactory shootFactory, ProjectileMoveFactory moveFactory)
     {
         if (spawner == null) throw new ArgumentNullException(nameof(spawner));
-        if (shooters == null) throw new ArgumentNullException(nameof(shooters));
+        combatSpawner = spawner;
+        this.shootFactory = shootFactory ?? throw new ArgumentNullException(nameof(shootFactory));
+        this.moveFactory = moveFactory ?? throw new ArgumentNullException(nameof(moveFactory));
 
-        creators = new Dictionary<Type, Func<ISkill, CharacterSkills, ISkill>>
+        creators = new Dictionary<Type, Func<ISkillData, CharacterSkills, float, ISkill>>
         {
             {
                 typeof(NormalAttackSkill),
-                (_, owner) => new NormalAttackSkill(owner)
-            },
-            {
-                typeof(ShootingSkill),
-                (template, owner) =>
-                {
-                    var config = (ShootingSkill)template;
-                    return new ShootingSkill(owner, config, spawner, shooters);
-                }
+                (_, owner, range) => new NormalAttackSkill(owner, range)
             },
             {
                 typeof(RegenerationSkill),
-                (template, owner) =>
+                (template, owner, _) =>
                 {
-                    var config = (RegenerationSkill)template;
-                    return new RegenerationSkill(owner, config.HealAmount);
+                    var skillData = (RegenerationSkill)template;
+                    return new RegenerationSkill(owner, skillData.HealAmount);
                 }
             },
             {
                 typeof(EmergencyShieldSkill),
-                (template, owner) =>
+                (template, owner, _) =>
                 {
-                    var config = (EmergencyShieldSkill)template;
-                    return new EmergencyShieldSkill(owner, config.HealthThreshold, config.ShieldAmount);
+                    var skillData = (EmergencyShieldSkill)template;
+                    return new EmergencyShieldSkill(owner, skillData.HealthThreshold, skillData.ShieldAmount);
                 }
             },
             {
                 typeof(StatBonusSkill),
-                (template, owner) =>
+                (template, owner, _) =>
                 {
-                    var config = (StatBonusSkill)template;
-                    return new StatBonusSkill(owner, config.Bonus);
+                    var skillData = (StatBonusSkill)template;
+                    return new StatBonusSkill(owner, skillData.Bonus);
                 }
             }
         };
@@ -58,12 +55,15 @@ public sealed class SkillFactory
         if (owner == null) throw new ArgumentNullException(nameof(owner));
         definition.Validate();
 
-        ISkill template = definition.Behavior;
-        Type type = template.GetType();
+        ISkillData template = definition.Data;
+        // Mọi lớp data bắn dùng cùng action; kiểu bắn cụ thể do ShootBehaviorFactory chọn.
+        if (template is ShootingSkill shootingData)
+            return owner.CreateShootingAction(shootingData, combatSpawner, shootFactory, moveFactory, definition.Range);
+        Type skillDataType = template.GetType();
 
-        if (!creators.TryGetValue(type, out var create))
-            throw new InvalidOperationException($"Unsupported skill: {type.Name}.");
+        if (!creators.TryGetValue(skillDataType, out var createRuntimeSkill))
+            throw new InvalidOperationException($"Unsupported skill: {skillDataType.Name}.");
 
-        return create(template, owner);
+        return createRuntimeSkill(template, owner, definition.Range);
     }
 }

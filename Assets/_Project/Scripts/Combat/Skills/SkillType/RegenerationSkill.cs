@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public sealed class RegenerationSkill : ISkill
+public sealed class RegenerationSkill : ISkill, ISkillData
 {
     [SerializeField, Min(0f)] private float healAmount = 1f;
     [NonSerialized] private readonly CharacterSkills owner;

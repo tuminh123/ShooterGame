@@ -245,7 +245,7 @@ Cách cộng trừ (`base + hit - res`) dễ tính nhẩm nhưng: debuff gốc 5
 
 ## 9. Ranh giới triển khai trong project
 
-- `CharacterDataSO.BaseStats` giữ chỉ số gốc; `range` vẫn là bán kính tìm mục tiêu, không có bonus range trong đợt này.
+- `CharacterDataSO.BaseStats` giữ chỉ số gốc của nhân vật. Bán kính tìm mục tiêu `range` thuộc từng `SkillDataSO`, không thuộc stats nhân vật.
 - `CharacterRuntimeData` giữ danh tính, base/final stats, HP và giáp hiện tại; chỉ tính damage đầu ra, không xử lý nhận đòn hoặc tiến trình lên cấp.
 - `CharacterControllerBase` xử lý gây/nhận damage, hồi/trừ HP và chết. `PlayerController` và `EnemyController` kế thừa; `CharacterView` chuyển tiếp lời gọi và hiển thị.
 - `CharacterLevelService` và `RunLevelService` giữ level/EXP. `PlayerManager` cộng bonus bên ngoài rồi truyền tổng vào runtime; không sao chép level trong màn vào runtime.

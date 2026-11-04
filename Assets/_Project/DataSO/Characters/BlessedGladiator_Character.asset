@@ -33,7 +33,6 @@ MonoBehaviour:
     damage: 10
     defense: 0
     moveSpeed: 1
-    range: 2
     critChance: 5
     critDamageMultiplier: 50
     effectResistance: 0

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public sealed class StatBonusSkill : ISkill, IDisposable
+public sealed class StatBonusSkill : ISkill, ISkillData, IDisposable
 {
     [SerializeField] private StatBonus bonus;
     [NonSerialized] private readonly CharacterSkills owner;

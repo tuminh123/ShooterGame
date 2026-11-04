@@ -15,6 +15,7 @@ MonoBehaviour:
   level: 1
   maxLevel: 5
   cooldown: 0.8
+  range: 2
   displayName: FireBolt
   description: Automatically fires the configured projectile pattern.
   icon: {fileID: 0}
@@ -25,19 +26,24 @@ MonoBehaviour:
     - rid: 1001
       type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
       data:
-        shooterType: StraightShooter
+        shooter: {rid: 1003}
+        projectileMove: {rid: 1002}
         bulletType: 1
         projectileCount: 1
-        spreadAngle: 0
-        startAngle: 0
-        rotationPerCast: 0
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
         hitRadius: 0.035
         lifetime: 3
-        damageMultiplier: 1
-        homing: 0
+        damage: 10
         effects:
         - {fileID: 11400000, guid: d2a4c8b535f04c37b88f269dbab68ad2, type: 2}
+    - rid: 1002
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1003
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 0
+        startAngle: 0

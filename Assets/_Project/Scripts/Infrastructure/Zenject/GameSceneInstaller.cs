@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Terresquall;
 using UnityEngine;
 using Zenject;
@@ -62,12 +61,10 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
         Container.BindInstance(combatAssets);
         Container.Bind<CombatSpawner>().AsSingle();
-        Container.BindInstance(new Dictionary<Type, IShooter>
-        {
-            [typeof(StraightShooter)] = new StraightShooter(),
-            [typeof(CircularShooter)] = new CircularShooter(),
-            [typeof(SpiralShooter)] = new SpiralShooter()
-        });
+        Container.Bind<ShootBehaviorFactory>().AsSingle();
+        Container.Bind<ProjectileMoveFactory>().AsSingle();
+        Container.BindInterfacesAndSelfTo<ProjectileManager>().AsSingle();
+        Container.BindTickableExecutionOrder<ProjectileManager>(100);
         Container.Bind<SkillFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle().NonLazy();
         Container.BindTickableExecutionOrder<SkillManager>(-100);

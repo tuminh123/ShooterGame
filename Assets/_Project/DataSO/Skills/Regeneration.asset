@@ -15,6 +15,7 @@ MonoBehaviour:
   level: 1
   maxLevel: 5
   cooldown: 2
+  range: 0
   displayName: Regeneration
   description: Heals one HP when injured, then waits two seconds.
   icon: {fileID: 0}

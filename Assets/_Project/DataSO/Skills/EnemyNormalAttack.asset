@@ -15,6 +15,7 @@ MonoBehaviour:
   level: 1
   maxLevel: 5
   cooldown: 0.8
+  range: 0.2
   displayName: Normal Attack
   description: Attack an opponent in contact using the character's damage and crit stats.
   icon: {fileID: 0}

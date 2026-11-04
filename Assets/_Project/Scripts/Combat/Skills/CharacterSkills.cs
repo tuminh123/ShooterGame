@@ -43,6 +43,32 @@ public sealed class CharacterSkills : IDisposable
         }
     }
 
+    // Action chỉ chuẩn bị đầu vào; ShootingSkill.ExecuteSkill thực hiện lượt bắn.
+    internal ISkill CreateShootingAction(ShootingSkill shootingData, CombatSpawner combatSpawner,
+        ShootBehaviorFactory shootFactory, ProjectileMoveFactory moveFactory, float targetSearchRadius)
+    {
+        ShootingSkill runtimeSkill = shootingData.CreateRuntime();
+        return new SkillAction(() =>
+        {
+            if (!CanRun) return false;
+
+            CharacterTarget selectedTarget = default;
+            Vector2 spawnPosition = (Vector2)Owner.HitPosition + shootingData.MuzzleOffset;
+            Vector2 aimDirection = shootingData.DefaultDirection.normalized;
+            if (shootingData.RequiresTarget)
+            {
+                selectedTarget = CharacterSearch.FindNearest(Owner.HitPosition, targetSearchRadius,
+                    CharacterSearch.OpponentOf(Identity.Team), Owner);
+                if (!selectedTarget.TryGetCharacter(out CharacterView targetCharacter)) return false;
+                Vector2 directionToTarget = (Vector2)targetCharacter.HitPosition - spawnPosition;
+                if (directionToTarget.sqrMagnitude > 0.000001f) aimDirection = directionToTarget.normalized;
+            }
+
+            return runtimeSkill.ExecuteSkill(combatSpawner, shootFactory, moveFactory,
+                Identity.Team, spawnPosition, aimDirection, selectedTarget) > 0;
+        });
+    }
+
     public void Tick(float deltaTime)
     {
         SkillRuntime.ValidateDeltaTime(deltaTime);

@@ -37,7 +37,7 @@ public sealed class SkillManager : ITickable, IDisposable
         if (definition == null) throw new ArgumentNullException(nameof(definition));
         if (behavior == null) throw new ArgumentNullException(nameof(behavior));
         definition.Validate();
-        if (ReferenceEquals(definition.Behavior, behavior))
+        if (ReferenceEquals(definition.Data, behavior))
             throw new ArgumentException("Create a runtime instance instead of registering the shared template.", nameof(behavior));
 
         foreach (SkillRuntime skill in runSkills)
