@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
@@ -19,7 +20,7 @@ public sealed class ShootingSkill : ISkillData
     [SerializeField, Min(0.001f)] private float hitRadius = 0.035f; // Bán kính kiểm tra trúng quái.
     [SerializeField, Min(0.01f)] private float lifetime = 3f; // Số giây tối đa trước khi thu hồi đạn.
     [SerializeField, Min(0f)] private float damage = 10f; // Sát thương mỗi viên, chưa tính effect.
-    // TODO: Cấu hình hiệu ứng trúng đòn riêng.
+    [SerializeReference] private List<IGameplayEffect> effects = new List<IGameplayEffect>(); // Cấu hình effect; đạn không giữ ShootingSkill.
 
     public IShooter Shooter => shooter;
     public IProjectileMove ProjectileMove => projectileMove;
@@ -32,6 +33,7 @@ public sealed class ShootingSkill : ISkillData
     public float HitRadius => hitRadius;
     public float Lifetime => lifetime;
     public float Damage => damage;
+    public IReadOnlyList<IGameplayEffect> Effects => effects;
 
     // Mỗi skill đang chạy có shooter riêng; không thay đổi trạng thái của bản lưu trong asset.
     internal ShootingSkill CreateRuntime()
@@ -44,7 +46,7 @@ public sealed class ShootingSkill : ISkillData
     // Thực hiện trọn một lượt bắn; bên gọi đã chuẩn bị vị trí, hướng và phe.
     public int ExecuteSkill(CombatSpawner spawner, ShootBehaviorFactory shootFactory,
         ProjectileMoveFactory moveFactory, CharacterTeam sourceTeam, Vector2 spawnPosition,
-        Vector2 aimDirection, CharacterTarget target = default)
+        Vector2 aimDirection, CharacterTarget target = default, float effectHit = 0f)
     {
         if (spawner == null) throw new ArgumentNullException(nameof(spawner));
         if (shootFactory == null) throw new ArgumentNullException(nameof(shootFactory));
@@ -53,7 +55,7 @@ public sealed class ShootingSkill : ISkillData
 
         IProjectileMove movement = moveFactory.Create(projectileMove);
         var projectileData = new ProjectileSpawnData(bulletType, new DamageInfo(damage, sourceTeam),
-            speed, lifetime, hitRadius, movement);
+            speed, lifetime, hitRadius, movement, effects, effectHit);
         int spawnedBulletCount = 0;
         for (int projectileIndex = 0; projectileIndex < projectileCount; projectileIndex++)
         {
@@ -78,6 +80,12 @@ public sealed class ShootingSkill : ISkillData
             !IsFiniteNumber(damage) || damage < 0f)
             throw new InvalidOperationException("Invalid shooting skill configuration.");
         shooter.Validate();
+        if (effects == null) throw new InvalidOperationException("Effect list cannot be null.");
+        foreach (IGameplayEffect effect in effects)
+        {
+            if (effect == null) throw new InvalidOperationException("Select a type for every effect entry.");
+            effect.Validate();
+        }
     }
 
     // Góc/offset có thể âm hoặc bằng 0; chỉ loại NaN và vô cực.

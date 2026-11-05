@@ -17,7 +17,7 @@ public sealed class CharacterSkillEditor : Editor
     }
 }
 
-// Dùng cùng một bộ chọn cho skill, kiểu bắn và kiểu di chuyển; không cần custom attribute.
+// Chọn lớp cụ thể cho các interface được lưu bằng SerializeReference, bao gồm từng effect trong danh sách.
 internal static class StrategySelector
 {
     public static Type[] GetTypes<T>()
@@ -48,7 +48,11 @@ internal static class StrategySelector
         while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
         {
             // Các interface lồng bên trong cũng cần chọn lớp cụ thể để Unity lưu lại.
-            if (child.propertyType == SerializedPropertyType.ManagedReference &&
+            if (child.isArray && child.name == "effects")
+            {
+                DrawEffects(child);
+            }
+            else if (child.propertyType == SerializedPropertyType.ManagedReference &&
                 (child.name == "shooter" || child.name == "projectileMove"))
             {
                 Type[] nestedTypes = child.name == "shooter" ? GetTypes<IShooter>() : GetTypes<IProjectileMove>();
@@ -60,5 +64,34 @@ internal static class StrategySelector
                 EditorGUILayout.PropertyField(child, true);
             enterChildren = false;
         }
+    }
+
+    private static void DrawEffects(SerializedProperty effects)
+    {
+        effects.isExpanded = EditorGUILayout.Foldout(effects.isExpanded, effects.displayName, true);
+        if (!effects.isExpanded) return;
+        Type[] types = GetTypes<IGameplayEffect>();
+        EditorGUI.indentLevel++;
+        for (int index = 0; index < effects.arraySize; index++)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"Effect {index + 1}");
+            bool remove = GUILayout.Button("Remove", GUILayout.Width(70));
+            EditorGUILayout.EndHorizontal();
+            if (remove)
+            {
+                effects.DeleteArrayElementAtIndex(index);
+                break;
+            }
+            Draw(effects.GetArrayElementAtIndex(index), types);
+        }
+        if (GUILayout.Button("Add effect"))
+        {
+            int index = effects.arraySize;
+            effects.arraySize++;
+            // Unity có thể nhân bản phần tử cuối khi tăng size; luôn tạo một ô chọn mới.
+            effects.GetArrayElementAtIndex(index).managedReferenceValue = null;
+        }
+        EditorGUI.indentLevel--;
     }
 }

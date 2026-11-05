@@ -2599,7 +2599,7 @@ public interface ISkill
 
 ### MovementManager.cs
 
-Nguồn: [Assets/_Project/Scripts/Infrastructure/Movement/MovementManager.cs](../Assets/_Project/Scripts/Infrastructure/Movement/MovementManager.cs)
+Nguồn: [Assets/_Project/Scripts/Core/JobSystem/Movement/MovementManager.cs](../Assets/_Project/Scripts/Core/JobSystem/Movement/MovementManager.cs)
 
 Phần thay đổi so với HEAD:
 

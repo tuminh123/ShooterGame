@@ -1,11 +1,18 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
 [RequireComponent(typeof(SpriteRenderer))]
-public sealed class ProjectileView : MonoBehaviour
+public sealed class ProjectileView : MonoBehaviour, ITimerListener
 {
     private MovementManager movementManager; // Đăng ký và thực hiện di chuyển Transform.
     private ProjectileManager projectileManager; // Gọi Tick chung, thay Update trên từng viên.
+    private EffectManager effectManager; // Nhận yêu cầu áp dụng effect; đạn không quản lý runtime.
+    private ITimerManager timers;
+    private ISpatialSearchFactory searchFactory; // Tạo query; SpatialManager sẽ chọn strategy và xử lý theo nhóm.
+    private TimerHandle lifetimeTimer;
+    private IReadOnlyList<IGameplayEffect> effects; // Các cấu hình được truyền vào khi spawn.
+    private float effectHit; // Chính xác hiệu ứng của nguồn lúc bắn.
     private MovementHandle movementHandle; // Đăng ký di chuyển của lượt spawn hiện tại.
     private CombatSpawner spawner; // Trả viên đạn về pool khi trúng hoặc hết tuổi thọ.
     private SpriteRenderer spriteRenderer; // Hiển thị hình ảnh và màu viên đạn.
@@ -15,14 +22,18 @@ public sealed class ProjectileView : MonoBehaviour
     private IProjectileMove projectileMovement; // Strategy chỉ tính hướng bay.
     private float movementSpeed; // Tốc độ lấy từ skill, world unit/giây.
     private float hitRadius; // Bán kính kiểm tra trúng quái.
-    private float remainingLifetime; // Số giây còn lại trước khi thu hồi.
+    private float lifetime; // Cấu hình tuổi thọ; TimerJob giữ và cập nhật thời gian còn lại.
     private bool isFlying; // Chặn cập nhật hoặc gây sát thương lặp sau khi trúng.
 
     [Inject]
-    public void Construct(MovementManager movementManager, ProjectileManager projectileManager)
+    public void Construct(MovementManager movementManager, ProjectileManager projectileManager,
+        EffectManager effectManager, ITimerManager timers, ISpatialSearchFactory searchFactory)
     {
         this.movementManager = movementManager;
         this.projectileManager = projectileManager;
+        this.effectManager = effectManager;
+        this.timers = timers;
+        this.searchFactory = searchFactory;
     }
 
     internal void Initialize(CombatSpawner spawner, CombatAssetsSO.BulletVisual bulletVisual,
@@ -33,10 +44,12 @@ public sealed class ProjectileView : MonoBehaviour
         this.flightDirection = flightDirection.normalized;
         this.homingTarget = homingTarget;
         damageInfo = projectileData.Damage;
+        effects = projectileData.Effects;
+        effectHit = projectileData.EffectHit;
         projectileMovement = projectileData.Movement;
         movementSpeed = projectileData.Speed;
         hitRadius = projectileData.HitRadius;
-        remainingLifetime = projectileData.Lifetime;
+        lifetime = projectileData.Lifetime;
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
         spriteRenderer.sprite = bulletVisual.sprite;
         spriteRenderer.color = bulletVisual.color;
@@ -49,42 +62,38 @@ public sealed class ProjectileView : MonoBehaviour
     {
         if (!isFlying) return;
         movementHandle = movementManager.Register(transform);
+        lifetimeTimer = timers.Register(lifetime, this);
         projectileManager.Register(this, movementHandle);
     }
 
     // ProjectileManager gọi trước MovementManager.LateTick; không tự đổi vị trí tại đây.
-    internal void Tick(float deltaTime)
+    internal bool PrepareQuery(float deltaTime, out SpatialQuery query)
     {
-        if (!isFlying) return;
-        remainingLifetime -= deltaTime;
-        if (remainingLifetime <= 0f)
-        {
-            Release();
-            return;
-        }
+        query = default;
+        if (!isFlying) return false;
 
         flightDirection = projectileMovement.GetDirection(transform.position, flightDirection, homingTarget).normalized;
         FaceFlightDirection();
 
         CharacterTeam opponentTeam = CharacterSearch.OpponentOf(damageInfo.SourceTeam);
-        CharacterTarget hitTarget = CharacterSearch.FindNearest(transform.position, hitRadius, opponentTeam);
-        if (hitTarget.TryGetCharacter(out _))
-        {
-            ApplyHitAndRelease(hitTarget);
-            return;
-        }
-
-        // Quét đoạn sắp đi để đạn nhanh không bỏ qua quái giữa hai frame.
+        // Một sweep đã bao gồm overlap đầu đoạn; gom tất cả đạn vào cùng job thay vì query từng viên.
         float travelDistance = movementSpeed * deltaTime;
-        hitTarget = CharacterSearch.FindFirstOnPath(transform.position, hitRadius, flightDirection,
-            travelDistance, opponentTeam, out _);
-        if (hitTarget.TryGetCharacter(out _))
-        {
-            ApplyHitAndRelease(hitTarget);
-            return;
-        }
+        Vector2 origin = transform.position;
+        query = searchFactory.Sweep(origin, origin + flightDirection * travelDistance, hitRadius, opponentTeam);
+        CharacterSearch.DrawSearchPath(origin, hitRadius, flightDirection, travelDistance);
+        return true;
+    }
 
-        movementManager.SetMovement(movementHandle, flightDirection, movementSpeed);
+    internal void CompleteQuery(CharacterTarget hitTarget)
+    {
+        if (!isFlying) return;
+        if (hitTarget.TryGetCharacter(out _)) ApplyHitAndRelease(hitTarget);
+        else movementManager.SetMovement(movementHandle, flightDirection, movementSpeed);
+    }
+
+    public void OnTimer(TimerHandle handle, TimerResult result)
+    {
+        if (isFlying && lifetimeTimer.Equals(handle) && result.Completed) Release();
     }
 
     private void ApplyHitAndRelease(CharacterTarget hitTarget)
@@ -92,10 +101,21 @@ public sealed class ProjectileView : MonoBehaviour
         isFlying = false;
         CombatSpawner owningSpawner = spawner;
         MovementHandle hitRegistration = movementHandle;
+        // Damage callback có thể tái sử dụng chính viên đạn; chốt dữ liệu của lượt trúng trước khi gọi ra ngoài.
+        IReadOnlyList<IGameplayEffect> hitEffects = effects;
+        DamageInfo hitDamage = damageInfo;
+        float sourceEffectHit = effectHit;
         try
         {
-            if (hitTarget.TryGetCharacter(out CharacterView character)) character.ReceiveDamage(damageInfo);
-            // TODO: Thêm hiệu ứng trúng đòn qua hệ thống riêng.
+            if (!hitTarget.TryGetCharacter(out CharacterView character)) return;
+            DamageResult result = character.ReceiveDamage(hitDamage);
+            if (!result.Accepted) return;
+            for (int index = 0; index < hitEffects.Count; index++)
+            {
+                // Manager kiểm tra lại CharacterTarget: không áp dụng sang cá thể mới nếu quái vừa chết/despawn.
+                effectManager.Apply(hitEffects[index], hitTarget, hitDamage.SourceTeam, sourceEffectHit);
+            }
+            // TODO: VFX trúng đòn thuộc hệ thống hiển thị riêng.
         }
         finally
         {
@@ -118,14 +138,18 @@ public sealed class ProjectileView : MonoBehaviour
     {
         projectileManager?.Unregister(movementHandle);
         movementManager?.Unregister(movementHandle);
+        timers?.Cancel(lifetimeTimer);
+        lifetimeTimer = default;
         movementHandle = default;
         isFlying = false;
         spawner = null;
         projectileMovement = null;
         homingTarget = default;
         damageInfo = default;
+        effects = null;
+        effectHit = 0f;
         flightDirection = default;
-        movementSpeed = hitRadius = remainingLifetime = 0f;
+        movementSpeed = hitRadius = lifetime = 0f;
     }
 
 #if UNITY_EDITOR

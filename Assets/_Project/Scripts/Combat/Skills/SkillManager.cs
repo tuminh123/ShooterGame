@@ -8,6 +8,8 @@ public sealed class SkillManager : ITickable, IDisposable
 {
     private readonly List<SkillRuntime> runSkills = new List<SkillRuntime>();
     private readonly LevelManager levels;
+    private readonly ITimerManager timers;
+    private readonly ITimeSource timeSource;
     private bool ticking;
     private bool clearing;
     private bool disposed;
@@ -23,9 +25,11 @@ public sealed class SkillManager : ITickable, IDisposable
         }
     }
 
-    public SkillManager(LevelManager levels)
+    public SkillManager(LevelManager levels, ITimerManager timers, ITimeSource timeSource)
     {
         this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
+        this.timers = timers;
+        this.timeSource = timeSource;
         levels.RunReset += OnRunReset;
     }
 
@@ -48,17 +52,18 @@ public sealed class SkillManager : ITickable, IDisposable
                 throw new ArgumentException("Create a separate behavior instance for each skill.", nameof(behavior));
         }
 
-        runSkills.Add(new SkillRuntime(definition, behavior));
+        runSkills.Add(new SkillRuntime(definition, behavior, timers));
         return true;
     }
 
     public void Tick()
     {
-        Tick(Time.deltaTime);
+        Tick(timeSource.DeltaTime);
     }
 
     public void Tick(float deltaTime)
     {
+        // Chỉ quyết định lúc thử Execute; cooldown đã được ITimerManager cập nhật trước lượt này.
         SkillRuntime.ValidateDeltaTime(deltaTime);
         if (disposed || deltaTime == 0f) return;
         if (ticking || clearing) throw new InvalidOperationException("Cannot tick run skills recursively or during cleanup.");
@@ -70,7 +75,7 @@ public sealed class SkillManager : ITickable, IDisposable
             // Skills added during execution wait until the next manager tick.
             for (int i = 0; i < count; i++)
             {
-                try { runSkills[i].Tick(deltaTime); }
+                try { runSkills[i].Tick(); }
                 catch (Exception exception) { Debug.LogException(exception); }
             }
         }

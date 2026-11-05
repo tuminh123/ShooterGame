@@ -38,7 +38,7 @@ MonoBehaviour:
         lifetime: 3
         damage: 10
         effects:
-        - {fileID: 11400000, guid: d2a4c8b535f04c37b88f269dbab68ad2, type: 2}
+        - {rid: 1004}
     - rid: 1002
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: {}
@@ -46,3 +46,11 @@ MonoBehaviour:
       type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
       data:
         startAngle: 0
+    - rid: 1004
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 1
+        tickInterval: 1
+        damagePerTick: 2

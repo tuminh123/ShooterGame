@@ -16,8 +16,9 @@ MonoBehaviour:
   characterType: 2
   team: 1
   visualPrefab: {fileID: 5431945204154776163, guid: 3d96b928b36232346bba972e0c334e49, type: 3}
-  colliderSize: {x: 0.16, y: 0.09201882}
-  colliderOffset: {x: 0, y: 0.04600941}
+  hitbox:
+    Size: {x: 0.16, y: 0.09201882}
+    Offset: {x: 0, y: 0.04600941}
   growthInterval: 50
   growthPerStep:
     maxHealth: 5

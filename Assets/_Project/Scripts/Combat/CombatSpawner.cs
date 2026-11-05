@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // Thông số của một viên đạn; AI/nút bấm cũng có thể tạo trực tiếp mà không cần skill.
@@ -10,9 +11,12 @@ public readonly struct ProjectileSpawnData
     public float Lifetime { get; } // Tuổi thọ tính bằng giây.
     public float HitRadius { get; } // Bán kính phát hiện trúng.
     public IProjectileMove Movement { get; } // Cách tính hướng bay.
+    public IReadOnlyList<IGameplayEffect> Effects { get; } // Cấu hình dùng chung, không chứa trạng thái runtime.
+    public float EffectHit { get; } // Chính xác hiệu ứng của nguồn, chốt tại thời điểm bắn.
 
     public ProjectileSpawnData(BulletType bulletType, DamageInfo damage, float speed,
-        float lifetime, float hitRadius, IProjectileMove movement)
+        float lifetime, float hitRadius, IProjectileMove movement,
+        IReadOnlyList<IGameplayEffect> effects = null, float effectHit = 0f)
     {
         BulletType = bulletType;
         Damage = damage;
@@ -20,13 +24,24 @@ public readonly struct ProjectileSpawnData
         Lifetime = lifetime;
         HitRadius = hitRadius;
         Movement = movement;
+        Effects = effects ?? Array.Empty<IGameplayEffect>();
+        EffectHit = effectHit;
     }
 
     public void Validate()
     {
         if (!Enum.IsDefined(typeof(BulletType), BulletType) || Movement == null ||
-            !IsPositiveFiniteNumber(Speed) || !IsPositiveFiniteNumber(Lifetime) || !IsPositiveFiniteNumber(HitRadius))
+            !IsPositiveFiniteNumber(Speed) || !IsPositiveFiniteNumber(Lifetime) || !IsPositiveFiniteNumber(HitRadius) ||
+            float.IsNaN(EffectHit) || float.IsInfinity(EffectHit))
             throw new ArgumentException("Invalid projectile spawn data.");
+        if (Effects == null) throw new ArgumentException("Initialize projectile spawn data before use.");
+        // Duyệt theo index để không boxing enumerator của danh sách qua IReadOnlyList.
+        for (int index = 0; index < Effects.Count; index++)
+        {
+            IGameplayEffect effect = Effects[index];
+            if (effect == null) throw new ArgumentException("Projectile effects cannot contain null entries.");
+            effect.Validate();
+        }
     }
 
     // Chặn dữ liệu không hợp lệ từ các bên tạo đạn trực tiếp.
@@ -69,6 +84,6 @@ public sealed class CombatSpawner
 
     public void Release(GameObject instance) => poolManager.Despawn(instance);
 
-    // Chặn NaN/vô cực trước khi dùng hướng bắn để di chuyển hoặc truy vấn Physics2D.
+    // Chặn NaN/vô cực trước khi dùng hướng bắn để di chuyển hoặc quét hitbox.
     private static bool IsFiniteNumber(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 }

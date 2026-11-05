@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using Zenject;
 
 // * Vỏ Unity dùng chung cho mọi nhân vật; không quyết định input hay AI.
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
-[RequireComponent(typeof(BoxCollider2D))]
 public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 {
     private MovementManager movement; // * Dịch vụ áp dụng chuyển động, nhận lệnh từ hành vi hiện tại qua Move.
@@ -15,29 +15,35 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private GameObject visual; // * Bản sao visual con, lấy từ prefab được khai báo trong CharacterDataSO.
     private SpriteRenderer[] sprites; // * Cache để lật hướng hiển thị, không tìm component trong từng frame.
     private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
-    private BoxCollider2D hitbox; // * Một hitbox trên vỏ gốc; tìm kiếm dùng TryGetComponent tại cùng object.
-    private StatusEffectFactory effectFactory;
+    private HitboxData hitbox; // Cấu hình local; không cần Collider2D trên vỏ nhân vật.
+    private ISpatialManager spatial;
+    private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
     private SkillFactory skillFactory;
     public CharacterSkills Skills { get; private set; }
     public CharacterEffectHandler Effects { get; private set; }
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
-    public Collider2D Hitbox => hitbox;
+    public SpatialHandle SpatialHandle { get; private set; }
+    public ICharacterSearch Search { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
+    public ITimerManager Timers { get; private set; }
     public event Action<DamageInfo, DamageResult> DamageReceived;
     // Raised before visual cleanup, and on temporary disable, so owners can cancel presentation tasks.
     public event Action Deactivated;
-    public Vector3 HitPosition => hitbox != null ? transform.TransformPoint(hitbox.offset) : transform.position;
+    public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);
     public event Action<CharacterView> Died;
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools, StatusEffectFactory effectFactory,
-        SkillFactory skillFactory)
+    public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
+        SkillFactory skillFactory, ISpatialManager spatial, ICharacterSearch search, ITimerManager timers)
     {
         this.movement = movement;
         this.pools = pools;
-        this.effectFactory = effectFactory;
+        this.effectManager = effectManager;
         this.skillFactory = skillFactory;
+        this.spatial = spatial;
+        Search = search;
+        Timers = timers;
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
@@ -50,8 +56,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         if (template.CharacterType != runtime.CharacterType || template.Team != runtime.Team)
             throw new ArgumentException("Character template and runtime must match.");
 
-        // * Vỏ pool có thể vừa là Enemy rồi được dùng làm Player; luôn gán lại layer chứa hitbox.
-        // * Chỉ đổi layer của vỏ; visual con không tham gia truy vấn hàng xóm hoặc va chạm gameplay.
+        // Giữ layer của vỏ theo phe cho các bộ lọc Unity khác; tìm kiếm gameplay dùng Team trong dữ liệu native.
         string layerName = template.Team == CharacterTeam.Enemy
             ? GameConstants.PhysicsLayers.Enemy
             : GameConstants.PhysicsLayers.Player;
@@ -60,12 +65,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
         gameObject.layer = characterLayer;
 
-        // * Di chuyển bằng MovementManager; collider chỉ phục vụ query, không cần Rigidbody2D.
-        hitbox = GetComponent<BoxCollider2D>();
-        hitbox.enabled = true;
-        hitbox.isTrigger = true;
-        hitbox.size = template.ColliderSize;
-        hitbox.offset = template.ColliderOffset;
+        hitbox = template.Hitbox;
+        hitbox.Validate();
 
         RuntimeData = runtime;
         controller = behavior;
@@ -80,7 +81,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
-        Effects = new CharacterEffectHandler(this, effectFactory);
+        Effects = new CharacterEffectHandler(this, effectManager);
         Skills = new CharacterSkills(this, template.Skills, skillFactory);
     }
 
@@ -89,7 +90,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         if (RuntimeData == null)
             return;
         movementHandle = movement.Register(transform);
-        CharacterSearch.InvalidatePhysics();
+        SpatialHandle = spatial.Register(this);
+        Skills?.SetPaused(false);
+        effectManager.SetPaused(this, RuntimeData, false);
+        controller?.SetPaused(false);
         foreach (Animator animator in animators)
         {
             animator.Rebind();
@@ -100,10 +104,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void Update()
     {
         if (RuntimeData == null)
-            return;
-        CharacterRuntimeData identity = RuntimeData;
-        Effects?.Tick(Time.deltaTime);
-        if (!ReferenceEquals(RuntimeData, identity))
             return;
         if (!isActiveAndEnabled)
             return;
@@ -136,6 +136,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // * Controller giữ bán kính và cách vẽ riêng của Enemy, vỏ chỉ chuyển tiếp callback từ Unity Editor.
     private void OnDrawGizmosSelected()
     {
+        if (RuntimeData != null)
+        {
+            // Vẽ đúng tâm, kích thước và góc hộp mà job sử dụng, không theo flip của visual con.
+            using (new UnityEditor.Handles.DrawingScope(Color.green, Matrix4x4.TRS(HitPosition,
+                transform.rotation, Vector3.one)))
+                UnityEditor.Handles.DrawWireCube(Vector3.zero, new Vector3(
+                    hitbox.Size.x * Mathf.Abs(transform.lossyScale.x), hitbox.Size.y * Mathf.Abs(transform.lossyScale.y), 0f));
+        }
         if (isActiveAndEnabled && RuntimeData != null && RuntimeData.IsAlive &&
             controller is EnemyController enemy)
             enemy.DrawSeparationGizmo(transform.position);
@@ -161,6 +169,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     internal void EndCombatLifetime()
     {
+        StopSpatial();
         CharacterRuntimeData identity = RuntimeData;
         try { Died?.Invoke(this); }
         finally
@@ -168,7 +177,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             if (ReferenceEquals(RuntimeData, identity))
             {
                 try { ClearSkills(); }
-                finally { if (ReferenceEquals(RuntimeData, identity)) Effects?.Dispose(); }
+                finally
+                {
+                    if (ReferenceEquals(RuntimeData, identity))
+                    {
+                        try { Effects?.Dispose(); }
+                        finally { if (ReferenceEquals(RuntimeData, identity)) controller?.Dispose(); }
+                    }
+                }
             }
         }
     }
@@ -186,8 +202,11 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void OnDisable()
     {
         StopMovement();
+        StopSpatial();
+        Skills?.SetPaused(true);
+        controller?.SetPaused(true);
+        if (RuntimeData != null) effectManager?.SetPaused(this, RuntimeData, true);
         Deactivated?.Invoke();
-        CharacterSearch.InvalidatePhysics();
     }
 
     private void StopMovement()
@@ -196,16 +215,46 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         movementHandle = default;
     }
 
+    private void ClearController()
+    {
+        ICharacterController previous = controller;
+        controller = null;
+        try { previous?.Dispose(); }
+        catch (Exception exception) { Debug.LogException(exception, this); }
+    }
+
+    private void StopSpatial()
+    {
+        spatial?.Unregister(SpatialHandle);
+        SpatialHandle = default;
+    }
+
+    // Chụp hình hộp world XY cho job. Vỏ hỗ trợ xoay Z và scale; không dùng hierarchy gây shear.
+    internal SpatialEntity GetSpatialEntity()
+    {
+        Vector3 center = HitPosition;
+        Vector3 scale = transform.lossyScale;
+        float angle = transform.eulerAngles.z * Mathf.Deg2Rad;
+        return new SpatialEntity
+        {
+            Center = new float2(center.x, center.y),
+            HalfSize = new float2(hitbox.Size.x * Mathf.Abs(scale.x), hitbox.Size.y * Mathf.Abs(scale.y)) * 0.5f,
+            AxisX = new float2(Mathf.Cos(angle), Mathf.Sin(angle)),
+            AxisY = new float2(-Mathf.Sin(angle), Mathf.Cos(angle))
+        };
+    }
+
     // * Khi bị Destroy trực tiếp, Unity hủy cả visual con; chỉ gỡ tham chiếu và báo chủ sở hữu.
     // * Không trả visual về pool từ callback này vì hierarchy có thể đang trong quá trình hủy/tắt.
     private void OnDestroy()
     {
         StopMovement();
+        StopSpatial();
         ClearSkills();
         Deactivated?.Invoke();
         Effects?.Dispose();
         Effects = null;
-        controller = null;
+        ClearController();
         RuntimeData = null;
         visual = null;
         sprites = null;
@@ -218,12 +267,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     internal void ClearSpawn()
     {
         StopMovement();
+        StopSpatial();
         ClearSkills();
         Deactivated?.Invoke();
         Effects?.Dispose();
         Effects = null;
-        CharacterSearch.InvalidatePhysics();
-        controller = null;
+        ClearController();
         RuntimeData = null;
         sprites = null;
         animators = null;

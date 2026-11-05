@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+// Dữ liệu SO cũ được giữ để không mất asset. Skill mới chọn IGameplayEffect qua SerializeReference.
 public abstract class StatusEffectDataSO : ScriptableObject
 {
     [SerializeField, Min(0.01f)] private float duration = 3f;

@@ -20,7 +20,7 @@ public sealed class NormalAttackSkill : ISkill, ISkillData
 
         CharacterView character = owner.Owner;
         CharacterRuntimeData runtime = owner.Identity;
-        CharacterTarget target = CharacterSearch.FindNearest(character.HitPosition,
+        CharacterTarget target = character.Search.FindNearest(character.HitPosition,
             range, CharacterSearch.OpponentOf(runtime.Team), character);
 
         if (!target.TryGetCharacter(out CharacterView victim) || !CharacterSearch.Overlaps(character, victim))

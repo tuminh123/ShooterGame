@@ -60,6 +60,13 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
         Container.BindInstance(combatAssets);
+        Container.Bind<ITimeSource>().To<GameplayTimeSource>().AsSingle();
+        Container.BindInterfacesAndSelfTo<TimerManager>().AsSingle().NonLazy();
+        Container.BindTickableExecutionOrder<TimerManager>(-300); // Tính/nhận kết quả trước các hệ thống thực thi gameplay.
+        Container.Bind<ISpatialSearchFactory>().To<SpatialSearchFactory>().AsSingle();
+        Container.BindInterfacesAndSelfTo<SpatialManager>().AsSingle();
+        Container.Bind<ICharacterSearchFactory>().To<CharacterSearchFactory>().AsSingle();
+        Container.Bind<ICharacterSearch>().To<CharacterSearch>().AsSingle();
         Container.Bind<CombatSpawner>().AsSingle();
         Container.Bind<ShootBehaviorFactory>().AsSingle();
         Container.Bind<ProjectileMoveFactory>().AsSingle();
@@ -68,7 +75,13 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.Bind<SkillFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle().NonLazy();
         Container.BindTickableExecutionOrder<SkillManager>(-100);
-        Container.Bind<StatusEffectFactory>().AsSingle();
+        // Pool class thuần: chỉ tạo thêm runtime khi số effect đồng thời vượt dung lượng đã có.
+        Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>().WithInitialSize(16);
+        Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>().WithInitialSize(32);
+        Container.Bind<EffectRuntimePool>().AsSingle();
+        Container.BindInterfacesAndSelfTo<EffectManager>().AsSingle().NonLazy();
+        // Dọn effect trước khi Zenject giải phóng các memory pool.
+        Container.BindDisposableExecutionOrder<EffectManager>(150);
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<PlayerManager>(-100);
         Container.BindInitializableExecutionOrder<SaveManager>(-200);
@@ -80,6 +93,10 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindDisposableExecutionOrder<SkillManager>(-75);
         Container.BindDisposableExecutionOrder<SaveManager>(-50);
         Container.BindDisposableExecutionOrder<MovementManager>(-100);
+        Container.BindDisposableExecutionOrder<ProjectileManager>(175);
+        // Các bên sở hữu hủy handle trước khi bộ đếm và snapshot native được giải phóng.
+        Container.BindDisposableExecutionOrder<TimerManager>(-200);
+        Container.BindDisposableExecutionOrder<SpatialManager>(-250);
     }
 
     #endregion

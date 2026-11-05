@@ -1,88 +1,20 @@
 using System;
-using System.Buffers;
 using UnityEngine;
 
-// * Kết quả chỉ tồn tại trong phạm vi using trên main thread; không giữ qua frame/await.
-// ! Không sao chép biến kết quả hoặc Dispose hai bản sao: buffer chỉ có một chủ sở hữu.
-// * ref struct không tạo object quản lý kết quả trên managed heap mỗi lần quét.
-public ref struct CharacterSearchResult
+// Facade gameplay: chỉ chọn cách tìm qua factory; strategy giữ logic truy vấn và chuyển kết quả.
+public sealed class CharacterSearch : ICharacterSearch
 {
-    private Collider2D[] hits;
-    private CharacterRuntimeData[] identities;
-    public int Count { get; private set; }
+    #region Dependencies
 
-    internal CharacterSearchResult(Collider2D[] hits, CharacterRuntimeData[] identities, int count)
-    {
-        this.hits = hits;
-        this.identities = identities;
-        Count = count;
-    }
+    private readonly ICharacterSearchFactory factory; // Hợp đồng chọn cách tìm; không phụ thuộc factory hình học hoặc manager cụ thể.
 
-    public CharacterTarget this[int index]
-    {
-        get
-        {
-            if (hits == null || index < 0 || index >= Count)
-                throw new ArgumentOutOfRangeException(nameof(index));
-            CharacterView view = null;
-            if (hits[index] != null)
-                hits[index].TryGetComponent(out view);
-            return new CharacterTarget(view, identities[index]);
-        }
-    }
+    public CharacterSearch(ICharacterSearchFactory factory) => this.factory = factory;
 
-    public void Dispose()
-    {
-        if (hits == null)
-            return;
-        ArrayPool<Collider2D>.Shared.Return(hits, clearArray: true);
-        ArrayPool<CharacterRuntimeData>.Shared.Return(identities, clearArray: true);
-        hits = null;
-        identities = null;
-        Count = 0;
-    }
-}
+    #endregion
 
-// * Truy vấn hình học dùng chung; không gây damage, không chạy AI hoặc spawn VFX.
-// * Mỗi Character có một hitbox trên vỏ gốc. Visual con không nằm trên layer gameplay.
-public static class CharacterSearch
-{
-    private static int lastSyncFrame = -1;
-    private static bool physicsDirty = true;
+    #region Team & Pair Helpers
 
-    // * Spawn/despawn hoặc hệ di chuyển gọi khi thay đổi hình học trong cùng frame.
-    public static void InvalidatePhysics() => physicsDirty = true;
-
-    // * Dùng chung cho query vùng và kiểm tra khoảng cách giữa hai hitbox đã biết.
-    // * Collider di chuyển bằng Transform cần được đồng bộ trước khi đọc hình học physics.
-    public static void SynchronizePhysics()
-    {
-        if (!physicsDirty && lastSyncFrame == Time.frameCount)
-            return;
-        Physics2D.SyncTransforms();
-        physicsDirty = false;
-        lastSyncFrame = Time.frameCount;
-    }
-
-    // Known pair: test their hitboxes directly rather than querying the whole layer.
-    public static bool Overlaps(CharacterView first, CharacterView second)
-    {
-        if (first == null || second == null || first == second ||
-            !first.isActiveAndEnabled || !second.isActiveAndEnabled ||
-            first.RuntimeData == null || second.RuntimeData == null ||
-            !first.RuntimeData.IsAlive || !second.RuntimeData.IsAlive)
-            return false;
-        Collider2D firstHitbox = first.Hitbox;
-        Collider2D secondHitbox = second.Hitbox;
-        if (firstHitbox == null || secondHitbox == null || !firstHitbox.enabled || !secondHitbox.enabled)
-            return false;
-        SynchronizePhysics();
-        if (!firstHitbox.bounds.Intersects(secondHitbox.bounds))
-            return false;
-        ColliderDistance2D contact = firstHitbox.Distance(secondHitbox);
-        return contact.isValid && contact.distance <= 0f;
-    }
-
+    // Chuyển phe nguồn thành phe mục tiêu trong mô hình Player/Enemy hiện tại.
     public static CharacterTeam OpponentOf(CharacterTeam team)
     {
         if (team == CharacterTeam.Player) return CharacterTeam.Enemy;
@@ -90,144 +22,78 @@ public static class CharacterSearch
         throw new ArgumentOutOfRangeException(nameof(team));
     }
 
-    public static CharacterTarget FindNearest(Vector2 center, float radius,
-        CharacterTeam targetTeam, CharacterView exclude = null)
+    // Cặp đã biết thì kiểm tra trực tiếp hai hộp, không cần tìm lại trong toàn bộ grid.
+    public static bool Overlaps(CharacterView first, CharacterView second)
     {
-        using (var results = FindAll(center, radius, targetTeam, exclude))
-        {
-            CharacterTarget nearest = default;
-            float bestDistance = float.PositiveInfinity;
-            for (int i = 0; i < results.Count; i++)
-            {
-                CharacterTarget candidate = results[i];
-                if (!candidate.TryGetCharacter(out CharacterView view))
-                    continue;
-                float distance = ((Vector2)view.HitPosition - center).sqrMagnitude;
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    nearest = candidate;
-                }
-            }
-            return nearest;
-        }
+        return first != second && new CharacterTarget(first).TryGetCharacter(out _) &&
+            new CharacterTarget(second).TryGetCharacter(out _) &&
+            SpatialGeometry.BoxesOverlap(first.GetSpatialEntity(), second.GetSpatialEntity());
     }
 
-    // Sweep the whole movement segment, including fast bullets and long frames.
-    public static CharacterTarget FindFirstOnPath(Vector2 origin, float radius, Vector2 direction,
+    #endregion
+
+    #region Strategy Dispatch
+
+    // Điểm vào chung cho mọi strategy trả một mục tiêu.
+    public bool TryFind(CharacterSearchType type, CharacterSearchRequest request,
+        out CharacterTarget target, out Vector2 hitPosition)
+        => factory.GetSingle(type).TryFind(request, out target, out hitPosition);
+
+    // Caller giữ buffer qua nhiều lượt; giá trị trả về là số phần tử hợp lệ trong mảng.
+    public int FindAll(CharacterSearchType type, CharacterSearchRequest request, ref CharacterTarget[] results)
+        => factory.GetMultiple(type).FindAll(request, ref results);
+
+    #endregion
+
+    #region Convenience Queries
+
+    // Tìm gần nhất; facade chỉ chuẩn bị dữ liệu và debug, strategy quyết định cách tìm.
+    public CharacterTarget FindNearest(Vector2 center, float radius, CharacterTeam targetTeam, CharacterView exclude = null)
+    {
+        var request = new CharacterSearchRequest(center, center, radius, targetTeam, exclude);
+        TryFind(CharacterSearchType.Nearest, request, out CharacterTarget target, out _);
+        DrawSearchCircle(center, radius);
+        return target;
+    }
+
+    // Ghi mọi mục tiêu vào mảng của caller, không dùng ArrayPool hoặc wrapper kết quả.
+    public int FindAll(Vector2 center, float radius, CharacterTeam targetTeam,
+        ref CharacterTarget[] results, CharacterView exclude = null)
+    {
+        var request = new CharacterSearchRequest(center, center, radius, targetTeam, exclude);
+        int count = FindAll(CharacterSearchType.AllInCircle, request, ref results);
+        DrawSearchCircle(center, radius);
+        return count;
+    }
+
+    // Quét đường bay và trả tâm đạn tại điểm trúng đầu tiên.
+    public CharacterTarget FindFirstOnPath(Vector2 origin, float radius, Vector2 direction,
         float distance, CharacterTeam targetTeam, out Vector2 hitPosition)
     {
-        hitPosition = origin;
-        ContactFilter2D filter = TargetFilter(targetTeam);
-        SynchronizePhysics();
-        RaycastHit2D[] hits = ArrayPool<RaycastHit2D>.Shared.Rent(16);
-        try
-        {
-            int count;
-            while (true)
-            {
-                count = Physics2D.CircleCast(origin, radius, direction, filter, hits, distance);
-                if (count < hits.Length) break;
-                RaycastHit2D[] larger = ArrayPool<RaycastHit2D>.Shared.Rent(checked(hits.Length * 2));
-                ArrayPool<RaycastHit2D>.Shared.Return(hits, clearArray: true);
-                hits = larger;
-            }
-            CharacterTarget nearest = default;
-            float bestDistance = float.PositiveInfinity;
-            for (int i = 0; i < count; i++)
-            {
-                if (hits[i].collider == null ||
-                    !hits[i].collider.TryGetComponent(out CharacterView view) ||
-                    view.RuntimeData == null || view.RuntimeData.Team != targetTeam ||
-                    !new CharacterTarget(view).TryGetCharacter(out _) || hits[i].distance >= bestDistance)
-                    continue;
-                bestDistance = hits[i].distance;
-                nearest = new CharacterTarget(view);
-                hitPosition = hits[i].centroid;
-            }
-            DrawSearchPath(origin, radius, direction, distance,
-                float.IsPositiveInfinity(bestDistance) ? (Vector2?)null : hitPosition);
-            return nearest;
-        }
-        finally { ArrayPool<RaycastHit2D>.Shared.Return(hits, clearArray: true); }
+        if (float.IsNaN(distance) || float.IsInfinity(distance) || distance < 0f)
+            throw new ArgumentOutOfRangeException(nameof(distance));
+        var request = new CharacterSearchRequest(origin, origin + direction.normalized * distance, radius, targetTeam);
+        bool found = TryFind(CharacterSearchType.FirstOnPath, request, out CharacterTarget target, out hitPosition);
+        DrawSearchPath(origin, radius, direction, distance, found ? (Vector2?)hitPosition : null);
+        return target;
     }
 
-    private static ContactFilter2D TargetFilter(CharacterTeam targetTeam)
-    {
-        string layer = targetTeam == CharacterTeam.Player ? GameConstants.PhysicsLayers.Player :
-            targetTeam == CharacterTeam.Enemy ? GameConstants.PhysicsLayers.Enemy :
-            throw new ArgumentOutOfRangeException(nameof(targetTeam));
-        int layerIndex = LayerMask.NameToLayer(layer);
-        if (layerIndex < 0)
-            throw new InvalidOperationException($"Add the {layer} layer in Project Settings.");
-        return new ContactFilter2D { useLayerMask = true, layerMask = 1 << layerIndex, useTriggers = true };
-    }
-
-    public static CharacterSearchResult FindAll(Vector2 center, float radius,
-        CharacterTeam targetTeam, CharacterView exclude = null)
-    {
-        if (!IsFinite(center.x) || !IsFinite(center.y) || !IsFinite(radius) || radius < 0f)
-            throw new ArgumentOutOfRangeException(nameof(radius), "Search geometry must be finite and radius nonnegative.");
-        ContactFilter2D filter = TargetFilter(targetTeam);
-
-        // * Gộp đồng bộ Transform; đạn không có collider nên di chuyển đạn không làm bẩn physics.
-        SynchronizePhysics();
-
-        Collider2D[] hits = ArrayPool<Collider2D>.Shared.Rent(32);
-        CharacterRuntimeData[] identities = null;
-        try
-        {
-            int count;
-            while (true)
-            {
-                count = Physics2D.OverlapCircle(center, radius, filter, hits);
-                if (count < hits.Length) break;
-                // * Đầy buffer chưa chắc đã đủ kết quả; quét lại trước khi có bất kỳ tác động nào.
-                Collider2D[] larger = ArrayPool<Collider2D>.Shared.Rent(checked(hits.Length * 2));
-                ArrayPool<Collider2D>.Shared.Return(hits, clearArray: true);
-                hits = larger;
-            }
-
-            identities = ArrayPool<CharacterRuntimeData>.Shared.Rent(Mathf.Max(1, count));
-            int validCount = 0;
-            for (int i = 0; i < count; i++)
-            {
-                Collider2D hit = hits[i];
-                if (hit == null || !hit.TryGetComponent(out CharacterView view) || view == exclude ||
-                    !view.isActiveAndEnabled || view.RuntimeData == null ||
-                    !view.RuntimeData.IsAlive || view.RuntimeData.Team != targetTeam)
-                    continue;
-                hits[validCount] = hit;
-                // * Chốt danh tính lúc quét để callback damage không đổi kết quả sang cá thể pool mới.
-                identities[validCount++] = view.RuntimeData;
-            }
-            DrawSearchCircle(center, radius);
-            return new CharacterSearchResult(hits, identities, validCount);
-        }
-        catch
-        {
-            ArrayPool<Collider2D>.Shared.Return(hits, clearArray: true);
-            if (identities != null)
-                ArrayPool<CharacterRuntimeData>.Shared.Return(identities, clearArray: true);
-            throw;
-        }
-    }
-
-     private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+    #endregion
 
     #region Search Gizmos
 
-    // Queries run outside OnDrawGizmos, so draw debug lines visible with Scene Gizmos enabled.
-    // Conditional calls (including argument evaluation) are removed from player builds.
-    private const float SearchGizmoDuration = 0.1f;
-    private const int SearchGizmoSegments = 32;
+    // Query chạy ngoài OnDrawGizmos nên dùng Debug.DrawLine; các lời gọi này bị loại khỏi player build.
+    private const float SearchGizmoDuration = 0.1f; // Giữ nét đủ lâu để nhìn thấy giữa hai lượt query.
+    private const int SearchGizmoSegments = 32; // Số đoạn thẳng xấp xỉ một vòng tròn debug.
 
+    // Vẽ phạm vi tìm tròn bằng màu vàng.
     [System.Diagnostics.Conditional("UNITY_EDITOR")]
     public static void DrawSearchCircle(Vector2 center, float radius)
     {
         DrawSearchRing(center, radius, Color.yellow);
     }
 
+    // Vẽ đường quét màu cyan và vùng trúng màu đỏ nếu có kết quả.
     [System.Diagnostics.Conditional("UNITY_EDITOR")]
     public static void DrawSearchPath(Vector2 origin, float radius, Vector2 direction,
         float distance, Vector2? hitPosition = null)
@@ -245,6 +111,7 @@ public static class CharacterSearch
             DrawSearchRing(hitPosition.Value, radius, Color.red);
     }
 
+    // Xấp xỉ vòng tròn bằng các đoạn thẳng, không cấp phát mesh hoặc GameObject debug.
     [System.Diagnostics.Conditional("UNITY_EDITOR")]
     private static void DrawSearchRing(Vector2 center, float radius, Color color)
     {
@@ -259,6 +126,4 @@ public static class CharacterSearch
     }
 
     #endregion
-
-   
 }

@@ -4,12 +4,14 @@ using UnityEngine;
 // Shared combat and innate-skill activation. Derived controllers specialize movement and death.
 public abstract class CharacterControllerBase : ICharacterController
 {
+    public virtual void SetPaused(bool paused) { }
+    public virtual void Dispose() { }
     private CharacterRuntimeData deathHandled;
     public void Tick(CharacterView view, CharacterRuntimeData runtime)
     {
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
 
-        try { view.Skills?.Tick(Time.deltaTime); }
+        try { view.Skills?.Tick(view.Timers.DeltaTime); }
         catch (Exception exception) { Debug.LogException(exception, view); }
 
         // A skill can kill, disable or despawn its owner synchronously.

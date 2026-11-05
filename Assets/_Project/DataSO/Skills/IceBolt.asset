@@ -38,7 +38,7 @@ MonoBehaviour:
         lifetime: 3
         damage: 10
         effects:
-        - {fileID: 11400000, guid: f8c071b259f6c55d37f8dfd9d3ae9387, type: 2}
+        - {rid: 1004}
     - rid: 1002
       type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
       data: {}
@@ -47,3 +47,10 @@ MonoBehaviour:
       data:
         spreadAngle: 0
         startAngle: 0
+    - rid: 1004
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 1
+        slowFraction: 0.3

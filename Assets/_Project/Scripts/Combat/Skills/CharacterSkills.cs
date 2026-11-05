@@ -33,7 +33,7 @@ public sealed class CharacterSkills : IDisposable
                     throw new ArgumentException("Character skills must be non-null and unique.", nameof(definitions));
 
                 ISkill behavior = factory.Create(definition, this);
-                innateSkills.Add(new SkillRuntime(definition, behavior));
+                innateSkills.Add(new SkillRuntime(definition, behavior, Owner.Timers, !Owner.isActiveAndEnabled));
             }
         }
         catch
@@ -57,7 +57,7 @@ public sealed class CharacterSkills : IDisposable
             Vector2 aimDirection = shootingData.DefaultDirection.normalized;
             if (shootingData.RequiresTarget)
             {
-                selectedTarget = CharacterSearch.FindNearest(Owner.HitPosition, targetSearchRadius,
+                selectedTarget = Owner.Search.FindNearest(Owner.HitPosition, targetSearchRadius,
                     CharacterSearch.OpponentOf(Identity.Team), Owner);
                 if (!selectedTarget.TryGetCharacter(out CharacterView targetCharacter)) return false;
                 Vector2 directionToTarget = (Vector2)targetCharacter.HitPosition - spawnPosition;
@@ -65,7 +65,7 @@ public sealed class CharacterSkills : IDisposable
             }
 
             return runtimeSkill.ExecuteSkill(combatSpawner, shootFactory, moveFactory,
-                Identity.Team, spawnPosition, aimDirection, selectedTarget) > 0;
+                Identity.Team, spawnPosition, aimDirection, selectedTarget, Identity.FinalStats.effectHit) > 0;
         });
     }
 
@@ -82,7 +82,7 @@ public sealed class CharacterSkills : IDisposable
             for (int i = 0; i < innateSkills.Count; i++)
             {
                 if (!CanRun) break;
-                try { innateSkills[i].Tick(deltaTime); }
+                try { innateSkills[i].Tick(); }
                 catch (Exception exception) { Debug.LogException(exception, Owner); }
             }
         }
@@ -92,6 +92,12 @@ public sealed class CharacterSkills : IDisposable
             for (int i = innateSkills.Count - 1; i >= 0; i--)
                 if (!innateSkills[i].IsActive) innateSkills.RemoveAt(i);
         }
+    }
+
+    // Timer vẫn được cập nhật tập trung; tắt tạm vỏ chỉ pause các cooldown của đúng cá thể này.
+    internal void SetPaused(bool paused)
+    {
+        foreach (SkillRuntime skill in innateSkills) skill.SetPaused(paused);
     }
 
     public void Dispose()
