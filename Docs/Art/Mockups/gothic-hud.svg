@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" shape-rendering="crispEdges">
+  <defs>
+    <pattern id="gfloor" width="48" height="48" patternUnits="userSpaceOnUse">
+      <rect width="48" height="48" fill="#241226"/>
+      <rect width="24" height="24" fill="#2d1730"/>
+      <rect x="24" y="24" width="24" height="24" fill="#2d1730"/>
+      <path d="M0 47h48M47 0v48" stroke="#180c1a" stroke-width="1"/>
+    </pattern>
+    <pattern id="gbrick" width="40" height="20" patternUnits="userSpaceOnUse">
+      <rect width="40" height="20" fill="#3a1a2a"/>
+      <rect width="20" height="10" fill="#46202f"/>
+      <rect x="20" y="10" width="20" height="10" fill="#46202f"/>
+      <path d="M0 10h40M20 0v20M0 20h40" stroke="#240f1a" stroke-width="2"/>
+    </pattern>
+    <linearGradient id="hpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e04555"/><stop offset="1" stop-color="#7a1420"/>
+    </linearGradient>
+    <linearGradient id="mpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a4ad0"/><stop offset="1" stop-color="#3a1a60"/>
+    </linearGradient>
+    <linearGradient id="xpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d8b468"/><stop offset="1" stop-color="#7a5a2a"/>
+    </linearGradient>
+    <g id="corner">
+      <path d="M0 0h26v6h-20v14h-6z" fill="#4a2440"/>
+      <path d="M6 6h14v8h-8v6h-6z" fill="#5a2f50"/>
+      <path d="M10 10h6v4h-4v2" fill="#8a4a70"/>
+      <circle cx="4" cy="4" r="2" fill="#e04555"/>
+    </g>
+    <g id="bat">
+      <path d="M0 6 q4 -6 8 0 q4 -6 8 0 q-2 5 -5 2 l-3 -2 -3 2 q-3 3 -5 -2z" fill="#120a14"/>
+    </g>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="1280" height="720" fill="url(#gfloor)"/>
+  <g opacity="0.18" transform="translate(0,0)">
+    <use href="#bat" x="60" y="60" transform="scale(2)"/><use href="#bat" x="560" y="40" transform="scale(1.6)"/>
+    <use href="#bat" x="1150" y="70" transform="scale(2.2)"/><use href="#bat" x="980" y="130" transform="scale(1.4)"/>
+  </g>
+
+  <!-- Viền tối + góc trang trí -->
+  <g stroke="#120a14" stroke-width="6" fill="none"><rect x="3" y="3" width="1274" height="714"/></g>
+  <g>
+    <use href="#corner" x="8" y="8"/><use href="#corner" x="1248" y="8" transform="scale(-1,1) translate(-56,0)"/>
+    <use href="#corner" x="8" y="698" transform="scale(1,-1) translate(0,-56)"/>
+    <use href="#corner" x="1248" y="698" transform="scale(-1,-1) translate(-56,-56)"/>
+  </g>
+
+  <!-- ===== BẢNG PLAYER (trên-trái) ===== -->
+  <g transform="translate(28,28)">
+    <rect width="470" height="104" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <!-- khung chân dung -->
+    <rect x="8" y="8" width="88" height="88" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+    <rect x="16" y="16" width="72" height="72" fill="#120a14"/>
+    <!-- chibi mini: mặt + mũ trùm -->
+    <rect x="32" y="28" width="40" height="30" fill="#f0d8c0"/>
+    <rect x="40" y="36" width="8" height="8" fill="#1a0f1e"/>
+    <rect x="56" y="36" width="8" height="8" fill="#1a0f1e"/>
+    <path d="M44 54 q8 6 16 0" stroke="#a03040" stroke-width="3" fill="none"/>
+    <path d="M26 28 l52 0 -6 -14 -40 0z" fill="#3a1a3a"/>
+    <rect x="34" y="52" width="8" height="28" fill="#4a2440"/>
+    <rect x="62" y="52" width="8" height="28" fill="#4a2440"/>
+    <!-- tên + cấp -->
+    <text x="110" y="34" font-family="monospace" font-weight="bold" font-size="16" fill="#f2e4d0">MÁU TỐI · CHIBI</text>
+    <text x="110" y="56" font-family="monospace" font-size="12" fill="#8a7a90">LV 8 · 234/300 EXP</text>
+    <!-- thanh HP (lọ máu) -->
+    <g transform="translate(110,66)">
+      <rect x="-40" y="-14" width="28" height="28" fill="#120a14" stroke="#8a4a70" stroke-width="2"/>
+      <path d="M-32 -8 h16 v-4 l6 0 0 4 h4 l0 12 h-26z" fill="#a02230" stroke="#e04555" stroke-width="1.5"/>
+      <path d="M-26 -4 h8" stroke="#e04555" stroke-width="2"/>
+      <text x="10" y="9" font-family="monospace" font-size="14" fill="#e04555">HP <tspan fill="#f2e4d0">128/150</tspan></text>
+      <rect y="16" width="360" height="10" fill="#120a14"/>
+      <rect y="17" width="300" height="8" fill="url(#hpBar)"/>
+      <g stroke="#f2e4d0" stroke-width="1" opacity="0.8">
+        <line x1="52" y1="17" x2="52" y2="25"/><line x1="92" y1="17" x2="92" y2="25"/>
+        <line x1="132" y1="17" x2="132" y2="25"/><line x1="172" y1="17" x2="172" y2="25"/>
+        <line x1="212" y1="17" x2="212" y2="25"/><line x1="252" y1="17" x2="252" y2="25"/>
+        <line x1="292" y1="17" x2="292" y2="25"/>
+      </g>
+      <!-- thanh MP -->
+      <text x="10" y="48" font-family="monospace" font-size="14" fill="#8a4ad0">MP <tspan fill="#f2e4d0">72/90</tspan></text>
+      <rect x="52" y="36" width="300" height="10" fill="#120a14"/>
+      <rect x="53" y="37" width="226" height="8" fill="url(#mpBar)"/>
+    </g>
+  </g>
+
+  <!-- ===== SÓNG + VÀNG (trên-giữa) ===== -->
+  <g transform="translate(560,28)">
+    <rect width="160" height="40" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <text x="80" y="18" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="14" fill="#e04555">SÓNG 7</text>
+    <circle cx="40" cy="30" r="8" fill="#d8b468" stroke="#7a5a2a" stroke-width="2"/>
+    <circle cx="40" cy="30" r="2.5" fill="#7a5a2a"/>
+    <text x="56" y="34" font-family="monospace" font-size="12" fill="#f2e4d0">1.240</text>
+  </g>
+
+  <!-- ===== BOSS BAR (trên-giữa, thu gọn) ===== -->
+  <g transform="translate(400,84)">
+    <rect width="480" height="34" fill="#180c1a" stroke="#8a4a70" stroke-width="3"/>
+    <text x="240" y="14" text-anchor="middle" font-family="monospace" font-size="12" fill="#e04555">TRÙM MA PHÁP</text>
+    <rect x="8" y="20" width="464" height="9" fill="#120a14"/>
+    <rect x="9" y="21" width="320" height="7" fill="url(#hpBar)"/>
+  </g>
+
+  <!-- ===== MINIMAP (trên-phải) ===== -->
+  <g transform="translate(1076,28)">
+    <rect width="176" height="176" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <use href="#corner" x="10" y="10" transform="scale(0.6)"/>
+    <rect x="14" y="14" width="148" height="148" fill="#170b18"/>
+    <g stroke="#2d1730" stroke-width="1"><path d="M14 64h148M14 114h148M64 14v148M114 14v148"/></g>
+    <g fill="#a02230">
+      <rect x="30" y="30" width="9" height="9"/><rect x="90" y="30" width="9" height="9"/>
+      <rect x="130" y="70" width="9" height="9"/><rect x="30" y="110" width="9" height="9"/>
+      <rect x="130" y="140" width="9" height="9"/><rect x="90" y="140" width="9" height="9"/>
+    </g>
+    <g fill="#d8b468">
+      <rect x="72" y="52" width="6" height="6"/><rect x="110" y="90" width="6" height="6"/>
+      <rect x="40" y="142" width="6" height="6"/>
+    </g>
+    <rect x="82" y="86" width="12" height="12" fill="#f2e4d0" stroke="#120a14" stroke-width="1"/>
+    <polygon points="88,80 95,86 88,92 81,86" fill="#e04555"/>
+  </g>
+
+  <!-- ===== KỸ NĂNG (dưới-trái) ===== -->
+  <g transform="translate(28,600)">
+    <rect width="440" height="92" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <text x="14" y="20" font-family="monospace" font-size="12" fill="#8a7a90">KỸ NĂNG</text>
+    <!-- slot 1: đỏ, cooldown -->
+    <g transform="translate(14,28)">
+      <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+      <rect x="6" y="6" width="44" height="44" fill="#120a14"/>
+      <path d="M20 14 l16 0 0 16 -16 0z" fill="#e04555"/>
+      <path d="M24 10 l8 0 0 8 -8 0z" fill="#a02230"/>
+      <rect y="0" width="56" height="24" fill="#120a14" opacity="0.85"/>
+      <text x="28" y="16" text-anchor="middle" font-family="monospace" font-size="11" fill="#f2e4d0">4s</text>
+      <text x="28" y="72" text-anchor="middle" font-family="monospace" font-size="12" fill="#d8b468">1</text>
+    </g>
+    <!-- slot 2: tím -->
+    <g transform="translate(78,28)">
+      <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+      <rect x="6" y="6" width="44" height="44" fill="#120a14"/>
+      <path d="M16 20 l12 -10 12 10 -6 16 -12 0z" fill="#8a4ad0"/>
+      <path d="M22 18 l4 -4 4 4" stroke="#c8a0e8" stroke-width="2" fill="none"/>
+      <text x="28" y="72" text-anchor="middle" font-family="monospace" font-size="12" fill="#d8b468">2</text>
+    </g>
+    <!-- slot 3: vàng -->
+    <g transform="translate(142,28)">
+      <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+      <rect x="6" y="6" width="44" height="44" fill="#120a14"/>
+      <circle cx="28" cy="28" r="14" fill="#d8b468" stroke="#7a5a2a" stroke-width="2.5"/>
+      <circle cx="28" cy="28" r="4.5" fill="#7a5a2a"/>
+      <text x="28" y="72" text-anchor="middle" font-family="monospace" font-size="12" fill="#d8b468">3</text>
+    </g>
+    <!-- slot 4: xanh thánh -->
+    <g transform="translate(206,28)">
+      <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+      <rect x="6" y="6" width="44" height="44" fill="#120a14"/>
+      <path d="M28 12 l8 22 -8 10 -8 -10z" fill="#4a82c8"/>
+      <path d="M28 12 l8 22 -8 10" stroke="#c4e8ff" stroke-width="2" fill="none"/>
+      <text x="28" y="72" text-anchor="middle" font-family="monospace" font-size="12" fill="#d8b468">4</text>
+    </g>
+    <!-- mạng sống -->
+    <g transform="translate(290,22)">
+      <text x="0" y="16" font-family="monospace" font-size="13" fill="#f2e4d0">♥ ♥ ♥</text>
+      <text x="0" y="44" font-family="monospace" font-size="13" fill="#8a7a90">SÁT THƯƠNG: 999</text>
+      <text x="0" y="64" font-family="monospace" font-size="13" fill="#8a7a90">PHÒNG THỦ: 42</text>
+    </g>
+  </g>
+
+  <!-- ===== JOYSTICK (dưới-phải) ===== -->
+  <g transform="translate(1100,596)">
+    <circle cx="72" cy="72" r="72" fill="#120a14"/>
+    <circle cx="72" cy="72" r="64" fill="#2d1730" stroke="#8a4a70" stroke-width="4"/>
+    <circle cx="72" cy="72" r="52" fill="#180c1a" stroke="#120a14" stroke-width="4"/>
+    <g stroke="#5a2f50" stroke-width="4"><line x1="72" y1="6" x2="72" y2="24"/><line x1="72" y1="120" x2="72" y2="138"/><line x1="6" y1="72" x2="24" y2="72"/><line x1="120" y1="72" x2="138" y2="72"/></g>
+    <circle cx="98" cy="54" r="30" fill="#4a2440" stroke="#c8a0e8" stroke-width="4"/>
+    <circle cx="98" cy="54" r="10" fill="#8a4a70"/>
+  </g>
+
+  <!-- ===== GHÍ CHÚ ===== -->
+  <text x="640" y="710" text-anchor="middle" font-family="monospace" font-size="12" fill="#5a4a60">MOCKUP HUD GOTHIC CHIBI · 1280×720 · (tham khảo bố cục)</text>
+</svg>

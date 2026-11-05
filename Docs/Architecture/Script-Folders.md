@@ -1,54 +1,66 @@
-# Cấu trúc folder script
+# Cấu trúc thư mục script
 
-Mã gameplay nằm trong `Assets/_Project/Scripts` và được nhóm theo hệ thống.
+Mã gameplay nằm trong `Assets/_Project/Scripts`, nhóm theo chức năng. Interface, factory và strategy của cùng hệ thống được đặt gần nhau.
 
 ```text
 Scripts/
 ├── Characters/
-│   ├── CharacterFactory.cs       Tạo và thu hồi nhân vật
-│   ├── CharacterView.cs          Vỏ Unity, nối runtime và controller
-│   ├── CharacterSearch.cs        Truy vấn nhân vật
-│   ├── CharacterTarget.cs        Tham chiếu theo vòng đời spawn
-│   ├── ICharacterController.cs
+│   ├── CharacterFactory.cs, CharacterManager.cs, CharacterView.cs
+│   ├── CharacterSearch/          Search, factory, interface, strategy, request và target
+│   ├── Controllers/              Interface và controller cơ sở dùng chung
 │   ├── Data/                     Template, database, type và team
-│   ├── Stats/                    Chỉ số, HP và modifier của nhân vật
-│   ├── Player/                   Tạo Player và đọc input
-│   └── Enemies/                  AI, spawn, wave và tăng trưởng quái
+│   ├── Stats/                    Chỉ số, HP, giáp và modifier
+│   ├── Player/                   Controller và quản lý Player
+│   └── Enemies/                  Controller, spawn, wave và tăng trưởng quái
 ├── Combat/
-│   ├── Skills/                   Handler, runtime, factory và hợp đồng skill
-│   │   ├── Projectile/           Skill bắn đạn và cấu hình của skill
-│   │   └── Passive/              Skill cộng chỉ số và cấu hình của skill
-│   ├── Shooting/                 Pattern và điều phối một lượt bắn
-│   ├── Projectiles/              Dữ liệu, spawn, bay, hit và VFX đạn
-│   ├── Effects/                  Slow, damage theo thời gian và vòng đời hiệu ứng
-│   └── Damage/                   DamageInfo, DamageResult và IDamageReceiver
+│   ├── CombatAssetsSO.cs         Tài nguyên hình ảnh đạn và prefab VFX
+│   ├── CombatSpawner.cs          Spawn và thu hồi đạn/VFX
+│   ├── ShootingSkill/
+│   │   ├── ShootingSkill.cs      Data và thực thi lượt bắn
+│   │   ├── Shooters.cs           Interface, factory và các kiểu bắn
+│   │   └── Projectiles/          View, manager, factory và kiểu di chuyển đạn
+│   ├── Skills/                   Hợp đồng, runtime, factory, manager và skill nhân vật
+│   │   ├── SkillType/            Đánh thường, hồi máu và tạo giáp
+│   │   └── Passive/              Skill cộng chỉ số
+│   ├── Effects/
+│   │   ├── Gameplay/             Cấu hình, manager, runtime, pool và handler hiệu ứng
+│   │   │   └── Data/             Các ScriptableObject hiệu ứng cũ được giữ lại
+│   │   └── Visuals/              EffectView, IEffectVisual, animation/particle/sprite visual
+│   ├── Loot/                     Vật phẩm rơi và nhặt EXP/vàng; Data/ chứa LootDatabaseSO
+│   └── Damage/                   Dữ liệu và hợp đồng nhận sát thương
+├── Core/
+│   ├── GameConstants.cs
+│   ├── Run/                      RunSessionManager giữ vàng và thời gian của lượt chơi
+│   └── JobSystem/
+│       ├── Movement/             Cập nhật di chuyển bằng job
+│       ├── Timer/                Bộ đếm thời gian, job, handle và interface
+│       └── Spatial/              Hitbox, grid, truy vấn, strategy và job không gian
 ├── Levels/
 │   ├── Configs/                  Công thức level và database
 │   ├── Runtime/                  Tiến trình level trong trận
 │   └── Services/                 API level trận và level vĩnh viễn
-├── Equipment/                    Database và loadout trang bị
+├── Equipment/                    Database và trang bị Player
 ├── Infrastructure/
 │   ├── Zenject/                  Cấu hình dependency của scene
-│   ├── Pooling/                  Tái sử dụng GameObject
-│   ├── Movement/                 Áp dụng lệnh di chuyển
-│   └── Persistence/              Đọc/ghi hồ sơ; Data/ chứa DTO save
+│   ├── Pooling/                  Pool GameObject và pool generic cho class thuần
+│   └── Persistence/              Đọc/ghi hồ sơ; Data/ chứa dữ liệu save
 ├── World/                        Nền theo chunk; Data/ chứa database map
 ├── Camera/                       Camera bám Player
-├── UI/                           Hành vi giao diện
-└── Core/                         Hằng số dùng chung
+└── UI/                           UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI
 ```
 
 ## Cách tìm code
 
-- Tạo nhân vật, input hoặc AI: `Characters`.
-- Skill behaviors and pure cooldown scheduling: Combat/Skills; character dependency wiring: Integration/CharacterSkills.
-- Số lượng và hướng các viên đạn trong một lượt bắn: `Combat/Shooting`.
-- Đạn bay, trúng mục tiêu hoặc hết thời gian: `Combat/Projectiles`.
-- Áp dụng và hết hạn slow, cháy, độc: `Combat/Effects`.
-- Dữ liệu truyền sát thương: `Combat/Damage`.
-- Chỉ số, HP/giáp hiện tại và tính damage đầu ra: `Characters/Stats/CharacterRuntimeData.cs`.
-- Gây/nhận damage, thay đổi HP và quyết định chết: `Characters/CharacterControllerBase.cs`; Player/Enemy controller kế thừa.
-- Level/EXP trong trận: `Levels/Services/RunLevelService.cs`; runtime nhân vật chỉ nhận tổng bonus.
-- Đánh chạm của Enemy hiện vẫn nằm trong `Characters/Enemies/EnemyController.cs`.
+- Tìm nhân vật: `Characters/CharacterSearch`. `CharacterSearch` chọn strategy qua `ICharacterSearchFactory`; strategy truy cập Spatial qua interface.
+- Ẩn/hiện enemy theo camera: `Characters/Enemies/EnemyVisualManager.cs`. Enemy bắt đầu ẩn visual; trước khi MainCamera render, manager kiểm tra bounds sprite và chỉ bật visual con khi giao khung hình. AI, movement, hitbox và gameplay effect vẫn hoạt động ngoài camera. Bounds được tính từ local bounds và Transform để vẫn theo đúng vị trí khi visual đang tắt. Animation được reset khi visual hiện lại. Player không bị áp dụng quy tắc này.
+- Kiểm tra hình học và chạy job tìm kiếm: `Core/JobSystem/Spatial`.
+- Data và thực thi bắn, kiểu bắn, vòng đời đạn: `Combat/ShootingSkill`.
+- Quản lý skill và cooldown: `Combat/Skills`; phép tính thời gian dùng chung nằm trong `Core/JobSystem/Timer`.
+- Slow, cháy, độc và vòng đời hiệu ứng: `Combat/Effects/Gameplay`.
+- Hiển thị VFX: `Combat/Effects/Visuals`; tài nguyên prefab vẫn nằm trong `CombatAssetsSO`.
+- HP/giáp dưới chân: `UI/Character/CharacterUI.cs` nằm trên vỏ nhân vật, điều khiển Canvas World Space con từ `Prefabs/UI/CharacterVitals.prefab` cho Player/boss. Vị trí/scale chỉnh tay trên prefab. Prefab asset DynamicUI đã xóa; nhóm DynamicUI độc lập trong scene và UIManager vẫn được giữ để hiển thị EXP/vàng/thời gian/level.
+- Áp dụng sát thương và quyết định chết: `Characters/Controllers/CharacterControllerBase.cs`.
+- HP/giáp và chỉ số runtime: `Characters/Stats/CharacterRuntimeData.cs`.
+- Level/EXP trong trận: `Levels/Services/RunLevelService.cs`.
 
-Đợt sắp xếp này chỉ di chuyển file và giữ nguyên `.meta`, không đổi class, namespace hoặc hành vi gameplay. Các tài liệu review/blueprint cũ có thể dùng đường dẫn trước khi sắp xếp; dùng cấu trúc này để tra vị trí hiện tại.
+Di chuyển script luôn kèm `.meta` để giữ GUID và tham chiếu Unity. Đợt sắp xếp này không đổi class, namespace hoặc hành vi gameplay. Các đoạn diff trong tài liệu review cũ giữ nguyên đường dẫn lịch sử; liên kết nguồn được cập nhật theo vị trí hiện tại.

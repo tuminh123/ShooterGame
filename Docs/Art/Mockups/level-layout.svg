@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" shape-rendering="crispEdges">
+  <defs>
+    <pattern id="ground" width="32" height="32" patternUnits="userSpaceOnUse">
+      <rect width="32" height="32" fill="#4a3c30"/>
+      <rect width="16" height="16" fill="#524436"/>
+      <rect x="16" y="16" width="16" height="16" fill="#524436"/>
+    </pattern>
+    <pattern id="stone" width="40" height="20" patternUnits="userSpaceOnUse">
+      <rect width="40" height="20" fill="#6b5a48"/>
+      <rect width="20" height="10" fill="#7a6854"/>
+      <rect x="20" y="10" width="20" height="10" fill="#7a6854"/>
+      <path d="M0 10h40M20 0v20M0 20h40" stroke="#4a3c30" stroke-width="2"/>
+    </pattern>
+    <pattern id="water" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="#2a4a6a"/>
+      <rect width="12" height="12" fill="#33587e"/>
+      <rect x="12" y="12" width="12" height="12" fill="#33587e"/>
+      <rect x="2" y="4" width="6" height="2" fill="#5a8ab8"/>
+      <rect x="14" y="16" width="6" height="2" fill="#5a8ab8"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="720" fill="#241a14"/>
+
+  <!-- ===== MAP ARENA ===== -->
+  <g transform="translate(40,40)">
+    <!-- đất -->
+    <rect width="880" height="640" fill="url(#ground)" stroke="#1a120e" stroke-width="6"/>
+    <!-- tường ngoài -->
+    <g fill="url(#stone)">
+      <rect x="0" y="0" width="880" height="28"/>
+      <rect x="0" y="612" width="880" height="28"/>
+      <rect x="0" y="28" width="28" height="584"/>
+      <rect x="852" y="28" width="28" height="584"/>
+    </g>
+
+    <!-- chướng ngại vật: tường trong -->
+    <g fill="url(#stone)" stroke="#1a120e" stroke-width="2">
+      <rect x="180" y="120" width="120" height="24"/>
+      <rect x="380" y="120" width="120" height="24"/>
+      <rect x="580" y="120" width="120" height="24"/>
+      <rect x="180" y="300" width="40" height="160"/>
+      <rect x="660" y="300" width="40" height="160"/>
+      <rect x="360" y="420" width="160" height="24"/>
+      <rect x="420" y="300" width="40" height="120"/>
+      <rect x="120" y="480" width="160" height="24"/>
+      <rect x="600" y="480" width="160" height="24"/>
+    </g>
+
+    <!-- hố dung nham / nguy hiểm -->
+    <g>
+      <rect x="300" y="200" width="120" height="48" fill="#7a1f1f" stroke="#c0392b" stroke-width="3"/>
+      <rect x="314" y="214" width="92" height="20" fill="#e04535"/>
+      <rect x="320" y="218" width="12" height="8" fill="#f4a020"/>
+      <rect x="348" y="210" width="8" height="8" fill="#f4a020"/>
+      <rect x="372" y="222" width="8" height="8" fill="#f4a020"/>
+      <rect x="430" y="520" width="160" height="40" fill="#7a1f1f" stroke="#c0392b" stroke-width="3"/>
+      <rect x="444" y="534" width="132" height="12" fill="#e04535"/>
+      <rect x="452" y="538" width="10" height="6" fill="#f4a020"/>
+    </g>
+
+    <!-- hồ nước -->
+    <g>
+      <rect x="300" y="320" width="160" height="80" fill="url(#water)" stroke="#1a2a3a" stroke-width="3"/>
+    </g>
+
+    <!-- crate hủy được -->
+    <g stroke="#1a120e" stroke-width="2">
+      <rect x="220" y="240" width="36" height="36" fill="#a4783a"/>
+      <rect x="224" y="244" width="28" height="28" fill="#b88848"/>
+      <path d="M224 244 L252 272 M252 244 L224 272" stroke="#6a4a24" stroke-width="3"/>
+      <rect x="600" y="380" width="36" height="36" fill="#a4783a"/>
+      <rect x="604" y="384" width="28" height="28" fill="#b88848"/>
+      <path d="M604 384 L632 412 M632 384 L604 412" stroke="#6a4a24" stroke-width="3"/>
+      <rect x="480" y="200" width="36" height="36" fill="#a4783a"/>
+      <rect x="484" y="204" width="28" height="28" fill="#b88848"/>
+      <path d="M484 204 L512 232 M512 204 L484 232" stroke="#6a4a24" stroke-width="3"/>
+    </g>
+
+    <!-- Player start -->
+    <g transform="translate(420,560)">
+      <rect x="-16" y="-16" width="32" height="32" fill="#1a120e" opacity="0.55"/>
+      <polygon points="0,-14 10,8 0,3 -10,8" fill="#f4f0e8" stroke="#e04535" stroke-width="2"/>
+      <text x="0" y="44" text-anchor="middle" font-family="monospace" font-size="13" fill="#f4f0e8">SPAWN</text>
+    </g>
+
+    <!-- Enemy spawners -->
+    <g stroke="#1a120e" stroke-width="2">
+      <g transform="translate(120,80)">
+        <circle r="14" fill="#c0392b"/><circle r="7" fill="#e04535"/><circle r="3" fill="#f4f0e8"/>
+        <text y="32" text-anchor="middle" font-family="monospace" font-size="12" fill="#c0392b">Q1</text>
+      </g>
+      <g transform="translate(760,80)">
+        <circle r="14" fill="#c0392b"/><circle r="7" fill="#e04535"/><circle r="3" fill="#f4f0e8"/>
+        <text y="32" text-anchor="middle" font-family="monospace" font-size="12" fill="#c0392b">Q2</text>
+      </g>
+      <g transform="translate(120,560)">
+        <circle r="14" fill="#c0392b"/><circle r="7" fill="#e04535"/><circle r="3" fill="#f4f0e8"/>
+        <text y="32" text-anchor="middle" font-family="monospace" font-size="12" fill="#c0392b">Q4</text>
+      </g>
+      <g transform="translate(760,560)">
+        <circle r="14" fill="#c0392b"/><circle r="7" fill="#e04535"/><circle r="3" fill="#f4f0e8"/>
+        <text y="32" text-anchor="middle" font-family="monospace" font-size="12" fill="#c0392b">Q5</text>
+      </g>
+    </g>
+    <!-- spawn giữa map (bùng nổ sóng) -->
+    <g transform="translate(440,120)">
+      <rect x="-18" y="-18" width="36" height="36" fill="#241a14" stroke="#e04535" stroke-width="3"/>
+      <rect x="-10" y="-10" width="20" height="20" fill="#c0392b"/>
+      <text y="48" text-anchor="middle" font-family="monospace" font-size="12" fill="#e04535">Q3 (BỤNG NỔ)</text>
+    </g>
+
+    <!-- Pickups -->
+    <g>
+      <g transform="translate(90,200)">
+        <circle r="12" fill="#d6a84a" stroke="#8a6a2a" stroke-width="2"/>
+        <circle r="4" fill="#8a6a2a"/>
+        <text y="30" text-anchor="middle" font-family="monospace" font-size="11" fill="#d6a84a">Vàng (30)</text>
+      </g>
+      <g transform="translate(790,260)">
+        <rect x="-10" y="-14" width="20" height="28" fill="#4a82c8" stroke="#2a4a6a" stroke-width="2"/>
+        <rect x="-6" y="-10" width="12" height="20" fill="#c4e8ff"/>
+        <polygon points="-6,-6 -2,-6 -2,-2 -6,-2" fill="#f4f0e8"/>
+        <text y="34" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a82c8">EXP (50)</text>
+      </g>
+      <g transform="translate(90,420)">
+        <rect x="-10" y="-14" width="20" height="28" fill="#c0392b" stroke="#7a1f1f" stroke-width="2"/>
+        <rect x="-6" y="-10" width="12" height="20" fill="#e04535"/>
+        <rect x="-3" y="-6" width="6" height="12" fill="#f4f0e8"/>
+        <text y="34" text-anchor="middle" font-family="monospace" font-size="11" fill="#c0392b">HP (máy)</text>
+      </g>
+      <g transform="translate(790,420)">
+        <rect x="-8" y="-12" width="16" height="24" fill="#a4783a" stroke="#6a4a24" stroke-width="2"/>
+        <rect x="-4" y="-8" width="8" height="16" fill="#b88848"/>
+        <polygon points="0,-16 6,-4 0,-8 -6,-4" fill="#d6a84a" stroke="#8a6a2a" stroke-width="1.5"/>
+        <text y="34" text-anchor="middle" font-family="monospace" font-size="11" fill="#a4783a">Chìa khóa</text>
+      </g>
+    </g>
+
+    <!-- cổng thoát -->
+    <g transform="translate(440,300)">
+      <rect x="-36" y="-12" width="72" height="24" fill="#241a14" stroke="#8a6a2a" stroke-width="3"/>
+      <rect x="-28" y="-6" width="56" height="12" fill="#d6a84a"/>
+      <text x="0" y="-26" text-anchor="middle" font-family="monospace" font-size="12" fill="#d6a84a">CỔNG THOÁT</text>
+    </g>
+
+    <!-- lưới tọa độ (gợi ý chunk) -->
+    <g stroke="#1a120e" stroke-width="1" opacity="0.5">
+      <path d="M0 440h880M0 220h880M440 0v640M220 0v640M660 0v640"/>
+    </g>
+  </g>
+
+  <!-- ===== CHÚ GIẢI ===== -->
+  <g transform="translate(960,40)">
+    <rect width="280" height="640" fill="#3d3029" stroke="#1a120e" stroke-width="4"/>
+    <text x="140" y="34" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="16" fill="#e8dcc8">CHÚ GIẢI</text>
+    <g font-family="monospace" font-size="13">
+      <!-- hàng 1 -->
+      <rect x="20" y="56" width="40" height="22" fill="url(#stone)" stroke="#1a120e" stroke-width="2"/>
+      <text x="78" y="72" fill="#e8dcc8">Tường đá</text>
+      <!-- hàng 2 -->
+      <rect x="20" y="96" width="40" height="22" fill="#7a1f1f" stroke="#c0392b" stroke-width="2"/>
+      <text x="78" y="112" fill="#e8dcc8">Hố dung nham</text>
+      <!-- hàng 3 -->
+      <rect x="20" y="136" width="40" height="22" fill="url(#water)" stroke="#1a2a3a" stroke-width="2"/>
+      <text x="78" y="152" fill="#e8dcc8">Hồ nước</text>
+      <!-- hàng 4 -->
+      <rect x="20" y="176" width="40" height="22" fill="#a4783a" stroke="#1a120e" stroke-width="2"/>
+      <text x="78" y="192" fill="#e8dcc8">Thùng hủy được</text>
+      <!-- hàng 5 -->
+      <g transform="translate(40,230)">
+        <polygon points="0,-12 8,7 0,2 -8,7" fill="#f4f0e8" stroke="#e04535" stroke-width="2"/>
+      </g>
+      <text x="78" y="244" fill="#e8dcc8">Điểm spawn người chơi</text>
+      <!-- hàng 6 -->
+      <g transform="translate(40,286)">
+        <circle r="12" fill="#c0392b"/><circle r="6" fill="#e04535"/>
+      </g>
+      <text x="78" y="300" fill="#e8dcc8">Spawn quái (Q1-Q5)</text>
+      <!-- hàng 7 -->
+      <g transform="translate(40,342)">
+        <circle r="12" fill="#d6a84a" stroke="#8a6a2a" stroke-width="2"/>
+        <circle r="4" fill="#8a6a2a"/>
+      </g>
+      <text x="78" y="356" fill="#e8dcc8">Vật phẩm (vàng/EXP/HP)</text>
+      <!-- hàng 8 -->
+      <g transform="translate(40,398)">
+        <rect x="-8" y="-12" width="16" height="24" fill="#a4783a" stroke="#6a4a24" stroke-width="2"/>
+        <rect x="-4" y="-8" width="8" height="16" fill="#b88848"/>
+        <polygon points="0,-16 6,-4 0,-8 -6,-4" fill="#d6a84a" stroke="#8a6a2a" stroke-width="1.5"/>
+      </g>
+      <text x="78" y="412" fill="#e8dcc8">Chìa khóa cổng</text>
+      <!-- hàng 9 -->
+      <g transform="translate(40,458)">
+        <rect x="-32" y="-8" width="64" height="16" fill="#241a14" stroke="#8a6a2a" stroke-width="2"/>
+        <rect x="-26" y="-4" width="52" height="8" fill="#d6a84a"/>
+      </g>
+      <text x="78" y="472" fill="#e8dcc8">Cổng thoát (mở bằng chìa khóa)</text>
+      <!-- hàng 10 -->
+      <g transform="translate(40,518)">
+        <rect x="-18" y="-18" width="36" height="36" fill="#241a14" stroke="#e04535" stroke-width="3"/>
+        <rect x="-10" y="-10" width="20" height="20" fill="#c0392b"/>
+      </g>
+      <text x="78" y="532" fill="#e8dcc8">Spawn bùng nổ (wave mid)</text>
+      <!-- hàng 11 -->
+      <g transform="translate(40,578)">
+        <clipPath id="c1"><rect x="-20" y="-12" width="40" height="24"/></clipPath>
+        <circle r="12" fill="#c0392b" clip-path="url(#c1)"/>
+      </g>
+      <text x="78" y="592" fill="#e8dcc8">Đường quái di chuyển</text>
+      <line x1="140" y1="578" x2="188" y2="578" stroke="#c0392b" stroke-width="2" stroke-dasharray="6 4"/>
+    </g>
+    <text x="140" y="628" text-anchor="middle" font-family="monospace" font-size="12" fill="#b8a888">TỶ LỆ: 1 ô ≈ 1 chunk (110px)</text>
+  </g>
+</svg>

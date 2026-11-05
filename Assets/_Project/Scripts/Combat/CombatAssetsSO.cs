@@ -20,10 +20,11 @@ public sealed class CombatAssetsSO : ScriptableObject
     }
 
     [Serializable]
-    private struct EffectEntry
+    public struct EffectEntry
     {
-        public EffectType type;
-        public EffectView prefab;
+        public EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
+        public EffectView prefab; // Vỏ quản lý tuổi thọ; có thể dùng chung cho nhiều entry.
+        public GameObject visualPrefab; // Prefab con có component IEffectVisual trên gốc.
     }
 
     [SerializeField] private ProjectileView bulletPrefab;
@@ -39,11 +40,11 @@ public sealed class CombatAssetsSO : ScriptableObject
         throw new InvalidOperationException($"Missing bullet visual: {type} in {name}.");
     }
 
-    public EffectView GetEffect(EffectType type)
+    public EffectEntry GetEffect(EffectType type)
     {
-        if (type == EffectType.None) return null;
+        if (type == EffectType.None) return default;
         foreach (EffectEntry effect in effects)
-            if (effect.type == type) return effect.prefab;
+            if (effect.type == type) return effect;
         throw new InvalidOperationException($"Missing effect prefab: {type} in {name}.");
     }
 
@@ -53,7 +54,8 @@ public sealed class CombatAssetsSO : ScriptableObject
             throw new InvalidOperationException($"Assign combat resources: {name}.");
         var effectTypes = new HashSet<EffectType>();
         foreach (EffectEntry effect in effects)
-            if (effect.type == EffectType.None || effect.prefab == null || !effectTypes.Add(effect.type))
+            if (effect.type == EffectType.None || effect.prefab == null || effect.visualPrefab == null ||
+                effect.visualPrefab.GetComponent<IEffectVisual>() == null || !effectTypes.Add(effect.type))
                 throw new InvalidOperationException($"Missing or duplicate effect in {name}.");
         var bulletTypes = new HashSet<BulletType>();
         foreach (BulletVisual bullet in bullets)

@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: Foraging Maggot
   characterType: 2
   team: 1
+  isBoss: 0
   visualPrefab: {fileID: 5431945204154776163, guid: 3d96b928b36232346bba972e0c334e49, type: 3}
   hitbox:
     Size: {x: 0.16, y: 0.09201882}

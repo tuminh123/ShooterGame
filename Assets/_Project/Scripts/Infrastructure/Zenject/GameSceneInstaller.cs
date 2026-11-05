@@ -27,6 +27,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private CharacterDatabaseSO characterDatabase;  // * Danh mục template nhân vật, dùng để dựng dictionary theo ID.
     [SerializeField] private LevelDatabaseSO levelDatabase;          // * Config vĩnh viễn theo nhân vật và config trận dùng chung.
     [SerializeField] private EquipmentDatabaseSO equipmentDatabase;  // * Tra bonus từ ID trang bị đã lưu.
+    [SerializeField] private LootDatabaseSO lootDatabase; // Catalog EXP/vàng: prefab, sprite, lượng, tỉ lệ và kích thước.
 
     #endregion
 
@@ -43,13 +44,17 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Character Database and Level Database in GameSceneInstaller.");
         if (equipmentDatabase == null)
             throw new InvalidOperationException("Assign Equipment Database in GameSceneInstaller.");
+        if (lootDatabase == null)
+            throw new InvalidOperationException("Assign Loot Database in GameSceneInstaller.");
         SignalBusInstaller.Install(Container);
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInterfacesAndSelfTo<SaveManager>().AsSingle().NonLazy();
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();
         Container.Bind<LevelDatabaseSO>().FromInstance(levelDatabase).AsSingle();
         Container.Bind<EquipmentDatabaseSO>().FromInstance(equipmentDatabase).AsSingle();
+        Container.Bind<LootDatabaseSO>().FromInstance(lootDatabase).AsSingle();
         Container.BindInterfacesAndSelfTo<CharacterManager>().AsSingle();
+        Container.BindInterfacesAndSelfTo<EnemyVisualManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PlayerEquipmentService>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<CharacterLevelService>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<RunLevelService>().AsSingle().NonLazy();
@@ -58,6 +63,13 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new PlayerManager.Settings(defaultPlayerType, damageFlashDuration, damageFlashColor));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
+        Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Dùng UIManager trên nhóm DynamicUI có sẵn trong scene.
+        Container.BindInterfacesAndSelfTo<RunSessionManager>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<RunSessionManager>(-50); // Sau khi Player được tạo, trước hệ thống nhặt đồ.
+        Container.BindDisposableExecutionOrder<RunSessionManager>(205); // Sau LootManager, trước khi dọn Player/timer.
+        Container.BindInterfacesAndSelfTo<LootManager>().AsSingle().NonLazy();
+        Container.BindLateTickableExecutionOrder<LootManager>(100); // Nhặt bằng vị trí Player sau bước MovementManager.
+        Container.BindDisposableExecutionOrder<LootManager>(210); // Dọn vật phẩm trước khi PoolManager kết thúc.
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
         Container.BindInstance(combatAssets);
         Container.Bind<ITimeSource>().To<GameplayTimeSource>().AsSingle();
@@ -87,6 +99,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInitializableExecutionOrder<SaveManager>(-200);
         // * Thu hồi nhân vật theo thứ tự visual → vỏ trước khi pool tổng quát và buffer Jobs được giải phóng.
         Container.BindDisposableExecutionOrder<CharacterFactory>(200);
+        Container.BindDisposableExecutionOrder<EnemyVisualManager>(225); // Gỡ callback camera trước khi thu hồi nhân vật.
         Container.BindDisposableExecutionOrder<CharacterManager>(125);
         Container.BindDisposableExecutionOrder<PoolManager>(100);
         Container.BindDisposableExecutionOrder<PlayerManager>(50);

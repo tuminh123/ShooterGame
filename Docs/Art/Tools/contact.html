@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Sprite Contact Sheet</title>
+<style>
+  body { background: #1a1a22; font-family: monospace; color: #ddd; margin: 0; padding: 20px; }
+  h1 { font-size: 16px; letter-spacing: 2px; }
+  .sheet { display: flex; gap: 40px; flex-wrap: wrap; }
+  .sprite { text-align: center; }
+  .checker {
+    display: inline-block;
+    background: repeating-conic-gradient(#3a3a44 0% 25%, #2a2a32 0% 50%);
+    background-size: 16px 16px;
+    padding: 12px;
+    border: 2px solid #555;
+  }
+  img { image-rendering: pixelated; width: 192px; height: 192px; display: block; }
+  .cap { margin-top: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>SPRITE CONTACT SHEET — 24x24 base, 4x nearest-neighbor, transparent bg</h1>
+<div class="sheet">
+  <div class="sprite">
+    <div class="checker"><img src="../../../Assets/_Project/Graphic/Pickups/HealthPotion.png" alt="Health Potion"></div>
+    <div class="cap">HealthPotion.png</div>
+  </div>
+  <div class="sprite">
+    <div class="checker"><img src="../../../Assets/_Project/Graphic/Pickups/HolyWaterVial.png" alt="Holy Water Vial"></div>
+    <div class="cap">HolyWaterVial.png</div>
+  </div>
+  <div class="sprite">
+    <div class="checker"><img src="../../../Assets/_Project/Graphic/Pickups/DungeonKey.png" alt="Dungeon Key"></div>
+    <div class="cap">DungeonKey.png</div>
+  </div>
+</div>
+</body>
+</html>

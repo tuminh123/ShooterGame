@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a0f1e"/>
+      <stop offset="0.55" stop-color="#241226"/>
+      <stop offset="1" stop-color="#2d1730"/>
+    </linearGradient>
+    <pattern id="floor" width="40" height="20" patternUnits="userSpaceOnUse">
+      <rect width="40" height="20" fill="#241226"/>
+      <rect width="20" height="10" fill="#2d1730"/>
+      <rect x="20" y="10" width="20" height="10" fill="#2d1730"/>
+      <path d="M0 10h40M20 0v20M0 20h40" stroke="#180c1a" stroke-width="2"/>
+    </pattern>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0d898"/><stop offset="0.5" stop-color="#d8b468"/><stop offset="1" stop-color="#a4783a"/>
+    </linearGradient>
+    <g id="bat">
+      <path d="M0 6 q4 -6 8 0 q4 -6 8 0 q-2 5 -5 2 l-3 -2 -3 2 q-3 3 -5 -2z" fill="#0e0710"/>
+    </g>
+    <g id="candle">
+      <rect x="-4" y="-30" width="8" height="30" fill="#c8b898"/>
+      <rect x="-3" y="-28" width="6" height="18" fill="#e8dcc8"/>
+      <rect x="-6" y="-2" width="12" height="6" fill="#4a2440"/>
+      <rect x="-7" y="-36" width="14" height="8" fill="#a4783a" stroke="#7a5a2a" stroke-width="2"/>
+      <path d="M0 -34 q3 -5 0 -10 q-3 5 0 10z" fill="#e04555"/>
+      <path d="M0 -34 q2 -3 0 -7" stroke="#f0d898" stroke-width="2" fill="none">
+        <animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite"/>
+      </path>
+    </g>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <rect y="500" width="1280" height="220" fill="url(#floor)"/>
+  <rect y="500" width="1280" height="8" fill="#120a14"/>
+
+  <!-- Dơi bay -->
+  <g opacity="0.9">
+    <use href="#bat" x="110" y="120" transform="scale(2.4)"/>
+    <use href="#bat" x="1030" y="96" transform="scale(2.8)"/>
+    <use href="#bat" x="900" y="200" transform="scale(1.6)"/>
+    <use href="#bat" x="300" y="240" transform="scale(1.5)"/>
+    <use href="#bat" x="520" y="150" transform="scale(1.8)"/>
+  </g>
+
+  <!-- Nến hai bên dưới -->
+  <use href="#candle" x="90" y="560"/>
+  <use href="#candle" x="1190" y="560"/>
+  <use href="#candle" x="150" y="610" transform="scale(1.3)"/>
+  <use href="#candle" x="1130" y="610" transform="scale(1.3)"/>
+
+  <!-- Khung viền -->
+  <g stroke="#7a5a2a" stroke-width="4" fill="none"><rect x="24" y="24" width="1232" height="672"/></g>
+  <g stroke="#4a2440" stroke-width="4" fill="none"><rect x="40" y="40" width="1200" height="640"/></g>
+
+  <!-- Tiêu đề -->
+  <g transform="translate(640,190)">
+    <rect x="-380" y="-72" width="760" height="144" fill="#120a14" opacity="0.9" stroke="#8a4a70" stroke-width="4"/>
+    <rect x="-368" y="-60" width="736" height="120" fill="#180c1a" stroke="#4a2440" stroke-width="3"/>
+    <text y="-8" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="60" fill="#a4783a">SHOOTER GAME</text>
+    <text x="2" y="-6" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="60" fill="url(#gold)">SHOOTER GAME</text>
+    <text y="34" text-anchor="middle" font-family="monospace" font-size="19" fill="#c8a0e8">Roguelike Gothic · Chibi · Pixel</text>
+    <rect x="-120" y="50" width="240" height="4" fill="#a02230"/>
+    <path d="M-220 -44 l18 0 0 18 -18 0z" fill="#a02230"/><path d="M220 -44 l-18 0 0 18 18 0z" fill="#a02230"/>
+    <path d="M-220 40 l18 0 0 -18 -18 0z" fill="#a02230"/><path d="M220 40 l-18 0 0 -18 18 0z" fill="#a02230"/>
+  </g>
+
+  <!-- Nút bấm -->
+  <g transform="translate(640,432)" font-family="monospace">
+    <g>
+      <rect x="-150" y="-28" width="300" height="56" fill="#120a14" stroke="#8a4a70" stroke-width="4"/>
+      <rect x="-140" y="-18" width="280" height="36" fill="#2d1730"/>
+      <rect x="-132" y="-12" width="264" height="24" fill="#3d1f38"/>
+      <text y="4" text-anchor="middle" font-weight="bold" font-size="21" fill="#f0d898">▶ BẮT ĐẦU</text>
+    </g>
+    <g transform="translate(0,70)">
+      <rect x="-150" y="-28" width="300" height="56" fill="#120a14" stroke="#5a2f50" stroke-width="4"/>
+      <rect x="-140" y="-18" width="280" height="36" fill="#2d1730"/>
+      <rect x="-132" y="-12" width="264" height="24" fill="#3a1a3a"/>
+      <text y="4" text-anchor="middle" font-weight="bold" font-size="21" fill="#e8dcc8">TÙY CHỌN</text>
+    </g>
+    <g transform="translate(0,140)">
+      <rect x="-150" y="-28" width="300" height="56" fill="#120a14" stroke="#5a2f50" stroke-width="4"/>
+      <rect x="-140" y="-18" width="280" height="36" fill="#2d1730"/>
+      <rect x="-132" y="-12" width="264" height="24" fill="#3a1a3a"/>
+      <text y="4" text-anchor="middle" font-weight="bold" font-size="21" fill="#e8dcc8">HƯỚNG DẪN</text>
+    </g>
+    <g transform="translate(0,210)">
+      <rect x="-150" y="-28" width="300" height="56" fill="#120a14" stroke="#5a2f50" stroke-width="4"/>
+      <rect x="-140" y="-18" width="280" height="36" fill="#2d1730"/>
+      <rect x="-132" y="-12" width="264" height="24" fill="#3a1a3a"/>
+      <text y="4" text-anchor="middle" font-weight="bold" font-size="21" fill="#e8dcc8">THOÁT</text>
+    </g>
+  </g>
+
+  <!-- Linh vật chibi (trái) -->
+  <g transform="translate(200,560)">
+    <!-- bóng -->
+    <ellipse cx="0" cy="64" rx="48" ry="10" fill="#120a14"/>
+    <!-- thân áo choàng -->
+    <path d="M-28 52 l10 -34 36 0 10 34 -16 10 -24 0z" fill="#3a1a3a"/>
+    <path d="M-24 46 h48" stroke="#5a2f50" stroke-width="2"/>
+    <!-- đầu -->
+    <circle cx="0" cy="18" r="20" fill="#f0d8c0"/>
+    <!-- mũ trùm -->
+    <path d="M-22 8 q20 -30 44 0 l-8 -16 -28 0z" fill="#4a2440"/>
+    <rect x="-20" y="-8" width="40" height="12" fill="#2d1730"/>
+    <!-- mắt -->
+    <circle cx="-8" cy="16" r="3.6" fill="#180c1a"/>
+    <circle cx="8" cy="16" r="3.6" fill="#180c1a"/>
+    <circle cx="-6.6" cy="14.6" r="1.4" fill="#f2e4d0"/>
+    <circle cx="9.4" cy="14.6" r="1.4" fill="#f2e4d0"/>
+    <!-- miệng -->
+    <path d="M-4 26 q4 4 8 0" stroke="#a03040" stroke-width="2.4" fill="none"/>
+    <!-- má hồng -->
+    <circle cx="-14" cy="22" r="3" fill="#e8a0a8" opacity="0.6"/>
+    <circle cx="14" cy="22" r="3" fill="#e8a0a8" opacity="0.6"/>
+    <!-- rìu nhỏ -->
+    <g transform="translate(40,20) rotate(18)">
+      <rect x="-3" y="0" width="6" height="44" fill="#7a5a2a"/>
+      <rect x="-2" y="2" width="4" height="42" fill="#a4783a"/>
+      <path d="M-8 -6 l14 -16 14 16 -8 8 -12 0z" fill="#8a7a90"/>
+      <path d="M0 -4 l8 -8 8 8" stroke="#c8c0b0" stroke-width="2" fill="none"/>
+    </g>
+    <text x="0" y="88" text-anchor="middle" font-family="monospace" font-size="13" fill="#c8a0e8">BẠN ĐỒNG HÀNH</text>
+  </g>
+
+  <!-- "Nhấn phím bất kỳ" -->
+  <g transform="translate(640,330)">
+    <text text-anchor="middle" font-family="monospace" font-weight="bold" font-size="16" fill="#e04555">
+      <animate attributeName="opacity" values="1;0.15;1" dur="1.3s" repeatCount="indefinite"/>
+      — NHẤN PHÍM BẤT KỲ —
+    </text>
+  </g>
+
+  <text x="640" y="698" text-anchor="middle" font-family="monospace" font-size="12" fill="#6a5a70">v0.1.0 · Unity 2022.3.62f3 · © 2026 ShooterGame</text>
+</svg>

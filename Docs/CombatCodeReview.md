@@ -12,7 +12,7 @@ Các diff dưới đây so với Git HEAD; một số file cũng chứa thay đ�
 
 ### CharacterSearch.cs
 
-Nguồn: [Assets/_Project/Scripts/Characters/CharacterSearch.cs](../Assets/_Project/Scripts/Characters/CharacterSearch.cs)
+Nguồn: [Assets/_Project/Scripts/Characters/CharacterSearch/CharacterSearch.cs](../Assets/_Project/Scripts/Characters/CharacterSearch/CharacterSearch.cs)
 
 ```csharp
 using System;
@@ -172,7 +172,7 @@ public static class CharacterSearch
 
 ### CharacterTarget.cs
 
-Nguồn: [Assets/_Project/Scripts/Characters/CharacterTarget.cs](../Assets/_Project/Scripts/Characters/CharacterTarget.cs)
+Nguồn: [Assets/_Project/Scripts/Characters/CharacterSearch/CharacterTarget.cs](../Assets/_Project/Scripts/Characters/CharacterSearch/CharacterTarget.cs)
 
 ```csharp
 using UnityEngine;
@@ -1564,7 +1564,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
 ### ICharacterController.cs
 
-Nguồn: [Assets/_Project/Scripts/Characters/ICharacterController.cs](../Assets/_Project/Scripts/Characters/ICharacterController.cs)
+Nguồn: [Assets/_Project/Scripts/Characters/Controllers/ICharacterController.cs](../Assets/_Project/Scripts/Characters/Controllers/ICharacterController.cs)
 
 Phần thay đổi so với HEAD:
 

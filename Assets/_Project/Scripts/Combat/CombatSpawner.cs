@@ -76,13 +76,22 @@ public sealed class CombatSpawner
 
     public void SpawnEffect(EffectType effectType, Vector3 spawnPosition)
     {
-        EffectView effectPrefab = combatAssets.GetEffect(effectType);
-        if (effectPrefab == null) return;
-        poolManager.Spawn(effectPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Other,
-            beforeActivate: pooledObject => pooledObject.GetComponent<EffectView>().Initialize(this));
+        CombatAssetsSO.EffectEntry entry = combatAssets.GetEffect(effectType);
+        if (entry.prefab == null) return;
+        poolManager.Spawn(entry.prefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Other,
+            beforeActivate: pooledObject => pooledObject.GetComponent<EffectView>().Initialize(this, entry.visualPrefab));
     }
 
-    public void Release(GameObject instance) => poolManager.Despawn(instance);
+    // Dọn visual con trước khi pool tắt/reparent vỏ; đạn vẫn dùng cùng API thu hồi.
+    public void Release(GameObject instance)
+    {
+        if (instance == null) return;
+        try
+        {
+            if (instance.TryGetComponent(out EffectView effect)) effect.Clear();
+        }
+        finally { poolManager.Despawn(instance); }
+    }
 
     // Chặn NaN/vô cực trước khi dùng hướng bắn để di chuyển hoặc quét hitbox.
     private static bool IsFiniteNumber(float value) => !float.IsNaN(value) && !float.IsInfinity(value);

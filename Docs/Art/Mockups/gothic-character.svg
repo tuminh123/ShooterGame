@@ -1,0 +1,250 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" shape-rendering="crispEdges">
+  <defs>
+    <pattern id="bg" width="48" height="48" patternUnits="userSpaceOnUse">
+      <rect width="48" height="48" fill="#1a0f1e"/>
+      <rect width="24" height="24" fill="#241226"/>
+      <rect x="24" y="24" width="24" height="24" fill="#241226"/>
+    </pattern>
+    <linearGradient id="hpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e04555"/><stop offset="1" stop-color="#7a1420"/>
+    </linearGradient>
+    <linearGradient id="mpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a4ad0"/><stop offset="1" stop-color="#3a1a60"/>
+    </linearGradient>
+    <linearGradient id="xpBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d8b468"/><stop offset="1" stop-color="#7a5a2a"/>
+    </linearGradient>
+    <g id="corner">
+      <path d="M0 0h26v6h-20v14h-6z" fill="#4a2440"/>
+      <path d="M6 6h14v8h-8v6h-6z" fill="#5a2f50"/>
+      <path d="M10 10h6v4h-4v2" fill="#8a4a70"/>
+      <circle cx="4" cy="4" r="2" fill="#e04555"/>
+    </g>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g stroke="#120a14" stroke-width="6" fill="none"><rect x="3" y="3" width="1274" height="714"/></g>
+  <g>
+    <use href="#corner" x="8" y="8"/><use href="#corner" x="1248" y="8" transform="scale(-1,1) translate(-56,0)"/>
+    <use href="#corner" x="8" y="698" transform="scale(1,-1) translate(0,-56)"/>
+    <use href="#corner" x="1248" y="698" transform="scale(-1,-1) translate(-56,-56)"/>
+  </g>
+
+  <text x="640" y="40" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="20" fill="#f0d898">HỒ SƠ NHÂN VẬT</text>
+
+  <!-- ===== TRÁI: CHÂN DUNG ===== -->
+  <g transform="translate(60,60)">
+    <rect width="340" height="600" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <!-- khung ảnh -->
+    <rect x="30" y="30" width="280" height="360" fill="#2d1730" stroke="#8a4a70" stroke-width="4"/>
+    <rect x="42" y="42" width="256" height="336" fill="#120a14"/>
+    <!-- chibi lớn -->
+    <g transform="translate(170,210)">
+      <!-- bóng -->
+      <ellipse cy="150" rx="90" ry="14" fill="#0e0710"/>
+      <!-- áo choàng -->
+      <path d="M-70 140 l26 -84 88 0 26 84 -40 26 -60 0z" fill="#3a1a3a"/>
+      <path d="M-60 122 h120" stroke="#5a2f50" stroke-width="4"/>
+      <path d="M-30 60 l-40 80 80 0z" fill="#2d1730" opacity="0.7"/>
+      <!-- đầu -->
+      <circle cy="30" r="48" fill="#f0d8c0"/>
+      <!-- tóc / mũ trùm -->
+      <path d="M-52 8 q48 -70 104 0 l-20 -38 -64 0z" fill="#4a2440"/>
+      <path d="M-40 -20 q10 -26 34 -26 q24 0 34 26" stroke="#4a2440" stroke-width="6" fill="none"/>
+      <rect x="-48" y="-14" width="96" height="30" fill="#2d1730"/>
+      <path d="M-48 16 q-18 20 -8 52" stroke="#4a2440" stroke-width="10" fill="none"/>
+      <path d="M48 16 q18 20 8 52" stroke="#4a2440" stroke-width="10" fill="none"/>
+      <!-- mắt -->
+      <g fill="#180c1a">
+        <ellipse cx="-20" cy="28" rx="9" ry="11"/><ellipse cx="20" cy="28" rx="9" ry="11"/>
+      </g>
+      <g fill="#f2e4d0">
+        <circle cx="-16" cy="24" r="3.4"/><circle cx="24" cy="24" r="3.4"/>
+        <circle cx="-23" cy="32" r="1.8"/><circle cx="17" cy="32" r="1.8"/>
+      </g>
+      <!-- lông mày -->
+      <path d="M-34 10 q12 -6 22 0" stroke="#4a2440" stroke-width="4" fill="none"/>
+      <path d="M12 10 q10 -6 22 0" stroke="#4a2440" stroke-width="4" fill="none"/>
+      <!-- miệng -->
+      <path d="M-12 54 q12 10 24 0" stroke="#a03040" stroke-width="4" fill="none"/>
+      <!-- má -->
+      <circle cx="-34" cy="46" r="7" fill="#e8a0a8" opacity="0.55"/>
+      <circle cx="34" cy="46" r="7" fill="#e8a0a8" opacity="0.55"/>
+      <!-- kiếm -->
+      <g transform="translate(84,70) rotate(-24)">
+        <rect x="-4" y="10" width="8" height="90" fill="#7a5a2a"/>
+        <rect x="-2" y="12" width="4" height="86" fill="#a4783a"/>
+        <rect x="-8" y="0" width="16" height="12" fill="#d8b468" stroke="#7a5a2a" stroke-width="2"/>
+        <path d="M0 -4 l-9 -52 9 -10 9 10 -9 52z" fill="#b8b0a0"/>
+        <path d="M0 -4 l9 -52" stroke="#e8e0d0" stroke-width="3" fill="none"/>
+        <circle cy="-6" r="3.5" fill="#e04555"/>
+      </g>
+    </g>
+    <!-- tên -->
+    <text x="170" y="430" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="22" fill="#f2e4d0">MÁU TỐI</text>
+    <text x="170" y="454" text-anchor="middle" font-family="monospace" font-size="13" fill="#8a7a90">Hiệp Sĩ Chibi · Cấp 8</text>
+    <rect x="60" y="470" width="220" height="4" fill="#a02230"/>
+    <text x="170" y="510" text-anchor="middle" font-family="monospace" font-size="13" fill="#c8a0e8">"Bóng tối cũng là một phần của ánh sáng."</text>
+  </g>
+
+  <!-- ===== PHẢI: CHỈ SỐ ===== -->
+  <g transform="translate(440,60)">
+    <rect width="360" height="330" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <text x="20" y="30" font-family="monospace" font-weight="bold" font-size="15" fill="#f0d898">CHỈ SỐ</text>
+    <g font-family="monospace" font-size="14">
+      <text x="20" y="64" fill="#e8dcc8">Cấp</text><text x="336" y="64" text-anchor="end" fill="#f0d898">8</text>
+      <text x="20" y="94" fill="#e8dcc8">Kinh nghiệm</text>
+      <rect x="120" y="80" width="220" height="12" fill="#120a14"/>
+      <rect x="122" y="82" width="165" height="8" fill="url(#xpBar)"/>
+      <text x="20" y="126" fill="#e04555">HP</text><text x="336" y="126" text-anchor="end" fill="#f2e4d0">128/150</text>
+      <rect x="120" y="112" width="220" height="12" fill="#120a14"/>
+      <rect x="122" y="114" width="176" height="8" fill="url(#hpBar)"/>
+      <text x="20" y="158" fill="#8a4ad0">MP</text><text x="336" y="158" text-anchor="end" fill="#f2e4d0">72/90</text>
+      <rect x="120" y="144" width="220" height="12" fill="#120a14"/>
+      <rect x="122" y="146" width="132" height="8" fill="url(#mpBar)"/>
+      <text x="20" y="190" fill="#e8dcc8">Tấn công</text><text x="336" y="190" text-anchor="end" fill="#f0d898">999</text>
+      <text x="20" y="222" fill="#e8dcc8">Phòng thủ</text><text x="336" y="222" text-anchor="end" fill="#f0d898">42</text>
+      <text x="20" y="254" fill="#e8dcc8">Tốc độ</text><text x="336" y="254" text-anchor="end" fill="#f0d898">12</text>
+      <text x="20" y="286" fill="#e8dcc8">Vàng</text>
+      <circle cx="128" cy="282" r="8" fill="#d8b468" stroke="#7a5a2a" stroke-width="2"/>
+      <circle cx="128" cy="282" r="2.5" fill="#7a5a2a"/>
+      <text x="144" y="288" fill="#f0d898">1.240</text>
+    </g>
+  </g>
+
+  <!-- ===== TRANG BỊ ===== -->
+  <g transform="translate(440,420)">
+    <rect width="360" height="240" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <text x="20" y="30" font-family="monospace" font-weight="bold" font-size="15" fill="#f0d898">TRANG BỊ</text>
+    <!-- 5 ô -->
+    <g>
+      <g transform="translate(28,48)">
+        <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+        <rect x="7" y="7" width="42" height="42" fill="#120a14"/>
+        <path d="M17 17 l22 0 0 22 -22 0z" fill="#b8b0a0"/>
+        <path d="M21 13 l14 0 0 8 -14 0z" fill="#8a7a90"/>
+        <text x="28" y="74" text-anchor="middle" font-family="monospace" font-size="11" fill="#8a7a90">VŨ KHÍ</text>
+      </g>
+      <g transform="translate(96,48)">
+        <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+        <rect x="7" y="7" width="42" height="42" fill="#120a14"/>
+        <path d="M15 40 h42 l-10 -24 -22 0z" fill="#4a2440" stroke="#8a4a70" stroke-width="2"/>
+        <path d="M18 38 h36 l-8 -20 -20 0z" fill="#5a2f50"/>
+        <text x="28" y="74" text-anchor="middle" font-family="monospace" font-size="11" fill="#8a7a90">MŨ</text>
+      </g>
+      <g transform="translate(164,48)">
+        <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+        <rect x="7" y="7" width="42" height="42" fill="#120a14"/>
+        <path d="M16 46 h40 l-22 -34 -18 0z" fill="#3a1a3a"/>
+        <path d="M20 44 h32 l-18 -30 -14 0z" fill="#4a2440"/>
+        <text x="28" y="74" text-anchor="middle" font-family="monospace" font-size="11" fill="#8a7a90">GIÁP</text>
+      </g>
+      <g transform="translate(232,48)">
+        <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+        <rect x="7" y="7" width="42" height="42" fill="#120a14"/>
+        <path d="M18 44 h36 l-4 -36 h-28z" fill="#7a5a2a"/>
+        <path d="M22 42 h28 l-3 -32 h-22z" fill="#a4783a"/>
+        <text x="28" y="74" text-anchor="middle" font-family="monospace" font-size="11" fill="#8a7a90">GIÀY</text>
+      </g>
+      <g transform="translate(300,48)">
+        <rect width="56" height="56" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+        <rect x="7" y="7" width="42" height="42" fill="#120a14"/>
+        <circle cx="28" cy="28" r="13" fill="#d8b468" stroke="#7a5a2a" stroke-width="2.5"/>
+        <circle cx="28" cy="28" r="4" fill="#7a5a2a"/>
+        <text x="28" y="74" text-anchor="middle" font-family="monospace" font-size="11" fill="#8a7a90">BÙA</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===== TÚI ĐỒ ===== -->
+  <g transform="translate(840,60)">
+    <rect width="380" height="600" fill="#180c1a" stroke="#4a2440" stroke-width="4"/>
+    <text x="20" y="30" font-family="monospace" font-weight="bold" font-size="15" fill="#f0d898">TÚI ĐỒ</text>
+    <g>
+      <!-- 6x4 ô -->
+      <g>
+        <g transform="translate(20,48)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <rect x="16" y="16" width="20" height="20" fill="#a02230" stroke="#e04555" stroke-width="2"/>
+          <rect x="20" y="20" width="12" height="12" fill="#e04555"/>
+        </g>
+        <g transform="translate(84,48)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <path d="M26 12 l8 20 -8 9 -8 -9z" fill="#4a82c8"/>
+          <path d="M26 12 l8 20 -8 9" stroke="#c4e8ff" stroke-width="2" fill="none"/>
+        </g>
+        <g transform="translate(148,48)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <circle cx="26" cy="26" r="12" fill="#d8b468" stroke="#7a5a2a" stroke-width="2"/>
+          <circle cx="26" cy="26" r="3.5" fill="#7a5a2a"/>
+        </g>
+        <g transform="translate(212,48)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <rect x="14" y="18" width="24" height="20" fill="#a4783a" stroke="#7a5a2a" stroke-width="2"/>
+          <rect x="17" y="21" width="18" height="14" fill="#c8a060"/>
+          <path d="M14 18 l12 -6 12 6" stroke="#7a5a2a" stroke-width="3" fill="none"/>
+        </g>
+        <g transform="translate(276,48)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#8a4a70" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <path d="M18 30 h16 v-14 h-16z" fill="#8a4ad0"/>
+          <path d="M22 30 v-18 h8 v18" stroke="#c8a0e8" stroke-width="2" fill="none"/>
+          <path d="M26 16 l6 0" stroke="#5a2f50" stroke-width="2"/>
+        </g>
+        <g transform="translate(20,112)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <rect x="16" y="16" width="20" height="20" fill="#7a5a2a"/>
+          <path d="M20 20 l12 12 M32 20 l-12 12" stroke="#d8b468" stroke-width="3"/>
+        </g>
+        <g transform="translate(84,112)">
+          <rect width="52" height="52" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+          <rect x="8" y="8" width="36" height="36" fill="#120a14"/>
+          <path d="M26 12 l4 14 -14 -8 14 8 14 -8 -14 8 4 14z" fill="#e04555"/>
+        </g>
+        <!-- ô trống còn lại -->
+        <g fill="#241226">
+          <g transform="translate(148,112)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(212,112)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(276,112)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(20,176)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(84,176)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(148,176)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(212,176)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(276,176)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(20,240)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(84,240)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(148,240)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(212,240)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(276,240)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(20,304)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(84,304)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(148,304)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(212,304)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+          <g transform="translate(276,304)"><rect width="52" height="52" fill="#2d1730" stroke="#3a1a3a" stroke-width="3"/></g>
+        </g>
+      </g>
+    </g>
+    <!-- thông tin vật phẩm -->
+    <rect x="20" y="372" width="340" height="90" fill="#2d1730" stroke="#5a2f50" stroke-width="3"/>
+    <text x="34" y="398" font-family="monospace" font-weight="bold" font-size="14" fill="#f0d898">Bình máu nhỏ</text>
+    <text x="34" y="420" font-family="monospace" font-size="12" fill="#e8dcc8">Hồi 40 HP.</text>
+    <text x="34" y="442" font-family="monospace" font-size="12" fill="#8a7a90">Phím: Q · Chồng: 20</text>
+    <!-- nút -->
+    <g transform="translate(140,486)">
+      <rect width="100" height="34" fill="#a02230" stroke="#7a1420" stroke-width="3"/>
+      <text x="50" y="22" text-anchor="middle" font-family="monospace" font-size="14" fill="#f2e4d0">DÙNG</text>
+    </g>
+    <g transform="translate(260,486)">
+      <rect width="100" height="34" fill="#3a1a3a" stroke="#5a2f50" stroke-width="3"/>
+      <text x="50" y="22" text-anchor="middle" font-family="monospace" font-size="14" fill="#e8dcc8">VỨT BỎ</text>
+    </g>
+    <text x="190" y="556" text-anchor="middle" font-family="monospace" font-size="12" fill="#5a4a60">Kéo-thả để sắp xếp (mockup)</text>
+  </g>
+
+  <text x="640" y="708" text-anchor="middle" font-family="monospace" font-size="12" fill="#5a4a60">MOCKUP HỒ SƠ NHÂN VẬT GOTHIC CHIBI · 1280×720</text>
+</svg>

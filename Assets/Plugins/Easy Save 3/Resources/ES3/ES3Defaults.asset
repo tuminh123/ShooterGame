@@ -37,6 +37,7 @@ MonoBehaviour:
     - Assembly-CSharp
     - Assembly-CSharp-firstpass
     - CW.Common
+    - HeyHeyThere.PixelUIFantasyFree
     - IngameDebugConsole.Runtime
     - LeanCommon
     - LeanPool

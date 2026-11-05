@@ -8,6 +8,8 @@ using Zenject;
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
 public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 {
+    #region Dependencies & Spawn State
+
     private MovementManager movement; // * Dịch vụ áp dụng chuyển động, nhận lệnh từ hành vi hiện tại qua Move.
     private PoolManager pools; // * Pool của vỏ và visual; visual được thu hồi riêng khi tháo vỏ.
     private MovementHandle movementHandle; // * Đăng ký của lần hoạt động hiện tại; vô hiệu ngay khi tắt vỏ.
@@ -19,6 +21,11 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private ISpatialManager spatial;
     private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
     private SkillFactory skillFactory;
+
+    #endregion
+
+    #region Public State
+
     public CharacterSkills Skills { get; private set; }
     public CharacterEffectHandler Effects { get; private set; }
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
@@ -26,12 +33,24 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     public SpatialHandle SpatialHandle { get; private set; }
     public ICharacterSearch Search { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
     public ITimerManager Timers { get; private set; }
+    public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
+    public bool IsVisualVisible => visual != null && visual.activeSelf;
+    public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);
+
+    #endregion
+
+    #region Lifecycle & Combat Events
+
     public event Action<DamageInfo, DamageResult> DamageReceived;
     // Raised before visual cleanup, and on temporary disable, so owners can cancel presentation tasks.
     public event Action Deactivated;
-    public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);
+    public event Action<bool> VisualVisibilityChanged; // Báo thay đổi hiển thị mà không phụ thuộc script UI cụ thể.
     public event Action<CharacterView> Died;
     public event Action<CharacterView> Released; // * Báo chủ sở hữu khi despawn chủ động hoặc bị hủy; tắt tạm thời không kết thúc cá thể.
+
+    #endregion
+
+    #region Injection & Spawn Initialization
 
     [Inject]
     public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
@@ -69,6 +88,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         hitbox.Validate();
 
         RuntimeData = runtime;
+        IsBoss = template.IsBoss;
         controller = behavior;
         // * Parent vẫn đang tắt nên visual cũng được chuẩn bị trước khi xuất hiện trong scene.
         visual = pools.Spawn(template.VisualPrefab, transform.position, transform.rotation, PoolGroup.Other, transform);
@@ -83,7 +103,13 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             sprite.flipX = false;
         Effects = new CharacterEffectHandler(this, effectManager);
         Skills = new CharacterSkills(this, template.Skills, skillFactory);
+        // Enemy bắt đầu ẩn; manager camera sẽ bật nếu visual giao khung hình trước khi render.
+        visual.SetActive(runtime.Team != CharacterTeam.Enemy);
     }
+
+    #endregion
+
+    #region Activation & Tick
 
     private void OnEnable()
     {
@@ -94,11 +120,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         Skills?.SetPaused(false);
         effectManager.SetPaused(this, RuntimeData, false);
         controller?.SetPaused(false);
-        foreach (Animator animator in animators)
-        {
-            animator.Rebind();
-            animator.Update(0f);
-        }
+        ResetVisualAnimation();
     }
 
     private void Update()
@@ -110,6 +132,56 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
     }
+
+    #endregion
+
+    #region Visual Visibility & Bounds
+
+    // Chỉ đổi trạng thái object visual con; vỏ vẫn Update, di chuyển và nhận sát thương bình thường.
+    internal void SetVisualVisible(bool visible)
+    {
+        if (visual == null || visual.activeSelf == visible) return;
+        visual.SetActive(visible);
+        if (visible) ResetVisualAnimation();
+        VisualVisibilityChanged?.Invoke(visible);
+    }
+
+    // Reset khi vừa hiện hoặc bật lại vỏ; không cập nhật Animator trên visual đang tắt.
+    private void ResetVisualAnimation()
+    {
+        foreach (Animator animator in animators)
+        {
+            if (!animator.isActiveAndEnabled) continue;
+            animator.Rebind();
+            animator.Update(0f);
+        }
+    }
+
+    // Tính từ local bounds và Transform mới, kể cả khi visual đang tắt và Renderer.bounds chưa được cập nhật.
+    internal Bounds GetVisualBounds()
+    {
+        Bounds combined = new Bounds(transform.position, Vector3.zero);
+        bool hasSprite = false;
+        foreach (SpriteRenderer sprite in sprites)
+        {
+            if (sprite == null || sprite.sprite == null) continue;
+            Bounds local = sprite.localBounds;
+            Matrix4x4 matrix = sprite.transform.localToWorldMatrix;
+            Vector3 x = matrix.MultiplyVector(new Vector3(local.extents.x, 0f, 0f));
+            Vector3 y = matrix.MultiplyVector(new Vector3(0f, local.extents.y, 0f));
+            Vector3 z = matrix.MultiplyVector(new Vector3(0f, 0f, local.extents.z));
+            Vector3 extent = new Vector3(Mathf.Abs(x.x) + Mathf.Abs(y.x) + Mathf.Abs(z.x),
+                Mathf.Abs(x.y) + Mathf.Abs(y.y) + Mathf.Abs(z.y), Mathf.Abs(x.z) + Mathf.Abs(y.z) + Mathf.Abs(z.z));
+            Bounds world = new Bounds(matrix.MultiplyPoint3x4(local.center), extent * 2f);
+            if (hasSprite) combined.Encapsulate(world);
+            else { combined = world; hasSprite = true; }
+        }
+        return combined;
+    }
+
+    #endregion
+
+    #region Movement & Facing
 
     // * Mặc định nhìn theo hướng chạy; Enemy có thể truyền hướng đến Player khi đang lùi ra khỏi hàng xóm.
     // * facingDirection chỉ là lệnh hiển thị của frame hiện tại, không thêm dữ liệu cấu hình vào template chung.
@@ -130,7 +202,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             sprite.flipX = flip;
     }
 
+    #endregion
+
     #if UNITY_EDITOR
+    #region Hitbox & Search Gizmos
     // * Bật Gizmos và chọn vỏ Enemy khi đang chơi để xem phạm vi quét tránh nhau.
     // * Chỉ vẽ cho cá thể đang hoạt động; vỏ chưa khởi tạo hoặc đã trả về pool không có vòng debug.
     // * Controller giữ bán kính và cách vẽ riêng của Enemy, vỏ chỉ chuyển tiếp callback từ Unity Editor.
@@ -148,7 +223,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             controller is EnemyController enemy)
             enemy.DrawSeparationGizmo(transform.position);
     }
+    #endregion
     #endif
+
+    #region Combat API & Death
 
     // Unity damage endpoint only; the controller owns shield/HP/death behavior.
     public DamageResult ReceiveDamage(DamageInfo damage)
@@ -188,6 +266,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             }
         }
     }
+
+    #endregion
+
+    #region Disable & Runtime Cleanup
 
     private void ClearSkills()
     {
@@ -229,6 +311,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         SpatialHandle = default;
     }
 
+    #endregion
+
+    #region Spatial Snapshot
+
     // Chụp hình hộp world XY cho job. Vỏ hỗ trợ xoay Z và scale; không dùng hierarchy gây shear.
     internal SpatialEntity GetSpatialEntity()
     {
@@ -244,6 +330,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         };
     }
 
+    #endregion
+
+    #region Destruction & Pool Release
+
     // * Khi bị Destroy trực tiếp, Unity hủy cả visual con; chỉ gỡ tham chiếu và báo chủ sở hữu.
     // * Không trả visual về pool từ callback này vì hierarchy có thể đang trong quá trình hủy/tắt.
     private void OnDestroy()
@@ -256,6 +346,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         Effects = null;
         ClearController();
         RuntimeData = null;
+        IsBoss = false;
         visual = null;
         sprites = null;
         animators = null;
@@ -274,6 +365,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         Effects = null;
         ClearController();
         RuntimeData = null;
+        IsBoss = false;
         sprites = null;
         animators = null;
         if (visual != null)
@@ -292,6 +384,9 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         Died = null;
         DamageReceived = null;
         Deactivated = null;
+        VisualVisibilityChanged = null;
         released?.Invoke(this);
     }
+
+    #endregion
 }

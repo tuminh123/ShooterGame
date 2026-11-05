@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="720" viewBox="0 0 1280 720" shape-rendering="crispEdges">
+  <defs>
+    <pattern id="bg" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#2a1f18"/>
+      <rect width="32" height="32" fill="#332720"/>
+      <rect x="32" y="32" width="32" height="32" fill="#332720"/>
+    </pattern>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a253a"/>
+      <stop offset="1" stop-color="#2a1f18"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8c878"/>
+      <stop offset="1" stop-color="#a4783a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="430" fill="url(#sky)" opacity="0.85"/>
+  <rect y="430" width="1280" height="290" fill="url(#bg)"/>
+
+  <!-- khung lửa / trang trí -->
+  <g stroke="#a4783a" stroke-width="3" fill="none">
+    <rect x="24" y="24" width="1232" height="672"/>
+    <rect x="36" y="36" width="1208" height="648"/>
+  </g>
+  <g fill="#a4783a"><rect x="36" y="36" width="1208" height="14"/><rect x="36" y="670" width="1208" height="14"/><rect x="36" y="36" width="14" height="648"/><rect x="1230" y="36" width="14" height="648"/></g>
+
+  <!-- Tiêu đề -->
+  <g transform="translate(640,190)">
+    <rect x="-360" y="-70" width="720" height="140" fill="#1a120e" opacity="0.88" stroke="#e8c878" stroke-width="4"/>
+    <text y="-22" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="58" fill="#e8c878">SHOOTER GAME</text>
+    <text y="26" text-anchor="middle" font-family="monospace" font-size="20" fill="#c8b898">Top-down · Pixel Art · Roguelike</text>
+    <rect x="-140" y="44" width="280" height="4" fill="#a4783a"/>
+    <g stroke="#e8c878" stroke-width="2">
+      <line x1="-300" y1="-46" x2="-266" y2="-46"/><line x1="266" y1="-46" x2="300" y2="-46"/>
+      <line x1="-300" y1="34" x2="-266" y2="34"/><line x1="266" y1="34" x2="300" y2="34"/>
+    </g>
+  </g>
+
+  <!-- Nút bấm -->
+  <g transform="translate(640,420)" font-family="monospace">
+    <g>
+      <rect x="-140" y="-26" width="280" height="52" fill="#a4783a" stroke="#1a120e" stroke-width="4"/>
+      <rect x="-132" y="-18" width="264" height="36" fill="#c8a060"/>
+      <text y="6" text-anchor="middle" font-weight="bold" font-size="22" fill="#1a120e">▶ BẮT ĐẦU</text>
+    </g>
+    <g transform="translate(0,68)">
+      <rect x="-140" y="-26" width="280" height="52" fill="#8a6a2a" stroke="#1a120e" stroke-width="4"/>
+      <rect x="-132" y="-18" width="264" height="36" fill="#a4783a"/>
+      <text y="6" text-anchor="middle" font-weight="bold" font-size="22" fill="#f4f0e8">TÙY CHỌN</text>
+    </g>
+    <g transform="translate(0,136)">
+      <rect x="-140" y="-26" width="280" height="52" fill="#8a6a2a" stroke="#1a120e" stroke-width="4"/>
+      <rect x="-132" y="-18" width="264" height="36" fill="#a4783a"/>
+      <text y="6" text-anchor="middle" font-weight="bold" font-size="22" fill="#f4f0e8">HƯỚNG DẪN</text>
+    </g>
+    <g transform="translate(0,204)">
+      <rect x="-140" y="-26" width="280" height="52" fill="#8a6a2a" stroke="#1a120e" stroke-width="4"/>
+      <rect x="-132" y="-18" width="264" height="36" fill="#a4783a"/>
+      <text y="6" text-anchor="middle" font-weight="bold" font-size="22" fill="#f4f0e8">THOÁT</text>
+    </g>
+  </g>
+
+  <!-- Sprite trang trí: dùng đúng asset vừa tạo -->
+  <g>
+    <image x="120" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/HealthPotion.png"/>
+    <image x="240" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/HolyWaterVial.png"/>
+    <image x="360" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/DungeonKey.png"/>
+    <image x="824" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/DungeonKey.png"/>
+    <image x="944" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/HolyWaterVial.png"/>
+    <image x="1064" y="520" width="96" height="96" xlink:href="../../Assets/_Project/Graphic/Pickups/HealthPotion.png"/>
+  </g>
+
+  <!-- "Press Start" nhấp nháy -->
+  <g transform="translate(640,322)">
+    <text text-anchor="middle" font-family="monospace" font-weight="bold" font-size="16" fill="#e8c878">
+      <animate attributeName="opacity" values="1;0.15;1" dur="1.2s" repeatCount="indefinite"/>
+      — NHẤN PHÍM BẤT KỲ —
+    </text>
+  </g>
+
+  <!-- phiên bản -->
+  <text x="640" y="694" text-anchor="middle" font-family="monospace" font-size="12" fill="#8a7a60">v0.1.0 · Unity 2022.3.62f3 · © 2026 ShooterGame</text>
+</svg>

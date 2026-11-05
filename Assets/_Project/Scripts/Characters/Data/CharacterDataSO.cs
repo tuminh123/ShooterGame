@@ -12,6 +12,7 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private string displayName;  // * Tên hiển thị trên giao diện, đổi tên không ảnh hưởng khóa enum hoặc save.
     [SerializeField] private CharacterType characterType;                    // * Khóa duy nhất để ghép config và lưu tiến trình; chọn một type khác None.
     [SerializeField] private CharacterTeam team; // * Phe của loại nhân vật; boss cũng thuộc Enemy.
+    [SerializeField] private bool isBoss; // Đánh dấu boss để hiện HP/giáp; không thay đổi phe hoặc cách nhận sát thương.
     [SerializeField] private GameObject visualPrefab; // * Chỉ chứa hình ảnh/Animator, được gắn làm con của vỏ chung khi spawn.
     [SerializeField] private HitboxData hitbox = new HitboxData
     {
@@ -21,6 +22,7 @@ public sealed class CharacterDataSO : ScriptableObject
     public string DisplayName => displayName;  // * Nhãn hiển thị, không dùng làm khóa tra cứu.
     public CharacterType CharacterType => characterType;                       // * Khóa dùng chung cho database, level service và save.
     public CharacterTeam Team => team; // * Dùng phân biệt Player và Enemy khi tạo hành vi và xử lý tiếp xúc.
+    public bool IsBoss => isBoss;
     public GameObject VisualPrefab => visualPrefab; // * Mẫu visual dùng chung theo loại; không lưu instance đang chơi lên SO.
     public HitboxData Hitbox => hitbox;
 

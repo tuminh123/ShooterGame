@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: Blessed Gladiator
   characterType: 1
   team: 0
+  isBoss: 0
   visualPrefab: {fileID: 7286127994307434942, guid: 509df734f09a6ba4d890cfecfce402a9, type: 3}
   hitbox:
     Size: {x: 0.1257898, y: 0.16}
