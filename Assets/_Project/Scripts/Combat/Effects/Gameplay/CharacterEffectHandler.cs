@@ -7,17 +7,19 @@ public sealed class CharacterEffectHandler : IDisposable
 {
     private readonly CharacterView owner;
     private readonly CharacterRuntimeData identity;
+    private readonly ulong generation;
     private readonly EffectManager manager;
     private readonly Dictionary<long, float> speedMultipliers = new Dictionary<long, float>();
     private long nextModifierId;
 
     public bool IsDisposed { get; private set; }
-    public int Count => manager.CountFor(owner, identity);
+    public int Count => IsDisposed || identity.Generation != generation ? 0 : manager.CountFor(owner, identity);
 
     public CharacterEffectHandler(CharacterView owner, EffectManager manager)
     {
         this.owner = owner;
         identity = owner.RuntimeData;
+        generation = identity.Generation;
         this.manager = manager;
     }
 
@@ -45,6 +47,7 @@ public sealed class CharacterEffectHandler : IDisposable
 
     private void RefreshMovementScale()
     {
+        if (identity.Generation != generation) return;
         // Nhiều nguồn làm chậm cùng tồn tại: lấy mức mạnh nhất, không nhân chồng lên nhau.
         float scale = 1f;
         foreach (float multiplier in speedMultipliers.Values) scale = Mathf.Min(scale, multiplier);
@@ -55,7 +58,7 @@ public sealed class CharacterEffectHandler : IDisposable
     {
         if (IsDisposed) return;
         IsDisposed = true;
-        manager.ClearTarget(owner, identity);
+        if (identity.Generation == generation) manager.ClearTarget(owner, identity);
         // ClearTarget có thể hoãn Remove đến cuối callback; dọn modifier ngay khi cá thể kết thúc.
         speedMultipliers.Clear();
         RefreshMovementScale();

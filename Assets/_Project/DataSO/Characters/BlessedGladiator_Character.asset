@@ -11,15 +11,22 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
   m_Name: BlessedGladiator_Character
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   displayName: Blessed Gladiator
   characterType: 1
   team: 0
   isBoss: 0
-  visualPrefab: {fileID: 7286127994307434942, guid: 509df734f09a6ba4d890cfecfce402a9, type: 3}
-  hitbox:
-    Size: {x: 0.1257898, y: 0.16}
-    Offset: {x: -0.017105095, y: 0.08}
+  visualSettings:
+    Prefab: {fileID: 7286127994307434942, guid: 509df734f09a6ba4d890cfecfce402a9, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0.019989705, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.12002058, y: 0.16}
+      Offset: {x: -0.023002058, y: 0.08}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
   growthInterval: 50
   growthPerStep:
     maxHealth: 5
@@ -33,7 +40,7 @@ MonoBehaviour:
   baseStats:
     maxHealth: 100
     damage: 10
-    defense: 0
+    defense: 100
     moveSpeed: 1
     critChance: 5
     critDamageMultiplier: 50

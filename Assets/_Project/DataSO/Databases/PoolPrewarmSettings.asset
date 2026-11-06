@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c54a5ab6d0d94a2788b931749a9b7922, type: 3}
+  m_Name: PoolPrewarmSettings
+  m_EditorClassIdentifier:
+  characterShells: 64
+  bullets: 256
+  effectShells: 16
+  pickups: 128
+  playerVisuals: 1
+  enemyVisuals: 64
+  bossVisuals: 2
+  characterRuntimes: 64
+  slowRuntimes: 32
+  damageOverTimeRuntimes: 64
+  timerCapacity: 1024
+  additionalPrefabs: []

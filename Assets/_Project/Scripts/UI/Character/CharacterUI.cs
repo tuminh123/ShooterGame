@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// UI gắn dưới nhân vật: đọc runtime để hiện HP/giáp, không đổi vị trí hoặc scale đã chỉnh trên prefab.
+// Nhân vật quản lý HP/giáp và áp dụng layout theo cấu hình riêng của từng loại.
 [RequireComponent(typeof(CharacterView))]
 public sealed class CharacterUI : MonoBehaviour
 {
@@ -11,11 +11,23 @@ public sealed class CharacterUI : MonoBehaviour
     private CharacterView character; // Vỏ cùng GameObject, cung cấp runtime và trạng thái visual.
     private CharacterRuntimeData runtime; // Giữ đúng lượt spawn để gỡ event trước khi pool tái sử dụng vỏ.
     private bool showsVitals; // Tính lại khi bật: Player hoặc boss mới hiện bar.
-    private BarView playerHealthBar; // UIManager chỉ nối view HUD; nhân vật sở hữu việc cập nhật HP/giáp.
 
     #endregion
 
     #region Binding & Lifecycle
+
+    public RectTransform VitalsRoot => vitalsRoot;
+
+    public void ApplyLayout(CharacterVisualSettings settings)
+    {
+        if (vitalsRoot != null)
+        {
+            vitalsRoot.localPosition = settings.HealthBarOffset;
+            vitalsRoot.localScale = Vector3.one * settings.HealthBarScale;
+            vitalsRoot.sizeDelta = settings.HealthBarSize;
+        }
+        if (healthBar != null) healthBar.ApplyLayout(settings.HealthBarSize, settings.ShieldThickness);
+    }
 
     private void OnEnable()
     {
@@ -44,7 +56,6 @@ public sealed class CharacterUI : MonoBehaviour
         runtime = null;
         showsVitals = false;
         if (vitalsRoot != null) vitalsRoot.gameObject.SetActive(false);
-        if (playerHealthBar != null) playerHealthBar.SetVisible(false);
     }
 
     private void OnDisable() => Unbind();
@@ -54,30 +65,10 @@ public sealed class CharacterUI : MonoBehaviour
 
     #region Vitals Presentation
 
-    public void SetPlayerHealthBar(BarView view)
-    {
-        if (playerHealthBar != null) playerHealthBar.SetVisible(false);
-        playerHealthBar = view;
-        RefreshVitals();
-    }
-
     private void OnVisualVisibilityChanged(bool visible) => RefreshVitals(); // Boss bị cull thì bar cũng ẩn theo.
 
     private void RefreshVitals()
     {
-        // HUD của player độc lập với culling của visual và thanh máu world space.
-        bool hasPlayer = runtime != null && runtime.Team == CharacterTeam.Player &&
-            isActiveAndEnabled && character != null && character.isActiveAndEnabled &&
-            ReferenceEquals(character.RuntimeData, runtime);
-        if (playerHealthBar != null)
-        {
-            playerHealthBar.SetVisible(hasPlayer);
-            if (hasPlayer)
-            {
-                playerHealthBar.SetValue(runtime.CurrentHealth, runtime.FinalStats.maxHealth);
-                playerHealthBar.SetShield(runtime.CurrentShield, runtime.MaxShield);
-            }
-        }
         if (vitalsRoot == null) return;
         bool visible = showsVitals && runtime != null && runtime.IsAlive && character != null &&
             character.isActiveAndEnabled && ReferenceEquals(character.RuntimeData, runtime) && character.IsVisualVisible;

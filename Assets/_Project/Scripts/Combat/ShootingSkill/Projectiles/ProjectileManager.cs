@@ -150,6 +150,16 @@ public sealed class ProjectileManager : ITickable, IDisposable
 
     #endregion
 
+    public void PrewarmCapacity(int count)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(ProjectileManager));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        EnsureCapacity(count);
+        if (activeProjectiles.Capacity < count) activeProjectiles.Capacity = count;
+        if (tickSnapshot.Capacity < count) tickSnapshot.Capacity = count;
+        indices.EnsureCapacity(count);
+    }
+
     private void EnsureCapacity(int count)
     {
         if (queries.Length >= count) return;

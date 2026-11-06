@@ -32,6 +32,7 @@ public sealed class CombatAssetsSO : ScriptableObject
     [SerializeField] private EffectEntry[] effects = Array.Empty<EffectEntry>();
 
     public ProjectileView BulletPrefab => bulletPrefab;
+    public IReadOnlyList<EffectEntry> EffectEntries => effects;
 
     public BulletVisual GetBullet(BulletType type)
     {

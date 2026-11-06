@@ -201,6 +201,16 @@ public sealed class MovementManager : ILateTickable, IDisposable
 
     #region Buffer & Registry Maintenance
 
+    public void PrewarmCapacity(int count)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(MovementManager));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        EnsureCapacity(count);
+        if (entries.Capacity < count) entries.Capacity = count;
+        indices.EnsureCapacity(count);
+        targets.EnsureCapacity(count);
+    }
+
     // * Chỉ cấp phát khi cần tăng dung lượng, giữ buffer cũ khi số lượng giảm.
     private void EnsureCapacity(int count)
     {

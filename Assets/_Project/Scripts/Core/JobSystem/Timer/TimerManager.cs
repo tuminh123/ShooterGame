@@ -156,6 +156,13 @@ public sealed class TimerManager : ITimerManager, ITickable, IDisposable
 
     #region Capacity & Validation
 
+    public void PrewarmCapacity(int count)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(TimerManager));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        EnsureCapacity(count);
+    }
+
     // Tăng mọi buffer theo lũy thừa 2 và giữ trạng thái cũ; không thu nhỏ khi số timer giảm.
     private void EnsureCapacity(int count)
     {

@@ -109,7 +109,8 @@ public sealed class EffectManager : IDisposable
         try
         {
             if (!runtime.IsActive) return;
-            if (runtime.Owner == null || !ReferenceEquals(runtime.Owner.RuntimeData, runtime.Identity) || !runtime.Identity.IsAlive)
+            if (runtime.Owner == null || !ReferenceEquals(runtime.Owner.RuntimeData, runtime.Identity) ||
+                runtime.Identity.Generation != runtime.Generation || !runtime.Identity.IsAlive)
             { Deactivate(runtime); return; }
             runtime.Tick(result.DueTickCount);
             // Callback damage có thể vừa làm mới effect; không gỡ theo Completed của lịch cũ.

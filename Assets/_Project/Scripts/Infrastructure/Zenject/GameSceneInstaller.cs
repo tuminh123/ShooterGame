@@ -12,6 +12,7 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     [SerializeField] private CharacterView characterPrefab; // * Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
     [SerializeField] private CombatAssetsSO combatAssets; // Shared bullet shell, bullet sprites and effect prefabs.
+    [SerializeField] private PoolPrewarmSettingsSO poolPrewarmSettings;
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, inject cho Player được tạo.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
@@ -46,6 +47,9 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Equipment Database in GameSceneInstaller.");
         if (lootDatabase == null)
             throw new InvalidOperationException("Assign Loot Database in GameSceneInstaller.");
+        if (poolPrewarmSettings == null)
+            throw new InvalidOperationException("Assign Pool Prewarm Settings in GameSceneInstaller.");
+        poolPrewarmSettings.Validate();
         SignalBusInstaller.Install(Container);
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInterfacesAndSelfTo<SaveManager>().AsSingle().NonLazy();
@@ -63,7 +67,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new PlayerManager.Settings(defaultPlayerType, damageFlashDuration, damageFlashColor));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
-        Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Dùng UIManager trên nhóm DynamicUI có sẵn trong scene.
+        Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Trạm UI trên Play_UI_Action; các UI tự nhận dependency.
         Container.BindInterfacesAndSelfTo<RunSessionManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<RunSessionManager>(-50); // Sau khi Player được tạo, trước hệ thống nhặt đồ.
         Container.BindDisposableExecutionOrder<RunSessionManager>(205); // Sau LootManager, trước khi dọn Player/timer.
@@ -71,6 +75,11 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindLateTickableExecutionOrder<LootManager>(100); // Nhặt bằng vị trí Player sau bước MovementManager.
         Container.BindDisposableExecutionOrder<LootManager>(210); // Dọn vật phẩm trước khi PoolManager kết thúc.
         Container.BindInterfacesAndSelfTo<PoolManager>().AsSingle().NonLazy();
+        Container.BindInterfacesAndSelfTo<CharacterRuntimePool>().AsSingle();
+        Container.BindInstance(poolPrewarmSettings);
+        Container.BindInterfacesAndSelfTo<PoolPrewarmService>().AsSingle().WithArguments(characterPrefab).NonLazy();
+        Container.BindInitializableExecutionOrder<PoolPrewarmService>(-150); // Save (-200) → prewarm → Player (-100).
+        Container.BindDisposableExecutionOrder<CharacterRuntimePool>(90); // Sau factory/view cleanup và PoolManager.
         Container.BindInstance(combatAssets);
         Container.Bind<ITimeSource>().To<GameplayTimeSource>().AsSingle();
         Container.BindInterfacesAndSelfTo<TimerManager>().AsSingle().NonLazy();
@@ -88,8 +97,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<SkillManager>().AsSingle().NonLazy();
         Container.BindTickableExecutionOrder<SkillManager>(-100);
         // Pool class thuần: chỉ tạo thêm runtime khi số effect đồng thời vượt dung lượng đã có.
-        Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>().WithInitialSize(16);
-        Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>().WithInitialSize(32);
+        Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>().WithInitialSize(poolPrewarmSettings.slowRuntimes);
+        Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>().WithInitialSize(poolPrewarmSettings.damageOverTimeRuntimes);
         Container.Bind<EffectRuntimePool>().AsSingle();
         Container.BindInterfacesAndSelfTo<EffectManager>().AsSingle().NonLazy();
         // Dọn effect trước khi Zenject giải phóng các memory pool.

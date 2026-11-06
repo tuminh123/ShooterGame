@@ -21,6 +21,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private ISpatialManager spatial;
     private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
     private SkillFactory skillFactory;
+    private CharacterRuntimePool runtimePool;
 
     #endregion
 
@@ -54,12 +55,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     [Inject]
     public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
-        SkillFactory skillFactory, ISpatialManager spatial, ICharacterSearch search, ITimerManager timers)
+        SkillFactory skillFactory, ISpatialManager spatial, ICharacterSearch search, ITimerManager timers,
+        CharacterRuntimePool runtimePool)
     {
         this.movement = movement;
         this.pools = pools;
         this.effectManager = effectManager;
         this.skillFactory = skillFactory;
+        this.runtimePool = runtimePool;
         this.spatial = spatial;
         Search = search;
         Timers = timers;
@@ -84,8 +87,9 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
         gameObject.layer = characterLayer;
 
-        hitbox = template.Hitbox;
-        hitbox.Validate();
+        CharacterVisualSettings presentation = template.VisualSettings;
+        presentation.Validate();
+        hitbox = presentation.Hitbox;
 
         RuntimeData = runtime;
         IsBoss = template.IsBoss;
@@ -94,9 +98,9 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         visual = pools.Spawn(template.VisualPrefab, transform.position, transform.rotation, PoolGroup.Other, transform);
         if (visual == null)
             throw new InvalidOperationException("Could not spawn the character visual.");
-        visual.transform.localPosition = template.VisualPrefab.transform.localPosition;
-        visual.transform.localRotation = template.VisualPrefab.transform.localRotation;
-        visual.transform.localScale = template.VisualPrefab.transform.localScale;
+        presentation.ApplyVisual(visual.transform);
+        // Áp dụng mỗi lần spawn để vỏ pool không giữ kích thước thanh máu của loại boss trước.
+        if (TryGetComponent<CharacterUI>(out var characterUI)) characterUI.ApplyLayout(presentation);
         sprites = visual.GetComponentsInChildren<SpriteRenderer>(true);
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
@@ -249,18 +253,19 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         StopSpatial();
         CharacterRuntimeData identity = RuntimeData;
+        ulong generation = identity != null ? identity.Generation : 0;
         try { Died?.Invoke(this); }
         finally
         {
-            if (ReferenceEquals(RuntimeData, identity))
+            if (identity != null && ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
             {
                 try { ClearSkills(); }
                 finally
                 {
-                    if (ReferenceEquals(RuntimeData, identity))
+                    if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
                     {
                         try { Effects?.Dispose(); }
-                        finally { if (ReferenceEquals(RuntimeData, identity)) controller?.Dispose(); }
+                        finally { if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation) controller?.Dispose(); }
                     }
                 }
             }
@@ -338,6 +343,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // * Không trả visual về pool từ callback này vì hierarchy có thể đang trong quá trình hủy/tắt.
     private void OnDestroy()
     {
+        CharacterRuntimeData previousRuntime = RuntimeData;
+        ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
         StopSpatial();
         ClearSkills();
@@ -350,13 +357,16 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         visual = null;
         sprites = null;
         animators = null;
-        NotifyReleased();
+        try { NotifyReleased(); }
+        finally { runtimePool?.TryReturn(previousRuntime, previousGeneration); }
     }
 
     // * Chỉ factory gọi chủ động TRƯỚC khi tắt vỏ, hoặc khi khởi tạo lỗi mà vỏ chưa bật.
     // * Visual được thu hồi xong rồi chủ sở hữu mới được thông báo, sau đó factory trả vỏ về pool.
     internal void ClearSpawn()
     {
+        CharacterRuntimeData previousRuntime = RuntimeData;
+        ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
         StopSpatial();
         ClearSkills();
@@ -374,7 +384,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             visual = null;
             pools.Despawn(previousVisual);
         }
-        NotifyReleased();
+        try { NotifyReleased(); }
+        finally { runtimePool?.TryReturn(previousRuntime, previousGeneration); }
     }
 
     private void NotifyReleased()

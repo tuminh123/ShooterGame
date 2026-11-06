@@ -15,6 +15,7 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
     {
         public CharacterView View; // Vỏ Unity của đối tượng.
         public CharacterRuntimeData Identity; // Danh tính của lượt spawn đã đăng ký.
+        public ulong Generation;
         public uint Version; // Tăng khi ô được tái sử dụng.
         public bool Registered; // Tách khỏi Unity == null để vẫn thu hồi slot khi GameObject bị Destroy trực tiếp.
     }
@@ -67,7 +68,8 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
         int index = freeSlots.Count > 0 ? freeSlots.Pop() : slotCount++;
         EnsureCapacity(slotCount);
         uint version = checked(registrations[index].Version + 1u);
-        registrations[index] = new Registration { View = view, Identity = view.RuntimeData, Version = version, Registered = true };
+        registrations[index] = new Registration { View = view, Identity = view.RuntimeData,
+            Generation = view.RuntimeData.Generation, Version = version, Registered = true };
         dirty = true;
         return new SpatialHandle(this, index, version);
     }
@@ -98,6 +100,7 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
         target = default;
         if (!IsRegistered(handle)) return false;
         Registration registration = registrations[handle.Index];
+        if (registration.Identity == null || registration.Identity.Generation != registration.Generation) return false;
         target = new CharacterTarget(registration.View, registration.Identity);
         return target.TryGetCharacter(out _);
     }
@@ -206,7 +209,8 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
             Registration registration = registrations[index];
             SpatialEntity entity = default;
             if (registration.View != null && registration.View.isActiveAndEnabled &&
-                ReferenceEquals(registration.View.RuntimeData, registration.Identity) && registration.Identity.IsAlive)
+                ReferenceEquals(registration.View.RuntimeData, registration.Identity) &&
+                registration.Identity.Generation == registration.Generation && registration.Identity.IsAlive)
             {
                 entity = registration.View.GetSpatialEntity();
                 entity.Index = index;
@@ -228,6 +232,14 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
     }
 
     // Vượt 128 sẽ tăng 256, 512...; giữ đăng ký cũ và dựng lại dữ liệu native từ các đăng ký đó.
+    public void PrewarmCapacity(int count)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(SpatialManager));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        EnsureCapacity(count);
+        if (allHits.Capacity < count) allHits.Capacity = count;
+    }
+
     private void EnsureCapacity(int count)
     {
         if (entities.Length >= count) return;

@@ -7,6 +7,8 @@ public abstract class CharacterControllerBase : ICharacterController
     public virtual void SetPaused(bool paused) { }
     public virtual void Dispose() { }
     private CharacterRuntimeData deathHandled;
+    private CharacterRuntimeData identity;
+    private ulong generation;
     public void Tick(CharacterView view, CharacterRuntimeData runtime)
     {
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
@@ -97,7 +99,10 @@ public abstract class CharacterControllerBase : ICharacterController
         finally { if (IsCurrent(view, runtime)) OnDeath(view, runtime); }
     }
 
-    private static bool IsCurrent(CharacterView view, CharacterRuntimeData runtime)
-        => view != null && runtime != null &&
-           ReferenceEquals(view.RuntimeData, runtime);
+    private bool IsCurrent(CharacterView view, CharacterRuntimeData runtime)
+    {
+        if (view == null || runtime == null || !ReferenceEquals(view.RuntimeData, runtime)) return false;
+        if (identity == null) { identity = runtime; generation = runtime.Generation; }
+        return ReferenceEquals(identity, runtime) && runtime.Generation == generation;
+    }
 }

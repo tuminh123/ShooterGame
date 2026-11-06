@@ -8,14 +8,31 @@ public sealed class CharacterFactory : IDisposable
     private readonly CharacterView prefab; // * Prefab vỏ duy nhất do GameSceneInstaller truyền vào.
     private readonly PoolManager pools; // * Chuẩn bị clone dưới nhánh tắt trước khi cho OnEnable chạy.
     private readonly CharacterManager characters;
+    private readonly CharacterRuntimePool runtimes;
     private readonly HashSet<CharacterView> activeCharacters = new HashSet<CharacterView>(); // * Chỉ thu hồi các cá thể do factory này tạo, kể cả lúc đóng scene.
     private bool disposed; // * Ngăn tạo thêm nhân vật khi scene đang giải phóng dịch vụ.
 
-    public CharacterFactory(CharacterView prefab, PoolManager pools, CharacterManager characters)
+    public CharacterFactory(CharacterView prefab, PoolManager pools, CharacterManager characters, CharacterRuntimePool runtimes)
     {
         this.prefab = prefab;
         this.pools = pools;
         this.characters = characters;
+        this.runtimes = runtimes;
+    }
+
+    public CharacterView Spawn(CharacterDataSO template, StatBonus bonus,
+        ICharacterController controller, Vector3 position)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(CharacterFactory));
+        CharacterRuntimeData runtime = runtimes.Rent(template, bonus);
+        ulong generation = runtime.Generation;
+        try
+        {
+            CharacterView character = Spawn(template, runtime, controller, position);
+            if (character == null) runtimes.TryReturn(runtime, generation);
+            return character;
+        }
+        catch { runtimes.TryReturn(runtime, generation); throw; }
     }
 
     public CharacterView Spawn(CharacterDataSO template, CharacterRuntimeData runtime,

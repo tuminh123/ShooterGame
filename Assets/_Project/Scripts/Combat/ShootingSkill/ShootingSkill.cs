@@ -54,13 +54,12 @@ public sealed class ShootingSkill : ISkillData
         Validate();
 
         IProjectileMove movement = moveFactory.Create(projectileMove);
-        var projectileData = new ProjectileSpawnData(bulletType, new DamageInfo(damage, sourceTeam),
-            speed, lifetime, hitRadius, movement, effects, effectHit);
+        var projectileData = new ProjectileSpawnData(bulletType, new DamageInfo(damage, sourceTeam), speed, lifetime, hitRadius, movement, effects, effectHit);
+        
         int spawnedBulletCount = 0;
         for (int projectileIndex = 0; projectileIndex < projectileCount; projectileIndex++)
         {
-            Vector2 bulletDirection = shootFactory.ShootingHandle(shooter, aimDirection.normalized,
-                projectileIndex, projectileCount);
+            Vector2 bulletDirection = shootFactory.ShootingHandle(shooter, aimDirection.normalized, projectileIndex, projectileCount);
             if (spawner.SpawnBullet(projectileData, spawnPosition, bulletDirection, target))
                 spawnedBulletCount++;
         }

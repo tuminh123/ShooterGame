@@ -24,6 +24,15 @@ public sealed class EffectRuntimePool
         return ((IMemoryPool<T>)pool).Spawn();
     }
 
+    public void Prewarm<T>(int count) where T : EffectRuntime
+    {
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (!pools.TryGetValue(typeof(T), out IMemoryPool pool))
+            throw new InvalidOperationException($"Register a runtime pool for {typeof(T).Name}.");
+        int additional = count - pool.NumInactive;
+        if (additional > 0) pool.ExpandBy(additional);
+    }
+
     internal void Return(EffectRuntime runtime)
     {
         runtime.Reset();

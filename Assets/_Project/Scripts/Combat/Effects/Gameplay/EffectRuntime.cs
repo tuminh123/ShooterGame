@@ -4,6 +4,7 @@ public abstract class EffectRuntime : ITimerListener
     internal IGameplayEffect Configuration;
     internal CharacterView Owner;
     internal CharacterRuntimeData Identity; // Giữ danh tính cũ để không áp dụng nhầm khi vỏ được pool tái sử dụng.
+    internal ulong Generation;
     protected CharacterTarget Target;
     protected CharacterTeam SourceTeam;
     internal TimerHandle Timer;
@@ -17,6 +18,7 @@ public abstract class EffectRuntime : ITimerListener
         Configuration = configuration;
         Owner = owner;
         Identity = owner.RuntimeData;
+        Generation = Identity.Generation;
         Target = new CharacterTarget(owner);
         SourceTeam = sourceTeam;
         IsActive = true;
@@ -36,6 +38,7 @@ public abstract class EffectRuntime : ITimerListener
         Configuration = null;
         Owner = null;
         Identity = null;
+        Generation = 0;
         Target = default;
         SourceTeam = default;
         Timer = default;

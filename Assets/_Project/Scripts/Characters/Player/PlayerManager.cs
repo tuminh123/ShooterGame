@@ -94,9 +94,8 @@ public sealed class PlayerManager : IInitializable, IDisposable
         CharacterDataSO template = levels.GetCharacter(type);
         if (template.Team != CharacterTeam.Player)
             throw new InvalidOperationException($"Selected character {type} must belong to the Player team.");
-        var runtime = new CharacterRuntimeData(template,
-            levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus);
-        CurrentPlayer = factory.Spawn(template, runtime, new PlayerController(joystick), Vector3.zero);
+        StatBonus bonus = levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus;
+        CurrentPlayer = factory.Spawn(template, bonus, new PlayerController(joystick), Vector3.zero);
         if (CurrentPlayer == null)
             throw new InvalidOperationException("Could not spawn the Player shell.");
         playerSprites = CurrentPlayer.Sprites;

@@ -5,16 +5,17 @@ using UnityEngine;
 // State of one spawned character. Services own levels, EXP and the origins of bonuses.
 public sealed class CharacterRuntimeData
 {
-    private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>();
+    private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>(8);
     private long nextModifierId;
     private StatBonus externalBonus;
     private float movementScale = 1f;
     private float grantedShieldCapacity;
 
-    public CharacterType CharacterType { get; }
-    public CharacterTeam Team { get; }
-    public string DisplayName { get; }
-    public BaseStats BaseStats { get; }
+    public CharacterType CharacterType { get; private set; }
+    public CharacterTeam Team { get; private set; }
+    public string DisplayName { get; private set; }
+    public BaseStats BaseStats { get; private set; }
+    public ulong Generation { get; private set; } // Phân biệt hai lượt spawn dùng lại cùng runtime C#.
     public BaseStats FinalStats { get; private set; }
     public float CurrentHealth { get; private set; }
     public float MaxShield => FinalStats.defense + grantedShieldCapacity;
@@ -23,9 +24,16 @@ public sealed class CharacterRuntimeData
     public event Action Changed;
 
     public CharacterRuntimeData(CharacterDataSO template, StatBonus bonus = default)
+        => InitializeSpawn(template, bonus);
+
+    internal CharacterRuntimeData() { } // Chỉ pool dùng để tạo runtime rảnh trước khi có nhân vật.
+
+    internal void InitializeSpawn(CharacterDataSO template, StatBonus bonus)
     {
         if (template == null) throw new ArgumentNullException(nameof(template));
         template.ValidateStats();
+        ResetForPool();
+        Generation = checked(Generation + 1);
         CharacterType = template.CharacterType;
         Team = template.Team;
         DisplayName = template.DisplayName;
@@ -34,6 +42,22 @@ public sealed class CharacterRuntimeData
         RebuildFinalStats();
         CurrentHealth = FinalStats.maxHealth;
         CurrentShield = MaxShield;
+    }
+
+    internal void ResetForPool()
+    {
+        Changed = null;
+        temporaryBonuses.Clear();
+        nextModifierId = 0;
+        externalBonus = default;
+        movementScale = 1f;
+        grantedShieldCapacity = 0f;
+        CurrentHealth = CurrentShield = 0f;
+        FinalStats = default;
+        BaseStats = default;
+        DisplayName = null;
+        CharacterType = default;
+        Team = default;
     }
 
     // The caller combines progression/equipment bonuses. Runtime does not know their origins.
@@ -48,6 +72,7 @@ public sealed class CharacterRuntimeData
 
     public IDisposable AddTemporaryBonus(StatBonus bonus)
     {
+        ulong generation = Generation;
         long id = checked(++nextModifierId);
         temporaryBonuses.Add(id, bonus);
         try { RebuildFinalStats(); }
@@ -56,6 +81,7 @@ public sealed class CharacterRuntimeData
         try { ClampVitalsAndNotify(); }
         catch
         {
+            if (Generation != generation) throw;
             temporaryBonuses.Remove(id);
             RebuildFinalStats();
             CurrentHealth = health;
@@ -64,6 +90,7 @@ public sealed class CharacterRuntimeData
         }
         return new StatModifierLease(() =>
         {
+            if (Generation != generation) return; // Lease cũ không gỡ modifier của nhân vật tái sử dụng runtime.
             if (!temporaryBonuses.Remove(id)) return;
             RebuildFinalStats();
             ClampVitalsAndNotify();
@@ -103,12 +130,14 @@ public sealed class CharacterRuntimeData
 
     private static void ValidateFinite(BaseStats stats)
     {
-        float[] values = { stats.maxHealth, stats.damage, stats.defense, stats.moveSpeed,
-            stats.critChance, stats.critDamageMultiplier, stats.effectHit, stats.effectResistance };
-        foreach (float value in values)
-            if (float.IsNaN(value) || float.IsInfinity(value))
-                throw new ArgumentException("Stat totals must be finite.");
+        // Không cấp phát float[] mỗi lần thuê runtime hoặc tính lại chỉ số.
+        if (!Finite(stats.maxHealth) || !Finite(stats.damage) || !Finite(stats.defense) ||
+            !Finite(stats.moveSpeed) || !Finite(stats.critChance) || !Finite(stats.critDamageMultiplier) ||
+            !Finite(stats.effectHit) || !Finite(stats.effectResistance))
+            throw new ArgumentException("Stat totals must be finite.");
     }
+
+    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     private void ClampVitalsAndNotify()
     {

@@ -13,18 +13,19 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private CharacterType characterType;                    // * Khóa duy nhất để ghép config và lưu tiến trình; chọn một type khác None.
     [SerializeField] private CharacterTeam team; // * Phe của loại nhân vật; boss cũng thuộc Enemy.
     [SerializeField] private bool isBoss; // Đánh dấu boss để hiện HP/giáp; không thay đổi phe hoặc cách nhận sát thương.
-    [SerializeField] private GameObject visualPrefab; // * Chỉ chứa hình ảnh/Animator, được gắn làm con của vỏ chung khi spawn.
-    [SerializeField] private HitboxData hitbox = new HitboxData
-    {
-        Size = new Vector2(0.16f, 0.16f), Offset = new Vector2(0f, 0.08f)
-    }; // Hình học local dùng chung theo loại; không chứa ID, vị trí hoặc trạng thái cá thể.
+    [SerializeField] private CharacterVisualSettings visualSettings = CharacterVisualSettings.Default;
 
+    #region  Get
+    
     public string DisplayName => displayName;  // * Nhãn hiển thị, không dùng làm khóa tra cứu.
     public CharacterType CharacterType => characterType;                       // * Khóa dùng chung cho database, level service và save.
     public CharacterTeam Team => team; // * Dùng phân biệt Player và Enemy khi tạo hành vi và xử lý tiếp xúc.
     public bool IsBoss => isBoss;
-    public GameObject VisualPrefab => visualPrefab; // * Mẫu visual dùng chung theo loại; không lưu instance đang chơi lên SO.
-    public HitboxData Hitbox => hitbox;
+    public CharacterVisualSettings VisualSettings => visualSettings;
+    public GameObject VisualPrefab => visualSettings.Prefab;
+    public HitboxData Hitbox => visualSettings.Hitbox;
+    
+    #endregion
 
     [Header("Enemy Growth")]
     [SerializeField, Min(0.01f)] private float growthInterval = 50f; // * Số giây game mỗi bậc tăng sức mạnh, tính từ lần đầu loại quái spawn thành công.

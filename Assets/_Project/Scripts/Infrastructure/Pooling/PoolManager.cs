@@ -54,6 +54,51 @@ public sealed class PoolManager : IDisposable
 
     #region Spawn & Despawn
 
+    public void ReserveActiveCapacity(int count)
+    {
+        EnsureHolders();
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        activeClones.EnsureCapacity(count);
+    }
+
+    // Chuẩn bị đủ clone rảnh và inject trước gameplay, không gọi Initialize/OnEnable của nhân vật/đạn.
+    public void Prewarm(GameObject prefab, int count)
+    {
+        if (prefab == null) throw new ArgumentNullException(nameof(prefab));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        EnsureHolders();
+        if (count == 0) return;
+        LeanGameObjectPool pool = GetPool(prefab);
+        if (pool.Strategy != LeanGameObjectPool.StrategyType.ActivateAndDeactivate ||
+            pool.Notification != LeanGameObjectPool.NotificationType.None)
+            throw new InvalidOperationException($"Prewarm requires inactive clones without pool notifications: {prefab.name}.");
+        if (pool.Capacity > 0 && count > pool.Capacity - pool.Spawned)
+            throw new InvalidOperationException($"Prewarm exceeds available pool capacity: {prefab.name}.");
+
+        var prepared = new List<GameObject>(count);
+        bool previousRecycle = pool.Recycle;
+        pool.Recycle = false; // Không lấy cắp object đang hoạt động để đáp ứng số lượng prewarm.
+        try
+        {
+            // Giữ đồng thời count clone: spawn/despawn ngay trong vòng lặp chỉ làm nóng đúng một clone.
+            for (int index = 0; index < count; index++)
+            {
+                GameObject clone = LeanPool.Spawn(prefab, Vector3.zero, Quaternion.identity, stagingHolder);
+                if (clone == null) throw new InvalidOperationException($"Could not prewarm {prefab.name}.");
+                prepared.Add(clone);
+                if (injectedClones.Contains(clone)) continue;
+                container.InjectGameObject(clone);
+                injectedClones.Add(clone);
+            }
+        }
+        finally
+        {
+            foreach (GameObject clone in prepared)
+                if (clone != null && LeanPool.Links.ContainsKey(clone)) LeanPool.Despawn(clone);
+            pool.Recycle = previousRecycle;
+        }
+    }
+
     // * Spawn theo world-space; parent tùy chọn cho object có nhánh riêng như chunk.
     public GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation,
         PoolGroup group = PoolGroup.Other, Transform parent = null, Action<GameObject> beforeActivate = null)

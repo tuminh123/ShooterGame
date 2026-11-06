@@ -11,8 +11,9 @@ public sealed class CharacterSkills : IDisposable
 
     internal CharacterView Owner { get; }
     internal CharacterRuntimeData Identity { get; }
+    private readonly ulong generation;
     internal bool CanRun => !disposed && Owner != null &&
-        ReferenceEquals(Owner.RuntimeData, Identity) && Owner.isActiveAndEnabled && Identity.IsAlive;
+        ReferenceEquals(Owner.RuntimeData, Identity) && Identity.Generation == generation && Owner.isActiveAndEnabled && Identity.IsAlive;
 
     public int InnateCount => innateSkills.Count;
 
@@ -21,6 +22,7 @@ public sealed class CharacterSkills : IDisposable
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Identity = owner.RuntimeData ?? throw new ArgumentException("Initialize the character before its skills.", nameof(owner));
+        generation = Identity.Generation;
         if (factory == null) throw new ArgumentNullException(nameof(factory));
 
         try
@@ -33,7 +35,12 @@ public sealed class CharacterSkills : IDisposable
                     throw new ArgumentException("Character skills must be non-null and unique.", nameof(definitions));
 
                 ISkill behavior = factory.Create(definition, this);
-                innateSkills.Add(new SkillRuntime(definition, behavior, Owner.Timers, !Owner.isActiveAndEnabled));
+                try { innateSkills.Add(new SkillRuntime(definition, behavior, Owner.Timers, !Owner.isActiveAndEnabled)); }
+                catch
+                {
+                    if (behavior is IDisposable disposable) disposable.Dispose();
+                    throw;
+                }
             }
         }
         catch
@@ -47,15 +54,16 @@ public sealed class CharacterSkills : IDisposable
     internal ISkill CreateShootingAction(ShootingSkill shootingData, CombatSpawner combatSpawner,
         ShootBehaviorFactory shootFactory, ProjectileMoveFactory moveFactory, float targetSearchRadius)
     {
+        if (disposed) throw new ObjectDisposedException(nameof(CharacterSkills));
         ShootingSkill runtimeSkill = shootingData.CreateRuntime();
         return new SkillAction(() =>
         {
             if (!CanRun) return false;
 
             CharacterTarget selectedTarget = default;
-            Vector2 spawnPosition = (Vector2)Owner.HitPosition + shootingData.MuzzleOffset;
-            Vector2 aimDirection = shootingData.DefaultDirection.normalized;
-            if (shootingData.RequiresTarget)
+            Vector2 spawnPosition = (Vector2)Owner.HitPosition + runtimeSkill.MuzzleOffset;
+            Vector2 aimDirection = runtimeSkill.DefaultDirection.normalized;
+            if (runtimeSkill.RequiresTarget)
             {
                 selectedTarget = Owner.Search.FindNearest(Owner.HitPosition, targetSearchRadius,
                     CharacterSearch.OpponentOf(Identity.Team), Owner);
