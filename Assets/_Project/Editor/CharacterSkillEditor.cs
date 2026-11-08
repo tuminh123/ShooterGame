@@ -47,23 +47,42 @@ internal static class StrategySelector
         bool enterChildren = true;
         while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
         {
-            // Các interface lồng bên trong cũng cần chọn lớp cụ thể để Unity lưu lại.
-            if (child.isArray && child.name == "effects")
-            {
-                DrawEffects(child);
-            }
-            else if (child.propertyType == SerializedPropertyType.ManagedReference &&
-                (child.name == "shooter" || child.name == "projectileMove"))
-            {
-                Type[] nestedTypes = child.name == "shooter" ? GetTypes<IShooter>() : GetTypes<IProjectileMove>();
-                EditorGUI.indentLevel++;
-                Draw(child, nestedTypes);
-                EditorGUI.indentLevel--;
-            }
-            else
-                EditorGUILayout.PropertyField(child, true);
+            DrawField(child);
             enterChildren = false;
         }
+    }
+
+    private static void DrawField(SerializedProperty property)
+    {
+        if (property.isArray && property.name == "effects") { DrawEffects(property); return; }
+        if (property.propertyType == SerializedPropertyType.ManagedReference &&
+            (property.name == "shooter" || property.name == "projectileMove"))
+        {
+            Draw(property, property.name == "shooter" ? GetTypes<IShooter>() : GetTypes<IProjectileMove>());
+            return;
+        }
+        if (property.propertyType != SerializedPropertyType.Generic)
+        { EditorGUILayout.PropertyField(property, true); return; }
+
+        // Đi vào từng entry nâng cấp để selector shooter/movement/effect vẫn hoạt động khi lồng trong list.
+        property.isExpanded = EditorGUILayout.Foldout(property.isExpanded, property.displayName, true);
+        if (!property.isExpanded) return;
+        EditorGUI.indentLevel++;
+        if (property.isArray)
+        {
+            int size = Mathf.Clamp(EditorGUILayout.IntField("Size", property.arraySize), 0, 256);
+            if (size != property.arraySize) property.arraySize = size;
+            for (int i = 0; i < property.arraySize; i++) DrawField(property.GetArrayElementAtIndex(i));
+        }
+        else
+        {
+            SerializedProperty child = property.Copy();
+            SerializedProperty end = property.GetEndProperty();
+            bool enter = true;
+            while (child.NextVisible(enter) && !SerializedProperty.EqualContents(child, end))
+            { DrawField(child); enter = false; }
+        }
+        EditorGUI.indentLevel--;
     }
 
     private static void DrawEffects(SerializedProperty effects)

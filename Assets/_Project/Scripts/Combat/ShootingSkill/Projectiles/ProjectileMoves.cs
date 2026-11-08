@@ -4,8 +4,14 @@ using UnityEngine;
 
 public sealed class ProjectileMoveFactory
 {
+    public static void ValidateSupported(IProjectileMove movement)
+    {
+        if (movement == null || !projectileMoves.ContainsKey(movement.GetType()))
+            throw new ArgumentException("Unsupported projectile movement.", nameof(movement));
+    }
     // Chọn strategy trực tiếp từ type được lưu trong SerializeReference.
-    private readonly Dictionary<Type, IProjectileMove> projectileMoves = new Dictionary<Type, IProjectileMove>
+    // Hai strategy hiện stateless: dùng chung an toàn, không chứa target/hướng của từng viên.
+    private static readonly Dictionary<Type, IProjectileMove> projectileMoves = new Dictionary<Type, IProjectileMove>
     {
         [typeof(StraightProjectileMove)] = new StraightProjectileMove(),
         [typeof(HomingProjectileMove)] = new HomingProjectileMove()

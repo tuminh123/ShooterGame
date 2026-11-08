@@ -51,6 +51,7 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Pool Prewarm Settings in GameSceneInstaller.");
         poolPrewarmSettings.Validate();
         SignalBusInstaller.Install(Container);
+        Container.BindInterfacesAndSelfTo<GameplayPauseService>().AsSingle();
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInterfacesAndSelfTo<SaveManager>().AsSingle().NonLazy();
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();

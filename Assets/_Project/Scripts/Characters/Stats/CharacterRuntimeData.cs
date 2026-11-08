@@ -8,6 +8,7 @@ public sealed class CharacterRuntimeData
     private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>(8);
     private long nextModifierId;
     private StatBonus externalBonus;
+    private StatBonus innateSkillBonus;
     private float movementScale = 1f;
     private float grantedShieldCapacity;
 
@@ -39,6 +40,13 @@ public sealed class CharacterRuntimeData
         DisplayName = template.DisplayName;
         BaseStats = template.BaseStats;
         externalBonus = bonus;
+        // Include innate bonuses before filling spawn HP/shield. External refreshes preserve them.
+        foreach (SkillDataSO skill in template.Skills)
+        {
+            if (skill == null) throw new ArgumentException("Character skills cannot be null.", nameof(template));
+            skill.Validate();
+            innateSkillBonus += skill.StatBonus;
+        }
         RebuildFinalStats();
         CurrentHealth = FinalStats.maxHealth;
         CurrentShield = MaxShield;
@@ -50,6 +58,7 @@ public sealed class CharacterRuntimeData
         temporaryBonuses.Clear();
         nextModifierId = 0;
         externalBonus = default;
+        innateSkillBonus = default;
         movementScale = 1f;
         grantedShieldCapacity = 0f;
         CurrentHealth = CurrentShield = 0f;
@@ -112,7 +121,7 @@ public sealed class CharacterRuntimeData
 
     private void RebuildFinalStats()
     {
-        StatBonus total = externalBonus;
+        StatBonus total = externalBonus + innateSkillBonus;
         foreach (StatBonus bonus in temporaryBonuses.Values) total += bonus;
         BaseStats stats = total.ApplyTo(BaseStats);
         // Check before clamping so invalid bonuses cannot hide NaN/infinity behind a limit.
@@ -172,13 +181,16 @@ public sealed class CharacterRuntimeData
 
     // Calculation only; existing skill/projectile callers keep using this without skill changes.
     public DamageInfo CreateDamage(float multiplier = 1f)
+        => CreateDamage(FinalStats, Team, multiplier);
+
+    internal static DamageInfo CreateDamage(BaseStats stats, CharacterTeam team, float multiplier = 1f)
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
             throw new ArgumentOutOfRangeException(nameof(multiplier));
-        float chance = Mathf.Min(FinalStats.critChance, 100f);
-        float critBonus = FinalStats.critDamageMultiplier + Mathf.Max(0f, FinalStats.critChance - 100f) * 0.25f;
+        float chance = Mathf.Min(stats.critChance, 100f);
+        float critBonus = stats.critDamageMultiplier + Mathf.Max(0f, stats.critChance - 100f) * 0.25f;
         bool critical = chance >= 100f || (chance > 0f && UnityEngine.Random.value * 100f < chance);
-        float amount = FinalStats.damage * multiplier * (critical ? 1f + critBonus / 100f : 1f);
-        return new DamageInfo(amount, Team, critical);
+        float amount = stats.damage * multiplier * (critical ? 1f + critBonus / 100f : 1f);
+        return new DamageInfo(amount, team, critical);
     }
 }

@@ -14,6 +14,16 @@ public struct StatBonus
     [FormerlySerializedAs("dodge")] public float effectResistance;
     [FormerlySerializedAs("accuracy")] public float effectHit;
 
+    public void Validate()
+    {
+        if (!Finite(maxHealth) || !Finite(damage) || !Finite(defense) || !Finite(moveSpeed) ||
+            !Finite(critChance) || !Finite(critDamageMultiplier) ||
+            !Finite(effectResistance) || !Finite(effectHit))
+            throw new ArgumentException("Stat bonuses must be finite.");
+    }
+
+    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
     public static StatBonus operator +(StatBonus left, StatBonus right) => new StatBonus
     {
         maxHealth = left.maxHealth + right.maxHealth,

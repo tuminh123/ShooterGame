@@ -1,12 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Zenject;
 
 // Nút pause tự quản lý click; không để UIManager xử lý hành vi của từng nút.
 public sealed class PauseUI : MonoBehaviour
 {
     [SerializeField] private Button button;
-    private bool paused;
-    private float previousTimeScale;
+    private GameplayPauseService pauses;
+    private System.IDisposable pauseLease;
+
+    [Inject]
+    public void Construct(GameplayPauseService pauses) => this.pauses = pauses;
 
     private void OnEnable() => button.onClick.AddListener(Toggle);
     private void OnDisable()
@@ -17,16 +21,14 @@ public sealed class PauseUI : MonoBehaviour
 
     private void Toggle()
     {
-        if (paused) { Resume(); return; }
-        previousTimeScale = Time.timeScale;
-        paused = true;
-        Time.timeScale = 0f;
+        if (pauseLease != null) { Resume(); return; }
+        pauseLease = pauses.Acquire();
     }
 
     public void Resume()
     {
-        if (!paused) return;
-        paused = false;
-        Time.timeScale = previousTimeScale;
+        System.IDisposable previous = pauseLease;
+        pauseLease = null;
+        previous?.Dispose();
     }
 }

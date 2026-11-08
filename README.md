@@ -32,3 +32,7 @@ Xem `Assets/_Project/DataSO/README.md` để biết cách cấu hình dữ liệ
 Các thư viện và asset bên thứ ba tuân theo giấy phép của tác giả tương ứng. Repository chưa cấp giấy phép riêng cho mã nguồn của dự án.
 
 Xem Docs/Architecture/Skill-Shooting-Pipeline.md để cấu hình skill, kiểu bắn, đạn và hiệu ứng.
+
+Skill cưa/vùng băng, cấp trong trận và bảng nâng cấp shooting được mô tả trong [Skill Run Progression](Docs/Architecture/Skill-Run-Progression.md). Trong Play Mode, chọn một asset skill rồi dùng menu `Shooter Game > Skills > Grant Or Upgrade Selected Skill` để kiểm tra nâng cấp.
+
+Khi lên cấp, [Skill Choice UI](Docs/Architecture/Skill-Choice-UI.md) mở ba lựa chọn với tên, icon, mô tả và tối đa năm sao. Có thể thử bằng menu `Shooter Game > Skills > Grant One Run Level` trong Play Mode.

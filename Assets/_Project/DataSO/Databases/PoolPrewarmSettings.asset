@@ -23,4 +23,8 @@ MonoBehaviour:
   slowRuntimes: 32
   damageOverTimeRuntimes: 64
   timerCapacity: 1024
-  additionalPrefabs: []
+  additionalPrefabs:
+  - prefab: {fileID: 100000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
+    count: 5
+  - prefab: {fileID: 100000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+    count: 1

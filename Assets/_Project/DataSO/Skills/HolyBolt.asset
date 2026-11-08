@@ -13,12 +13,28 @@ MonoBehaviour:
   m_Name: HolyBolt
   m_EditorClassIdentifier:
   level: 1
-  maxLevel: 5
+  maxLevel: 6
   cooldown: 0.6
   range: 2
-  displayName: HolyBolt
+  statBonus:
+    maxHealth: 0
+    damage: 10
+    defense: 0
+    moveSpeed: 0
+    critChance: 0
+    critDamageMultiplier: 0
+    effectResistance: 0
+    effectHit: 0
+  displayName: Holy Bolt
   description: Automatically fires the configured projectile pattern.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: cc5e7825cb36e407cb57d2a550424c6c, type: 3}
+  runLevelDescriptions:
+  - "Fire 1 holy bolts at a nearby enemy."
+  - "Fire 2 holy bolts at a nearby enemy."
+  - "Fire 3 holy bolts at a nearby enemy."
+  - "Fire 4 holy bolts at a nearby enemy."
+  - "Fire 5 homing bolts at nearby enemies."
+  - "Fire 5 homing bolts in a circle and apply slow."
   behavior: {rid: 1001}
   references:
     version: 2
@@ -36,8 +52,33 @@ MonoBehaviour:
         speed: 2.4
         hitRadius: 0.035
         lifetime: 3
-        damage: 10
         effects: []
+        upgrades:
+          shootingLevels:
+          - level: 2
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 2
+          - level: 3
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 3
+          - level: 4
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 4
+          - level: 5
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1004}
+            projectileCount: 5
+          - level: 6
+            shooter: {rid: 1005}
+            projectileMove: {rid: 1004}
+            projectileCount: 5
+          effectLevels:
+          - level: 6
+            effects:
+            - {rid: 1006}
     - rid: 1002
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: {}
@@ -46,3 +87,17 @@ MonoBehaviour:
       data:
         spreadAngle: 0
         startAngle: 0
+    - rid: 1004
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1005
+      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+      data:
+        startAngle: 0
+    - rid: 1006
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 1
+        slowFraction: 0.3

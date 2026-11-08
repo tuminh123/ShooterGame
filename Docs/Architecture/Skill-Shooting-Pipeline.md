@@ -1,14 +1,16 @@
 # Character skills and independent run skills
 
+Run-level progression, shared shooter factories, OrbitSaw and FrostAura: see [Skill Run Progression](Skill-Run-Progression.md).
+
 ## Boundaries
 
 - `CharacterManager` tracks characters in the scene; it does not schedule skills.
 - `CharacterView.Skills` (`CharacterSkills`) owns only innate skills from `CharacterDataSO.Skills`.
 - `CharacterControllerBase.Tick` advances innate skills before calling the derived movement hook. The view only forwards its frame update to the controller.
-- The scene `SkillManager` independently owns run skills received from an external source. It has no character, character factory, position anchor or character stats dependency.
-- `SkillRuntime` is a live behavior and cooldown entry. Its cooldown uses a versioned handle in the shared `TimerManager`; it has no character dependency. Each collection decides when to execute, pause and dispose its entries.
+- The scene `SkillManager` owns run skills received from an external source, with an explicit Player or Enemy owner for each registration.
+- `SkillRuntime` is a live behavior and cooldown entry. Run entries also own a generation-safe stat lease and subscribe to their owner's death/release. Each collection decides when to execute, pause and dispose its entries.
 - `SkillFactory` creates character-bound runtime actions from `SkillDataSO.Data`. `ISkillData` identifies serialized settings; `ISkill` identifies scheduled runtime actions.
-- `ShootingSkill` stores configuration and executes a complete volley in `ExecuteSkill`. Each scheduled character gets a runtime copy with its own shooter instance. `CharacterSkills` only prepares targeting/position/direction and calls that method.
+- `ShootingSkill` stores configuration and executes a complete volley in `ExecuteSkill`. Each scheduled character gets a runtime copy with its own shooter instance. `ShootingSkillAction` prepares targeting/position/direction and forwards run-level changes.
 
 ## Innate skill flow
 
@@ -16,24 +18,24 @@
 2. The factory creates fresh behaviors bound to that spawn; shared asset templates are never executed or mutated.
 3. The base controller advances only the character's innate collection. The collection checks active/alive/spawn identity before each entry.
 4. Disable freezes innate cooldowns. Death, despawn and destruction dispose only that character's innate skills and persistent modifiers.
-5. Character cleanup never calls `SkillManager` or removes run registrations.
+5. Character cleanup does not call `SkillManager`; owner events dispose that character's run entries and their stat leases.
 
-## Run skills: integration deferred
+## Run skills: level-up choices
 
-The card/reward source is not implemented. There are currently no gameplay callers that grant run skills.
+`SkillChoiceUI` supplies three level-up choices and calls the manager below. See [Skill Choice UI](Skill-Choice-UI.md) for catalog, sequential levels, stars and pause rules.
 
 The integration entry point is:
 
 ```csharp
-skillManager.AddSkill(selectedDefinition, runtimeBehavior);
+skillManager.GrantOrUpgrade(selectedDefinition, ownerCharacter);
 ```
 
-- A future external source supplies the `SkillDataSO` configuration and a separately created `ISkill` instance.
+- The UI (or another reward source) supplies the `SkillDataSO` configuration and explicit owner. `GrantOrUpgrade` creates a behavior only when that owner does not already have the skill. The lower-level `AddSkill(definition, behavior, owner)` remains available for explicit behavior creation.
 - The manager registers the instance and advances its cooldown through Zenject's tick. It does not create character-bound behaviors or discover assets automatically.
-- The shared behavior template cannot be registered directly. Duplicate live definitions are rejected within the run collection.
-- Position sourcing, standalone run-skill damage/range, card selection and progression are intentionally not connected yet. Do not obtain them from character runtime as an implicit fallback.
-- Character disable, death, despawn or replacement does not reset or remove run skills.
-- `LevelManager.RunReset` clears only run skills. Explicit run-exit coordination can call `ClearRunSkills()` later. Innate skills and their timers are untouched.
+- The shared behavior template cannot be registered directly. Duplicate grants upgrade the existing innate/run runtime; low-level duplicate registrations are rejected for the same owner. Different owners can equip the same asset with separate behaviors.
+- The high-level call creates its behavior through SkillFactory; low-level callers supply a separately created behavior. The level-up UI currently caps offers at run level 5.
+- Temporary disable pauses run entries. Death/despawn disposes the affected owner's entries immediately. A replacement character must receive its own registrations.
+- `LevelManager.RunReset` clears run skills and resets innate `RunLevel` to 1; innate stat bonuses and cooldown handles remain. Explicit run-exit coordination can call `ClearRunSkills()` to remove run registrations.
 
 ## Common scheduling rules
 
@@ -50,7 +52,17 @@ skillManager.AddSkill(selectedDefinition, runtimeBehavior);
 - Other skill types retain their existing template/runtime implementation; this refactor separates shooting data without changing their gameplay.
 - `RegenerationSkill` heals its injured owner; the sample heals 1 HP every 2 seconds after success.
 - `EmergencyShieldSkill` grants 30 shield at <=20% HP, with a 5-second cooldown.
-- `StatBonusSkill` applies once and owns an idempotent modifier lease. It grants only newly added defense-derived shield capacity, never refilling previously spent shield. Synchronous despawn during application releases the lease.
+- `StatBonusSkill` is a passive marker. Its bonus is authored in `SkillDataSO.StatBonus`, like every other skill; the behavior does not apply another modifier on execution.
+
+## Equipped stat bonuses
+
+- Every `SkillDataSO` has one `StatBonus` containing additive HP, damage, defense, speed, crit and effect stats. Percent values are percentage points.
+- `CharacterRuntimeData.InitializeSpawn` sums innate skill bonuses before filling initial HP/shield. They remain part of that character's stats when run level/equipment bonuses refresh or run skills reset, and are rebuilt on a new spawn.
+- Run skills apply their bonus once at registration through a modifier lease. `ClearRunSkills`, `LevelManager.RunReset`, owner death/release and disposal remove that bonus. Call `ClearRunSkills()` when coordinating run exit; there is no complete end-of-run flow yet.
+- Equipping run skills or refreshing equipment during play changes capacities without healing/refilling HP/shield. Removing bonuses clamps current values to the new capacities.
+- Total stats = base + permanent/run level and equipped item bonuses + innate skill bonuses + run skill/other temporary bonuses, followed by existing stat limits and slow.
+- Skill bonuses affect all attacks using the character's final stats. They are never added again on each attack. Burn/poison damage and slow strength remain separate effect configuration.
+- Existing shooting damage values were moved into the skill asset's top-level `statBonus.damage`; Toughness's old passive defense moved into `statBonus.defense`. Adding the character's base damage is an intentional balance change (base 20 + skill 10 = 30 before crit).
 
 ## Authoring
 
@@ -61,13 +73,13 @@ skillManager.AddSkill(selectedDefinition, runtimeBehavior);
 
 ## Shooting and visual effects
 
-`CharacterSkills` prepares origin and aim, then calls the runtime `ShootingSkill.ExecuteSkill`. That method loops over the volley and calls `CombatSpawner.SpawnBullet` for each direction. `IShooter` receives only aim and bullet index/count; it never receives a skill or externally managed rotation. `CombatSpawner` and `ProjectileView` receive `ProjectileSpawnData`, with no skill dependency.
+`ShootingSkillAction` prepares origin and aim, then calls the runtime `ShootingSkill.ExecuteSkill`. That method loops over the volley and calls `CombatSpawner.SpawnBullet` for each direction. `IShooter` receives only aim and bullet index/count; it never receives a skill or externally managed rotation. `CombatSpawner` and `ProjectileView` receive `ProjectileSpawnData`, with no skill dependency.
 
-- Select `ShootingSkill` in the skill asset, then choose `StraightShooter`, `CircularShooter` or `SpiralShooter` inside its Shooter field. Pattern-specific angles live directly on those serializable implementations. Common count, speed, damage, targeting and lifetime stay on the skill. Separate shooting-data subclasses are removed.
+- Select `ShootingSkill` in the skill asset, then choose `StraightShooter`, `CircularShooter` or `SpiralShooter` inside its Shooter field. Pattern-specific angles live directly on those serializable implementations. Count, speed, targeting and lifetime stay on shooting data; character damage bonuses belong to `SkillDataSO.StatBonus`.
 - Select `StraightProjectileMove` or `HomingProjectileMove` directly in the Projectile Move field. There are no empty movement-data classes, string type selectors or custom type attributes. Factories register `Dictionary<Type, IShooter>` and `Dictionary<Type, IProjectileMove>` keyed by the implementation types. Shooter instances retain their serialized angle settings; live rotation is private to each runtime `SpiralShooter`. `IShooter.CreateRuntime` copies configuration and resets its own runtime state; no shooter instance is shared between running skills. Movement strategies retain no per-bullet state.
 - `IProjectileMove.GetDirection` only determines heading. Homing continues in its last direction if its original target spawn is no longer valid. `MovementManager.SetMovement` receives heading and skill speed; `MovementManager.LateTick` applies position changes.
 - `ProjectileManager` is the single Zenject tick for heading and batched spatial sweeps; lifetime is handled by `TimerManager`. `ProjectileView` has no `Update`. `OnEnable` registers movement, lifetime and projectile state; `OnDisable` unregisters all three. A snapshot plus unique movement handles prevents callbacks from updating an old pooled spawn or ticking a newly spawned bullet mid-iteration.
-- Speed and damage are copied directly from skill data when a bullet spawns. Projectile damage no longer scales with character damage or rolls character critical stats. Melee damage is unchanged. Sample assets use 10 damage (PoisonBolt: 5), preserving their old damage at a base character damage of 10 before crits/bonuses. IceBolt uses `HomingProjectileMove`; the other sample shooting assets use `StraightProjectileMove`.
+- Speed comes from shooting data. Final character stats/team are captured for the volley; each projectile rolls its own crit on total character damage. The resulting `DamageInfo` stays fixed after spawn, even if equipment or skills change. IceBolt uses `HomingProjectileMove`; the other sample shooting assets use `StraightProjectileMove`.
 - `CombatAssetsSO` is the resource catalog: one shared `ProjectileView` prefab, sprite/color/width and impact effect type per bullet type. Each VFX entry has an `EffectView` shell prefab and a separate `visualPrefab` with `IEffectVisual` on its root. It contains no damage, cooldown or live phase.
 - `CombatSpawner` reads the catalog and initializes bullets/effects before the pool activates them. `EffectType.None` skips visual effect spawning.
 - `ProjectileView` snapshots damage/team, speed, hit radius, lifetime and the resolved movement strategy at spawn. It does not retain the skill or the character source.

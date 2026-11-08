@@ -16,6 +16,15 @@ MonoBehaviour:
   maxLevel: 5
   cooldown: 0.12
   range: 2
+  statBonus:
+    maxHealth: 0
+    damage: 10
+    defense: 0
+    moveSpeed: 0
+    critChance: 0
+    critDamageMultiplier: 0
+    effectResistance: 0
+    effectHit: 0
   displayName: BossFireSpiral
   description: Automatically fires the configured projectile pattern.
   icon: {fileID: 0}
@@ -36,7 +45,6 @@ MonoBehaviour:
         speed: 2.4
         hitRadius: 0.035
         lifetime: 3
-        damage: 10
         effects:
         - {rid: 1004}
     - rid: 1002

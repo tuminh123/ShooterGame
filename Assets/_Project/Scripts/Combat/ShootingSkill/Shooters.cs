@@ -5,19 +5,30 @@ using UnityEngine;
 public sealed class ShootBehaviorFactory
 {
     // Danh mục kiểu bắn được hỗ trợ; không phụ thuộc vào class skill.
-    private readonly Dictionary<Type, IShooter> shooters = new Dictionary<Type, IShooter>
+    private static readonly HashSet<Type> supportedShooters = new HashSet<Type>
     {
-        [typeof(StraightShooter)] = new StraightShooter(),
-        [typeof(CircularShooter)] = new CircularShooter(),
-        [typeof(SpiralShooter)] = new SpiralShooter()
+        typeof(StraightShooter), typeof(CircularShooter), typeof(SpiralShooter)
     };
+
+    public static void ValidateSupported(IShooter shooter)
+    {
+        if (shooter == null || !supportedShooters.Contains(shooter.GetType()))
+            throw new ArgumentException("Unsupported shooter configuration.", nameof(shooter));
+    }
+
+    // Factory chung chọn loại, nhưng không chia sẻ trạng thái Spiral giữa các nhân vật/skill.
+    public IShooter CreateRuntime(IShooter template)
+    {
+        ValidateSupported(template);
+        template.Validate();
+        return template.CreateRuntime();
+    }
 
     public Vector2 ShootingHandle(IShooter selectedShooter, Vector2 aimDirection,
         int projectileIndex, int projectileCount)
     {
         if (selectedShooter == null) throw new ArgumentNullException(nameof(selectedShooter));
-        if (!shooters.ContainsKey(selectedShooter.GetType()))
-            throw new ArgumentException($"Unsupported shooter: {selectedShooter.GetType().Name}.", nameof(selectedShooter));
+        ValidateSupported(selectedShooter);
 
         // Dùng đúng instance đã cấu hình góc trong asset, không thay bằng instance mặc định.
         return selectedShooter.GetDirection(aimDirection, projectileIndex, projectileCount);

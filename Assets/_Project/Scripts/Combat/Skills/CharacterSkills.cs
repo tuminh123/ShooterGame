@@ -17,6 +17,19 @@ public sealed class CharacterSkills : IDisposable
 
     public int InnateCount => innateSkills.Count;
 
+    public bool TryGetRuntime(SkillDataSO definition, out SkillRuntime runtime)
+    {
+        foreach (SkillRuntime skill in innateSkills)
+            if (skill.IsActive && skill.Definition == definition) { runtime = skill; return true; }
+        runtime = null;
+        return false;
+    }
+
+    internal void ResetRunLevels()
+    {
+        for (int i = 0; i < innateSkills.Count && !disposed; i++) innateSkills[i].ResetRunLevel();
+    }
+
     public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions,
         SkillFactory factory)
     {
@@ -50,33 +63,6 @@ public sealed class CharacterSkills : IDisposable
         }
     }
 
-    // Action chỉ chuẩn bị đầu vào; ShootingSkill.ExecuteSkill thực hiện lượt bắn.
-    internal ISkill CreateShootingAction(ShootingSkill shootingData, CombatSpawner combatSpawner,
-        ShootBehaviorFactory shootFactory, ProjectileMoveFactory moveFactory, float targetSearchRadius)
-    {
-        if (disposed) throw new ObjectDisposedException(nameof(CharacterSkills));
-        ShootingSkill runtimeSkill = shootingData.CreateRuntime();
-        return new SkillAction(() =>
-        {
-            if (!CanRun) return false;
-
-            CharacterTarget selectedTarget = default;
-            Vector2 spawnPosition = (Vector2)Owner.HitPosition + runtimeSkill.MuzzleOffset;
-            Vector2 aimDirection = runtimeSkill.DefaultDirection.normalized;
-            if (runtimeSkill.RequiresTarget)
-            {
-                selectedTarget = Owner.Search.FindNearest(Owner.HitPosition, targetSearchRadius,
-                    CharacterSearch.OpponentOf(Identity.Team), Owner);
-                if (!selectedTarget.TryGetCharacter(out CharacterView targetCharacter)) return false;
-                Vector2 directionToTarget = (Vector2)targetCharacter.HitPosition - spawnPosition;
-                if (directionToTarget.sqrMagnitude > 0.000001f) aimDirection = directionToTarget.normalized;
-            }
-
-            return runtimeSkill.ExecuteSkill(combatSpawner, shootFactory, moveFactory,
-                Identity.Team, spawnPosition, aimDirection, selectedTarget, Identity.FinalStats.effectHit) > 0;
-        });
-    }
-
     public void Tick(float deltaTime)
     {
         SkillRuntime.ValidateDeltaTime(deltaTime);
@@ -105,7 +91,7 @@ public sealed class CharacterSkills : IDisposable
     // Timer vẫn được cập nhật tập trung; tắt tạm vỏ chỉ pause các cooldown của đúng cá thể này.
     internal void SetPaused(bool paused)
     {
-        foreach (SkillRuntime skill in innateSkills) skill.SetPaused(paused);
+        for (int i = 0; i < innateSkills.Count && !disposed; i++) innateSkills[i].SetPaused(paused);
     }
 
     public void Dispose()

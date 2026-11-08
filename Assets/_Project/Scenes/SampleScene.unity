@@ -4107,6 +4107,7 @@ GameObject:
   - component: {fileID: 7292918211641658932}
   - component: {fileID: 930001}
   - component: {fileID: 930002}
+  - component: {fileID: 950100}
   m_Layer: 0
   m_Name: Play_UI_Action
   m_TagString: Untagged
@@ -6064,6 +6065,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8207395369597667097}
+  - component: {fileID: 950102}
   m_Layer: 0
   m_Name: BannerFrame04_Divided
   m_TagString: Untagged
@@ -6916,6 +6918,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8207395369687818853}
+  - component: {fileID: 950101}
   m_Layer: 0
   m_Name: BannerFrame04_Divided
   m_TagString: Untagged
@@ -10879,6 +10882,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8207395370921462231}
+  - component: {fileID: 950103}
   m_Layer: 0
   m_Name: BannerFrame04_Divided
   m_TagString: Untagged
@@ -11795,3 +11799,178 @@ SceneRoots:
   - {fileID: 519420032}
   - {fileID: 528950760}
   - {fileID: 1200031}
+--- !u!114 &950101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8207395369687818854}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  m_Navigation:
+    m_Mode: 0
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_PressedColor: {r: 0.75, g: 0.85, b: 1, a: 1}
+    m_SelectedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_DisabledColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.5}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 8207395370715027006}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &950102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8207395369597667098}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  m_Navigation:
+    m_Mode: 0
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_PressedColor: {r: 0.75, g: 0.85, b: 1, a: 1}
+    m_SelectedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_DisabledColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.5}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 8207395369604501481}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &950103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8207395370921462224}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  m_Navigation:
+    m_Mode: 0
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_PressedColor: {r: 0.75, g: 0.85, b: 1, a: 1}
+    m_SelectedColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+    m_DisabledColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.5}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 8207395369627654645}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &950100
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7292918211641658891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52cab94979734a5ea918a77d1b8d3371, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  modalRoot: {fileID: 8207395369756599921}
+  heading: {fileID: 118441424554895326}
+  cards:
+  - button: {fileID: 950101}
+    icon: {fileID: 8207395370310052423}
+    title: {fileID: 8207395370696751964}
+    description: {fileID: 8207395370045127766}
+    gemsOff: {fileID: 8207395370855779101}
+    gemsOn: {fileID: 8207395370094410170}
+  - button: {fileID: 950102}
+    icon: {fileID: 8207395370185841491}
+    title: {fileID: 8207395369893559855}
+    description: {fileID: 8207395369569257721}
+    gemsOff: {fileID: 8207395370880719662}
+    gemsOn: {fileID: 8207395369655602769}
+  - button: {fileID: 950103}
+    icon: {fileID: 8207395370090652028}
+    title: {fileID: 8207395369773486916}
+    description: {fileID: 8207395370194074146}
+    gemsOff: {fileID: 8207395369755239759}
+    gemsOn: {fileID: 8207395370799635771}
+  availableSkills:
+  - {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+  - {fileID: 11400000, guid: 6ba992ce65284e7da981712090268507, type: 2}
+  - {fileID: 11400000, guid: 9df363c7241e4912baf05c4ee8838a60, type: 2}
+  - {fileID: 11400000, guid: 16cbce912f4a45e2967180bcb36e3dbb, type: 2}
+  - {fileID: 11400000, guid: 23c29f8d87ba4f5397351f5a1a80a998, type: 2}
+  - {fileID: 11400000, guid: 115e69b9420649fbbdadd392a42c65bf, type: 2}
+  - {fileID: 11400000, guid: 156424cc38144a71a78416787a0fd77d, type: 2}
+  - {fileID: 11400000, guid: 0d1cdf067efd476fa2aa19a8232230fd, type: 2}
+  - {fileID: 11400000, guid: 86aa0d136e90e816507ec2cddb880e4c, type: 2}

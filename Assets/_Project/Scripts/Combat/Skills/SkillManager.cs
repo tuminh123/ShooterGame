@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// Owns run skills supplied by an external system. Has no character or position source.
+// Owns run skills and their stat leases for explicitly supplied Player/Enemy owners.
 public sealed class SkillManager : ITickable, IDisposable
 {
     private readonly List<SkillRuntime> runSkills = new List<SkillRuntime>();
@@ -13,6 +13,10 @@ public sealed class SkillManager : ITickable, IDisposable
     private bool ticking;
     private bool clearing;
     private bool disposed;
+    private bool adding;
+    private int runVersion;
+    private readonly SkillFactory factory;
+    private readonly CharacterManager characters;
 
     public int RunCount
     {
@@ -25,35 +29,76 @@ public sealed class SkillManager : ITickable, IDisposable
         }
     }
 
-    public SkillManager(LevelManager levels, ITimerManager timers, ITimeSource timeSource)
+    public SkillManager(LevelManager levels, ITimerManager timers, ITimeSource timeSource,
+        SkillFactory factory, CharacterManager characters)
     {
         this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
         this.timers = timers;
         this.timeSource = timeSource;
+        this.factory = factory;
+        this.characters = characters;
         levels.RunReset += OnRunReset;
     }
 
+    // Một cửa nhận phần thưởng: skill đã có (innate hoặc run) chỉ nâng cùng runtime, không cộng bonus hai lần.
+    public bool GrantOrUpgrade(SkillDataSO definition, CharacterView owner)
+    {
+        if (disposed || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive || owner.Skills == null)
+            return false;
+        if (TryGetRuntime(definition, owner, out SkillRuntime existing)) return existing.TryUpgrade();
+        ISkill behavior = factory.Create(definition, owner.Skills);
+        bool added = false;
+        try { added = AddSkill(definition, behavior, owner); return added; }
+        finally { if (!added && behavior is IDisposable disposable) disposable.Dispose(); }
+    }
+
+    public bool TryGetRuntime(SkillDataSO definition, CharacterView owner, out SkillRuntime runtime)
+    {
+        if (owner != null && owner.Skills != null && owner.Skills.TryGetRuntime(definition, out runtime)) return true;
+        foreach (SkillRuntime skill in runSkills)
+            if (skill.IsActive && skill.Definition == definition && skill.BelongsTo(owner)) { runtime = skill; return true; }
+        runtime = null;
+        return false;
+    }
+
     // The future card/reward system supplies configuration and a separately created behavior.
-    public bool AddSkill(SkillDataSO definition, ISkill behavior)
+    public bool AddSkill(SkillDataSO definition, ISkill behavior, CharacterView owner)
     {
         if (disposed) return false;
         if (clearing) throw new InvalidOperationException("Cannot add run skills during cleanup.");
+        if (adding) throw new InvalidOperationException("Cannot add run skills from a stat-change callback.");
         if (definition == null) throw new ArgumentNullException(nameof(definition));
         if (behavior == null) throw new ArgumentNullException(nameof(behavior));
+        if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive)
+            throw new ArgumentException("Run skills require a living character owner.", nameof(owner));
         definition.Validate();
+        if (owner.Skills != null && owner.Skills.TryGetRuntime(definition, out _)) return false;
         if (ReferenceEquals(definition.Data, behavior))
             throw new ArgumentException("Create a runtime instance instead of registering the shared template.", nameof(behavior));
 
         foreach (SkillRuntime skill in runSkills)
         {
             if (!skill.IsActive) continue;
-            if (skill.Definition == definition) return false;
+            if (skill.Definition == definition && skill.BelongsTo(owner)) return false;
             if (skill.UsesBehavior(behavior))
                 throw new ArgumentException("Create a separate behavior instance for each skill.", nameof(behavior));
         }
 
-        runSkills.Add(new SkillRuntime(definition, behavior, timers));
-        return true;
+        int version = runVersion;
+        adding = true;
+        try
+        {
+            var skill = new SkillRuntime(definition, behavior, timers, !owner.isActiveAndEnabled, owner);
+            // Applying stats can synchronously reset the run, dispose the manager or release the owner.
+            if (disposed || runVersion != version || !skill.IsActive)
+            {
+                skill.Dispose();
+                return false;
+            }
+            runSkills.Add(skill);
+            return true;
+        }
+        finally { adding = false; }
     }
 
     public void Tick()
@@ -89,6 +134,7 @@ public sealed class SkillManager : ITickable, IDisposable
     public void ClearRunSkills()
     {
         if (clearing) return;
+        runVersion++;
         clearing = true;
         List<Exception> failures = null;
         try
@@ -121,6 +167,12 @@ public sealed class SkillManager : ITickable, IDisposable
     {
         try { ClearRunSkills(); }
         catch (Exception exception) { Debug.LogException(exception); }
+        // Innate skill không bị gỡ; chỉ hạ cấp TRẬN về 1, giữ bonus riêng và Definition.Level.
+        foreach (CharacterView character in new List<CharacterView>(characters.Characters.Keys))
+        {
+            try { if (character != null) character.Skills?.ResetRunLevels(); }
+            catch (Exception exception) { Debug.LogException(exception, character); }
+        }
     }
 
     public void Dispose()

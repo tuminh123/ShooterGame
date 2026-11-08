@@ -16,9 +16,24 @@ MonoBehaviour:
   maxLevel: 5
   cooldown: 0.8
   range: 2
-  displayName: FireBolt
+  statBonus:
+    maxHealth: 0
+    damage: 10
+    defense: 0
+    moveSpeed: 0
+    critChance: 0
+    critDamageMultiplier: 0
+    effectResistance: 0
+    effectHit: 0
+  displayName: Fire Bolt
   description: Automatically fires the configured projectile pattern.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: cff137be7b1cc43e29d430220047f3bb, type: 3}
+  runLevelDescriptions:
+  - "Fire 1 bolts that apply burn to enemies."
+  - "Fire 2 bolts that apply burn to enemies."
+  - "Fire 3 bolts that apply burn to enemies."
+  - "Fire 4 bolts that apply burn to enemies."
+  - "Fire 5 bolts that apply burn to enemies."
   behavior: {rid: 1001}
   references:
     version: 2
@@ -36,9 +51,27 @@ MonoBehaviour:
         speed: 2.4
         hitRadius: 0.035
         lifetime: 3
-        damage: 10
         effects:
         - {rid: 1004}
+        upgrades:
+          shootingLevels:
+          - level: 2
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 2
+          - level: 3
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 3
+          - level: 4
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 4
+          - level: 5
+            shooter: {rid: 1003}
+            projectileMove: {rid: 1002}
+            projectileCount: 5
+          effectLevels: []
     - rid: 1002
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: {}

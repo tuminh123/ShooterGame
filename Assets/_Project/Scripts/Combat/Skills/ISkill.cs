@@ -1,18 +1,25 @@
 // Serialized skill settings are separate from scheduled runtime actions.
 public interface ISkillData { }
 
+// Template có hỗ trợ cấp trong trận. UI không đoán khả năng nâng cấp từ MaxLevel cấu hình cũ.
+public interface IRunLevelSkillData : ISkillData { }
+
 // The scheduler knows only this behavior. Dependencies belong to each concrete skill.
 public interface ISkill
 {
     bool TryExecute();
 }
 
-internal sealed class SkillAction : ISkill
+// Cấp trong trận thuộc runtime, không ghi ngược vào SkillDataSO.Level (cấp cấu hình/vĩnh viễn).
+public interface IRunLevelSkill
 {
-    private readonly System.Func<bool> execute;
+    void SetRunLevel(int level);
+}
 
-    public SkillAction(System.Func<bool> execute)
-        => this.execute = execute ?? throw new System.ArgumentNullException(nameof(execute));
-
-    public bool TryExecute() => execute();
+// Aura/quỹ đạo cần cập nhật liên tục, kể cả khi cooldown chưa sẵn sàng.
+// Scheduler gọi interface này; không thêm Update lên từng behavior C# thuần.
+public interface IContinuousSkill
+{
+    void Tick(float deltaTime);
+    void SetPaused(bool paused);
 }
