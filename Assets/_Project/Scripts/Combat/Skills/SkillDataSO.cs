@@ -1,80 +1,86 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
+// Một definition độc lập; skill nhân vật không dùng chung asset với skill nhận trong màn.
 [CreateAssetMenu(menuName = "Shooter Game/Skills/Skill")]
 public sealed class SkillDataSO : ScriptableObject
 {
-    [Header("Configuration")]
-    [SerializeField, Min(1)] private int level = 1;
-    [SerializeField, Min(1)] private int maxLevel = 5;
-    [SerializeField, Min(0f)] private float cooldown = 0.8f;
-    [SerializeField, Min(0f)] private float range = 2f;
+    #region Display And Source
 
-    [Header("Character Stats While Equipped")]
-    [SerializeField] private StatBonus statBonus;
+    [SerializeField] private SkillSource source; // Chỉ Gameplay được nhận/nâng qua bảng thưởng.
+    [SerializeField, Min(1)] private int level = 1; // Cấp ban đầu của Character/Equipment; Gameplay luôn bắt đầu cấp một.
+    [SerializeField] private string displayName; // Tên hiển thị.
+    [SerializeField, TextArea] private string description; // Mô tả dự phòng khi cấp chưa có mô tả riêng.
+    [SerializeField] private Sprite icon; // Icon thẻ và slot sở hữu.
 
-    [Header("Display")]
-    [SerializeField] private string displayName;
-    [SerializeField, TextArea] private string description;
-    [SerializeField] private Sprite icon;
-    [SerializeField, TextArea] private string[] runLevelDescriptions = Array.Empty<string>();
+    #endregion
 
-    // Keep the serialized field name so existing managed-reference assets retain their data.
-    [SerializeReference, InspectorName("Skill Data")] private ISkillData behavior;
+    #region Level Data And Behaviour Templates
 
+    [SerializeField] private SkillLevelData[] levels = Array.Empty<SkillLevelData>(); // Index 0 là cấp 1; mỗi cấp chứa đủ cấu hình.
+    [SerializeReference] private ISkill[] behaviours = Array.Empty<ISkill>(); // Mẫu hành vi không chứa thông số theo cấp.
+    public SkillSource Source => source;
     public int Level => level;
-    public int MaxLevel => maxLevel;
-    public float Cooldown => cooldown;
-    public float Range => range;
-    public StatBonus StatBonus => statBonus;
+    public int MaxLevel => levels.Length;
+    public int MaxRunLevel => MaxLevel;
     public string DisplayName => displayName;
     public string Description => description;
     public Sprite Icon => icon;
-    public int MaxRunLevel => behavior is IRunLevelSkillData ? maxLevel : 1;
+    public IReadOnlyList<SkillLevelData> Levels => Array.AsReadOnly(levels);
+    public IReadOnlyList<ISkill> Behaviours => Array.AsReadOnly(behaviours);
 
-    public string GetRunLevelDescription(int runLevel)
+    // Không fallback về cấp trước: mỗi cấp phải khai báo đầy đủ data cần hoạt động.
+    public SkillLevelData GetLevel(int currentLevel)
     {
-        int index = runLevel - 1;
-        return runLevelDescriptions != null && index >= 0 && index < runLevelDescriptions.Length &&
-            !string.IsNullOrWhiteSpace(runLevelDescriptions[index]) ? runLevelDescriptions[index] : description;
+        if (currentLevel < 1 || currentLevel > levels.Length) throw new ArgumentOutOfRangeException(nameof(currentLevel));
+        return levels[currentLevel - 1];
     }
 
-    // This is a shared configuration template, never registered directly with SkillManager.
-    public ISkillData Data => behavior;
+    // Một loại hành vi có tối đa một mẫu trong definition; enum được khai báo cố định trong class.
+    internal ISkill GetBehaviour(SkillBehaviourType type)
+    {
+        foreach (ISkill behaviour in behaviours) if (behaviour.Type == type) return behaviour;
+        throw new InvalidOperationException($"No {type} behaviour in {name}.");
+    }
 
+    // UI đọc mô tả từ cùng cấp dùng để cấu hình runtime.
+    public string GetRunLevelDescription(int currentLevel)
+    {
+        string text = GetLevel(currentLevel).Description;
+        return string.IsNullOrWhiteSpace(text) ? description : text;
+    }
+
+    #endregion
+
+    #region Validation
+
+    // Chặn thiếu mẫu, trùng enum và data không khớp trước khi thay đổi bất kỳ runtime nào.
     public void Validate()
     {
-        statBonus.Validate();
-        if (level < 1 || maxLevel < level || float.IsNaN(cooldown) ||
-            float.IsInfinity(cooldown) || cooldown < 0f)
-            throw new InvalidOperationException($"Invalid skill level or cooldown: {name}.");
-        if (float.IsNaN(range) || float.IsInfinity(range) || range < 0f)
-            throw new InvalidOperationException($"Invalid skill range: {name}.");
-        if (behavior == null)
-            throw new InvalidOperationException($"Assign skill behavior: {name}.");
-        if (behavior is ShootingSkill shootingData)
+        if (!Enum.IsDefined(typeof(SkillSource), source) || levels == null || levels.Length == 0 ||
+            level < 1 || level > levels.Length || behaviours == null || behaviours.Length == 0)
+            throw new InvalidOperationException($"Invalid skill definition: {name}.");
+        var templates = new HashSet<SkillBehaviourType>();
+        foreach (ISkill behaviour in behaviours)
+            if (!(behaviour is Skill) || !Enum.IsDefined(typeof(SkillBehaviourType), behaviour.Type) || !templates.Add(behaviour.Type))
+                throw new InvalidOperationException($"Missing/duplicate behaviour in {name}.");
+        foreach (SkillLevelData entry in levels)
         {
-            shootingData.Validate();
-            shootingData.ValidateLevels(maxLevel);
+            if (entry == null || entry.Behaviours == null || entry.Behaviours.Count == 0)
+                throw new InvalidOperationException($"Missing level data in {name}.");
+            var types = new HashSet<SkillBehaviourType>();
+            foreach (SkillBehaviourData data in entry.Behaviours)
+            {
+                if (data == null || !templates.Contains(data.Type) || !types.Add(data.Type))
+                    throw new InvalidOperationException($"Missing/duplicate/mismatched level behaviour in {name}.");
+                data.Validate();
+            }
         }
-        if (behavior is OrbitSawSkill saw)
-        {
-            saw.Validate();
-            if (maxLevel != 5) throw new InvalidOperationException("Orbit Saw has exactly five run levels.");
-        }
-        if (behavior is FrostAuraSkill frost)
-        {
-            frost.Validate();
-            if (maxLevel != 5) throw new InvalidOperationException("Frost Aura has exactly five run levels.");
-        }
-        if (behavior is RegenerationSkill regenerationData && !IsPositiveFiniteNumber(regenerationData.HealAmount))
-            throw new InvalidOperationException($"Invalid healing amount: {name}.");
-        if (behavior is EmergencyShieldSkill shieldData &&
-            (!IsPositiveFiniteNumber(shieldData.ShieldAmount) || float.IsNaN(shieldData.HealthThreshold) ||
-             shieldData.HealthThreshold < 0f || shieldData.HealthThreshold > 100f))
-            throw new InvalidOperationException($"Invalid emergency shield configuration: {name}.");
     }
 
-    // Hồi máu/cấp khiên cần lượng hữu hạn lớn hơn 0; phép so sánh > 0 cũng loại NaN.
-    private static bool IsPositiveFiniteNumber(float value) => value > 0f && !float.IsInfinity(value);
+    #endregion
 }
+
+// Nguồn quyết định quyền nâng; không cần tạo thêm hệ kế thừa runtime theo nguồn.
+public enum SkillSource { Gameplay, Character, Equipment }

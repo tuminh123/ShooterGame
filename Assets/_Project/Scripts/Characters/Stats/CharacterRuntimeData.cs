@@ -2,33 +2,48 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// State of one spawned character. Services own levels, EXP and the origins of bonuses.
+// Trạng thái của một lượt spawn; max lấy từ chỉ số, current được tính bằng max trừ lượng đã mất.
 public sealed class CharacterRuntimeData
 {
-    private readonly Dictionary<long, StatBonus> temporaryBonuses = new Dictionary<long, StatBonus>(8);
-    private long nextModifierId;
-    private StatBonus externalBonus;
-    private StatBonus innateSkillBonus;
-    private float movementScale = 1f;
-    private float grantedShieldCapacity;
+    #region Runtime State
+
+    private readonly Dictionary<long, StatModifier[]> modifiers = new Dictionary<long, StatModifier[]>(8); // Các nguồn modifier chung, mỗi nguồn có token riêng.
+    private long nextModifierId; // Không dùng lại ID trong cùng một lượt spawn.
+    private StatBonus externalBonus; // Tổng bonus level/trang bị do service cung cấp.
+    private StatBonus receivedBonus; // HP/giáp được cấp trực tiếp trong lượt spawn, giữ khi tính lại stats.
+    private float lostHealth; // HP đã mất; bonus tăng max không xóa lượng damage này.
+    private float lostShield; // Giáp đã mất; max 100, mất 70 thì current là 30.
+    private bool defeated; // Đã chết thì thay bonus/cleanup không được tự hồi sinh.
+
+    #endregion
+
+    #region Public State And Events
 
     public CharacterType CharacterType { get; private set; }
     public CharacterTeam Team { get; private set; }
     public string DisplayName { get; private set; }
     public BaseStats BaseStats { get; private set; }
-    public ulong Generation { get; private set; } // Phân biệt hai lượt spawn dùng lại cùng runtime C#.
+    public ulong Generation { get; private set; } // Phân biệt các lượt pool dùng lại cùng runtime.
     public BaseStats FinalStats { get; private set; }
-    public float CurrentHealth { get; private set; }
-    public float MaxShield => FinalStats.defense + grantedShieldCapacity;
-    public float CurrentShield { get; private set; }
+    public float MaxHealth => FinalStats.maxHealth;
+    public float MaxShield => FinalStats.defense;
+    public float CurrentHealth => defeated ? 0f : Mathf.Max(0f, MaxHealth - lostHealth);
+    public float CurrentShield => Mathf.Max(0f, MaxShield - lostShield);
     public bool IsAlive => CurrentHealth > 0f;
-    public event Action Changed;
+    public event Action Changed; // Phát sau khi toàn bộ trạng thái đã nhất quán để UI đọc current/max mới.
 
+    #endregion
+
+    #region Spawn And Pool Lifecycle
+
+    // Khởi tạo trực tiếp từ template; không thay đổi asset gốc.
     public CharacterRuntimeData(CharacterDataSO template, StatBonus bonus = default)
         => InitializeSpawn(template, bonus);
 
-    internal CharacterRuntimeData() { } // Chỉ pool dùng để tạo runtime rảnh trước khi có nhân vật.
+    // Pool có thể tạo runtime rảnh trước khi có dữ liệu nhân vật.
+    internal CharacterRuntimeData() { }
 
+    // Mỗi lượt spawn bắt đầu đầy HP/giáp, không mang damage hoặc bonus nhận trực tiếp từ lượt cũ.
     internal void InitializeSpawn(CharacterDataSO template, StatBonus bonus)
     {
         if (template == null) throw new ArgumentNullException(nameof(template));
@@ -40,28 +55,28 @@ public sealed class CharacterRuntimeData
         DisplayName = template.DisplayName;
         BaseStats = template.BaseStats;
         externalBonus = bonus;
-        // Include innate bonuses before filling spawn HP/shield. External refreshes preserve them.
-        foreach (SkillDataSO skill in template.Skills)
-        {
-            if (skill == null) throw new ArgumentException("Character skills cannot be null.", nameof(template));
-            skill.Validate();
-            innateSkillBonus += skill.StatBonus;
-        }
         RebuildFinalStats();
-        CurrentHealth = FinalStats.maxHealth;
-        CurrentShield = MaxShield;
+        NotifyChanged();
     }
 
+    // Chỉ dùng khi dựng lại skill ban đầu; nhận skill giữa trận không gọi hàm refill này.
+    internal void RefillSpawnVitals()
+    {
+        if (lostHealth == 0f && lostShield == 0f && !defeated) return;
+        lostHealth = lostShield = 0f;
+        defeated = false;
+        NotifyChanged();
+    }
+
+    // View phải unbind trước khi trả pool; xóa listener để không cập nhật UI của lượt spawn cũ.
     internal void ResetForPool()
     {
         Changed = null;
-        temporaryBonuses.Clear();
+        modifiers.Clear();
         nextModifierId = 0;
-        externalBonus = default;
-        innateSkillBonus = default;
-        movementScale = 1f;
-        grantedShieldCapacity = 0f;
-        CurrentHealth = CurrentShield = 0f;
+        externalBonus = receivedBonus = default;
+        lostHealth = lostShield = 0f;
+        defeated = false;
         FinalStats = default;
         BaseStats = default;
         DisplayName = null;
@@ -69,128 +84,163 @@ public sealed class CharacterRuntimeData
         Team = default;
     }
 
-    // The caller combines progression/equipment bonuses. Runtime does not know their origins.
+    #endregion
+
+    #region Stat Modifiers
+
+    // Service level/trang bị cung cấp bonus cộng trực tiếp; modifier phần trăm áp dụng sau bộ bonus này.
     internal void SetExternalBonus(StatBonus bonus)
     {
+        bonus.Validate();
         StatBonus previous = externalBonus;
         externalBonus = bonus;
         try { RebuildFinalStats(); }
         catch { externalBonus = previous; throw; }
-        ClampVitalsAndNotify();
+        NotifyChanged();
     }
 
-    public IDisposable AddTemporaryBonus(StatBonus bonus)
+    // Điểm vào đơn giản cho một stat: buff, debuff và slow đều dùng chung kiểu dữ liệu.
+    public StatModifierLease AddModifier(StatModifier modifier) => AddModifiers(modifier);
+
+    // Một nguồn có thể đổi nhiều stat trong cùng thao tác, phát Changed một lần sau khi tính xong.
+    public StatModifierLease AddModifiers(params StatModifier[] values)
     {
+        StatModifier[] snapshot = SnapshotModifiers(values);
         ulong generation = Generation;
         long id = checked(++nextModifierId);
-        temporaryBonuses.Add(id, bonus);
+        modifiers.Add(id, snapshot);
         try { RebuildFinalStats(); }
-        catch { temporaryBonuses.Remove(id); throw; }
-        float health = CurrentHealth, shield = CurrentShield;
-        try { ClampVitalsAndNotify(); }
-        catch
-        {
-            if (Generation != generation) throw;
-            temporaryBonuses.Remove(id);
-            RebuildFinalStats();
-            CurrentHealth = health;
-            CurrentShield = shield;
-            throw;
-        }
-        return new StatModifierLease(() =>
-        {
-            if (Generation != generation) return; // Lease cũ không gỡ modifier của nhân vật tái sử dụng runtime.
-            if (!temporaryBonuses.Remove(id)) return;
-            RebuildFinalStats();
-            ClampVitalsAndNotify();
-        });
+        catch { modifiers.Remove(id); throw; }
+        NotifyChanged();
+        return new StatModifierLease(
+            () => RemoveModifiers(id, generation),
+            next => UpdateModifiers(id, generation, next));
     }
 
-    // Effect owns stacking and duration. Runtime only applies its resolved movement multiplier.
-    internal void SetMovementScale(float scale)
+    // Caller không được thay đổi mảng config đang được runtime sử dụng.
+    private static StatModifier[] SnapshotModifiers(StatModifier[] values)
     {
-        if (float.IsNaN(scale) || float.IsInfinity(scale) || scale < 0f || scale > 1f)
-            throw new ArgumentOutOfRangeException(nameof(scale));
-        if (movementScale == scale) return;
-        float previous = movementScale;
-        movementScale = scale;
-        try { RebuildFinalStats(); }
-        catch { movementScale = previous; throw; }
-        ClampVitalsAndNotify();
+        if (values == null || values.Length == 0) throw new ArgumentException("A modifier source must contain at least one stat.");
+        var snapshot = (StatModifier[])values.Clone();
+        foreach (StatModifier modifier in snapshot) modifier.Validate();
+        return snapshot;
     }
 
+    // Thay toàn bộ modifier của cùng nguồn tại chỗ; không có trạng thái mất buff ở giữa.
+    private void UpdateModifiers(long id, ulong generation, StatModifier[] values)
+    {
+        if (Generation != generation || !modifiers.TryGetValue(id, out StatModifier[] previous)) return;
+        StatModifier[] snapshot = SnapshotModifiers(values);
+        modifiers[id] = snapshot;
+        try { RebuildFinalStats(); }
+        catch { modifiers[id] = previous; throw; }
+        NotifyChanged();
+    }
+
+    // Token cũ không được gỡ nguồn của spawn mới đã dùng lại cùng runtime.
+    private void RemoveModifiers(long id, ulong generation)
+    {
+        if (Generation != generation || !modifiers.TryGetValue(id, out StatModifier[] previous)) return;
+        modifiers.Remove(id);
+        try { RebuildFinalStats(); }
+        catch { modifiers.Add(id, previous); throw; }
+        NotifyChanged();
+    }
+
+    #endregion
+
+    #region Stat Calculation
+
+    // Calculator áp dụng cùng công thức cho mọi stat; runtime chỉ quản lý tài nguyên đã mất và thông báo.
     private void RebuildFinalStats()
     {
-        StatBonus total = externalBonus + innateSkillBonus;
-        foreach (StatBonus bonus in temporaryBonuses.Values) total += bonus;
-        BaseStats stats = total.ApplyTo(BaseStats);
-        // Check before clamping so invalid bonuses cannot hide NaN/infinity behind a limit.
-        ValidateFinite(stats);
-        stats.maxHealth = Mathf.Max(1f, stats.maxHealth);
-        stats.damage = Mathf.Max(0f, stats.damage);
-        stats.defense = Mathf.Max(0f, stats.defense);
-        stats.moveSpeed = Mathf.Clamp(stats.moveSpeed, 0f, BaseStats.moveSpeed * 2f) * movementScale;
-        stats.critChance = Mathf.Max(0f, stats.critChance);
-        stats.critDamageMultiplier = Mathf.Max(0f, stats.critDamageMultiplier);
-        stats.effectHit = Mathf.Max(0f, stats.effectHit);
-        stats.effectResistance = Mathf.Clamp(stats.effectResistance, 0f, 80f);
+        BaseStats stats = StatCalculator.Calculate(BaseStats, externalBonus, modifiers.Values);
+        // HP/giáp cấp trực tiếp là lượng đã chốt, không bị nhân lại mỗi lần tính buff/debuff.
+        stats.maxHealth += receivedBonus.maxHealth;
+        stats.defense += receivedBonus.defense;
+        stats.Validate();
         FinalStats = stats;
+        if (lostHealth >= stats.maxHealth) defeated = true;
+        // Không để giáp âm ẩn nuốt mất những lần được cấp giáp tiếp theo.
+        lostHealth = Mathf.Min(lostHealth, stats.maxHealth);
+        lostShield = Mathf.Min(lostShield, stats.defense);
     }
 
-    private static void ValidateFinite(BaseStats stats)
-    {
-        // Không cấp phát float[] mỗi lần thuê runtime hoặc tính lại chỉ số.
-        if (!Finite(stats.maxHealth) || !Finite(stats.damage) || !Finite(stats.defense) ||
-            !Finite(stats.moveSpeed) || !Finite(stats.critChance) || !Finite(stats.critDamageMultiplier) ||
-            !Finite(stats.effectHit) || !Finite(stats.effectResistance))
-            throw new ArgumentException("Stat totals must be finite.");
-    }
-
+    // Kiểm tra float cho các thao tác tài nguyên và damage.
     private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
-    private void ClampVitalsAndNotify()
-    {
-        CurrentHealth = Mathf.Clamp(CurrentHealth, 0f, FinalStats.maxHealth);
-        CurrentShield = Mathf.Clamp(CurrentShield, 0f, MaxShield);
-        Changed?.Invoke();
-    }
+    #endregion
 
-    // Mutation only. Controllers own damage, healing and death decisions.
+    #region HP And Shield Mutation
+
+    // Cấp giáp tăng max và current cùng lượng; không mở thêm một capacity riêng.
     internal void AddShield(float amount)
     {
-        float shield = CurrentShield + amount;
-        if (float.IsNaN(shield) || float.IsInfinity(shield) || amount < 0f)
-            throw new ArgumentOutOfRangeException(nameof(amount));
-        // Explicit grants can extend shield capacity for this spawn; stat recalculation never refills it.
-        grantedShieldCapacity = Mathf.Max(grantedShieldCapacity, shield - FinalStats.defense);
-        SetVitals(CurrentHealth, shield);
+        if (!Finite(amount) || amount < 0f) throw new ArgumentOutOfRangeException(nameof(amount));
+        SetVitals(CurrentHealth, CurrentShield + amount);
     }
 
+    // Damage tăng lượng đã mất; mọi phần cộng thêm tăng max tương ứng, không reset damage cũ.
     internal void SetVitals(float health, float shield)
     {
-        if (float.IsNaN(health) || float.IsInfinity(health) ||
-            float.IsNaN(shield) || float.IsInfinity(shield))
-            throw new ArgumentOutOfRangeException(nameof(health));
-        health = Mathf.Clamp(health, 0f, FinalStats.maxHealth);
-        shield = Mathf.Clamp(shield, 0f, MaxShield);
+        if (!Finite(health) || !Finite(shield)) throw new ArgumentOutOfRangeException(nameof(health));
+        if (defeated) return;
+        health = Mathf.Max(0f, health);
+        shield = Mathf.Max(0f, shield);
+        float healthAdded = Mathf.Max(0f, health - CurrentHealth);
+        float shieldAdded = Mathf.Max(0f, shield - CurrentShield);
         if (health == CurrentHealth && shield == CurrentShield) return;
-        CurrentHealth = health;
-        CurrentShield = shield;
-        Changed?.Invoke();
+
+        if (healthAdded > 0f || shieldAdded > 0f)
+        {
+            StatBonus previous = receivedBonus;
+            receivedBonus.maxHealth += healthAdded;
+            receivedBonus.defense += shieldAdded;
+            try { RebuildFinalStats(); }
+            catch { receivedBonus = previous; throw; }
+        }
+        lostHealth = Mathf.Max(0f, MaxHealth - health);
+        lostShield = Mathf.Max(0f, MaxShield - shield);
+        if (health <= 0f) defeated = true;
+        NotifyChanged();
     }
 
-    // Calculation only; existing skill/projectile callers keep using this without skill changes.
+    #endregion
+
+    #region Change Notifications
+
+    // Runtime không biết UI cụ thể; một listener lỗi không chặn những UI/listener còn lại.
+    private void NotifyChanged()
+    {
+        Action listeners = Changed;
+        if (listeners == null) return;
+        ulong generation = Generation;
+        foreach (Action listener in listeners.GetInvocationList())
+        {
+            if (generation != Generation) break; // Callback vừa trả pool/spawn lại thì dừng thông báo của lượt cũ.
+            try { listener(); }
+            catch (Exception exception) { Debug.LogException(exception); }
+        }
+    }
+
+    #endregion
+
+    #region Damage Calculation
+
+    // Tính damage từ final stats hiện tại; không thay đổi trạng thái HP/giáp.
     public DamageInfo CreateDamage(float multiplier = 1f)
         => CreateDamage(FinalStats, Team, multiplier);
 
+    // Volley chụp stats một lần, từng viên vẫn roll critical riêng.
     internal static DamageInfo CreateDamage(BaseStats stats, CharacterTeam team, float multiplier = 1f)
     {
-        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
-            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        if (!Finite(multiplier) || multiplier < 0f) throw new ArgumentOutOfRangeException(nameof(multiplier));
         float chance = Mathf.Min(stats.critChance, 100f);
         float critBonus = stats.critDamageMultiplier + Mathf.Max(0f, stats.critChance - 100f) * 0.25f;
         bool critical = chance >= 100f || (chance > 0f && UnityEngine.Random.value * 100f < chance);
         float amount = stats.damage * multiplier * (critical ? 1f + critBonus / 100f : 1f);
         return new DamageInfo(amount, team, critical);
     }
+
+    #endregion
 }

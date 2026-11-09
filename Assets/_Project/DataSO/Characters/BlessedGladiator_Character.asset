@@ -48,5 +48,3 @@ MonoBehaviour:
     effectHit: 0
   skills:
   - {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
-  - {fileID: 11400000, guid: 23c29f8d87ba4f5397351f5a1a80a998, type: 2}
-  - {fileID: 11400000, guid: 115e69b9420649fbbdadd392a42c65bf, type: 2}

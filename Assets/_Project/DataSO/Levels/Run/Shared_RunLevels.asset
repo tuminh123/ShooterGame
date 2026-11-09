@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5da027e7ab841ae891c32d8155a09df, type: 3}
   m_Name: Shared_RunLevels
   m_EditorClassIdentifier:
-  maxLevel: 10
+  maxLevel: 20
   bonusPerLevel:
     maxHealth: 5
     damage: 1

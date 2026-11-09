@@ -6,15 +6,92 @@ using UnityEngine;
 [CustomEditor(typeof(SkillDataSO), true)]
 public sealed class CharacterSkillEditor : Editor
 {
+    #region Inspector
+
+    // Display/source riêng, data từng cấp phía trên, danh sách hành vi phía dưới.
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        DrawPropertiesExcluding(serializedObject, "m_Script", "behavior");
-        StrategySelector.Draw(serializedObject.FindProperty("behavior"), StrategySelector.GetTypes<ISkillData>());
+        DrawPropertiesExcluding(serializedObject, "m_Script", "levels", "behaviours");
+        DrawLevels(serializedObject.FindProperty("levels"));
+        DrawReferences(serializedObject.FindProperty("behaviours"), "Behaviour Templates", StrategySelector.GetTypes<ISkill>());
         serializedObject.ApplyModifiedProperties();
         try { ((SkillDataSO)target).Validate(); }
         catch (Exception exception) { EditorGUILayout.HelpBox(exception.Message, MessageType.Error); }
     }
+
+    // Mỗi phần tử là cấu hình đầy đủ một cấp; số phần tử chính là MaxLevel.
+    private static void DrawLevels(SerializedProperty levels)
+    {
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField($"Level Data — Max Level: {levels.arraySize}", EditorStyles.boldLabel);
+        for (int i = 0; i < levels.arraySize; i++)
+        {
+            SerializedProperty level = levels.GetArrayElementAtIndex(i);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            level.isExpanded = EditorGUILayout.Foldout(level.isExpanded, $"Level {i + 1}", true);
+            bool remove = GUILayout.Button("Remove", GUILayout.Width(65));
+            EditorGUILayout.EndHorizontal();
+            if (remove)
+            {
+                levels.DeleteArrayElementAtIndex(i);
+                EditorGUILayout.EndVertical();
+                break;
+            }
+            if (level.isExpanded)
+            {
+                EditorGUILayout.PropertyField(level.FindPropertyRelative("description"));
+                DrawReferences(level.FindPropertyRelative("behaviours"), "Behaviour Data", StrategySelector.GetTypes<SkillBehaviourData>());
+            }
+            EditorGUILayout.EndVertical();
+        }
+        if (GUILayout.Button("Add level"))
+        {
+            int index = levels.arraySize;
+            levels.arraySize++;
+            SerializedProperty level = levels.GetArrayElementAtIndex(index);
+            level.FindPropertyRelative("description").stringValue = "";
+            level.FindPropertyRelative("behaviours").arraySize = 0;
+            level.isExpanded = true;
+        }
+        EditorGUILayout.HelpBox("Each level contains its full configuration. A behaviour starts only when that level contains its data. Each type appears once.", MessageType.Info);
+    }
+
+    // Dùng chung selector cho data và hành vi, không cần nhập enum hoặc string ID.
+    private static void DrawReferences(SerializedProperty list, string title, Type[] types)
+    {
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+        for (int i = 0; i < list.arraySize; i++)
+        {
+            SerializedProperty entry = list.GetArrayElementAtIndex(i);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"Item {i + 1}");
+            bool up = GUILayout.Button("Up", GUILayout.Width(40));
+            bool down = GUILayout.Button("Down", GUILayout.Width(50));
+            bool remove = GUILayout.Button("Remove", GUILayout.Width(65));
+            EditorGUILayout.EndHorizontal();
+            if (remove)
+            {
+                list.DeleteArrayElementAtIndex(i);
+                EditorGUILayout.EndVertical();
+                break;
+            }
+            StrategySelector.Draw(entry, types);
+            EditorGUILayout.EndVertical();
+            if (up && i > 0) { list.MoveArrayElement(i, i - 1); break; }
+            if (down && i + 1 < list.arraySize) { list.MoveArrayElement(i, i + 1); break; }
+        }
+        if (GUILayout.Button("Add item"))
+        {
+            int index = list.arraySize;
+            list.arraySize++;
+            list.GetArrayElementAtIndex(index).managedReferenceValue = null;
+        }
+    }
+
+    #endregion
 }
 
 // Chọn lớp cụ thể cho các interface được lưu bằng SerializeReference, bao gồm từng effect trong danh sách.

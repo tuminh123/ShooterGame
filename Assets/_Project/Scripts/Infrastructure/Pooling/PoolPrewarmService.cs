@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Zenject;
 
-// Chạy trước PlayerManager.Initialize; public Prewarm/IsReady là điểm nối cho loading scene sau này.
+// GameManager gọi Prewarm trước khi cho spawn Player; IsReady là điều kiện bước vào gameplay.
 // Hiện thực hiện đồng bộ: chi phí Instantiate/Inject được đưa về bước chuẩn bị, chưa chia frame/loading UI.
-public sealed class PoolPrewarmService : IInitializable
+public sealed class PoolPrewarmService
 {
     private readonly PoolPrewarmSettingsSO settings;
     private readonly CharacterView characterPrefab;
@@ -42,8 +41,7 @@ public sealed class PoolPrewarmService : IInitializable
         this.spatial = spatial;
     }
 
-    public void Initialize() => Prewarm();
-
+    // GameManager gọi ở bước khởi tạo; không tự prewarm/spawn ngoài luồng game.
     public void Prewarm()
     {
         if (IsReady) return;

@@ -6,8 +6,8 @@ using Terresquall;
 using UnityEngine;
 using Zenject;
 
-// * Class thuần quản lý player; Zenject gọi Initialize để tạo nhân vật khi vào game.
-public sealed class PlayerManager : IInitializable, IDisposable
+// * Class thuần quản lý Player; GameManager gọi SpawnPlayer/RemovePlayer theo luồng trận, Zenject quản lý Dispose.
+public sealed class PlayerManager : IDisposable
 {
 
     #region Player Configuration & Dependencies
@@ -67,14 +67,6 @@ public sealed class PlayerManager : IInitializable, IDisposable
         this.levels.RunLevelChanged += OnRunLevelChanged;
         this.levels.RunReset += RefreshRuntime;
         this.equipment.EquipmentChanged += RefreshRuntime;
-    }
-
-    // * Zenject gọi khi scene bắt đầu; vị trí xuất hiện luôn là Vector3.zero.
-    public void Initialize()
-    {
-        // Keep the scene UI available so a failed save can be reset explicitly.
-        if (saves.IsLoaded)
-            SpawnPlayer();
     }
 
     #endregion

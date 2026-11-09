@@ -43,15 +43,17 @@ public class EnemySpawnManager : MonoBehaviour
     private LevelManager levels; // * Nghe StartNewRun để reset wave, đồng hồ và thu hồi quái của lượt trước.
     private CharacterFactory factory; // * Ghép runtime/hành vi với prefab vỏ chung.
     private PlayerManager players; // * Truyền mục tiêu cho EnemyController và dừng spawn khi chưa có Player sống.
+    private GameManager game; // Chỉ được sinh quái khi luồng game đã vào Playing.
 
     [Inject]
-    public void Construct(CharacterFactory factory, PlayerManager players, LevelManager levels)
+    public void Construct(CharacterFactory factory, PlayerManager players, LevelManager levels, GameManager game)
     {
         if (this.levels != null)
             this.levels.RunReset -= ResetRun;
         this.factory = factory;
         this.players = players;
         this.levels = levels;
+        this.game = game;
         this.levels.RunReset += ResetRun;
     }
 
@@ -60,7 +62,6 @@ public class EnemySpawnManager : MonoBehaviour
         if (waveConfig == null)
             throw new System.InvalidOperationException("Assign Wave Config on EnemySpawnManager.");
         waveConfig.Validate();
-        ResetRun();
     }
 
     // * Reset chỉ khi bắt đầu lượt mới; tắt/bật spawner hoặc đổi wave không làm reset đồng hồ loại quái.
@@ -96,7 +97,7 @@ public class EnemySpawnManager : MonoBehaviour
     // * Mỗi frame chọn wave theo thời gian game; đến nhịp thì sinh nếu còn chỗ trong trần đang sống.
     private void Update()
     {
-        if (waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
+        if (game == null || game.State != GameState.Playing || waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
             !players.RuntimeData.IsAlive || Time.deltaTime <= 0f)
             return;
 

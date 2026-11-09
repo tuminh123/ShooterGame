@@ -67,6 +67,7 @@ public sealed class CharacterUI : MonoBehaviour
 
     private void OnVisualVisibilityChanged(bool visible) => RefreshVitals(); // Boss bị cull thì bar cũng ẩn theo.
 
+    // Listener Changed đọc current/max sau khi runtime đã cập nhật xong; không cần polling mỗi frame.
     private void RefreshVitals()
     {
         if (vitalsRoot == null) return;
@@ -82,7 +83,7 @@ public sealed class CharacterUI : MonoBehaviour
             Debug.LogError("CharacterUI: chưa gán Health Bar của thanh máu nhỏ trong prefab nhân vật.", this);
             return;
         }
-        healthBar.SetValue(runtime.CurrentHealth, runtime.FinalStats.maxHealth);
+        healthBar.SetValue(runtime.CurrentHealth, runtime.MaxHealth);
         healthBar.SetShield(runtime.CurrentShield, runtime.MaxShield);
     }
 

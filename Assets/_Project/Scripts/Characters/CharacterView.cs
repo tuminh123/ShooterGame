@@ -20,7 +20,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private HitboxData hitbox; // Cấu hình local; không cần Collider2D trên vỏ nhân vật.
     private ISpatialManager spatial;
     private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
-    private SkillFactory skillFactory;
+    private SkillManager skillManager; // Manager sở hữu cả skill ban đầu và skill nhận thêm.
     private CharacterRuntimePool runtimePool;
 
     #endregion
@@ -55,13 +55,13 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     [Inject]
     public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
-        SkillFactory skillFactory, ISpatialManager spatial, ICharacterSearch search, ITimerManager timers,
-        CharacterRuntimePool runtimePool)
+        ISpatialManager spatial, ICharacterSearch search, ITimerManager timers,
+        CharacterRuntimePool runtimePool, SkillManager skillManager)
     {
         this.movement = movement;
         this.pools = pools;
         this.effectManager = effectManager;
-        this.skillFactory = skillFactory;
+        this.skillManager = skillManager;
         this.runtimePool = runtimePool;
         this.spatial = spatial;
         Search = search;
@@ -106,7 +106,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
         Effects = new CharacterEffectHandler(this, effectManager);
-        Skills = new CharacterSkills(this, template.Skills, skillFactory);
+        Skills = new CharacterSkills(this, template.Skills, skillManager);
         // Enemy bắt đầu ẩn; manager camera sẽ bật nếu visual giao khung hình trước khi render.
         visual.SetActive(runtime.Team != CharacterTeam.Enemy);
     }

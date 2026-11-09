@@ -1,60 +1,112 @@
-# Play_UI_ChoiceSkill và lựa chọn khi lên cấp
+# Bảng chọn skill khi lên cấp
 
-## Scene đã khảo sát
+## Scene và trách nhiệm
 
 ```text
-Canvas
-├── Play_UI_Action                 ← SkillChoiceUI luôn hoạt động để nghe event
-└── Play_UI_ChoiceSkill             ← modal, mặc định tắt
-    ├── Dimed                      ← chặn click xuống gameplay
-    ├── Group_SkillFrmae02          ← phần trang trí/slot có sẵn, không đổi trong đợt này
-    └── PanelChooseSkill
-        ├── Title_Line02/Text_Title
-        └── Selects
-            ├── BannerFrame04_Divided
-            ├── BannerFrame04_Divided
-            └── BannerFrame04_Divided
+Canvas                               <- UIManager
+├── GameplayUI                       <- GameplayController : UIPanelController
+│   └── Play_UI_Action               <- panel HUD chứa RunUI và PauseUI
+└── LevelUpUI                        <- SkillChoiceController : UIPanelController
+    └── LevelUpPanel                 <- SkillChoiceUI, mặc định tắt
+        └── ba thẻ lựa chọn          <- icon, tên, mô tả, sao và Button
 ```
 
-Mỗi banner có một icon `SkillFrame_*/Bg/SkillIcon`, `Text_Title`, `Text_Info` và `Group_GreadGems`. Group sao có hai hàng `Off` và `On`, mỗi hàng chứa năm Gem. Ban đầu scene chỉ là UI mẫu, root modal đang tắt và ba banner chưa có Button; nội dung mẫu chưa liên quan đến skill gameplay.
+`GameManager` là class thuần AsSingle trong GameSceneInstaller, sống cùng scene hiện tại.
+Nó giữ GameState và điều phối Save sẵn sàng → prewarm → reset → spawn → Playing.
+Player chết chuyển Lost; WinRun do điều kiện gameplay gọi. StartRun chơi lại,
+ReturnHome dọn Player/Enemy/đạn cũ và reset tiến trình. Không có loading scene riêng.
 
-Đã thêm Button vào từng banner và gán trực tiếp các reference trong scene cho `SkillChoiceUI`. Script được gắn trên `Play_UI_Action`, vì nếu đặt listener trên modal đang tắt thì không nhận được sự kiện lên cấp. Không tìm object bằng tên trong mỗi frame.
+`GameUIEventBus` static chỉ thông báo StateChanged cho UI, không giữ state và không
+được manager gameplay dùng để thay thế thứ tự chuẩn bị. Static listener được reset
+ở SubsystemRegistration và từng UI tự gỡ trong OnDisable.
 
-## Luật lựa chọn
+`UIManager` giữ mảng panels chung và mapping statePanels từ GameState sang UI gốc.
+Không còn defaultPanel hoặc ShowDefaultPanel. SetRootPanel chọn gốc lúc chạy,
+OpenPanel mở tạm, ClosePanel/Back quay về UI trước và không đóng gốc hiện tại.
+State không có route đóng UI cũ, không tự quay về Gameplay. SetVisible chỉ tạm
+ẩn/hiện, không quyết định state game. Khi bật lại, UI đọc GameManager.State.
 
-- Nghe `LevelManager.RunLevelChanged(previous, current)`. Tăng N cấp thì xếp N lượt chọn, không bỏ mất lượt khi nhặt nhiều EXP cùng lúc.
-- Mỗi lượt lấy ngẫu nhiên ba skill khác nhau trong catalog serialized của UI, gồm các skill Player. EnemyNormalAttack và các skill boss không nằm trong catalog mặc định.
-- Không sở hữu: chỉ offer **cấp 1**, một sao sáng.
-- Đang cấp L: chỉ offer **L+1**, tuyệt đối không nhảy từ cấp 1 lên offer cấp 3.
-- Chỉ chống trùng trong một bảng. Không có blacklist xuyên lượt: lần lên cấp sau có thể gặp lại cùng skill với cấp kế tiếp.
-- Script chọn thông qua `SkillManager.GrantOrUpgrade`, nên skill riêng và skill nhận trong trận được nâng trên đúng runtime đang có, không nhân đôi hành vi hoặc bonus.
-- Skill có `IRunLevelSkillData` hỗ trợ nâng cấp theo runtime. Các behavior đơn cấp như hồi máu, shield khẩn cấp và Toughness có `MaxRunLevel = 1` dù trường MaxLevel cũ trong asset là 5. Skill đơn cấp đã có không tạo lựa chọn không tác dụng; chưa có luật nhận lặp để cộng bonus.
-- UI hiện chặn tối đa **5 cấp**, kể cả HolyBolt có cấu hình cấp 6. Tiến hóa cấp 6 chưa xuất hiện trong bảng này.
-- Nếu catalog còn ít hơn ba skill hợp lệ thì hiển thị số lựa chọn còn lại; không nhân bản một skill trong cùng bảng. Nếu hết lựa chọn thì đóng bảng và tiếp tục game.
+Scene hiện map Playing sang GameplayController; Faulted cũng hiện HUD để thao tác
+reset dữ liệu/debug. Chưa có panel Home/Won/Lost nên các state đó chưa có màn riêng.
+Auto Start Run trên installer đang bật để giữ hành vi tự vào trận. Tắt cờ này để
+đợi lệnh StartRun từ Home UI sau này. Các menu Shooter Game > Game Flow cho phép
+thử Start Run, Win Run, Lose Run và Return Home trong Play Mode.
 
-## Sao, icon và mô tả
+`SkillChoiceController : UIPanelController` được Zenject inject LevelManager,
+PlayerManager, SkillManager, GameplayPauseService và SkillDatabaseSO. Controller quản lý
+queue, owner, pause, roll, retry và áp dụng lựa chọn; luôn hoạt động trên root LevelUpUI, là cha của panel con.
+`GameplayController` nằm trên root GameplayUI và tự quản lý ẩn/hiện HUD cùng pause thủ công. UIManager không còn giữ GameObject HUD hay PauseUI trực tiếp.
+`SkillChoiceUI` chỉ render, giới hạn input/focus và phát Selected/Hidden.
+Panel tắt không làm mất listener lên cấp của controller.
 
-- `Off` bật đúng số ô của `min(MaxRunLevel, 5)`.
-- `On` bật đúng số sao của **cấp sẽ nhận sau khi chọn**. Offer cấp 2 có hai sao sáng; phần mô tả ghi rõ `Lv. 1 > 2`.
-- Không clone cả `Group_GreadGems`; dùng năm Gem có sẵn ở mỗi hàng.
-- Icon và tên lấy từ `SkillDataSO.Icon`/`DisplayName`. Đã gán icon từ bộ asset UI hiện có cho chín skill trong catalog.
-- `SkillDataSO.runLevelDescriptions` cho phép nhập mô tả riêng từng cấp; index 0 là cấp 1. Nếu thiếu thì dùng `Description` chung.
-- FireBolt/IceBolt/PoisonBolt trước đó chưa có bảng tăng cấp; đã thêm mốc 2–5 tăng số viên để lựa chọn nâng cấp có hiệu lực. Movement và effect gốc của từng skill giữ nguyên.
-- Nội dung UI dùng tiếng Anh nhất quán với scene và font mẫu hiện tại.
+`SkillDatabase.asset` chỉ chứa skill Gameplay; HolyBolt của nhân vật và skill enemy/boss nằm ngoài catalog. Chỉ entry có
+Available In Run Choices được đưa vào catalog thưởng; thêm skill mới tại đây.
 
-## Pause và vòng đời
+## Lựa chọn và vòng đời
 
-`GameplayPauseService` giữ token cho từng nguồn pause. Cả `PauseUI` và bảng skill cùng dùng service; đóng bảng không bỏ pause thủ công, và thả token cuối sẽ phục hồi timeScale trước khi pause.
+- Tăng N cấp giữ N lượt. Mỗi lần roll tối đa ba skill khác nhau, chỉ offer cấp kế tiếp.
+- Trần bảng thưởng là năm sao. Sao sáng biểu diễn cấp sẽ nhận sau khi chọn.
+- Skill đơn cấp đã sở hữu không được offer lại. HolyBolt của nhân vật không xuất hiện trong bảng thưởng.
+- Controller yêu cầu mở ngay khi lên cấp; UIManager cấp quyền hiển thị và controller giữ pause. Render ở LateUpdate sau callback gameplay.
+- Chặn double click, offer cũ, input cùng frame và input trong 0.15 giây unscaled đầu.
+- Chọn thành công mới tiêu một lượt; lượt tiếp theo roll từ runtime mới nhất.
+- SetVisible(false) ẩn cả HUD và panel, trả token pause nhưng giữ queue.
+- SetVisible(true) mở lại các lượt đang chờ. Panel bị tắt trực tiếp cũng trả pause;
+  gọi RetrySkillChoices hoặc SetVisible(true) để mở lại.
+- Chết, release, đổi Player, reset trận hoặc tắt controller hủy queue và dọn subscription/pause.
+- Pause thủ công giữ token riêng, đóng bảng không tự bỏ pause thủ công.
 
-UI xếp lượt ngay khi có event, nhưng render bảng trong LateUpdate. Chọn xong mới roll lại lượt tiếp theo từ runtime mới nhất. Offer cũ bị từ chối nếu skill đã đổi cấp qua Editor/callback. Chặn double click cùng frame và có khoảng đợi ngắn bằng thời gian unscaled.
+## Phục hồi lỗi
 
-Player chết, bị thay/thu hồi, reset trận hoặc UI bị tắt đều dọn bảng, hàng đợi và token pause. Các nút chỉ điều hướng keyboard/controller trong nhóm lựa chọn, không chọn nhầm nút Pause ở dưới modal.
+Nếu nhận/nâng skill ném exception, SkillChoiceController ghi log, không tiêu lượt và chặn
+skill lỗi khỏi các lần roll sau trong trận. Offer lỗi thời trả false chỉ được
+roll lại, không tự đánh dấu skill hỏng.
 
-## Thử trong Editor
+SkillRuntime.TryUpgrade thử phục hồi behavior về RunLevel trước đó khi lỗi.
+Nếu rollback cũng thất bại, runtime được dispose để không tick tiếp hoặc giữ
+stat lease. Exception tổng hợp giữ thông tin lỗi nâng, rollback và cleanup.
+Callback reset/dispose trong lúc nâng được ưu tiên, không rollback đè lên reset.
 
-1. Mở SampleScene, vào Play Mode.
-2. Chọn menu **Shooter Game > Skills > Grant One Run Level**, hoặc nhặt đủ EXP.
-3. Bảng mở ba lựa chọn; chọn một banner để nhận/nâng skill và tiếp tục game.
-4. Lặp lại để kiểm tra skill cũ chỉ xuất hiện với cấp kế tiếp. Có thể cấp nhiều EXP để kiểm tra hàng đợi nhiều lượt.
+Nhận skill mới thất bại dọn behavior được tạo; lỗi cleanup được giữ cùng lỗi
+gốc. Constructor runtime hủy cooldown và AddTemporaryBonus hoàn tác bonus
+nếu callback chỉ số ném lỗi.
 
-Chạy `./Tests/SkillProgression/Run.ps1` để kiểm tra policy chọn skill, queue, offer cũ, trần sao và nhiều nguồn pause cùng các kiểm tra gameplay đã có. Harness dùng test doubles cho Unity native; không thay cho kiểm tra click/render trong Play Mode.
+Nếu không còn lựa chọn vì skill lỗi, đóng bảng và trả pause nhưng giữ lượt.
+Sau khi sửa nguyên nhân, gọi SkillChoiceController.RetrySkillChoices() để bỏ chặn và roll lại.
+Không tự retry mỗi frame. Nếu catalog chỉ hết vì tất cả skill đã max, bỏ lượt
+còn lại và tiếp tục game như chính sách trước đây.
+
+## Kiểm tra
+
+Chạy `powershell -NoProfile -ExecutionPolicy Bypass -File Tests/SkillProgression/Run.ps1`.
+Harness chạy code UIManager, SkillChoiceController và skill production với panel/Unity native doubles;
+kiểm tra queue, loại skill lỗi, retry, rollback, stat/timer cleanup, ẩn/hiện và reset.
+Vẫn cần Play Mode để xác minh render, focus và click thực tế trong scene.
+## Folder và quyền sở hữu
+
+- `UI/Core`: UIManager và hợp đồng UIPanelController.
+- `UI/Gameplay`: GameplayController, RunUI, PauseUI.
+- `UI/SkillChoice`: SkillChoiceController, SkillChoiceUI, SkillChoicePool và queue/offer policy.
+- `UI/Views`: các view dùng chung BarView, TextView, ShieldBorderGraphic.
+- `UI/Character`: CharacterUI đi theo vòng đời nhân vật.
+- `UI/Debug`: ResetSaveButton dành cho thao tác thử nghiệm/reset.
+
+Chỉ ẩn panel con; root controller vẫn hoạt động để nhận sự kiện và giữ trạng thái.
+Di chuyển script cùng file .meta để mọi reference trong scene/prefab giữ nguyên GUID.
+## Slot skill đã sở hữu trong LevelUpPanel
+
+SkillChoiceController lấy snapshot innate + run của đúng Player từ SkillManager,
+SkillChoiceUI quản lý các instance đang dùng, còn OwnedSkillSlot chỉ hiển thị icon/sao.
+Prefab: Assets/_Project/Prefabs/UI/OwnedSkillSlot.prefab. Kéo component prefab vào
+Owned Slot Template của SkillChoiceUI; reference icon, Gems Off và Gems On nằm sẵn trên prefab.
+
+Group_SkillFrmae02 giữ GridLayoutGroup gốc và bắt đầu không có slot con. Không có
+initialOwnedSlots hoặc prewarm: chỉ gọi PoolManager.Spawn khi snapshot có skill và
+số ô đang dùng chưa đủ. Pool tự tạo thêm clone nếu chưa có instance rảnh.
+
+Nâng cấp cập nhật nội dung trên ô đang dùng. Khi số skill giảm, trả ô dư về pool;
+Hide, OnDisable và OnDestroy cũng thu hồi toàn bộ ô. Slot.Clear xóa icon/sao trước
+khi Despawn để lần dùng lại không giữ hình ảnh cũ. Pool chung giữ các clone rảnh.
+
+Skill một cấp hiện một sao; sao nền theo MaxRunLevel, sao sáng theo RunLevel thực tế.
+Không giới hạn 12 ô, không thêm ScrollRect/mask/content hoặc tạo một pool riêng.

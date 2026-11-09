@@ -3,6 +3,17 @@ using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 namespace UnityEngine {
+ public enum RuntimeInitializeLoadType {SubsystemRegistration}
+ [AttributeUsage(AttributeTargets.Method)] public class RuntimeInitializeOnLoadMethodAttribute:Attribute {public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type){}}
+ public static class JsonUtility {
+  public static string ToJson(object value){
+   var fields=new Dictionary<string,object>();
+   for(Type type=value.GetType();type!=null;type=type.BaseType)
+    foreach(var field in type.GetFields(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.DeclaredOnly))
+     if(!field.IsDefined(typeof(NonSerializedAttribute),false))fields[field.Name]=field.GetValue(value);
+   return System.Text.Json.JsonSerializer.Serialize(fields);
+  }
+ }
  public static class Time { public static float timeScale = 1f; }
  [AttributeUsage(AttributeTargets.All)] public class SerializeField:Attribute {}
  [AttributeUsage(AttributeTargets.All)] public class SerializeReference:Attribute {}
@@ -11,10 +22,12 @@ namespace UnityEngine {
  [AttributeUsage(AttributeTargets.All)] public class MinAttribute:Attribute {public MinAttribute(float f){} }
  [AttributeUsage(AttributeTargets.All)] public class RangeAttribute:Attribute {public RangeAttribute(float a,float b){} }
  [AttributeUsage(AttributeTargets.All)] public class InspectorNameAttribute:Attribute {public InspectorNameAttribute(string s){} }
- [AttributeUsage(AttributeTargets.All)] public class CreateAssetMenuAttribute:Attribute {public string menuName;}
+ [AttributeUsage(AttributeTargets.All)] public class CreateAssetMenuAttribute:Attribute {public string menuName;public string fileName;}
  public class ScriptableObject {public string name;}
  public class Sprite {}
- public static class Debug {public static void LogException(Exception e,object context=null)=>throw new Exception("Unexpected log",e);}
+ public static class Debug {public static Action<Exception> ExceptionSink;public static void LogException(Exception e,object context=null){if(ExceptionSink!=null)ExceptionSink(e);else throw new Exception("Unexpected log",e);}}
+ public class MonoBehaviour {public bool isActiveAndEnabled=true;}
+ [AttributeUsage(AttributeTargets.Class)] public class AddComponentMenu:Attribute {public AddComponentMenu(string path){}}
  public static class Random {public static float value=>0.5f;}
  public static class Mathf {
   public const float PI=(float)Math.PI,Deg2Rad=PI/180f;
@@ -44,11 +57,12 @@ namespace UnityEngine {
  public class Transform {public Vector3 position;}
  public class GameObject {
   public SkillAreaVisual Visual;public bool Active;
+  public void SetActive(bool active){Active=active;}
   public T GetComponent<T>() where T:class=>Visual as T;
  }
 }
 namespace UnityEngine.Serialization {public class FormerlySerializedAsAttribute:Attribute {public FormerlySerializedAsAttribute(string s){} } }
-namespace Zenject {public interface ITickable {void Tick();}}
+namespace Zenject {public interface IInitializable {void Initialize();}public interface ITickable {void Tick();}public class InjectAttribute:Attribute {}}
 public struct SpatialEntity {public float2 Center,HalfSize,AxisX,AxisY;}
 public enum BulletType {Default}
 public enum PoolGroup {Other}
@@ -78,14 +92,14 @@ public class CombatSpawner {
  public readonly List<ProjectileSpawnData> Shots=new List<ProjectileSpawnData>();public Action OnSpawn;
  public bool SpawnBullet(ProjectileSpawnData d,UnityEngine.Vector2 p,UnityEngine.Vector2 dir,CharacterTarget t){Shots.Add(d);OnSpawn?.Invoke();return true;}
 }
-public class NormalAttackSkill:ISkill,ISkillData {public NormalAttackSkill(){}public NormalAttackSkill(CharacterSkills o,float r){}public bool TryExecute()=>false;}
-public class RegenerationSkill:ISkill,ISkillData {public float HealAmount=>1;public RegenerationSkill(){}public RegenerationSkill(CharacterSkills o,float h){}public bool TryExecute()=>false;}
-public class EmergencyShieldSkill:ISkill,ISkillData {public float ShieldAmount=>1;public float HealthThreshold=>20;public EmergencyShieldSkill(){}public EmergencyShieldSkill(CharacterSkills o,float t,float s){}public bool TryExecute()=>false;}
 public class CharacterDataSO {
  public CharacterType CharacterType;public CharacterTeam Team;public string DisplayName;public BaseStats BaseStats;
  public SkillDataSO[] Skills=Array.Empty<SkillDataSO>();public void ValidateStats()=>BaseStats.Validate();
 }
 public class CharacterView {
+ public void ChangeHealth(float amount)=>RuntimeData.SetVitals(Math.Max(0,RuntimeData.CurrentHealth+amount),RuntimeData.CurrentShield);
+ public void GrantShield(float amount)=>RuntimeData.AddShield(amount);
+ public DamageResult DealDamage(CharacterTarget target)=>target.TryGetCharacter(out var victim)?victim.ReceiveDamage(RuntimeData.CreateDamage()):default;
  public CharacterRuntimeData RuntimeData;public CharacterSkills Skills;public CharacterEffectHandler Effects;
  public readonly UnityEngine.Transform transform=new UnityEngine.Transform();public UnityEngine.Vector3 HitPosition=>transform.position;
  public bool isActiveAndEnabled=true;public Search Search;public ITimerManager Timers;
@@ -111,8 +125,8 @@ public class Search {
  }
  public CharacterTarget FindNearest(UnityEngine.Vector2 c,float r,CharacterTeam team,CharacterView exclude=null){CharacterTarget[] b=Array.Empty<CharacterTarget>();return FindAll(c,r,team,ref b,exclude)>0?b[0]:default;}
 }
-public static class CharacterSearch {public static CharacterTeam OpponentOf(CharacterTeam t)=>t==CharacterTeam.Player?CharacterTeam.Enemy:CharacterTeam.Player;}
-public class EffectManager {internal int CountFor(CharacterView o,CharacterRuntimeData i)=>0;internal void ClearTarget(CharacterView o,CharacterRuntimeData i){} }
+public static class CharacterSearch {public static bool Overlaps(CharacterView a,CharacterView b)=>(a.HitPosition.x-b.HitPosition.x)*(a.HitPosition.x-b.HitPosition.x)+(a.HitPosition.y-b.HitPosition.y)*(a.HitPosition.y-b.HitPosition.y)<.04f;public static CharacterTeam OpponentOf(CharacterTeam t)=>t==CharacterTeam.Player?CharacterTeam.Enemy:CharacterTeam.Player;}
+public class EffectManager {public readonly List<IGameplayEffect> Applied=new List<IGameplayEffect>();public bool Apply(IGameplayEffect effect,CharacterTarget target,CharacterTeam team,float hit=0){Applied.Add(effect);return true;}internal int CountFor(CharacterView o,CharacterRuntimeData i)=>0;internal void ClearTarget(CharacterView o,CharacterRuntimeData i){} }
 public struct TimerHandle {public int Id;}
 public struct TimerResult {}
 public interface ITimerListener {void OnTimer(TimerHandle h,TimerResult r);}
@@ -129,5 +143,27 @@ public class Timers:ITimerManager {
  public bool Restart(TimerHandle h,float d,bool resetInterval=false){Remaining[h.Id]=d;return true;}
  public bool SetPaused(TimerHandle h,bool p)=>true;public bool Cancel(TimerHandle h){Remaining.Remove(h.Id);return Live.Remove(h.Id);}
 }
-public class LevelManager {public event Action RunReset;public void Reset()=>RunReset?.Invoke();}
-public class CharacterManager {public readonly Dictionary<CharacterView,CharacterDataSO> Characters=new Dictionary<CharacterView,CharacterDataSO>();}
+public class LevelManager {public event Action RunReset;public event Action<int,int> RunLevelChanged;public void StartNewRun()=>Reset();public void Reset()=>RunReset?.Invoke();public void GainLevels(int previous,int current)=>RunLevelChanged?.Invoke(previous,current);}
+public class PlayerManager {
+ public CharacterView CurrentPlayer;public event Action<CharacterView> PlayerChanged;public Func<CharacterView> SpawnFactory;public CharacterFactory Factory;public int SpawnCount;
+ public CharacterView SpawnPlayer(){if(CurrentPlayer!=null)return CurrentPlayer;SpawnCount++;Change(SpawnFactory());return CurrentPlayer;}
+ public void RemovePlayer(){var old=CurrentPlayer;Change(null);if(old!=null)Factory.Despawn(old);}
+ public void Change(CharacterView player){CurrentPlayer=player;PlayerChanged?.Invoke(player);}
+}
+public class SaveManager {public bool IsLoaded=true;}
+public class PoolPrewarmService {public bool IsReady,Fail;public int Calls;public void Prewarm(){Calls++;if(Fail)throw new InvalidOperationException("injected prewarm failure");IsReady=true;}}
+public class ProjectileManager {public int Clears;public void ClearProjectiles(){Clears++;}}
+public class CharacterFactory {public CharacterManager Registry;public int Returns;public void Despawn(CharacterView c){Returns++;Registry?.Characters.Remove(c);c.Release();}}
+public class PauseUI {public void Resume(){}}
+// Native panel/rendering double; UIManager and SkillChoiceController are production code.
+public class SkillChoiceUI {
+ public event Action<int> Selected;public event Action Hidden;
+ public List<SkillChoiceOffer> Offers=new List<SkillChoiceOffer>();public bool Visible;
+ public List<SkillRuntime> Owned=new List<SkillRuntime>();
+ public bool FailOwnedRendering;
+ public void ShowOwnedSkills(IReadOnlyList<SkillRuntime> skills){if(FailOwnedRendering)throw new InvalidOperationException("injected slot rendering failure");Owned=new List<SkillRuntime>(skills);}
+ public void Show(IReadOnlyList<SkillChoiceOffer> offers,int pending){Offers=new List<SkillChoiceOffer>(offers);Visible=true;}
+ public void Hide(){if(!Visible)return;Visible=false;Hidden?.Invoke();}
+ public void Choose(int index)=>Selected?.Invoke(index);
+}
+public class CharacterManager {public readonly Dictionary<CharacterView,CharacterDataSO> Characters=new Dictionary<CharacterView,CharacterDataSO>();public event Action<CharacterView> CharacterDied;public void NotifyDied(CharacterView character)=>CharacterDied?.Invoke(character);}

@@ -4,8 +4,14 @@ using UnityEngine.UI;
 // Một Graphic có material gán sẵn trong prefab, không cần Image/sprite hay object tạo lúc chạy.
 public sealed class ShieldBorderGraphic : MaskableGraphic
 {
+    #region Appearance State
+
     [SerializeField, Min(0.5f)] private float thickness = 3f;
     private float ratio;
+
+    #endregion
+
+    #region Layout
 
     public void SetThickness(float value)
     {
@@ -17,6 +23,10 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
         rectTransform.offsetMax = Vector2.one * thickness;
         SetVerticesDirty();
     }
+
+    #endregion
+
+    #region Canvas Lifecycle And Shader Channels
 
     protected override void OnEnable()
     {
@@ -40,6 +50,10 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
         canvas.rootCanvas.additionalShaderChannels |= AdditionalCanvasShaderChannels.TexCoord1;
     }
 
+    #endregion
+
+    #region Shield Presentation
+
     public void SetRatio(float value)
     {
         value = Mathf.Clamp01(value);
@@ -51,6 +65,10 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
         // Hết giáp thì ngừng vẽ, không giữ một quad hoàn toàn trong suốt trên GPU.
         enabled = ratio > 0f;
     }
+
+    #endregion
+
+    #region Mesh Generation
 
     protected override void OnPopulateMesh(VertexHelper vh)
     {
@@ -77,4 +95,5 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
         vertex.uv1 = data;
         vh.AddVert(vertex);
     }
+    #endregion
 }

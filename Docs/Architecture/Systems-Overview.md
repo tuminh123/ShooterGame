@@ -1,6 +1,6 @@
 # Tổng quan các hệ thống ShooterGame
 
-Ngày ghi nhận theo code hiện tại: 2026-11-06.
+Ngày ghi nhận theo code hiện tại: 2026-11-09.
 
 Tài liệu này là điểm bắt đầu để tìm code và tài liệu chi tiết. Một số tài liệu
 thiết kế cũ mô tả blueprint hoặc phiên bản trước; không mặc định mọi nội dung trong đó đã được triển khai.
@@ -30,7 +30,7 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | Enemy/boss | EnemySpawnManager, EnemyController, WaveConfigSO | Chọn đợt/quái, sinh theo vùng, đuổi player, tách đàn và thu hồi. |
 | Visual | CharacterVisualSettings, EnemyVisualManager | Prefab visual theo loại, layout, hitbox và bật/tắt visual enemy theo camera. |
 | Pool | PoolManager, PoolPrewarmService, CharacterRuntimePool | Tạo sẵn/tái sử dụng GameObject và runtime nhân vật. |
-| Skill | CharacterSkills, SkillRuntime, SkillManager, SkillFactory | Skill gắn theo nhân vật, skill trong trận, cooldown và vòng đời behavior. |
+| Skill | CharacterSkills, SkillRuntime, SkillManager, SkillFactory | Data đầy đủ theo cấp, ghép hành vi bằng enum; tách nguồn Character/Gameplay, quản lý cooldown và vòng đời. |
 | Shooting | ShootingSkill, ShootBehaviorFactory, ProjectileManager | Kiểu bắn, số viên mỗi lượt, spawn, di chuyển và xử lý đạn. |
 | Effect gameplay | EffectManager, EffectRuntimePool | Áp dụng/lập lịch/reset runtime làm chậm và sát thương theo thời gian. |
 | Effect hình ảnh | CombatAssetsSO, CombatSpawner, EffectView | Tra và phát prefab VFX; tách khỏi trạng thái effect gameplay. |
@@ -49,10 +49,11 @@ Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
 ```text
 Bind dịch vụ và inject scene
 → SaveManager.Initialize (-200)
-→ PoolPrewarmService.Initialize (-150)
-→ PlayerManager.Initialize (-100)
 → RunSessionManager.Initialize (-50)
-→ Gameplay/spawner hoạt động
+→ Các service scene còn lại Initialize
+→ GameManager.Initialize (100)
+→ prewarm → Home → PreparingRun → reset trận → spawn Player → Playing
+→ Gameplay/spawner được phép hoạt động
 ```
 
 Prewarm lấy prefab từ character database, combat assets, loot database và danh

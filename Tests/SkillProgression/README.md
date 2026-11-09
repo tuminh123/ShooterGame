@@ -1,17 +1,19 @@
 # Skill progression checks
 
-Run from the repository root:
+Optional manual runner from the repository root:
 
-```powershell
-./Tests/SkillProgression/Run.ps1
-```
+    ./Tests/SkillProgression/Run.ps1
 
-Requires the imported Unity project, its Unity Editor compiler (default 2022.3.62f3) and an installed .NET SDK/reference pack. `-UnityEditor` accepts another Editor directory. No package restore or downloads are required. Outputs go to ignored `Temp/SkillProgressionVerification`.
+The current refactor was compile-checked only; the harness was not executed.
 
-The checks compile production skill schedulers, level lookup, shooting strategies, saw/aura runtimes, stat calculations, target identities and spatial geometry. `TestEnvironment.cs` provides only host dependencies that require Unity native lifecycle, rendering or scene services. This folder lives outside `Assets` and never enters the game build.
+The runner compiles production skill code plus host doubles outside Assets.
+It covers complete level data, behavior unlocks, character/gameplay separation,
+stat modifier replacement and retained UI/game-flow checks.
+Old ShootingLevelTable and raw-action registration checks were removed because
+those APIs no longer exist.
 
-Coverage includes Player/Enemy ownership, independent permanent/run levels, caps, duplicate grants, reset, source disable/release, per-blade hit throttling, aura entry/exit/overlap, sparse unordered shooting milestones, old-projectile snapshots, independent spiral state and reset during a stat callback.
+Requires an imported Unity project, Unity 2022.3.62f3 compiler and an installed
+.NET SDK/reference pack. Outputs use ignored Temp/SkillProgressionVerification.
 
-These are logic checks, not Unity Play Mode or rendering tests.
-
-The same runner also checks level-up choice generation (three distinct offers, only the next level, repeat appearances across rolls, single-level skills, five-star cap, stale offers), multi-level reward queues and nested gameplay pause tokens.
+This does not verify Unity serialization, rendering, Inspector interaction,
+pool activation callbacks or Play Mode. Test these in the Unity Editor.

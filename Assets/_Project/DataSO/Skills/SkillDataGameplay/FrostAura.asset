@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: FrostAura
+  m_EditorClassIdentifier:
+  source: 0
+  level: 1
+  displayName: Frost Aura
+  description: Five run levels. Resets to level one each run.
+  icon: {fileID: 21300000, guid: feff385501ef94fb09731630b5606c35, type: 3}
+  levels:
+  - description: "Create a frost aura with radius 1. Enemies inside move 30% slower."
+    behaviours:
+    - {rid: 1002}
+  - description: "Create a frost aura with radius 2. Enemies inside move 30% slower."
+    behaviours:
+    - {rid: 1003}
+  - description: "Create a frost aura with radius 3. Enemies inside move 30% slower."
+    behaviours:
+    - {rid: 1004}
+  - description: "Create a frost aura with radius 4. Enemies inside move 30% slower."
+    behaviours:
+    - {rid: 1005}
+  - description: "Create a frost aura with radius 5. Enemies inside move 30% slower."
+    behaviours:
+    - {rid: 1006}
+  behaviours:
+  - {rid: 1001}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1001
+      type: {class: FrostAuraSkill, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1002
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        slowFraction: 0.3
+        radius: 1
+        effects: []
+    - rid: 1003
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        slowFraction: 0.3
+        radius: 2
+        effects: []
+    - rid: 1004
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        slowFraction: 0.3
+        radius: 3
+        effects: []
+    - rid: 1005
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        slowFraction: 0.3
+        radius: 4
+        effects: []
+    - rid: 1006
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        slowFraction: 0.3
+        radius: 5
+        effects: []

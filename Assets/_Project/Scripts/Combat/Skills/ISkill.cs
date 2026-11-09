@@ -1,25 +1,18 @@
-// Serialized skill settings are separate from scheduled runtime actions.
-public interface ISkillData { }
+using System;
 
-// Template có hỗ trợ cấp trong trận. UI không đoán khả năng nâng cấp từ MaxLevel cấu hình cũ.
-public interface IRunLevelSkillData : ISkillData { }
-
-// The scheduler knows only this behavior. Dependencies belong to each concrete skill.
-public interface ISkill
+// Hợp đồng thực thi; cấp và cấu hình nằm ở SkillRuntime/SkillDataSO.
+public interface ISkill : IDisposable
 {
+    SkillBehaviourType Type { get; } // Loại hành vi, không phải vị trí bắn phụ/chính.
+    // Nhận trọn cấu hình của cấp hiện tại; không tự quyết định cấp.
+    void ApplyData(SkillBehaviourData data);
+    // Thành công mới bắt đầu cooldown; chưa có mục tiêu thì trả false.
     bool TryExecute();
-}
-
-// Cấp trong trận thuộc runtime, không ghi ngược vào SkillDataSO.Level (cấp cấu hình/vĩnh viễn).
-public interface IRunLevelSkill
-{
-    void SetRunLevel(int level);
-}
-
-// Aura/quỹ đạo cần cập nhật liên tục, kể cả khi cooldown chưa sẵn sàng.
-// Scheduler gọi interface này; không thêm Update lên từng behavior C# thuần.
-public interface IContinuousSkill
-{
+    // Cập nhật hành vi liên tục kể cả khi cooldown cast chưa xong.
     void Tick(float deltaTime);
+    // Đồng bộ visual/state của hành vi với pause của owner.
     void SetPaused(bool paused);
 }
+
+// Giá trị enum được serialize; chỉ thêm ở cuối để giữ tương thích asset.
+public enum SkillBehaviourType { NormalAttack, Shooting, OrbitSaw, SlowAura, Regeneration, EmergencyShield, StatBuff }

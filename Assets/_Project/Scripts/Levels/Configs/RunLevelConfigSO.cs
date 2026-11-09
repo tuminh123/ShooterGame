@@ -7,7 +7,7 @@ public sealed class RunLevelConfigSO : ScriptableObject
 {
     #region Run Growth Settings
 
-    [SerializeField, Min(1)] private int maxLevel = 10;  // * Level tối đa trong một lượt chơi; bắt đầu từ level 1.
+    [SerializeField, Min(1)] private int maxLevel = 20;  // * Trần level trong trận, chỉnh qua Inspector; bắt đầu level 1 nên trần 20 cho tối đa 19 lần lên cấp.
     [SerializeField] private StatBonus bonusPerLevel;   // * Mỗi lần lên cấp nhận đúng bộ bonus này; để 0 nếu chỉ thưởng qua lựa chọn nâng cấp.
 
     public int MaxLevel => maxLevel;                  // * Tới cấp này thì RunLevelProgress bỏ EXP dư.

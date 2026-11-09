@@ -2,114 +2,229 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
-class Program {
+
+// Harness ngoài Assets; chỉ chạy khi được gọi thủ công bằng Run.ps1.
+class Program
+{
  static int checks;
- static void Equal(float a,float b,string label){if(Math.Abs(a-b)>.001f)throw new Exception(label+": "+a+" != "+b);checks++;}
- static void True(bool c,string label){if(!c)throw new Exception(label);checks++;}
- static void Set(object o,string field,object value)=>o.GetType().GetField(field,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(o,value);
- static T Get<T>(object o,string field)=>(T)o.GetType().GetField(field,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(o);
- static SkillDataSO Def(ISkillData data,int max=5,int permanent=1,StatBonus bonus=default){
-  var d=new SkillDataSO();Set(d,"behavior",data);Set(d,"maxLevel",max);Set(d,"level",permanent);Set(d,"statBonus",bonus);d.Validate();return d;
+ static void Equal(float actual,float expected,string label){if(Math.Abs(actual-expected)>.001f)throw new Exception(label+": "+actual+" != "+expected);checks++;}
+ static void True(bool condition,string label){if(!condition)throw new Exception(label);checks++;}
+ static void Set(object target,string field,object value)=>target.GetType().GetField(field,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(target,value);
+
+ static SkillDataSO Definition(ISkill[] actions,SkillBehaviourData[][] data,SkillSource source=SkillSource.Gameplay,int level=1)
+ {
+  var result=new SkillDataSO();var levels=new SkillLevelData[data.Length];
+  for(int i=0;i<data.Length;i++){levels[i]=new SkillLevelData();Set(levels[i],"behaviours",data[i]);}
+  Set(result,"source",source);Set(result,"level",level);Set(result,"behaviours",actions);Set(result,"levels",levels);result.Validate();return result;
  }
- class World {
+
+ // Giữ fixture startup cũ: bonus damage là một hành vi buff thuộc nhân vật.
+ static SkillDataSO Def(StatBonusSkill action,StatBonus bonus=default)
+  =>Definition(new ISkill[]{action},new[]{new SkillBehaviourData[]{new StatBonusData{stat=StatType.Damage,value=bonus.damage}}},SkillSource.Character);
+
+ class World
+ {
   public PoolManager Pools=new PoolManager();public CombatSpawner Spawner=new CombatSpawner();public Timers Timers=new Timers();
-  public Search Search=new Search();public CharacterManager Characters=new CharacterManager();public LevelManager Levels=new LevelManager();
+  public EffectManager Effects=new EffectManager();public Search Search=new Search();public CharacterManager Characters=new CharacterManager();public LevelManager Levels=new LevelManager();
   public SkillFactory Factory;public SkillManager Manager;
-  public World(){Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools);Manager=new SkillManager(Levels,Timers,new Clock(),Factory,Characters);}
-  public CharacterView Character(CharacterTeam team,params SkillDataSO[] defs){
-   var template=new CharacterDataSO{CharacterType=CharacterType.BlessedGladiator,Team=team,BaseStats=new BaseStats{maxHealth=1000,damage=20,moveSpeed=1,critDamageMultiplier=50},Skills=defs};
-   var c=new CharacterView{RuntimeData=new CharacterRuntimeData(template),Search=Search,Timers=Timers};c.Effects=new CharacterEffectHandler(c,new EffectManager());
-   c.Skills=new CharacterSkills(c,defs,Factory);Characters.Characters[c]=template;Search.Targets.Add(c);return c;
+  public World(){Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools,Effects);Manager=new SkillManager(Levels,new Clock(),Factory,Characters);}
+  public CharacterView Character(CharacterTeam team,params SkillDataSO[] definitions)
+  {
+   var template=new CharacterDataSO{CharacterType=CharacterType.BlessedGladiator,Team=team,BaseStats=new BaseStats{maxHealth=1000,damage=20,moveSpeed=1,critDamageMultiplier=50},Skills=definitions};
+   var character=new CharacterView{RuntimeData=new CharacterRuntimeData(template),Search=Search,Timers=Timers};
+   character.Effects=new CharacterEffectHandler(character,new EffectManager());character.Skills=new CharacterSkills(character,definitions,Manager);
+   Characters.Characters[character]=template;Search.Targets.Add(character);return character;
   }
  }
- static OrbitSawSkill Saw(){var d=new OrbitSawSkill();Set(d,"visualPrefab",new SkillAreaVisual());return d;}
- static FrostAuraSkill Frost(){var d=new FrostAuraSkill();Set(d,"visualPrefab",new SkillAreaVisual());return d;}
- static void Main(){
-  var saw=Saw();var frost=Frost();
-  for(int i=1;i<=5;i++){Equal(saw.BladeCountAt(i),i,"saw count");Equal(frost.RadiusAt(i),i,"frost radius");}
-  bool rejected=false;try{saw.BladeCountAt(6);}catch(ArgumentOutOfRangeException){rejected=true;}True(rejected,"saw rejects six");
-  rejected=false;try{Def(frost,6);}catch(InvalidOperationException){rejected=true;}True(rejected,"frost max must be five");
-  foreach(var team in new[]{CharacterTeam.Player,CharacterTeam.Enemy}){
-   var w=new World();var sawData=Saw();Set(sawData,"bladeRadius",.6f);var sawDef=Def(sawData,5,5,new StatBonus{damage=10});
-   var c=w.Character(team,sawDef);var victim=w.Character(CharacterSearch.OpponentOf(team));
-   True(c.Skills.TryGetRuntime(sawDef,out var runtime),"innate runtime exists");Equal(runtime.RunLevel,1,"run starts one despite permanent five");Equal(runtime.PermanentLevel,5,"permanent separate");
-   c.Skills.Tick(.1f);Equal(w.Pools.Active.Count,1,"one saw visual");Equal(victim.RuntimeData.CurrentHealth,970,"saw final damage");
-   c.Skills.Tick(.1f);Equal(victim.RuntimeData.CurrentHealth,970,"per blade hit cooldown");
-   True(w.Manager.GrantOrUpgrade(sawDef,c),"upgrade existing innate");Equal(runtime.RunLevel,2,"upgraded innate level");Equal(w.Manager.RunCount,0,"no duplicate run registration");Equal(c.RuntimeData.FinalStats.damage,30,"no duplicate stat bonus");
-   c.Skills.Tick(.1f);Equal(w.Pools.Active.Count,2,"two blade visuals");Equal(victim.RuntimeData.CurrentHealth,940,"new blade has independent hit schedule");
-   while(runtime.RunLevel<5)True(w.Manager.GrantOrUpgrade(sawDef,c),"upgrade to five");True(!w.Manager.GrantOrUpgrade(sawDef,c),"cap five");c.Skills.Tick(.1f);Equal(w.Pools.Active.Count,5,"five blades");
-   w.Levels.Reset();Equal(runtime.RunLevel,1,"reset innate run level");Equal(runtime.PermanentLevel,5,"reset preserves permanent");Equal(c.RuntimeData.FinalStats.damage,30,"reset preserves innate bonus");Equal(w.Pools.Active.Count,1,"reset returns extra blades");
-   c.Release();Equal(w.Pools.Active.Count,0,"despawn returns all saw visuals");
-   w=new World();var frostDef=Def(Frost());c=w.Character(team);victim=w.Character(CharacterSearch.OpponentOf(team));victim.transform.position=new Vector3(.5f,0);
-   True(w.Manager.GrantOrUpgrade(frostDef,c),"grant run frost");w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"frost slows opponent");Equal(victim.RuntimeData.CurrentHealth,1000,"frost no damage");
-   var friend=w.Character(team);w.Manager.Tick();Equal(friend.RuntimeData.FinalStats.moveSpeed,1,"frost ignores ally");
-   victim.transform.position=new Vector3(1.5f,0);w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"leaving removes slow immediately");
-   True(w.Manager.GrantOrUpgrade(frostDef,c),"upgrade run frost");w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"larger radius catches enemy");Equal(w.Manager.RunCount,1,"one run runtime");
-   c.Disable();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"disable clears aura slow");c.Enable();w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"enable reapplies aura");
-   var c2=w.Character(team,frostDef);c2.Skills.Tick(.1f);victim.transform.position=new Vector3(.5f,0);c2.Skills.Tick(.1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"overlap uses strongest not multiplied");
-   w.Levels.Reset();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"reset clears tokens until innate aura next tick");Equal(w.Manager.RunCount,0,"reset removes run frost");
-   c2.Skills.Tick(.1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"innate frost survives run reset");c2.Release();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"release removes only owned aura tokens");
-   w.Manager.Dispose();
-  }
-  // Reset invoked by a stats callback must cancel an in-flight level change and release all tokens.
+
+ class FlowPanel:UIPanelController
+ {
+  public bool Visible;public override void SetVisible(bool visible){Visible=visible;}
+  public void Request(bool visible)=>RequestVisibility(visible);
+ }
+
+ static void ResetGameBus()=>typeof(GameUIEventBus).GetMethod("ResetListeners",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,null);
+ static void Routes(UIManager ui,params (GameState State,UIPanelController Panel)[] routes)
+ {
+  var type=typeof(UIManager).GetNestedType("StatePanelRoute",BindingFlags.NonPublic);var entries=Array.CreateInstance(type,routes.Length);
+  for(int i=0;i<routes.Length;i++){var entry=Activator.CreateInstance(type,true);type.GetField("state").SetValue(entry,routes[i].State);type.GetField("panel").SetValue(entry,routes[i].Panel);entries.SetValue(entry,i);}Set(ui,"statePanels",entries);
+ }
+
+ // Kiểm tra ngắn luồng max/lượng đã mất và thông báo UI, không chạy toàn bộ harness.
+ static void CheckVitals()
+ {
+  var template=new CharacterDataSO{BaseStats=new BaseStats{maxHealth=100,defense=100,damage=10,moveSpeed=1}};
+  var runtime=new CharacterRuntimeData(template);int notifications=0;float observedHealth=0,observedShield=0,observedMaxHealth=0,observedMaxShield=0;
+  runtime.Changed+=()=>{notifications++;observedHealth=runtime.CurrentHealth;observedShield=runtime.CurrentShield;observedMaxHealth=runtime.MaxHealth;observedMaxShield=runtime.MaxShield;};
+  runtime.SetVitals(30,30);
+  Equal(notifications,1,"damage notifies once");
+  var buff=runtime.AddModifiers(new StatModifier(StatType.MaxHealth,StatOperation.Add,10),new StatModifier(StatType.Defense,StatOperation.Add,10));
+  Equal(observedHealth,40,"UI observes health after max increase");Equal(observedShield,40,"UI observes shield after max increase");
+  Equal(observedMaxHealth,110,"UI observes new health max");Equal(observedMaxShield,110,"UI observes new shield max");Equal(notifications,2,"bonus notifies once");
+  buff.Update(new StatModifier(StatType.MaxHealth,StatOperation.Add,20),new StatModifier(StatType.Defense,StatOperation.Add,20));
+  Equal(runtime.CurrentHealth,50,"buff update preserves health lost");Equal(runtime.CurrentShield,50,"buff update preserves shield lost");
+  Equal(notifications,3,"atomic update notifies once");
+  buff.Dispose();Equal(runtime.CurrentHealth,30,"removing bonus preserves health lost");Equal(runtime.CurrentShield,30,"removing bonus preserves shield lost");
+  runtime.AddShield(10);Equal(runtime.MaxShield,110,"shield grant grows max");Equal(runtime.CurrentShield,40,"shield grant grows current");
+  runtime.SetVitals(runtime.CurrentHealth+10,runtime.CurrentShield);Equal(runtime.MaxHealth,110,"health grant grows max");Equal(runtime.CurrentHealth,40,"health grant grows current");
+  runtime.SetExternalBonus(new StatBonus{maxHealth=20,defense=20});
+  Equal(runtime.MaxHealth,130,"external bonus retains direct health grant");Equal(runtime.CurrentHealth,60,"external bonus preserves health lost");
+  Equal(runtime.MaxShield,130,"external bonus retains direct shield grant");Equal(runtime.CurrentShield,60,"external bonus preserves shield lost");
+  int beforeSlow=notifications;runtime.AddModifier(new StatModifier(StatType.MoveSpeed,StatOperation.Percent,-30));Equal(notifications,beforeSlow+1,"slow notifies UI");
+  runtime.SetVitals(0,runtime.CurrentShield);var afterDeath=runtime.AddModifier(new StatModifier(StatType.MaxHealth,StatOperation.Add,500));
+  True(!runtime.IsAlive&&runtime.CurrentHealth==0,"stats cannot revive defeated character");afterDeath.Dispose();
+ }
+
+ // Kiểm tra tập trung công thức modifier chung, không chạy toàn bộ harness/UI.
+ static void CheckStats()
+ {
+  var template=new CharacterDataSO{BaseStats=new BaseStats{maxHealth=100,damage=100,moveSpeed=10,critChance=30}};
+  var runtime=new CharacterRuntimeData(template);int changed=0;runtime.Changed+=()=>changed++;
+  var damage=runtime.AddModifier(new StatModifier(StatType.Damage,StatOperation.Percent,-20));
+  Equal(runtime.FinalStats.damage,80,"damage percent debuff");
+  var flat=runtime.AddModifier(new StatModifier(StatType.Damage,StatOperation.Add,20));
+  Equal(runtime.FinalStats.damage,96,"flat bonuses precede percentages");
+  damage.Update(new StatModifier(StatType.Damage,StatOperation.Percent,-50));
+  Equal(runtime.FinalStats.damage,60,"update modifier in place");
+  flat.Dispose();Equal(runtime.FinalStats.damage,50,"remove only flat source");
+  damage.Dispose();Equal(runtime.FinalStats.damage,100,"remove damage debuff");
+  var crit=runtime.AddModifier(new StatModifier(StatType.CritChance,StatOperation.Add,-10));
+  Equal(runtime.FinalStats.critChance,20,"crit percentage points");
+  crit.Update(new StatModifier(StatType.CritChance,StatOperation.Percent,-20));
+  Equal(runtime.FinalStats.critChance,24,"crit relative percent");crit.Dispose();
+  var speed=runtime.AddModifier(new StatModifier(StatType.MoveSpeed,StatOperation.Percent,-30));
+  Equal(runtime.FinalStats.moveSpeed,7,"slow uses common modifier");speed.Dispose();
+  Equal(runtime.FinalStats.moveSpeed,10,"remove speed source");
+  var snapshot=new[]{new StatModifier(StatType.Damage,StatOperation.Percent,-20)};
+  var source=runtime.AddModifiers(snapshot);snapshot[0].value=-90;runtime.SetExternalBonus(default);
+  Equal(runtime.FinalStats.damage,80,"runtime snapshots mutable input array");
+  source.Dispose();True(changed>0,"modifier changes notify UI");
+  var world=new World();var owner=world.Character(CharacterTeam.Player);
+  long weak=owner.Effects.AddSpeedMultiplier(.9f),strong=owner.Effects.AddSpeedMultiplier(.7f);
+  Equal(owner.RuntimeData.FinalStats.moveSpeed,.7f,"slow keeps strongest-source rule");
+  owner.Effects.RemoveSpeedMultiplier(strong);Equal(owner.RuntimeData.FinalStats.moveSpeed,.9f,"remove strongest reveals weaker source");
+  owner.Effects.RemoveSpeedMultiplier(weak);Equal(owner.RuntimeData.FinalStats.moveSpeed,1,"clear last slow");
+  world.Manager.Dispose();owner.Release();
+ }
+
+ static void Main(string[] args)
+ {
+  if(Array.IndexOf(args,"--stats-only")>=0){CheckVitals();CheckStats();Console.WriteLine("PASS: "+checks+" focused stat/vitals checks.");return;}
+  if(Array.IndexOf(args,"--vitals-only")>=0){CheckVitals();Console.WriteLine("PASS: "+checks+" focused vitals checks.");return;}
+  // Data theo cấp cập nhật hành vi đang có và mở thêm loại mới.
   {
-   var w=new World();var d=Def(Frost());var c=w.Character(CharacterTeam.Player,d);var victim=w.Character(CharacterTeam.Enemy);
-   c.Skills.Tick(.1f);True(w.Manager.TryGetRuntime(d,c,out var runtime),"lookup innate frost");
-   Action reset=null;reset=()=>{victim.RuntimeData.Changed-=reset;w.Levels.Reset();};victim.RuntimeData.Changed+=reset;
-   True(!w.Manager.GrantOrUpgrade(d,c),"reset during upgrade cancels upgrade");Equal(runtime.RunLevel,1,"no stale level commit");Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"reset removes aura token");
-   c.Skills.Tick(.1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"aura can reapply after reset");
-   w.Manager.Dispose();c.Release();
+   var world=new World();var sawVisual=new SkillAreaVisual();var frostVisual=new SkillAreaVisual();
+   var definition=Definition(new ISkill[]{new OrbitSawSkill(),new ShootingSkill(),new FrostAuraSkill()},new[]{
+    new SkillBehaviourData[]{new OrbitSawData{visualPrefab=sawVisual,bladeCount=1}},
+    new SkillBehaviourData[]{new OrbitSawData{visualPrefab=sawVisual,bladeCount=2},new ShootingData()},
+    new SkillBehaviourData[]{new OrbitSawData{visualPrefab=sawVisual,bladeCount=3},new ShootingData{projectileCount=2},new FrostAuraData{visualPrefab=frostVisual,radius=2}}
+   });
+   var owner=world.Character(CharacterTeam.Player);var victim=world.Character(CharacterTeam.Enemy);victim.transform.position=new Vector3(.5f,0);
+   True(world.Manager.GrantOrUpgrade(definition,owner),"grant gameplay skill");world.Manager.TryGetRuntime(definition,owner,out var runtime);
+   Equal(runtime.BehaviourCount,1,"only saw at level one");world.Manager.Tick();Equal(world.Pools.Active.Count,1,"one saw visual");Equal(world.Spawner.Shots.Count,0,"shooting remains locked");
+   True(runtime.TryUpgrade(),"upgrade level two");Equal(runtime.BehaviourCount,2,"shooting opens at level two");world.Manager.Tick();Equal(world.Spawner.Shots.Count,1,"shooting starts after unlock");
+   True(runtime.TryUpgrade(),"upgrade level three");Equal(runtime.BehaviourCount,3,"aura opens at level three");world.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"unlocked aura slows");
+   True(!runtime.TryUpgrade(),"level count defines cap");owner.Release();Equal(world.Pools.Active.Count,0,"all visuals returned");Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"aura token removed");
+   world.Manager.Dispose();victim.Release();
   }
-  // Sparse, unordered dictionaries: nearest shooting milestone and cumulative effect milestones.
-  var straight=new StraightShooter();var spiral=new SpiralShooter();var slow=new SlowEffect();
-  var table=new ShootingLevelTable();
-  Set(table,"shootingLevels",new List<ShootingLevelEntry>{
-   new ShootingLevelEntry{level=6,shooter=new CircularShooter(),projectileMove=new HomingProjectileMove(),projectileCount=5},
-   new ShootingLevelEntry{level=5,shooter=spiral,projectileMove=new HomingProjectileMove(),projectileCount=5},
-   new ShootingLevelEntry{level=2,shooter=spiral,projectileMove=new StraightProjectileMove(),projectileCount=2}});
-  Set(table,"effectLevels",new List<ShootingEffectLevelEntry>{new ShootingEffectLevelEntry{level=6,effects=new List<IGameplayEffect>{slow}},new ShootingEffectLevelEntry{level=3,effects=new List<IGameplayEffect>{slow}}});
-  var lookup=table.CreateLookup(6);Equal(lookup.ResolveShooting(4,straight,new StraightProjectileMove(),1).Count,2,"sparse nearest milestone");Equal(lookup.ResolveEffects(6,Array.Empty<IGameplayEffect>()).Count,1,"effect references deduplicated");
-  var templateShot=new ShootingSkill();Set(templateShot,"upgrades",table);
-  var shooters=new ShootBehaviorFactory();var shot=templateShot.CreateRuntime(shooters,6);var other=templateShot.CreateRuntime(shooters,6);
-  shot.ApplyRunLevel(2,shooters);other.ApplyRunLevel(2,shooters);
-  var shotWorld=new World();var shooter=shotWorld.Character(CharacterTeam.Player);var moves=new ProjectileMoveFactory();var emitter=new CombatSpawner();
-  shot.ExecuteSkill(emitter,shooters,moves,shooter.RuntimeData,new Vector2(),Vector2.right);Equal(emitter.Shots.Count,2,"level two count");
-  var instance=Get<IShooter>(shot,"liveShooter");shot.ApplyRunLevel(5,shooters);True(ReferenceEquals(instance,Get<IShooter>(shot,"liveShooter")),"same template preserves spiral state");
-  True(!ReferenceEquals(instance,Get<IShooter>(other,"liveShooter")),"shooter runtime isolated");True(shot.UsesHoming,"level five homing");
-  var oldBullet=emitter.Shots[0];shot.ApplyRunLevel(6,shooters);True(Get<IShooter>(shot,"liveShooter") is CircularShooter,"six circular");Equal(oldBullet.Effects.Count,0,"old bullet effects unchanged");True(oldBullet.Movement is StraightProjectileMove,"old bullet movement unchanged");
-  emitter.Shots.Clear();shot.ExecuteSkill(emitter,shooters,moves,shooter.RuntimeData,new Vector2(),Vector2.right);Equal(emitter.Shots.Count,5,"level six count");True(emitter.Shots[0].Movement is HomingProjectileMove,"new bullet homing");Equal(emitter.Shots[0].Effects.Count,1,"new bullet effect");
-  shot.ApplyRunLevel(1,shooters);Equal(Get<int>(shot,"liveCount"),1,"reset shooting base count");True(!shot.UsesHoming,"reset shooting movement");Equal(Get<IReadOnlyList<IGameplayEffect>>(shot,"liveEffects").Count,0,"reset shooting effects");
-  // A callback upgrade must not mix configurations inside an already-started volley.
-  shot.ApplyRunLevel(2,shooters);emitter.Shots.Clear();emitter.OnSpawn=()=>shot.ApplyRunLevel(6,shooters);
-  shot.ExecuteSkill(emitter,shooters,moves,shooter.RuntimeData,new Vector2(),Vector2.right);Equal(emitter.Shots.Count,2,"volley snapshots count");Equal(emitter.Shots[1].Effects.Count,0,"volley snapshots effects");
-  rejected=false;Set(table,"shootingLevels",new List<ShootingLevelEntry>{new ShootingLevelEntry{level=2},new ShootingLevelEntry{level=2}});try{table.Validate(6);}catch(InvalidOperationException){rejected=true;}True(rejected,"duplicate levels rejected");
-  // Choice UI policy: only current + 1, a separate five-star cap, and repeatable appearances across rolls.
+  // Nhân vật giữ cấp cấu hình và không được nâng bằng lượt thưởng gameplay.
   {
-   var w=new World();var sawDef=Def(Saw());var frostDef=Def(Frost());var single=Def(new StatBonusSkill());
-   var shotDef=Def(new ShootingSkill(),6);var owner=w.Character(CharacterTeam.Player,sawDef);
-   var catalog=new[]{sawDef,frostDef,single,shotDef,sawDef};var offers=new List<SkillChoiceOffer>();var pool=new SkillChoicePool(new System.Random(19));
-   pool.Build(catalog,w.Manager,owner,offers);Equal(offers.Count,3,"three choices");
-   var seen=new HashSet<SkillDataSO>();foreach(var offer in offers){True(seen.Add(offer.Definition),"unique skills in one roll");True(offer.CurrentLevel==0?offer.OfferedLevel==1:offer.OfferedLevel==offer.CurrentLevel+1,"only next level offered");}
-   for(int i=0;i<20;i++){pool.Build(new[]{sawDef},w.Manager,owner,offers);Equal(offers[0].OfferedLevel,2,"owned level one never offers three");}
-   var stale=offers[0];True(stale.TryApply(w.Manager,owner),"apply offered next level");True(!stale.TryApply(w.Manager,owner),"stale double click rejected");
-   pool.Build(new[]{sawDef},w.Manager,owner,offers);Equal(offers[0].OfferedLevel,3,"same skill may reappear at next level");
-   while(w.Manager.GrantOrUpgrade(sawDef,owner)){}
-   pool.Build(new[]{sawDef},w.Manager,owner,offers);Equal(offers.Count,0,"max level excluded");
-   pool.Build(new[]{single},w.Manager,owner,offers);Equal(offers[0].MaxLevel,1,"single level has one star");True(offers[0].TryApply(w.Manager,owner),"grant single level skill");
-   pool.Build(new[]{single},w.Manager,owner,offers);Equal(offers.Count,0,"owned single level is not a no-op reward");
-   for(int i=0;i<5;i++)w.Manager.GrantOrUpgrade(shotDef,owner);
-   pool.Build(new[]{shotDef},w.Manager,owner,offers);Equal(offers.Count,0,"UI does not offer sixth shooting level yet");
-   var queue=new SkillChoiceProgress();queue.AddLevels(1,4);Equal(queue.Pending,3,"multi level grants three choices");True(queue.Consume(),"consume one choice");Equal(queue.Pending,2,"two choices remain");queue.AddLevels(4,5);Equal(queue.Pending,3,"new levels append to queue");queue.Clear();True(!queue.Consume(),"reset queue cannot underflow");
-   w.Levels.Reset();pool.Build(new[]{sawDef},w.Manager,owner,offers);Equal(offers[0].OfferedLevel,2,"reset uses current innate level one");
-   pool.Build(Array.Empty<SkillDataSO>(),w.Manager,owner,offers);Equal(offers.Count,0,"empty catalog safe");
-   w.Manager.Dispose();owner.Release();
+   var world=new World();
+   var characterSkill=Definition(new ISkill[]{new ShootingSkill()},new[]{new SkillBehaviourData[]{new ShootingData()},new SkillBehaviourData[]{new ShootingData{projectileCount=2}}},SkillSource.Character,2);
+   var owner=world.Character(CharacterTeam.Player,characterSkill);world.Manager.TryGetRuntime(characterSkill,owner,out var runtime);
+   Equal(runtime.RunLevel,2,"character configured level");True(!runtime.TryUpgrade()&&!world.Manager.GrantOrUpgrade(characterSkill,owner),"character rejects gameplay upgrade");
+   var database=new SkillDatabaseSO();var entry=new SkillDatabaseSO.Entry();Set(entry,"skill",characterSkill);Set(entry,"availableInRunChoices",true);Set(database,"skills",new List<SkillDatabaseSO.Entry>{entry});
+   bool rejected=false;try{database.Validate();}catch(InvalidOperationException){rejected=true;}True(rejected,"gameplay database rejects character skill");
+   world.Manager.Dispose();owner.Release();
+  }
+  // Buff theo cấp thay giá trị cũ, không cộng chồng.
+  {
+   var world=new World();var owner=world.Character(CharacterTeam.Player);
+   var definition=Definition(new ISkill[]{new StatBonusSkill()},new[]{new SkillBehaviourData[]{new StatBonusData{value=2}},new SkillBehaviourData[]{new StatBonusData{value=5}}});
+   world.Manager.GrantOrUpgrade(definition,owner);Equal(owner.RuntimeData.FinalStats.defense,2,"initial defense buff");
+   world.Manager.GrantOrUpgrade(definition,owner);Equal(owner.RuntimeData.FinalStats.defense,5,"replacement defense buff");
+   world.Levels.Reset();Equal(owner.RuntimeData.FinalStats.defense,0,"reset removes acquired buff");world.Manager.Dispose();owner.Release();
+  }
+
+  {
+   ResetGameBus();var w=new World();var resource=new PoolPrewarmService();var saves=new SaveManager();var factory=new CharacterFactory{Registry=w.Characters};
+   var players=new PlayerManager{Factory=factory};players.SpawnFactory=()=>w.Character(CharacterTeam.Player,Def(new StatBonusSkill(),bonus:new StatBonus{damage=3}));
+   var projectiles=new ProjectileManager();var pauses=new GameplayPauseService();
+   var game=new GameManager(saves,resource,w.Levels,players,w.Characters,factory,projectiles,pauses,w.Manager);
+   var gameplay=new FlowPanel();var result=new FlowPanel();var ui=new UIManager();Set(ui,"panels",new UIPanelController[]{gameplay,result});Routes(ui,(GameState.Playing,gameplay),(GameState.Lost,result));ui.Construct(game);
+   True(game.State==GameState.Boot&&ui.ActivePanel==null,"boot has no implicit default UI");
+   int resets=0;w.Levels.RunReset+=()=>resets++;bool reentrantStarted=true;
+   GameUIEventBus.StateChanged+=(old,next)=>{if(next==GameState.PreparingRun)reentrantStarted=game.StartRun();};
+   game.Initialize();
+   True(game.State==GameState.Playing&&resource.Calls==1&&resource.IsReady&&players.SpawnCount==1,"game prepares resources and spawns before playing");
+   True(resets==1&&!reentrantStarted&&!game.StartRun(),"one reset per run and duplicate/reentrant start rejected");
+   True(ui.ActivePanel==gameplay&&gameplay.Visible,"state bus routes playing to gameplay UI");Equal(Time.timeScale,1,"playing releases only game flow pause");
+   w.Character(CharacterTeam.Enemy);var oldPlayer=players.CurrentPlayer;
+   True(game.WinRun()&&game.State==GameState.Won&&!game.LoseRun(),"win ends run once");True(w.Manager.RunCount==0,"game end clears both initial and acquired skill runtimes");Equal(Time.timeScale,0,"result pauses gameplay");
+   True(ui.ActivePanel==null,"unmapped result state closes old UI without fallback");
+   True(game.StartRun()&&players.CurrentPlayer!=oldPlayer&&w.Characters.Characters.Count==1,"restart removes old player enemies and spawns fresh player");
+   True(resource.Calls==1&&resets==2&&projectiles.Clears==2,"restart reuses prepared resources and clears old projectiles");
+   w.Characters.NotifyDied(players.CurrentPlayer);
+   True(game.State==GameState.Lost&&ui.ActivePanel==result,"player death ends run and routes result UI");
+   var manual=pauses.Acquire();True(game.StartRun(),"retry after loss succeeds");Equal(Time.timeScale,0,"starting run preserves another pause source");manual.Dispose();Equal(Time.timeScale,1,"last manual pause restores gameplay");
+   True(game.ReturnHome()&&game.State==GameState.Home&&players.CurrentPlayer==null&&w.Characters.Characters.Count==0,"home cleans world and player");
+   True(ui.ActivePanel==null&&resets==4,"home clears UI and resets progression once");Equal(Time.timeScale,0,"home remains paused");
+   int logged=0,delivered=0;Action<GameState,GameState> bad=(_,__)=>throw new Exception("injected UI callback failure");Action<GameState,GameState> good=(_,__)=>delivered++;
+   GameUIEventBus.StateChanged+=bad;GameUIEventBus.StateChanged+=good;Debug.ExceptionSink=_=>logged++;
+   True(game.StartRun()&&game.State==GameState.Playing,"UI callback error cannot abort gameplay transition");
+   Debug.ExceptionSink=null;GameUIEventBus.StateChanged-=bad;GameUIEventBus.StateChanged-=good;
+   True(logged==2&&delivered==2,"bus logs listener failures and still notifies remaining UI");
+   game.Dispose();True(!game.StartRun()&&!game.WinRun(),"disposed manager rejects commands");
+   typeof(UIManager).GetMethod("OnDisable",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(ui,null);
+   players.RemovePlayer();pauses.Dispose();w.Manager.Dispose();ResetGameBus();
   }
   {
-   Time.timeScale=.75f;var pauses=new GameplayPauseService();var manual=pauses.Acquire();var modal=pauses.Acquire();Equal(Time.timeScale,0,"pause acquired");
-   modal.Dispose();Equal(Time.timeScale,0,"closing choice keeps manual pause");manual.Dispose();Equal(Time.timeScale,.75f,"last lease restores actual time scale");manual.Dispose();Equal(Time.timeScale,.75f,"release is idempotent");
-   var first=pauses.Acquire();var second=pauses.Acquire();first.Dispose();Equal(Time.timeScale,0,"out of order release keeps modal pause");second.Dispose();Equal(Time.timeScale,.75f,"second order restore");
-   var cleanup=pauses.Acquire();pauses.Dispose();Equal(Time.timeScale,.75f,"dispose restores pause");cleanup.Dispose();Equal(Time.timeScale,.75f,"old token cannot pause again");Time.timeScale=1;
+   ResetGameBus();var w=new World();var resource=new PoolPrewarmService{Fail=true};var factory=new CharacterFactory{Registry=w.Characters};var players=new PlayerManager{Factory=factory,SpawnFactory=()=>w.Character(CharacterTeam.Player)};var pauses=new GameplayPauseService();
+   var game=new GameManager(new SaveManager(),resource,w.Levels,players,w.Characters,factory,new ProjectileManager(),pauses,w.Manager);
+   int logs=0;Debug.ExceptionSink=_=>logs++;game.Initialize();Debug.ExceptionSink=null;
+   True(game.State==GameState.Faulted&&game.LastError!=null&&players.SpawnCount==0&&logs==1,"resource failure never spawns player or enters playing");
+   Equal(Time.timeScale,0,"resource failure holds flow pause");game.Dispose();Equal(Time.timeScale,1,"dispose releases failed startup pause");
+   pauses.Dispose();w.Manager.Dispose();ResetGameBus();
   }
-  Console.WriteLine("PASS: "+checks+" checks; production runtime, progression, saw damage, frost tokens and shooting strategies.");
+  {
+   var w=new World();var factory=new CharacterFactory{Registry=w.Characters};var players=new PlayerManager{Factory=factory,SpawnFactory=()=>w.Character(CharacterTeam.Player)};var pauses=new GameplayPauseService();
+   var game=new GameManager(new SaveManager(),new PoolPrewarmService(),w.Levels,players,w.Characters,factory,new ProjectileManager(),pauses,w.Manager,false);
+   game.Initialize();True(game.State==GameState.Home&&players.SpawnCount==0,"auto start off waits at home without spawning");
+   True(game.StartRun(),"explicit start enters run from home");game.Dispose();players.RemovePlayer();pauses.Dispose();w.Manager.Dispose();ResetGameBus();
+  }
+  {
+   var gameplay=new GameObject();var first=new FlowPanel();var second=new FlowPanel();var manager=new UIManager();
+   var gameplayController=new GameplayController();Set(gameplayController,"panel",gameplay);Set(manager,"panels",new UIPanelController[]{gameplayController,first,second});manager.SetVisible(true);manager.SetRootPanel(gameplayController);
+   True(gameplay.Active&&manager.ActivePanel==gameplayController,"flow starts at gameplay");
+   manager.Back();True(manager.ActivePanel==gameplayController&&gameplay.Active,"back at root keeps root visible");
+   first.Request(true);True(first.Visible&&!gameplay.Active&&manager.ActivePanel==first,"panel request switches gameplay to modal");
+   second.Request(true);True(second.Visible&&!first.Visible&&manager.ActivePanel==second,"new modal suspends previous panel");
+   manager.Back();True(first.Visible&&!second.Visible&&!second.WantsVisible,"back restores previous panel and closes its request");
+   manager.SetVisible(false);True(!first.Visible&&!gameplay.Active,"global hide suspends whole UI flow");
+   manager.SetVisible(true);True(first.Visible&&manager.ActivePanel==first,"global show restores active flow");
+   first.Request(false);True(gameplay.Active&&manager.ActivePanel==gameplayController,"closing last modal restores gameplay");
+   manager.OpenPanel(first);manager.OpenPanel(second);manager.ClosePanel(first);
+   True(second.Visible&&manager.ActivePanel==second,"closing suspended panel preserves active panel");
+   manager.SetRootPanel(gameplayController);True(gameplay.Active&&!second.Visible&&!second.WantsVisible,"explicit gameplay route clears modal history");
+   second.Request(true);True(manager.ActivePanel==second,"controller can reopen after manager navigation");
+   typeof(UIManager).GetMethod("OnDisable",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(manager,null);
+   True(!second.Visible,"manager disable hides active modal");
+   typeof(UIManager).GetMethod("OnEnable",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(manager,null);
+   True(second.Visible&&manager.ActivePanel==second,"manager enable restores pending request");
+   manager.OpenPanel(gameplayController);
+   True(manager.ActivePanel==gameplayController&&gameplay.Active&&!second.Visible,"opening root through shared API clears navigation");
+  }
+  {
+   var home=new FlowPanel();var overlay=new FlowPanel();var manager=new UIManager();
+   Set(manager,"panels",new UIPanelController[]{home,overlay});manager.SetVisible(true);True(manager.ActivePanel==null,"no panel opens without a root request");manager.SetRootPanel(home);
+   True(home.Visible&&manager.ActivePanel==home,"any panel controller can be root without gameplay dependency");
+   overlay.Request(true);manager.OpenPanel(home);
+   True(home.Visible&&!overlay.Visible&&!overlay.WantsVisible,"root navigation clears old flow");
+   var invalid=new UIManager();bool invalidRootRejected=false;
+   try{invalid.SetRootPanel(home);}catch(ArgumentException){invalidRootRejected=true;}
+   True(invalidRootRejected,"root must belong to registered array");
+  }
+
+  Console.WriteLine("PASS: "+checks+" checks; level data, composition, skill sources, UI and game flow.");
  }
 }

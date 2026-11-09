@@ -29,6 +29,13 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private LevelDatabaseSO levelDatabase;          // * Config vĩnh viễn theo nhân vật và config trận dùng chung.
     [SerializeField] private EquipmentDatabaseSO equipmentDatabase;  // * Tra bonus từ ID trang bị đã lưu.
     [SerializeField] private LootDatabaseSO lootDatabase; // Catalog EXP/vàng: prefab, sprite, lượng, tỉ lệ và kích thước.
+    [SerializeField] private SkillDatabaseSO skillDatabase; // Catalog riêng cho skill gameplay và quyền xuất hiện trong bảng thưởng.
+
+    #endregion
+
+    #region Game Flow Settings
+
+    [SerializeField] private bool autoStartRun = true; // Scene hiện chưa có Home UI; tắt để chờ GameManager.StartRun từ nút Play sau này.
 
     #endregion
 
@@ -47,6 +54,9 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Equipment Database in GameSceneInstaller.");
         if (lootDatabase == null)
             throw new InvalidOperationException("Assign Loot Database in GameSceneInstaller.");
+        if (skillDatabase == null)
+            throw new InvalidOperationException("Assign Skill Database in GameSceneInstaller.");
+        skillDatabase.Validate();
         if (poolPrewarmSettings == null)
             throw new InvalidOperationException("Assign Pool Prewarm Settings in GameSceneInstaller.");
         poolPrewarmSettings.Validate();
@@ -58,6 +68,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.Bind<LevelDatabaseSO>().FromInstance(levelDatabase).AsSingle();
         Container.Bind<EquipmentDatabaseSO>().FromInstance(equipmentDatabase).AsSingle();
         Container.Bind<LootDatabaseSO>().FromInstance(lootDatabase).AsSingle();
+        Container.Bind<SkillDatabaseSO>().FromInstance(skillDatabase).AsSingle();
         Container.BindInterfacesAndSelfTo<CharacterManager>().AsSingle();
         Container.BindInterfacesAndSelfTo<EnemyVisualManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PlayerEquipmentService>().AsSingle().NonLazy();
@@ -68,7 +79,10 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new PlayerManager.Settings(defaultPlayerType, damageFlashDuration, damageFlashColor));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
-        Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Trạm UI trên Play_UI_Action; các UI tự nhận dependency.
+        Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Điều phối trên Canvas; controller từng panel tự nhận dependency qua scene injection.
+        Container.BindInterfacesAndSelfTo<GameManager>().AsSingle().WithArguments(autoStartRun).NonLazy();
+        Container.BindInitializableExecutionOrder<GameManager>(100); // Sau Save/RunSession/Loot đã đăng ký; manager tự chuẩn bị tài nguyên rồi spawn Player.
+        Container.BindDisposableExecutionOrder<GameManager>(300); // Trả token/listener trước các service mà luồng game sử dụng.
         Container.BindInterfacesAndSelfTo<RunSessionManager>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<RunSessionManager>(-50); // Sau khi Player được tạo, trước hệ thống nhặt đồ.
         Container.BindDisposableExecutionOrder<RunSessionManager>(205); // Sau LootManager, trước khi dọn Player/timer.
@@ -79,7 +93,6 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<CharacterRuntimePool>().AsSingle();
         Container.BindInstance(poolPrewarmSettings);
         Container.BindInterfacesAndSelfTo<PoolPrewarmService>().AsSingle().WithArguments(characterPrefab).NonLazy();
-        Container.BindInitializableExecutionOrder<PoolPrewarmService>(-150); // Save (-200) → prewarm → Player (-100).
         Container.BindDisposableExecutionOrder<CharacterRuntimePool>(90); // Sau factory/view cleanup và PoolManager.
         Container.BindInstance(combatAssets);
         Container.Bind<ITimeSource>().To<GameplayTimeSource>().AsSingle();
@@ -105,7 +118,6 @@ public sealed class GameSceneInstaller : MonoInstaller
         // Dọn effect trước khi Zenject giải phóng các memory pool.
         Container.BindDisposableExecutionOrder<EffectManager>(150);
         Container.BindInterfacesAndSelfTo<MovementManager>().AsSingle().NonLazy();
-        Container.BindInitializableExecutionOrder<PlayerManager>(-100);
         Container.BindInitializableExecutionOrder<SaveManager>(-200);
         // * Thu hồi nhân vật theo thứ tự visual → vỏ trước khi pool tổng quát và buffer Jobs được giải phóng.
         Container.BindDisposableExecutionOrder<CharacterFactory>(200);

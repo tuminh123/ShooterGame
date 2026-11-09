@@ -170,6 +170,14 @@ public sealed class ProjectileManager : ITickable, IDisposable
         results = new NativeArray<SpatialHit>(capacity, Allocator.Persistent);
     }
 
+    // Dọn đạn của lượt cũ khi restart/về Home; giữ buffer và service để trận tiếp theo còn dùng được.
+    public void ClearProjectiles()
+    {
+        foreach (Registration registration in new List<Registration>(activeProjectiles))
+            if (registration.Projectile != null && movementManager.IsRegistered(registration.Handle))
+                registration.Projectile.Release();
+    }
+
     public void Dispose()
     {
         if (disposed) return;

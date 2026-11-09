@@ -1,77 +1,136 @@
-# Skill theo cấp trong trận
+# Skill theo cấp và nguồn
 
-## Dữ liệu và vòng đời
+## Cấu trúc
 
-- `SkillDataSO.Level` là cấp cấu hình hiện có (nền cho tiến trình vĩnh viễn); không phải cấp trong trận. Chưa có hệ thống save/nâng cấp skill vĩnh viễn riêng trong đợt này.
-- Mỗi `SkillRuntime` bắt đầu `RunLevel = 1`, dù `SkillDataSO.Level = 5`. `MaxLevel` giới hạn cấp trận.
-- `SkillManager.GrantOrUpgrade(definition, owner)` tìm cả skill riêng và skill trong trận. Nếu đã có thì nâng runtime đang chạy; không tạo bản bắn/bonus thứ hai. Không có thì tạo skill trong trận ở cấp 1.
-- Skill riêng vẫn do `CharacterSkills` tick; skill nhận trong trận do `SkillManager` tick. Cả hai dùng `IRunLevelSkill` để cập nhật thông số/hành vi khi đổi cấp.
-- `LevelManager.StartNewRun()` gỡ skill trong trận, đưa cấp trận của skill riêng về 1. Không sửa asset, cấp cấu hình hoặc bonus riêng/trang bị.
-- Hết một lượt chơi cần gọi luồng reset trên khi bắt đầu lượt mới; game-over/scene transition hoàn chỉnh chưa thuộc thay đổi này.
-- Nâng cấp không reset cooldown và không cộng lại `StatBonus`. Công thức tăng bonus theo level vĩnh viễn sẽ được thiết kế riêng.
+SkillDataSO chứa display/source, cấp cấu hình ban đầu, Levels[] và danh sách mẫu ISkill[].
+Mỗi cấp chứa mô tả và danh sách SkillBehaviourData đầy đủ. Số cấp là Levels.Length;
+không còn MaxLevel riêng hoặc ShootingLevelTable.
 
-## Shooter dùng chung, trạng thái chạy riêng
+SkillBehaviourType định danh loại: NormalAttack, Shooting, OrbitSaw, SlowAura,
+Regeneration, EmergencyShield, StatBuff. Mỗi loại xuất hiện tối đa một lần trong
+danh sách mẫu và một lần trong data của một cấp. Class tự trả Type cố định;
+không nhập string hoặc enum thủ công.
 
-`ShootBehaviorFactory` là service chung biết các kiểu `StraightShooter`, `CircularShooter`, `SpiralShooter`. Mỗi shooting runtime nhận bản sao shooter của mình qua `CreateRuntime()`; góc Spiral không bị chia sẻ giữa nhân vật, giữa skill hoặc ghi vào asset.
+ISkill là hợp đồng thực thi. Abstract Skill cung cấp Tick/TryExecute/SetPaused/
+Dispose mặc định và clone context; hành vi con chỉ override phần cần dùng.
+SkillBehaviourData chỉ giữ cấu hình, Validate và cooldown nếu loại đó cần.
 
-`IShooter` chỉ tính hướng phát đạn; `IProjectileMove` chỉ tính hướng trong lúc bay. Movement hiện stateless nên factory dùng chung instance Straight/Homing. Khi thêm movement có trạng thái từng viên, trạng thái phải thuộc projectile, không đặt vào instance dùng chung.
+## Cấu hình từng cấp
 
-`ShootingLevelTable` lưu hai danh sách để Unity serialize/chỉnh trong Inspector, sau đó dựng hai dictionary riêng cho từng runtime:
+- ShootingData: cooldown/range, số đạn, IShooter, IProjectileMove, bullet type,
+  tốc độ, hit radius, lifetime, targeting và effects.
+- OrbitSawData: số lưỡi, bán kính quỹ đạo/lưỡi, tốc độ quay, nhịp hit, visual, effects.
+- FrostAuraData: bán kính trực tiếp, slow, visual và effects lúc vào vùng.
+- NormalAttackData: nhịp đánh, tầm tìm và effects khi tiếp xúc.
+- RegenerationData: lượng hồi và cooldown.
+- EmergencyShieldData: ngưỡng HP, lượng shield và cooldown.
+- StatBonusData: chỉ số và giá trị đầy đủ tại cấp đó.
 
-```csharp
-Dictionary<int, (IShooter Shooter, IProjectileMove Movement, int Count)>
-Dictionary<int, IReadOnlyList<IGameplayEffect>>
-```
+Mỗi cấp khai báo đầy đủ, không kế thừa ngầm cấu hình hoặc effect của cấp trước.
+Ví dụ cấp 1 có ShootingData; cấp 2 thêm FrostAuraData thì runtime mở vùng băng ở
+cấp 2. Danh sách mẫu bên dưới phải chứa cả ShootingSkill và FrostAuraSkill.
 
-- Key là **level trận thật**, không phải index của list.
-- Bảng shooting lấy mốc cao nhất <= level hiện tại. Mỗi entry chứa cả ba thông số; danh sách không bắt buộc nhập theo thứ tự.
-- Bảng effect mở cộng dồn tất cả mốc <= level hiện tại, theo thứ tự level. Cùng một reference effect chỉ thêm một lần; hai cấu hình effect khác nhau vẫn là hai nguồn theo luật effect hiện có.
-- Không có entry thì dùng cấu hình cơ bản. Level trùng hoặc vượt `MaxLevel`, strategy không được hỗ trợ và thông số không hợp lệ đều bị validation từ chối.
-- Chỉ tạo lại shooter khi chuyển sang template khác; tăng số viên cùng template không mất góc Spiral. Reset về level 1 khởi tạo lại trạng thái shooter.
-- Effect được tạo thành list snapshot mới khi đổi cấp, không sửa list đạn cũ đang giữ. Một volley cũng chốt count/shooter/effect trước callback spawn để không trộn hai cấu hình trong một lượt bắn.
+## Runtime
 
-HolyBolt là ví dụ đã cấu hình:
+SkillManager giữ mọi combat runtime và là vòng tick production duy nhất.
+CharacterSkills giữ context của spawn và các definition ban đầu.
+SkillRuntime chọn data theo cấp, ghép theo Type, gọi ApplyData cho hành vi đã có,
+tạo instance cho loại mới và dispose loại không còn trong cấp mới.
 
-| Cấp trận | Số viên | Shooter | Movement | Effect bổ sung |
-| --- | --- | --- | --- | --- |
-| 1 | 1 | Straight | Straight | Không |
-| 2 | 2 | Straight | Straight | Không |
-| 3 | 3 | Straight | Straight | Không |
-| 4 | 4 | Straight | Straight | Không |
-| 5 | 5 | Straight | Homing | Không |
-| 6 | 5 | Circular | Homing | Slow 30%, 2 giây |
+Nâng cấp giữ cooldown đang chạy; cooldown mới dùng cho lần cast tiếp theo.
+Cưa giữ góc/lịch hit của các lưỡi còn tồn tại, tăng/giảm visual theo bladeCount.
+Aura cập nhật bán kính và gỡ token slow cũ trước khi áp dụng vùng mới.
+Buff thay modifier cũ: +2 lên +5 cho kết quả +5, không cộng thành +7.
 
-Chỉ ví dụ shooting có cấp 6/hành vi đặc biệt. Các asset shooting khác chưa có bảng mới vẫn hoạt động theo cấu hình cơ bản. Tốc độ, bán kính hit và lifetime không đổi theo bảng này; damage lấy chỉ số tổng và roll crit riêng từng viên như trước.
+Nếu áp dụng cấp mới lỗi, runtime thử áp dụng lại data cấp cũ. Nếu rollback lỗi,
+dispose skill đó; cleanup vẫn thử mọi hành vi. Callback reset/dispose không được
+commit cấp mới lên runtime đã hết vòng đời. Rollback không cam kết phục hồi mọi
+visual hoặc state nội bộ đã được thay đổi trước lỗi.
 
-## OrbitSaw
+## Character và gameplay
 
-- Asset: `Assets/_Project/DataSO/Skills/OrbitSaw.asset`.
-- Có đúng 5 cấp: số lưỡi bằng cấp trận, chia đều trên một quỹ đạo. Không có cấp 6.
-- Mặc định: bán kính quỹ đạo 0.5, bán kính lưỡi 0.1 world unit, tốc độ 180 độ/giây.
-- Mỗi lưỡi gây damage tổng của chủ nhân và roll crit, tối đa một hit trên cùng lượt spawn mục tiêu trong 0.5 giây. Lịch của từng lưỡi độc lập.
-- Broadphase tìm đối thủ quanh quỹ đạo, sau đó swept circle kiểm tra hitbox; cung quay được chia đoạn <=15 độ (tối đa 128 đoạn/bước). Không dùng collider/Physics2D và không ngăn di chuyển qua tường.
-- Lịch hit dùng `CharacterTarget` có identity/generation, được dọn khi hết hạn hoặc mục tiêu không còn hợp lệ; không giữ danh sách quái chết vô hạn.
+HolyBolt đang gắn cho BlessedGladiator là nguồn Character, không nằm trong
+SkillDatabase gameplay. EnemyNormalAttack và hai skill boss cũng là Character.
+CharacterDataSO trực tiếp tham chiếu các definition vốn có; GUID được giữ khi
+di chuyển asset.
 
-## FrostAura
+- Gameplay: bắt đầu cấp 1, nhận/nâng bằng lượt thưởng trong màn.
+- Character/Equipment: bắt đầu theo Level config, không được nâng bằng lượt thưởng.
+- SkillDatabase chỉ chấp nhận nguồn Gameplay; bộ roll cũng lọc nguồn để phòng
+  caller truyền nhầm catalog.
+- Nếu sau này muốn một phiên bản HolyBolt nhận trong màn, tạo asset Gameplay riêng,
+  không dùng chung definition của nhân vật.
+- Hệ nâng cấp/lưu skill ở Home chưa được triển khai. Level config là giá trị
+  khởi tạo hiện tại, không phải một hệ save mới.
 
-- Asset: `Assets/_Project/DataSO/Skills/FrostAura.asset`.
-- Có đúng 5 cấp, bán kính = `initialRadius + (RunLevel - 1) * radiusPerLevel`. Mặc định 1, 2, 3, 4, 5 world unit; không có cấp 6.
-- Một vùng luôn đi theo chủ nhân, không gây damage. Đối thủ có hitbox giao vùng chịu slow 30%; đây là aura duy trì chắc chắn, không roll kháng/xác suất như debuff đạn.
-- Mỗi mục tiêu chỉ có một speed token cho mỗi nguồn aura. Ra khỏi vùng, chủ nhân disable/chết/despawn, hoặc skill bị gỡ thì token được gỡ. Không làm mới debuff có thời hạn, nên không để slow kéo dài ngoài vùng.
-- Nhiều aura/slow cùng tồn tại vẫn dùng luật slow mạnh nhất của `CharacterEffectHandler`, không nhân chồng và không gỡ token của nguồn khác.
+GameManager cleanup mọi combat instance khi kết thúc trận. Reset tạo lại các
+definition ban đầu nếu owner còn sống, không sửa asset hoặc dữ liệu lưu.
+Owner chết/despawn gỡ timer, visual và token của chính owner đó.
 
-## Visual, cấu hình và kiểm tra
+## Damage và effect
 
-- Hai skill mới được gắn sẵn cho Blessed Gladiator để xem trong SampleScene. Có thể bỏ chúng khỏi `CharacterDataSO.Skills` và cấp bằng `GrantOrUpgrade` để dùng như skill nhận trong trận.
-- Prefab `OrbitSawVisual` và `FrostAuraVisual` dùng `SkillAreaVisual` tạo mesh cơ bản; visual không chứa logic gây damage/slow. Có thể thay hình ảnh sau. Pool prewarm chuẩn bị 5 visual cưa và 1 visual băng.
-- `IContinuousSkill` cho phép quỹ đạo/aura cập nhật trong cùng scheduler ngay cả khi cooldown chưa sẵn sàng. Pause chỉ ẩn visual và gỡ aura token; despawn/dispose trả visual về pool.
-- Công cụ Editor: vào Play Mode, chọn asset skill trong Project, chọn **Shooter Game > Skills > Grant Or Upgrade Selected Skill**. Console báo cấp hiện tại; ở max level không nâng thêm. UI chọn skill khi lên cấp đã được nối, xem [Skill Choice UI](Skill-Choice-UI.md); UI tạm giới hạn 5 cấp.
-- Comment trong `ShootingLevelTable`, `ShootingSkill`, `SkillRuntime` và hai runtime vùng/quỹ đạo giải thích ownership, reset và xử lý callback lồng nhau.
+Damage bắn/cưa/tiếp xúc tiếp tục dùng final stats của owner và pipeline hiện có.
+Đạn snapshot damage/effect khi bắn; nâng cấp không thay đổi viên đã bay.
+Mỗi shooter có state riêng. Đổi config shooter tạo instance mới; cùng config giữ
+góc Spiral. IProjectileMove quyết định hướng bay, MovementManager cập nhật vị trí.
 
-Chạy kiểm tra logic ngoài Unity từ root dự án:
+Cưa dùng spatial sweep và lịch hit riêng theo lưỡi/mục tiêu. Aura không gây damage,
+slow duy trì bị gỡ khi mục tiêu ra ngoài hoặc nguồn pause/dispose.
+Effect bổ sung của aura áp dụng lúc vào vùng và giữ thời hạn riêng của nó.
 
-```powershell
-./Tests/SkillProgression/Run.ps1
-```
+## Kiểm tra
 
-Harness biên dịch trực tiếp các file production về progression, shooting, saw, aura và hình học; chỉ thay phần Unity lifecycle/render/pool/query bằng test doubles. Nó không xác minh native rendering, Inspector hay thứ tự Unity PlayerLoop; vẫn cần kiểm tra Play Mode.
+Chỉ kiểm tra biên dịch trong đợt thay đổi này. Không chạy harness hoặc Play Mode.
+Harness ngoài Assets được cập nhật theo model mới; dùng Run.ps1 khi muốn kiểm tra
+logic bằng host doubles. Native rendering, serialization/import và scene lifecycle
+vẫn cần kiểm tra trong Unity.
+
+
+## Thư mục
+
+Scripts/Combat/Skills/Data chứa cấu hình từng loại và SkillLevelData.
+Scripts/Combat/Skills/Behaviours chứa phần thực thi.
+Các class điều phối, ISkill và abstract Skill nằm ở gốc Scripts/Combat/Skills.
+
+DataSO/Skills/SkillDataGameplay chứa 8 skill nhận trong màn.
+DataSO/Skills/SkillDataCharacter/BlessedGladiator chứa HolyBolt.
+DataSO/Skills/SkillDataCharacter/ForagingMaggot chứa EnemyNormalAttack.
+DataSO/Skills/SkillDataCharacter/Boss chứa hai skill boss.
+
+## HP/giáp và cập nhật UI
+
+CharacterRuntimeData lưu lostHealth/lostShield; CurrentHealth/CurrentShield được
+tính từ max trừ lượng đã mất. MaxHealth lấy từ FinalStats.maxHealth, MaxShield
+lấy từ FinalStats.defense, không còn grantedShieldCapacity.
+
+Bonus thay max sẽ giữ damage đã nhận: 30/100 nhận +10 thành 40/110.
+Phần HP/giáp được cấp trực tiếp cũng tăng current và max cùng lượng, kể cả
+khi đang đầy; phần cấp được giữ khi tính lại stats. Regeneration không chờ
+nhân vật bị thương mới kích hoạt. Nhân vật đã chết không tự hồi sinh khi đổi bonus.
+
+StatModifierLease.Update thay giá trị buff tại chỗ, tránh gỡ buff cũ làm current
+tụt tạm thời trước khi áp dụng cấp mới.
+
+Changed được phát sau thao tác damage, cấp HP/giáp, thay bonus level/trang bị,
+thêm/cập nhật/gỡ modifier hoặc đổi slow. CharacterUI đăng ký khi bind, đọc cả
+current/max mới rồi cập nhật BarView; gỡ listener khi disable/despawn.
+Một listener lỗi được log, không ngăn các listener khác cập nhật.
+
+Đợt chỉnh HP/giáp đã qua biên dịch và 21 kiểm tra tập trung về phép cộng, giữ damage,
+thông báo và không tự hồi sinh. Không chạy toàn bộ harness hoặc Unity Play Mode.
+## Modifier stat chung
+
+StatModifier xác định StatType, StatOperation (Add/Percent) và value.
+StatCalculator tính (Base + external + tổng Add) * (1 + tổng Percent / 100).
+CharacterRuntimeData dùng AddModifier/AddModifiers và StatModifierLease.Update/Dispose.
+Không còn movementScale hoặc AddTemporaryBonus. lostHealth/lostShield vẫn là trạng
+thái damage đã nhận để tính current từ max, không phải modifier.
+
+StatBonusData dùng enum StatType và phép toán operation. Asset cũ giữ cùng thứ tự
+enum; thiếu operation mặc định Add nên không đổi ý nghĩa buff hiện có.
+Slow/aura chuyển thành MoveSpeed Percent; EffectHandler giữ luật slow mạnh nhất.
+Visual theo thời hạn effect chưa được nối thêm trong đợt sửa stat này.
+
+Đã qua biên dịch và 35 kiểm tra tập trung stat/HP/giáp. Không chạy toàn bộ harness
+hoặc Unity Play Mode.
+Phạm vi modifier chỉ tăng/giảm các stat hiện có. Hệ effect, pool, mục tiêu và công thức nhận damage giữ nguyên; slow hiện có chỉ nối sang modifier MoveSpeed.

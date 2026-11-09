@@ -3,183 +3,161 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// Owns run skills and their stat leases for explicitly supplied Player/Enemy owners.
+// Sở hữu tất cả skill của Player/Enemy trong trận, không tách danh sách skill ban đầu và skill nhận thêm.
 public sealed class SkillManager : ITickable, IDisposable
 {
-    private readonly List<SkillRuntime> runSkills = new List<SkillRuntime>();
-    private readonly LevelManager levels;
-    private readonly ITimerManager timers;
-    private readonly ITimeSource timeSource;
-    private bool ticking;
-    private bool clearing;
-    private bool disposed;
-    private bool adding;
-    private int runVersion;
-    private readonly SkillFactory factory;
-    private readonly CharacterManager characters;
+    #region Services And Runtime Collection
 
-    public int RunCount
-    {
-        get
-        {
-            int count = 0;
-            foreach (SkillRuntime skill in runSkills)
-                if (skill.IsActive) count++;
-            return count;
-        }
-    }
+    private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Nguồn runtime duy nhất, mỗi phần tử có owner + definition riêng.
+    private readonly LevelManager levels; // Nhận reset trận; không tự quyết định luồng game.
+    private readonly ITimeSource timeSource; // Dùng scaled time để tôn trọng pause.
+    private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
+    private readonly CharacterManager characters; // Dựng lại skill ban đầu nếu reset khi nhân vật còn tồn tại.
+    private bool disposed, ticking, clearing, adding, resetPending; // Guard callback lồng nhau và defer rebuild tới khi collection ổn định.
+    private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
+    public int RunCount { get { int count = 0; foreach (SkillRuntime skill in skills) if (skill.IsActive) count++; return count; } }
 
-    public SkillManager(LevelManager levels, ITimerManager timers, ITimeSource timeSource,
-        SkillFactory factory, CharacterManager characters)
+    #endregion
+
+    #region Initialization And Lookup
+
+    // Singleton scene do Zenject tạo; không tạo runtime trước khi owner có dữ liệu spawn.
+    public SkillManager(LevelManager levels, ITimeSource timeSource, SkillFactory factory, CharacterManager characters)
     {
-        this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
-        this.timers = timers;
-        this.timeSource = timeSource;
-        this.factory = factory;
-        this.characters = characters;
+        this.levels = levels; this.timeSource = timeSource; this.factory = factory; this.characters = characters;
         levels.RunReset += OnRunReset;
     }
 
-    // Một cửa nhận phần thưởng: skill đã có (innate hoặc run) chỉ nâng cùng runtime, không cộng bonus hai lần.
-    public bool GrantOrUpgrade(SkillDataSO definition, CharacterView owner)
+    // UI đọc snapshot của đúng owner, không cần ghép hai nguồn skill.
+    public void GetOwnedSkills(CharacterView owner, List<SkillRuntime> result)
     {
-        if (disposed || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive || owner.Skills == null)
-            return false;
-        if (TryGetRuntime(definition, owner, out SkillRuntime existing)) return existing.TryUpgrade();
-        ISkill behavior = factory.Create(definition, owner.Skills);
-        bool added = false;
-        try { added = AddSkill(definition, behavior, owner); return added; }
-        finally { if (!added && behavior is IDisposable disposable) disposable.Dispose(); }
+        if (result == null) throw new ArgumentNullException(nameof(result));
+        result.Clear();
+        if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return;
+        foreach (SkillRuntime skill in skills) if (skill.IsActive && skill.BelongsTo(owner)) result.Add(skill);
     }
 
+    // Cùng asset trên hai owner vẫn là hai instance độc lập.
     public bool TryGetRuntime(SkillDataSO definition, CharacterView owner, out SkillRuntime runtime)
     {
-        if (owner != null && owner.Skills != null && owner.Skills.TryGetRuntime(definition, out runtime)) return true;
-        foreach (SkillRuntime skill in runSkills)
+        foreach (SkillRuntime skill in skills)
             if (skill.IsActive && skill.Definition == definition && skill.BelongsTo(owner)) { runtime = skill; return true; }
-        runtime = null;
-        return false;
+        runtime = null; return false;
     }
 
-    // The future card/reward system supplies configuration and a separately created behavior.
-    public bool AddSkill(SkillDataSO definition, ISkill behavior, CharacterView owner)
+    #endregion
+
+    #region Grant And Registration
+
+    // Nhận skill từ UI hoặc gameplay: chỉ tạo mới nếu chưa sở hữu, không cộng lại bonus khi nâng cấp.
+    public bool GrantOrUpgrade(SkillDataSO definition, CharacterView owner)
     {
-        if (disposed) return false;
-        if (clearing) throw new InvalidOperationException("Cannot add run skills during cleanup.");
-        if (adding) throw new InvalidOperationException("Cannot add run skills from a stat-change callback.");
-        if (definition == null) throw new ArgumentNullException(nameof(definition));
-        if (behavior == null) throw new ArgumentNullException(nameof(behavior));
-        if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive)
-            throw new ArgumentException("Run skills require a living character owner.", nameof(owner));
-        definition.Validate();
-        if (owner.Skills != null && owner.Skills.TryGetRuntime(definition, out _)) return false;
-        if (ReferenceEquals(definition.Data, behavior))
-            throw new ArgumentException("Create a runtime instance instead of registering the shared template.", nameof(behavior));
+        if (disposed || definition == null || definition.Source != SkillSource.Gameplay || owner == null || owner.Skills == null || !owner.Skills.IsValid) return false;
+        if (TryGetRuntime(definition, owner, out SkillRuntime runtime)) return runtime.TryUpgrade();
+        return AddInitialSkill(definition, owner.Skills);
+    }
 
-        foreach (SkillRuntime skill in runSkills)
-        {
-            if (!skill.IsActive) continue;
-            if (skill.Definition == definition && skill.BelongsTo(owner)) return false;
-            if (skill.UsesBehavior(behavior))
-                throw new ArgumentException("Create a separate behavior instance for each skill.", nameof(behavior));
-        }
-
-        int version = runVersion;
+    // Dùng cả lúc khởi tạo context, khi owner.Skills chưa được gán xong trên CharacterView.
+    internal bool AddInitialSkill(SkillDataSO definition, CharacterSkills context)
+    {
+        if (disposed || context == null || !context.IsValid) return false;
+        if (clearing || adding) throw new InvalidOperationException("Cannot add skill during cleanup/stat callback.");
+        if (TryGetRuntime(definition, context.Owner, out _)) return false;
+        int version = runVersion; // Không commit nếu bonus callback reset cả trận.
         adding = true;
         try
         {
-            var skill = new SkillRuntime(definition, behavior, timers, !owner.isActiveAndEnabled, owner);
-            // Applying stats can synchronously reset the run, dispose the manager or release the owner.
-            if (disposed || runVersion != version || !skill.IsActive)
-            {
-                skill.Dispose();
-                return false;
-            }
-            runSkills.Add(skill);
+            var runtime = factory.Create(definition, context);
+            if (disposed || version != runVersion || !context.IsValid || !runtime.IsActive) { runtime.Dispose(); return false; }
+            skills.Add(runtime);
             return true;
         }
-        finally { adding = false; }
+        finally { adding = false; ProcessPendingReset(); }
     }
 
-    public void Tick()
-    {
-        Tick(timeSource.DeltaTime);
-    }
+    #endregion
 
-    public void Tick(float deltaTime)
+    #region Scheduling And Owner Lifecycle
+
+    // Zenject chỉ gọi một vòng tick chung cho cả skill ban đầu và skill mới.
+    public void Tick() => Tick(timeSource.DeltaTime);
+    // Dùng cho test/manual simulation, cùng logic scheduler production.
+    public void Tick(float deltaTime) => TickSelected(deltaTime, null);
+    // Context cung cấp manual simulation cho đúng owner, không có một collection riêng.
+    internal void TickOwner(CharacterView owner, float deltaTime) => TickSelected(deltaTime, owner);
+
+    // Callback có thể despawn/reset/spawn; chỉ duyệt số phần tử có sẵn ở đầu frame.
+    private void TickSelected(float deltaTime, CharacterView owner)
     {
-        // Chỉ quyết định lúc thử Execute; cooldown đã được ITimerManager cập nhật trước lượt này.
         SkillRuntime.ValidateDeltaTime(deltaTime);
         if (disposed || deltaTime == 0f) return;
-        if (ticking || clearing) throw new InvalidOperationException("Cannot tick run skills recursively or during cleanup.");
-
-        int count = runSkills.Count;
+        if (ticking || clearing) throw new InvalidOperationException("Cannot recursively tick skills.");
         ticking = true;
+        int count = skills.Count;
         try
         {
-            // Skills added during execution wait until the next manager tick.
             for (int i = 0; i < count; i++)
-            {
-                try { runSkills[i].Tick(); }
-                catch (Exception exception) { Debug.LogException(exception); }
-            }
+                if (owner == null || skills[i].BelongsTo(owner))
+                    try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
         }
-        finally
-        {
-            ticking = false;
-            RemoveInactive();
-        }
+        finally { ticking = false; RemoveInactive(); ProcessPendingReset(); }
     }
 
+    // Owner tạm tắt: pause mọi hành vi và timer ngay, không chờ tới frame tick tiếp theo.
+    internal void SetOwnerPaused(CharacterView owner, bool paused)
+    {
+        foreach (SkillRuntime skill in skills.ToArray()) if (skill.IsActive && skill.BelongsTo(owner)) skill.SetPaused(paused);
+    }
+
+    // Thu hồi toàn bộ skill của một lượt spawn; không ảnh hưởng skill của owner khác.
+    internal void RemoveOwner(CharacterView owner)
+    {
+        var failures = new List<Exception>(); // Một hành vi cleanup lỗi không được giữ các skill còn lại của owner.
+        foreach (SkillRuntime skill in skills.ToArray()) if (skill.BelongsTo(owner))
+            try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); }
+        if (!ticking && !clearing) RemoveInactive();
+        if (failures.Count > 0) throw new AggregateException("Owner skill cleanup failed.", failures);
+    }
+
+    #endregion
+
+    #region Run Reset And Disposal
+
+    // Hết trận: dispose mọi timer/action/bonus trước khi bỏ reference; lỗi một runtime không chặn các runtime còn lại.
     public void ClearRunSkills()
     {
         if (clearing) return;
-        runVersion++;
-        clearing = true;
-        List<Exception> failures = null;
-        try
-        {
-            foreach (SkillRuntime skill in runSkills)
-            {
-                try { skill.Dispose(); }
-                catch (Exception exception)
-                {
-                    if (failures == null) failures = new List<Exception>();
-                    failures.Add(exception);
-                }
-            }
-        }
-        finally
-        {
-            clearing = false;
-            if (!ticking) RemoveInactive();
-        }
-        if (failures != null) throw new AggregateException("Run skill cleanup failed.", failures);
+        clearing = true; runVersion++;
+        var failures = new List<Exception>();
+        try { foreach (SkillRuntime skill in skills) try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); } }
+        finally { clearing = false; if (!ticking) RemoveInactive(); }
+        if (failures.Count > 0) throw new AggregateException("Skill cleanup failed.", failures);
     }
 
-    private void RemoveInactive()
-    {
-        for (int i = runSkills.Count - 1; i >= 0; i--)
-            if (!runSkills[i].IsActive) runSkills.RemoveAt(i);
-    }
-
+    // Reset đang callback phải hủy runtime cũ ngay; rebuild initial definitions đợi collection ổn định.
     private void OnRunReset()
     {
-        try { ClearRunSkills(); }
-        catch (Exception exception) { Debug.LogException(exception); }
-        // Innate skill không bị gỡ; chỉ hạ cấp TRẬN về 1, giữ bonus riêng và Definition.Level.
-        foreach (CharacterView character in new List<CharacterView>(characters.Characters.Keys))
-        {
-            try { if (character != null) character.Skills?.ResetRunLevels(); }
-            catch (Exception exception) { Debug.LogException(exception, character); }
-        }
+        ClearRunSkills(); resetPending = true; ProcessPendingReset();
     }
 
+    // Khi GameManager reset sau khi dọn world, registry rỗng nên không tự sinh skill/Player mới.
+    private void ProcessPendingReset()
+    {
+        if (!resetPending || ticking || adding || clearing || disposed) return;
+        resetPending = false;
+        foreach (CharacterView character in new List<CharacterView>(characters.Characters.Keys))
+            if (character != null && character.Skills != null && character.Skills.IsValid) character.Skills.RebuildInitialSkills();
+    }
+
+    // Chỉ xóa entry đã Dispose để không làm sai chỉ số khi đang duyệt callback.
+    private void RemoveInactive() { for (int i = skills.Count - 1; i >= 0; i--) if (!skills[i].IsActive) skills.RemoveAt(i); }
+
+    // Dọn scene; runtime không giữ asset/context sang scene kế tiếp.
     public void Dispose()
     {
         if (disposed) return;
-        disposed = true;
-        levels.RunReset -= OnRunReset;
-        ClearRunSkills();
+        disposed = true; levels.RunReset -= OnRunReset; ClearRunSkills();
     }
+
+    #endregion
 }

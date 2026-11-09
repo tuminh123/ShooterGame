@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: EmergencyShield
+  m_EditorClassIdentifier:
+  source: 0
+  level: 1
+  displayName: Emergency Shield
+  description: Grants thirty shield at or below twenty percent HP, with a five-second cooldown.
+  icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
+  levels:
+  - description: "Grants thirty shield at or below twenty percent HP, with a five-second cooldown."
+    behaviours:
+    - {rid: 1002}
+  behaviours:
+  - {rid: 1001}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1001
+      type: {class: EmergencyShieldSkill, ns: , asm: Assembly-CSharp}
+      data: {}
+    - rid: 1002
+      type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 5
+        healthThreshold: 20
+        shieldAmount: 30
