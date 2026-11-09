@@ -25,14 +25,14 @@ class Program
  class World
  {
   public PoolManager Pools=new PoolManager();public CombatSpawner Spawner=new CombatSpawner();public Timers Timers=new Timers();
-  public EffectManager Effects=new EffectManager();public Search Search=new Search();public CharacterManager Characters=new CharacterManager();public LevelManager Levels=new LevelManager();
+  public EffectManager Effects;public Search Search=new Search();public CharacterManager Characters=new CharacterManager();public LevelManager Levels=new LevelManager();
   public SkillFactory Factory;public SkillManager Manager;
-  public World(){Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools,Effects);Manager=new SkillManager(Levels,new Clock(),Factory,Characters);}
+  public World(){Effects=new EffectManager(new EffectRuntimePool(new ClassPool<SlowEffectRuntime>(),new ClassPool<DamageOverTimeEffectRuntime>()),Timers);Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools,Effects);Manager=new SkillManager(Levels,new Clock(),Factory,Characters);}
   public CharacterView Character(CharacterTeam team,params SkillDataSO[] definitions)
   {
    var template=new CharacterDataSO{CharacterType=CharacterType.BlessedGladiator,Team=team,BaseStats=new BaseStats{maxHealth=1000,damage=20,moveSpeed=1,critDamageMultiplier=50},Skills=definitions};
    var character=new CharacterView{RuntimeData=new CharacterRuntimeData(template),Search=Search,Timers=Timers};
-   character.Effects=new CharacterEffectHandler(character,new EffectManager());character.Skills=new CharacterSkills(character,definitions,Manager);
+   character.EffectManager=Effects;character.Skills=new CharacterSkills(character,definitions,Manager);
    Characters.Characters[character]=template;Search.Targets.Add(character);return character;
   }
  }
@@ -100,17 +100,136 @@ class Program
   Equal(runtime.FinalStats.damage,80,"runtime snapshots mutable input array");
   source.Dispose();True(changed>0,"modifier changes notify UI");
   var world=new World();var owner=world.Character(CharacterTeam.Player);
-  long weak=owner.Effects.AddSpeedMultiplier(.9f),strong=owner.Effects.AddSpeedMultiplier(.7f);
-  Equal(owner.RuntimeData.FinalStats.moveSpeed,.7f,"slow keeps strongest-source rule");
-  owner.Effects.RemoveSpeedMultiplier(strong);Equal(owner.RuntimeData.FinalStats.moveSpeed,.9f,"remove strongest reveals weaker source");
-  owner.Effects.RemoveSpeedMultiplier(weak);Equal(owner.RuntimeData.FinalStats.moveSpeed,1,"clear last slow");
+  var weak=world.Effects.ApplyMaintained(new SlowEffect(.1f),new CharacterTarget(owner),CharacterTeam.Enemy);
+  var strong=world.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterTarget(owner),CharacterTeam.Enemy);
+  Equal(owner.RuntimeData.FinalStats.moveSpeed,.6f,"slow percentages add across runtimes");
+  world.Effects.Remove(strong);Equal(owner.RuntimeData.FinalStats.moveSpeed,.9f,"remove only strong slow source");
+  world.Effects.Remove(weak);Equal(owner.RuntimeData.FinalStats.moveSpeed,1,"clear last slow");
   world.Manager.Dispose();owner.Release();
+ }
+
+ static void CheckEffects()
+ {
+  // Bullet hết hạn độc lập với slow duy trì; cùng cấu hình aura vẫn có runtime riêng.
+  {
+   var w=new World();var victim=w.Character(CharacterTeam.Enemy);var target=new CharacterTarget(victim);
+   var bullet=new SlowEffect(.3f);typeof(GameplayEffectData).GetField("duration",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(bullet,1f);
+   True(w.Effects.Apply(bullet,target,CharacterTeam.Player),"bullet slow applied");Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"bullet leaves 70 percent speed");
+   var aura=new SlowEffect(.2f);var first=w.Effects.ApplyMaintained(aura,target,CharacterTeam.Player);
+   Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"bullet plus aura add to 50 percent");
+   var second=w.Effects.ApplyMaintained(aura,target,CharacterTeam.Player);
+   Equal(victim.RuntimeData.FinalStats.moveSpeed,.3f,"separate maintained sources using same configuration");
+   w.Effects.Remove(second);Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"remove exactly one maintained source");
+   w.Timers.Advance(1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"bullet expires leaving aura");
+   w.Timers.Advance(20f);True(w.Effects.IsActive(first),"maintained slow has no expiry");
+   var root=w.Effects.ApplyMaintained(new SlowEffect(.9f),target,CharacterTeam.Player);Equal(victim.RuntimeData.FinalStats.moveSpeed,0,"over 100 percent slow stops movement");
+   w.Effects.Remove(root);Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"removing excess slow recovers exact speed");
+   var replacement=w.Effects.ApplyMaintained(new SlowEffect(.1f),target,CharacterTeam.Player);
+   True(ReferenceEquals(root.Runtime,replacement.Runtime),"test reuses pooled runtime");
+   w.Effects.Remove(root);True(w.Effects.IsActive(replacement),"stale handle cannot remove reused runtime");Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"stale handle leaves modifiers intact");
+   victim.Release();True(!w.Effects.IsActive(first)&&!w.Effects.IsActive(replacement),"despawn clears maintained handles");Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"despawn removes all slow modifiers");
+   w.Effects.Remove(first);w.Effects.Remove(replacement);w.Manager.Dispose();w.Effects.Dispose();
+  }
+  // Skill vùng chỉ apply lúc vào, remove lúc ra/pause/nâng cấp/hủy.
+  {
+   var w=new World();var definition=Definition(new ISkill[]{new FrostAuraSkill()},new[]{
+    new SkillBehaviourData[]{new FrostAuraData{visualPrefab=new SkillAreaVisual(),radius=2,slowFraction=.2f}},
+    new SkillBehaviourData[]{new FrostAuraData{visualPrefab=new SkillAreaVisual(),radius=2,slowFraction=.4f}}
+   });
+   var owner=w.Character(CharacterTeam.Player);var victim=w.Character(CharacterTeam.Enemy);victim.transform.position=new Vector3(.5f,0);
+   w.Manager.GrantOrUpgrade(definition,owner);w.Manager.TryGetRuntime(definition,owner,out var runtime);w.Manager.Tick();
+   Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"aura applies on enter");
+   var bullet=new SlowEffect(.3f);typeof(GameplayEffectData).GetField("duration",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(bullet,1f);
+   w.Effects.Apply(bullet,new CharacterTarget(victim),CharacterTeam.Player);Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"real aura stacks with bullet");
+   w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"staying inside does not add slow each frame");
+   victim.transform.position=new Vector3(10,0);w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"leaving aura preserves bullet");
+   victim.transform.position=new Vector3(.5f,0);w.Manager.Tick();w.Timers.Advance(1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"bullet expires while inside actual aura");
+   owner.Disable();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"pausing aura releases slow");owner.Enable();w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"resuming aura reapplies slow");
+   runtime.TryUpgrade();w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.6f,"upgrade replaces previous aura slow");
+   owner.Release();Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"disposing aura releases slow");w.Manager.Dispose();victim.Release();w.Effects.Dispose();
+  }
+  // Stat callback có thể dọn mục tiêu ngay trong Apply; không được rò modifier.
+  {
+   var w=new World();var victim=w.Character(CharacterTeam.Enemy);Action release=null;
+   release=()=>{victim.RuntimeData.Changed-=release;victim.Release();};victim.RuntimeData.Changed+=release;
+   var handle=w.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterTarget(victim),CharacterTeam.Player);
+   True(!w.Effects.IsActive(handle),"cleanup inside Apply invalidates handle");Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"cleanup inside Apply releases modifier");w.Manager.Dispose();w.Effects.Dispose();
+  }
+ }
+
+ static void CheckLevelUpPresentation()
+ {
+  // Slow motion và pause dùng chung token, không khôi phục nhầm tốc độ khi hai nguồn chồng nhau.
+  Time.timeScale=.8f;
+  using(var pauses=new GameplayPauseService())
+  {
+   var slow=pauses.AcquireSlowMotion(.5f);Equal(Time.timeScale,.4f,"slow motion respects original time scale");
+   var pause=pauses.Acquire();Equal(Time.timeScale,0,"pause overrides slow motion");
+   slow.Dispose();Equal(Time.timeScale,0,"ending slow motion preserves another pause");
+   pause.Dispose();Equal(Time.timeScale,.8f,"last token restores original time scale");
+   slow=pauses.AcquireSlowMotion(.5f);pause=pauses.Acquire();pause.Dispose();
+   Equal(Time.timeScale,.4f,"closing another pause preserves active slow motion");slow.Dispose();
+  }
+  Time.timeScale=1f;
+  ResetGameBus();var w=new World();var pausesService=new GameplayPauseService();var players=new PlayerManager();
+  var owner=w.Character(CharacterTeam.Player);players.Change(owner);
+  var definition=Definition(new ISkill[]{new StatBonusSkill()},new[]{
+   new SkillBehaviourData[]{new StatBonusData{stat=StatType.Damage,value=1}},
+   new SkillBehaviourData[]{new StatBonusData{stat=StatType.Damage,value=2}}
+  });
+  var database=new SkillDatabaseSO();var entry=new SkillDatabaseSO.Entry();Set(entry,"skill",definition);Set(entry,"availableInRunChoices",true);Set(database,"skills",new List<SkillDatabaseSO.Entry>{entry});
+  var view=new SkillChoiceUI();var controller=new SkillChoiceController();Set(controller,"levelUpPanel",view);
+  controller.VisibilityRequested+=(panel,show)=>panel.SetVisible(show);controller.Construct(w.Levels,w.Manager,players,pausesService,database);
+  var late=typeof(SkillChoiceController).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic);
+  w.Levels.GainLevels(0,2);Equal(Time.timeScale,.65f,"level up starts mild slow motion");
+  late.Invoke(controller,null);True(!view.Visible,"popup waits for slow motion beat");
+  Time.unscaledTime+=.31f;late.Invoke(controller,null);True(view.Visible,"popup appears after real time delay");Equal(Time.timeScale,0,"popup pauses gameplay after slow motion");
+  late.Invoke(controller,null); // SetVisible yêu cầu render lại ở frame kế tiếp trước khi cho chọn.
+  view.Choose(0);late.Invoke(controller,null);True(view.Visible&&controller.PendingSkillChoices==1,"queued level presents next choices");Equal(Time.timeScale,0,"queued reward does not restart slow motion");
+  view.Choose(0);late.Invoke(controller,null);True(!view.Visible,"last reward closes popup");Equal(Time.timeScale,1,"closing popup restores normal speed");
+  w.Levels.GainLevels(2,3);Equal(Time.timeScale,.65f,"later level starts a new slow motion beat");
+  var manual=pausesService.Acquire();w.Levels.Reset();Equal(Time.timeScale,0,"reset cancels slow motion without lifting manual pause");manual.Dispose();Equal(Time.timeScale,1,"reset leaves no slow motion token");
+  w.Levels.GainLevels(3,4);typeof(SkillChoiceController).GetMethod("OnDisable",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(controller,null);Equal(Time.timeScale,1,"disable cancels pending slow motion");
+  pausesService.Dispose();w.Manager.Dispose();owner.Release();ResetGameBus();
+ }
+
+ static void CheckEnemyFeedback()
+ {
+  Time.timeScale=1f;
+  var w=new World();var enemy=w.Character(CharacterTeam.Enemy);var visual=new Transform{position=new Vector3(2,3,0)};
+  var walkSprite=new Sprite();var sprites=new[]{new SpriteRenderer{color=new Color(.8f,.6f,.4f,.5f),sprite=walkSprite}};var animator=new Animator();
+  var settings=new EnemyCombatFeedback.Settings{hitDuration=.12f};
+  var frames=new[]{new Sprite(),new Sprite(),new Sprite(),new Sprite(),new Sprite(),new Sprite()};
+  var animation=new SpriteDeathAnimation();Set(animation,"target",sprites[0]);Set(animation,"frames",frames);
+  var feedback=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);
+  feedback.Flash();Equal(sprites[0].color.g,.12f,"hit flashes red");Equal(sprites[0].color.a,.5f,"flash preserves original alpha");
+  PrimeTween.TweenHost.Advance(.08f);feedback.Flash();PrimeTween.TweenHost.Advance(.05f);Equal(sprites[0].color.g,.12f,"old flash cannot reset a newer hit");
+  PrimeTween.TweenHost.Advance(.08f);Equal(sprites[0].color.g,.6f,"flash restores original tint");
+  int completed=0;feedback.Flash();True(feedback.PlayDeath(()=>completed++),"visible enemy starts sprite death");True(!animator.enabled,"death disables walking animator");
+  True(sprites[0].sprite==frames[0],"death starts at first sprite");True(!feedback.PlayDeath(()=>completed++),"death presentation cannot start twice");
+  PrimeTween.TweenHost.Advance(.13f);Equal(sprites[0].color.g,.6f,"lethal flash restores during death animation");
+  w.Timers.Advance(.1f);True(sprites[0].sprite==frames[1],"death advances sprite at frame rate");Equal(completed,0,"death waits for all frames");
+  feedback.SetPaused(true);w.Timers.Advance(1);Equal(completed,0,"temporary disable pauses death animation");feedback.SetPaused(false);
+  w.Timers.Advance(.41f);Equal(completed,1,"death animation completes once");True(sprites[0].sprite==frames[5],"death ends on last sprite");
+  Equal(visual.position.x,2,"sprite death does not launch enemy");Equal(visual.localEulerAngles.z,0,"sprite death does not rotate enemy");
+  feedback.Dispose();True(sprites[0].sprite==walkSprite,"pool cleanup restores walk sprite");True(animator.enabled,"pool cleanup restores animator");
+  var cancelled=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);cancelled.Flash();cancelled.PlayDeath(()=>completed++);cancelled.Dispose();
+  w.Timers.Advance(1);PrimeTween.TweenHost.Advance(1);Equal(completed,1,"despawn cancels delayed death callback");Equal(sprites[0].color.g,.6f,"despawn restores flash tint");
+  var stale=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);stale.PlayDeath(()=>completed++);
+  enemy.RuntimeData.InitializeSpawn(new CharacterDataSO{Team=CharacterTeam.Enemy,BaseStats=BaseStats.Default},default);w.Timers.Advance(1);Equal(completed,1,"old spawn cannot complete death on reused runtime");stale.Dispose();
+  enemy.IsVisualVisible=false;var hidden=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);True(!hidden.PlayDeath(()=>completed++),"hidden enemy skips death visual");hidden.Dispose();
+  enemy.IsVisualVisible=true;var missing=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings);True(!missing.PlayDeath(()=>completed++),"missing sprite animation uses immediate cleanup fallback");missing.Dispose();
+  w.Manager.Dispose();enemy.Release();
  }
 
  static void Main(string[] args)
  {
+  if(Array.IndexOf(args,"--effects-only")>=0){CheckEffects();Console.WriteLine("PASS: "+checks+" focused effect checks.");return;}
   if(Array.IndexOf(args,"--stats-only")>=0){CheckVitals();CheckStats();Console.WriteLine("PASS: "+checks+" focused stat/vitals checks.");return;}
   if(Array.IndexOf(args,"--vitals-only")>=0){CheckVitals();Console.WriteLine("PASS: "+checks+" focused vitals checks.");return;}
+  CheckEffects();
+  CheckLevelUpPresentation();
+  CheckEnemyFeedback();
   // Data theo cấp cập nhật hành vi đang có và mở thêm loại mới.
   {
    var world=new World();var sawVisual=new SkillAreaVisual();var frostVisual=new SkillAreaVisual();

@@ -4,11 +4,17 @@ Optional manual runner from the repository root:
 
     ./Tests/SkillProgression/Run.ps1
 
-The current refactor was compile-checked only; the harness was not executed.
+The harness includes production effect configuration, manager, runtime and pool code,
+with host doubles for Unity, timers and memory pools.
 
 The runner compiles production skill code plus host doubles outside Assets.
 It covers complete level data, behavior unlocks, character/gameplay separation,
 stat modifier replacement and retained UI/game-flow checks.
+Effect checks cover additive slows, timed expiry, maintained aura entry/exit,
+pause, upgrades, cleanup and stale handles after runtime pool reuse.
+Enemy feedback checks cover repeated/lethal hit flashes, sprite frame playback,
+death completion, pause, cancellation, pool cleanup and stale spawn callbacks.
+Timer/tween host doubles check lifecycle, not Unity rendering or imported sprite references.
 Old ShootingLevelTable and raw-action registration checks were removed because
 those APIs no longer exist.
 

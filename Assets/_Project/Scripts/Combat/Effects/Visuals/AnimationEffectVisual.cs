@@ -12,6 +12,7 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
 
     #region Playback
 
+    // Rebind đưa controller về trạng thái mặc định thay vì tiếp tục animation của lần thuê trước.
     public void Play()
     {
         if (animator == null) animator = GetComponent<Animator>();
@@ -20,6 +21,7 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
         animator.Update(0f);
     }
 
+    // Reset controller rồi tắt cập nhật Animator; EffectView vẫn quyết định tuổi thọ của vỏ.
     public void StopAndReset()
     {
         if (animator == null) animator = GetComponent<Animator>();
@@ -27,6 +29,11 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
         animator.enabled = false; // Play sẽ khởi động lại khi tái sử dụng.
     }
 
+    #endregion
+
+    #region Disable Cleanup
+
+    // Dọn cả khi hierarchy bị tắt trực tiếp mà không đi qua EffectView.Clear.
     private void OnDisable() => StopAndReset();
 
     #endregion

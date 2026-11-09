@@ -297,6 +297,7 @@ MonoBehaviour:
   ownedSlotsRoot: {fileID: 8207395369403386393}
   ownedSlotTemplate: {fileID: 9199999, guid: 0224edcdb7c34fa1bfde85267f3aaf0c, type: 3}
   heading: {fileID: 118441424554895326}
+  popupTween: {fileID: 950110}
   cards:
   - button: {fileID: 950101}
     icon: {fileID: 8207395370310052423}
@@ -316,6 +317,25 @@ MonoBehaviour:
     description: {fileID: 8207395370194074146}
     gemsOff: {fileID: 8207395369755239759}
     gemsOn: {fileID: 8207395370799635771}
+--- !u!114 &950110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8207395369756599921}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b372a1cb8141989abf338e0923f7bb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  startScale: 0
+  peakScale: 1.08
+  growDuration: 0.22
+  settleDuration: 0.12
+  closeDuration: 0.16
+  items: []
+  stagger: 0.12
 --- !u!114 &950101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -461,6 +481,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   levelUpPanel: {fileID: 950100}
+  levelUpTimeScale: 0.65
+  slowMotionDuration: 0.3
 --- !u!1 &950200
 GameObject:
   m_ObjectHideFlags: 0
@@ -7504,6 +7526,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8207395369756599920}
   - component: {fileID: 950100}
+  - component: {fileID: 950110}
   m_Layer: 0
   m_Name: LevelUpPanel
   m_TagString: Untagged

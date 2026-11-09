@@ -15,6 +15,11 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
     private IEffectVisual visual; // Chỉ gọi hợp đồng phát/dừng, không rẽ nhánh theo loại VFX.
     private TimerHandle lifetimeTimer; // Phân biệt callback hết hạn của từng lượt spawn.
 
+    #endregion
+
+    #region Dependency Injection
+
+    // Pool inject dịch vụ trước khi CombatSpawner chuẩn bị visual và bật vỏ.
     [Inject]
     public void Construct(PoolManager pools, ITimerManager timers)
     { this.pools = pools; this.timers = timers; }
@@ -36,6 +41,7 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
             if (visualObject == null) throw new InvalidOperationException("Could not spawn effect visual.");
             visual = visualObject.GetComponent<IEffectVisual>();
             if (visual == null) throw new InvalidOperationException("Effect visual prefab needs IEffectVisual on its root.");
+            // Khôi phục pose gốc vì visual trong pool có thể đã đổi scale/rotation ở lần phát trước.
             visualObject.transform.localPosition = visualPrefab.transform.localPosition;
             visualObject.transform.localRotation = visualPrefab.transform.localRotation;
             visualObject.transform.localScale = visualPrefab.transform.localScale;
@@ -43,6 +49,7 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
         catch { Clear(); throw; }
     }
 
+    // Chỉ phát sau Initialize thành công; duration của vỏ độc lập với thời lượng animation/particle con.
     private void OnEnable()
     {
         if (spawner == null || visualObject == null) return;
@@ -50,6 +57,7 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
         visual.Play();
     }
 
+    // So handle để bỏ callback lifetime cũ khi cùng vỏ đã được pool dùng lại.
     public void OnTimer(TimerHandle handle, TimerResult result)
     {
         if (spawner != null && lifetimeTimer.Equals(handle) && result.Completed)
@@ -66,6 +74,7 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
         timers?.Cancel(lifetimeTimer);
         lifetimeTimer = default;
         spawner = null;
+        // Xóa ownership trước callback StopAndReset/Despawn để cleanup lồng nhau không trả con hai lần.
         GameObject previousObject = visualObject;
         IEffectVisual previousVisual = visual;
         visualObject = null;

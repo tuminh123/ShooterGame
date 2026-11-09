@@ -25,10 +25,16 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     #endregion
 
+    #region Enemy Visual Feedback
+
+    [SerializeField] private EnemyCombatFeedback.Settings enemyFeedbackSettings = new EnemyCombatFeedback.Settings();
+    private EnemyCombatFeedback enemyFeedback; // Chỉ tạo cho enemy; PlayerManager giữ feedback riêng của player.
+
+    #endregion
+
     #region Public State
 
     public CharacterSkills Skills { get; private set; }
-    public CharacterEffectHandler Effects { get; private set; }
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
     public SpatialHandle SpatialHandle { get; private set; }
@@ -105,7 +111,9 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
-        Effects = new CharacterEffectHandler(this, effectManager);
+        if (runtime.Team == CharacterTeam.Enemy)
+            enemyFeedback = new EnemyCombatFeedback(this, visual.transform, sprites, animators,
+                enemyFeedbackSettings, visual.GetComponent<SpriteDeathAnimation>());
         Skills = new CharacterSkills(this, template.Skills, skillManager);
         // Enemy bắt đầu ẩn; manager camera sẽ bật nếu visual giao khung hình trước khi render.
         visual.SetActive(runtime.Team != CharacterTeam.Enemy);
@@ -119,6 +127,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         if (RuntimeData == null)
             return;
+        enemyFeedback?.SetPaused(false);
+        if (!RuntimeData.IsAlive) return; // Bật lại xác đang phát ani chết không đăng ký lại movement/hitbox/AI.
         movementHandle = movement.Register(transform);
         SpatialHandle = spatial.Register(this);
         Skills?.SetPaused(false);
@@ -246,11 +256,18 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     internal void NotifyDamageReceived(DamageInfo damage, DamageResult result)
     {
-        if (result.Accepted) DamageReceived?.Invoke(damage, result);
+        if (!result.Accepted) return;
+        enemyFeedback?.Flash();
+        DamageReceived?.Invoke(damage, result);
     }
+
+    // EnemyController quyết định lúc thu hồi; view chỉ phát các frame chết trên visual con.
+    internal bool PlayEnemyDeathFeedback(Action onComplete)
+        => enemyFeedback != null && enemyFeedback.PlayDeath(onComplete);
 
     internal void EndCombatLifetime()
     {
+        StopMovement(); // Chặn lệnh di chuyển còn lưu trước khi giữ hình ảnh để phát ani chết.
         StopSpatial();
         CharacterRuntimeData identity = RuntimeData;
         ulong generation = identity != null ? identity.Generation : 0;
@@ -264,7 +281,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
                 {
                     if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
                     {
-                        try { Effects?.Dispose(); }
+                        try { effectManager.ClearTarget(this, identity); }
                         finally { if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation) controller?.Dispose(); }
                     }
                 }
@@ -288,6 +305,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // * Giữ data/hành vi để việc tắt rồi bật tạm thời có thể tiếp tục cùng cá thể.
     private void OnDisable()
     {
+        enemyFeedback?.SetPaused(true);
         StopMovement();
         StopSpatial();
         Skills?.SetPaused(true);
@@ -339,18 +357,27 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     #region Destruction & Pool Release
 
+    // Gỡ reference trước Dispose để callback thu hồi lồng nhau không dọn cùng feedback hai lần.
+    private void ClearEnemyFeedback()
+    {
+        EnemyCombatFeedback previous = enemyFeedback;
+        enemyFeedback = null;
+        previous?.Dispose();
+    }
+
     // * Khi bị Destroy trực tiếp, Unity hủy cả visual con; chỉ gỡ tham chiếu và báo chủ sở hữu.
     // * Không trả visual về pool từ callback này vì hierarchy có thể đang trong quá trình hủy/tắt.
     private void OnDestroy()
     {
+        ClearEnemyFeedback();
         CharacterRuntimeData previousRuntime = RuntimeData;
         ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
         StopSpatial();
         ClearSkills();
         Deactivated?.Invoke();
-        Effects?.Dispose();
-        Effects = null;
+        if (previousRuntime != null && previousRuntime.Generation == previousGeneration)
+            effectManager?.ClearTarget(this, previousRuntime);
         ClearController();
         RuntimeData = null;
         IsBoss = false;
@@ -365,14 +392,15 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // * Visual được thu hồi xong rồi chủ sở hữu mới được thông báo, sau đó factory trả vỏ về pool.
     internal void ClearSpawn()
     {
+        ClearEnemyFeedback(); // Dừng ani chết và trả sprite/màu trước khi visual được đưa về pool.
         CharacterRuntimeData previousRuntime = RuntimeData;
         ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
         StopSpatial();
         ClearSkills();
         Deactivated?.Invoke();
-        Effects?.Dispose();
-        Effects = null;
+        if (previousRuntime != null && previousRuntime.Generation == previousGeneration)
+            effectManager?.ClearTarget(this, previousRuntime);
         ClearController();
         RuntimeData = null;
         IsBoss = false;

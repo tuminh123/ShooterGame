@@ -13,6 +13,7 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
 
     #region Playback
 
+    // Cache nhánh particle ở lần đầu, vô hiệu cơ chế tự hủy rồi phát lại toàn bộ từ trạng thái sạch.
     public void Play()
     {
         if (particles == null) particles = GetComponent<ParticleSystem>();
@@ -33,6 +34,10 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
         if (particles == null) particles = GetComponent<ParticleSystem>();
         particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
     }
+
+    #endregion
+
+    #region Disable Cleanup
 
     private void OnDisable() => StopAndReset(); // Vẫn dọn khi visual bị tắt trực tiếp.
 

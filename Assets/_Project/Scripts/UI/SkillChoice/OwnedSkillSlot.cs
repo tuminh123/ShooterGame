@@ -28,12 +28,18 @@ public sealed class OwnedSkillSlot : MonoBehaviour
     // Bổ sung sao khi cần, tái sử dụng ở lần sau; cả hai hàng có cùng vị trí và số ô.
     private static void ShowStars(Transform row, int count, int lit)
     {
+        // Hai hàng phải dùng cùng vị trí theo count tối đa, kể cả hàng On chỉ sáng một phần.
+        // LayoutGroup căn theo số con đang bật sẽ đẩy hàng sao sáng lệch khỏi hàng nền.
+        if (row.TryGetComponent(out HorizontalLayoutGroup layout)) layout.enabled = false;
         while (row.childCount < count) Instantiate(row.GetChild(0), row);
         row.gameObject.SetActive(true);
         for (int i = 0; i < row.childCount; i++)
         {
-            row.GetChild(i).gameObject.SetActive(i < lit);
-            ((RectTransform)row.GetChild(i)).anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * 30f, 0f);
+            RectTransform gem = (RectTransform)row.GetChild(i);
+            gem.gameObject.SetActive(i < lit);
+            // Prefab cũ có anchor ở mép trái; đưa về tâm trước khi tính độ lệch quanh icon.
+            gem.anchorMin = gem.anchorMax = gem.pivot = new Vector2(0.5f, 0.5f);
+            gem.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * 30f, 0f);
         }
     }
 

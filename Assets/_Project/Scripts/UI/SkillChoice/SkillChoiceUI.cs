@@ -57,6 +57,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     [SerializeField] private TMP_Text heading; // Tiêu đề bảng, kèm số lượt còn lại nếu lớn hơn một.
     [SerializeField] private Card[] cards = new Card[3]; // Ba thẻ có sẵn trong scene; không tạo thêm object lúc chơi.
+    [SerializeField] private StaggeredPopupTween popupTween; // Utils tween danh sách bất kỳ; view truyền thứ tự các thẻ.
     public event Action<int> Selected; // Gửi index thẻ được chọn cho controller xử lý gameplay.
     public event Action Hidden; // Báo panel tắt để controller trả token pause.
     private UnityAction[] clicks; // Giữ delegate đã đăng ký để gỡ chính xác khi view bị hủy.
@@ -92,6 +93,12 @@ public sealed class SkillChoiceUI : MonoBehaviour
             clicks[i] = () => Choose(index);
             cards[i].button.onClick.AddListener(clicks[i]);
         }
+        if (popupTween != null)
+        {
+            var targets = new Transform[cards.Length];
+            for (int i = 0; i < cards.Length; i++) targets[i] = cards[i].button.transform;
+            popupTween.Initialize(targets);
+        }
         ready = true;
     }
 
@@ -124,7 +131,8 @@ public sealed class SkillChoiceUI : MonoBehaviour
         if (offerCount > 0 && EventSystem.current != null)
             EventSystem.current.SetSelectedGameObject(cards[0].button.gameObject);
         openedFrame = Time.frameCount;
-        nextInputAt = Time.unscaledTime + 0.15f;
+        float revealDuration = popupTween != null ? popupTween.PlayOpen(offerCount) : 0f;
+        nextInputAt = Time.unscaledTime + Mathf.Max(0.15f, revealDuration);
     }
 
     #endregion

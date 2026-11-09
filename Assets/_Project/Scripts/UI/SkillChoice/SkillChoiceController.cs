@@ -9,6 +9,8 @@ public sealed class SkillChoiceController : UIPanelController
     #region Panel Reference
 
     [SerializeField] private SkillChoiceUI levelUpPanel; // View độc lập hiển thị ba lựa chọn và phát sự kiện click.
+    [SerializeField, Range(0.05f, 1f)] private float levelUpTimeScale = 0.65f; // Chậm nhẹ trước khi pause mở popup.
+    [SerializeField, Min(0f)] private float slowMotionDuration = 0.3f; // Giây thực, không bị kéo dài bởi timeScale.
 
     #endregion
 
@@ -26,6 +28,8 @@ public sealed class SkillChoiceController : UIPanelController
     private GameplayPauseService pauses; // Dịch vụ pause nhiều nguồn; đóng modal không gỡ pause thủ công.
     private CharacterView owner; // Player nhận thưởng; đổi owner phải bỏ queue của owner cũ.
     private IDisposable pauseLease; // Token pause của bảng lên cấp; trả khi đóng hoặc ẩn bảng.
+    private IDisposable slowMotionLease;
+    private float slowMotionUntil;
     private bool subscribed; // Chống đăng ký lặp event khi Construct và OnEnable cùng chạy.
     private bool refreshPending; // Hoãn roll/render đến LateUpdate sau khi callback gameplay hoàn tất.
     private bool selecting; // Chặn việc áp dụng lựa chọn lồng nhau trong callback.
@@ -97,18 +101,31 @@ public sealed class SkillChoiceController : UIPanelController
 
     #region Reward Queue And Presentation
 
-    // Cộng đủ số lượt khi lên nhiều cấp và pause ngay; phần render chờ LateUpdate.
+    // Lượt lên cấp đầu tiên có một nhịp slow motion; các lượt đang xếp hàng không phát lại nhịp này.
     private void OnRunLevelChanged(int previous, int current)
     {
+        int previousPending = progress.Pending;
         progress.AddLevels(previous, current);
         refreshPending = true;
-        if (progress.Pending > 0) RequestVisibility(true);
+        if (progress.Pending == 0) return;
+        if (previousPending == 0 && !visible && owner != null && owner.RuntimeData.IsAlive &&
+            slowMotionDuration > 0f && Time.timeScale > 0f)
+        {
+            slowMotionLease = pauses.AcquireSlowMotion(levelUpTimeScale);
+            slowMotionUntil = Time.unscaledTime + slowMotionDuration;
+        }
+        else if (slowMotionLease == null) RequestVisibility(true);
     }
 
     // Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng giữ lượt để retry.
     private void LateUpdate()
     {
         if (!refreshPending) return;
+        if (slowMotionLease != null)
+        {
+            if (Time.unscaledTime < slowMotionUntil) return;
+            ReleaseSlowMotion(); // Trả tốc độ nền trước khi token pause của popup được tạo.
+        }
         refreshPending = false;
         if (progress.Pending == 0 || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive)
         { CancelChoices(); return; }
@@ -199,6 +216,11 @@ public sealed class SkillChoiceController : UIPanelController
         IDisposable previous = pauseLease; pauseLease = null; previous?.Dispose();
     }
 
+    private void ReleaseSlowMotion()
+    {
+        IDisposable previous = slowMotionLease; slowMotionLease = null; previous?.Dispose();
+    }
+
     // Ẩn view và dọn offer/pause; giữ nguyên queue để hỗ trợ ẩn UI hoặc phục hồi sau lỗi.
     private void ClosePanel()
     {
@@ -216,6 +238,7 @@ public sealed class SkillChoiceController : UIPanelController
     private void CancelChoices()
     {
         version++;
+        ReleaseSlowMotion(); // Reset, đổi Player hoặc kết thúc trận không để sót slow motion.
         progress.Clear(); failedSkills.Clear(); refreshPending = false;
         ownedSkills.Clear();
         if (levelUpPanel != null) levelUpPanel.ShowOwnedSkills(ownedSkills);

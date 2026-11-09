@@ -249,7 +249,7 @@ Cách cộng trừ (`base + hit - res`) dễ tính nhẩm nhưng: debuff gốc 5
 - `CharacterRuntimeData` giữ danh tính, base/final stats, HP và giáp hiện tại; chỉ tính damage đầu ra, không xử lý nhận đòn hoặc tiến trình lên cấp.
 - `CharacterControllerBase` xử lý gây/nhận damage, hồi/trừ HP và chết. `PlayerController` và `EnemyController` kế thừa; `CharacterView` chuyển tiếp lời gọi và hiển thị.
 - `CharacterLevelService` và `RunLevelService` giữ level/EXP. `PlayerManager` cộng bonus bên ngoài rồi truyền tổng vào runtime; không sao chép level trong màn vào runtime.
-- `CharacterEffectHandler` giữ danh sách slow, token và luật slow mạnh nhất. Runtime chỉ áp dụng hệ số di chuyển đã được Effect tính.
+- Mỗi `SlowEffectRuntime` giữ modifier MoveSpeed phần trăm riêng; các slow cộng dồn và tốc độ cuối không thấp hơn 0. `EffectManager` quản lý vòng đời; skill vùng giữ handle để gỡ slow khi ra vùng, pause hoặc hủy skill. `CharacterView` gọi manager trực tiếp để dọn effect khi chết/thu hồi.
 - Spawn mới cộng `StatBonus` của skill riêng trước khi khởi tạo đầy HP và giáp. Bonus skill trong trận được áp dụng một lần khi đăng ký, gỡ khi reset/kết thúc trận hoặc chủ nhân chết/thu hồi. Tắt/bật tạm thời không hồi giáp. Tăng maxHealth hoặc defense trong khi chơi không tự hồi HP hoặc giáp; giảm giới hạn thì kẹp giá trị hiện tại.
 - Đòn chỉ làm mất giáp vẫn là đòn đánh được chấp nhận và phát thông báo damage. `DamageResult` có `HealthLost`, `ShieldLost`, `TotalLost`; `DamageInfo.IsCritical` thay cho bậc crit cũ.
 - Các asset hiện có đã chuyển crit chance từ 0..1 sang phần trăm, crit multiplier từ tổng hệ số sang phần trăm cộng thêm, và application chance của effect từ 0..1 sang 0..100. `slowFraction` vẫn là phần tốc độ bị giảm trong 0..1.

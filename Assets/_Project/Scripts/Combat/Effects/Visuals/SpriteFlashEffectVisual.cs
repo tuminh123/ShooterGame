@@ -17,6 +17,7 @@ public sealed class SpriteFlashEffectVisual : MonoBehaviour, IEffectVisual
 
     #region Playback
 
+    // Quy đổi chiều rộng sprite sang world unit, bắt đầu ở 60% rồi phóng dần khi fade.
     public void Play()
     {
         StopAndReset();
@@ -25,6 +26,7 @@ public sealed class SpriteFlashEffectVisual : MonoBehaviour, IEffectVisual
         playing = true;
     }
 
+    // Update chỉ trình diễn màu/scale; không gây damage và không tự trả visual về pool.
     private void Update()
     {
         if (!playing) return;
@@ -34,6 +36,11 @@ public sealed class SpriteFlashEffectVisual : MonoBehaviour, IEffectVisual
         transform.localScale = Vector3.one * (baseScale * Mathf.Lerp(0.6f, 1.25f, progress));
     }
 
+    #endregion
+
+    #region Reset And Disable Cleanup
+
+    // Xóa tiến độ, màu và scale của lần phát cũ trước khi tái sử dụng.
     public void StopAndReset()
     {
         if (sprite == null) sprite = GetComponent<SpriteRenderer>();

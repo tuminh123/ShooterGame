@@ -14,7 +14,7 @@ namespace UnityEngine {
    return System.Text.Json.JsonSerializer.Serialize(fields);
   }
  }
- public static class Time { public static float timeScale = 1f; }
+ public static class Time { public static float timeScale = 1f; public static float unscaledTime; }
  [AttributeUsage(AttributeTargets.All)] public class SerializeField:Attribute {}
  [AttributeUsage(AttributeTargets.All)] public class SerializeReference:Attribute {}
  [AttributeUsage(AttributeTargets.All)] public class TextAreaAttribute:Attribute {}
@@ -32,6 +32,7 @@ namespace UnityEngine {
  public static class Mathf {
   public const float PI=(float)Math.PI,Deg2Rad=PI/180f;
   public static float Min(float a,float b)=>Math.Min(a,b);public static float Max(float a,float b)=>Math.Max(a,b);
+  public static int Min(int a,int b)=>Math.Min(a,b);
   public static float Clamp(float n,float a,float b)=>Math.Clamp(n,a,b);public static int Clamp(int n,int a,int b)=>Math.Clamp(n,a,b);
   public static float Repeat(float v,float n)=>v-(float)Math.Floor(v/n)*n;
   public static float Cos(float v)=>(float)Math.Cos(v);public static float Sin(float v)=>(float)Math.Sin(v);
@@ -42,6 +43,7 @@ namespace UnityEngine {
   public float sqrMagnitude=>x*x+y*y;public float magnitude=>(float)Math.Sqrt(sqrMagnitude);
   public Vector2 normalized=>magnitude>0?this*(1/magnitude):zero;
   public static Vector2 right=>new Vector2(1,0);public static Vector2 zero=>new Vector2();
+  public static Vector2 up=>new Vector2(0,1);public void Normalize(){this=normalized;}
   public static Vector2 operator +(Vector2 a,Vector2 b)=>new Vector2(a.x+b.x,a.y+b.y);
   public static Vector2 operator -(Vector2 a,Vector2 b)=>new Vector2(a.x-b.x,a.y-b.y);
   public static Vector2 operator *(Vector2 a,float b)=>new Vector2(a.x*b,a.y*b);
@@ -52,9 +54,20 @@ namespace UnityEngine {
   public float x,y,z;public Vector3(float x,float y,float z=0){this.x=x;this.y=y;this.z=z;}
   public static implicit operator Vector2(Vector3 v)=>new Vector2(v.x,v.y);
   public static implicit operator Vector3(Vector2 v)=>new Vector3(v.x,v.y);
+  public static Vector3 zero=>default;public static Vector3 one=>new Vector3(1,1,1);public static Vector3 forward=>new Vector3(0,0,1);
+  public static Vector3 operator +(Vector3 a,Vector3 b)=>new Vector3(a.x+b.x,a.y+b.y,a.z+b.z);
+  public static Vector3 operator -(Vector3 a,Vector3 b)=>new Vector3(a.x-b.x,a.y-b.y,a.z-b.z);
+  public static Vector3 operator *(Vector3 a,float b)=>new Vector3(a.x*b,a.y*b,a.z*b);
  }
  public struct Quaternion {public static Quaternion identity=>new Quaternion();}
- public class Transform {public Vector3 position;}
+ public class Transform {public Vector3 position;public Vector3 localPosition{get=>position;set=>position=value;}public Vector3 localScale=Vector3.one;public Quaternion localRotation=Quaternion.identity;public Vector3 localEulerAngles;}
+ public struct Color {
+  public float r,g,b,a;public Color(float r,float g,float b,float a=1){this.r=r;this.g=g;this.b=b;this.a=a;}
+  public static Color white=>new Color(1,1,1,1);
+  public static Color operator *(Color x,Color y)=>new Color(x.r*y.r,x.g*y.g,x.b*y.b,x.a*y.a);
+ }
+ public class SpriteRenderer {public Color color=Color.white;public Sprite sprite;}
+ public class Animator {public bool enabled=true;}
  public class GameObject {
   public SkillAreaVisual Visual;public bool Active;
   public void SetActive(bool active){Active=active;}
@@ -82,8 +95,6 @@ public class PoolManager {
  }
  public void Despawn(UnityEngine.GameObject obj){obj.Active=false;Active.Remove(obj);}
 }
-public interface IGameplayEffect {void Validate();}
-public class SlowEffect:IGameplayEffect {public void Validate(){} }
 public struct ProjectileSpawnData {
  public DamageInfo Damage;public IProjectileMove Movement;public IReadOnlyList<IGameplayEffect> Effects;
  public ProjectileSpawnData(BulletType b,DamageInfo d,float s,float l,float r,IProjectileMove m,IReadOnlyList<IGameplayEffect> e,float h){Damage=d;Movement=m;Effects=e;}
@@ -100,21 +111,22 @@ public class CharacterView {
  public void ChangeHealth(float amount)=>RuntimeData.SetVitals(Math.Max(0,RuntimeData.CurrentHealth+amount),RuntimeData.CurrentShield);
  public void GrantShield(float amount)=>RuntimeData.AddShield(amount);
  public DamageResult DealDamage(CharacterTarget target)=>target.TryGetCharacter(out var victim)?victim.ReceiveDamage(RuntimeData.CreateDamage()):default;
- public CharacterRuntimeData RuntimeData;public CharacterSkills Skills;public CharacterEffectHandler Effects;
+ public CharacterRuntimeData RuntimeData;public CharacterSkills Skills;public EffectManager EffectManager;
  public readonly UnityEngine.Transform transform=new UnityEngine.Transform();public UnityEngine.Vector3 HitPosition=>transform.position;
  public bool isActiveAndEnabled=true;public Search Search;public ITimerManager Timers;
+ public bool IsVisualVisible=true;
  public event Action<CharacterView> Died,Released;public event Action Deactivated;
  public DamageResult ReceiveDamage(DamageInfo d){
   if(!RuntimeData.IsAlive||d.SourceTeam==RuntimeData.Team)return default;
   float shield=Math.Min(RuntimeData.CurrentShield,d.Amount);float health=Math.Min(RuntimeData.CurrentHealth,d.Amount-shield);
   RuntimeData.SetVitals(RuntimeData.CurrentHealth-health,RuntimeData.CurrentShield-shield);
-  if(!RuntimeData.IsAlive){Died?.Invoke(this);Skills?.Dispose();Effects?.Dispose();}
+  if(!RuntimeData.IsAlive){Died?.Invoke(this);Skills?.Dispose();EffectManager?.ClearTarget(this,RuntimeData);}
   return new DamageResult(health,shield,!RuntimeData.IsAlive);
  }
  public SpatialEntity GetSpatialEntity()=>new SpatialEntity{Center=new float2(HitPosition.x,HitPosition.y),HalfSize=new float2(.05f,.05f),AxisX=new float2(1,0),AxisY=new float2(0,1)};
  public void Disable(){isActiveAndEnabled=false;Skills?.SetPaused(true);Deactivated?.Invoke();}
  public void Enable(){isActiveAndEnabled=true;Skills?.SetPaused(false);}
- public void Release(){Released?.Invoke(this);Skills?.Dispose();Effects?.Dispose();}
+ public void Release(){Released?.Invoke(this);Skills?.Dispose();EffectManager?.ClearTarget(this,RuntimeData);}
 }
 public class Search {
  public readonly List<CharacterView> Targets=new List<CharacterView>();
@@ -126,9 +138,17 @@ public class Search {
  public CharacterTarget FindNearest(UnityEngine.Vector2 c,float r,CharacterTeam team,CharacterView exclude=null){CharacterTarget[] b=Array.Empty<CharacterTarget>();return FindAll(c,r,team,ref b,exclude)>0?b[0]:default;}
 }
 public static class CharacterSearch {public static bool Overlaps(CharacterView a,CharacterView b)=>(a.HitPosition.x-b.HitPosition.x)*(a.HitPosition.x-b.HitPosition.x)+(a.HitPosition.y-b.HitPosition.y)*(a.HitPosition.y-b.HitPosition.y)<.04f;public static CharacterTeam OpponentOf(CharacterTeam t)=>t==CharacterTeam.Player?CharacterTeam.Enemy:CharacterTeam.Player;}
-public class EffectManager {public readonly List<IGameplayEffect> Applied=new List<IGameplayEffect>();public bool Apply(IGameplayEffect effect,CharacterTarget target,CharacterTeam team,float hit=0){Applied.Add(effect);return true;}internal int CountFor(CharacterView o,CharacterRuntimeData i)=>0;internal void ClearTarget(CharacterView o,CharacterRuntimeData i){} }
+namespace Zenject {
+ public interface IMemoryPool {int NumInactive{get;}void ExpandBy(int count);void Despawn(object value);}
+ public interface IMemoryPool<T>:IMemoryPool {T Spawn();}
+}
+public class ClassPool<T>:Zenject.IMemoryPool<T> where T:class,new() {
+ readonly Stack<T> free=new Stack<T>();public int NumInactive=>free.Count;
+ public void ExpandBy(int count){for(int i=0;i<count;i++)free.Push(new T());}
+ public T Spawn()=>free.Count>0?free.Pop():new T();public void Despawn(object value)=>free.Push((T)value);
+}
 public struct TimerHandle {public int Id;}
-public struct TimerResult {}
+public struct TimerResult {public int DueTickCount;public bool Completed;}
 public interface ITimerListener {void OnTimer(TimerHandle h,TimerResult r);}
 public interface ITimerManager {
  float DeltaTime{get;}TimerHandle Register(float d,ITimerListener l,float interval=0,bool paused=false);
@@ -138,10 +158,14 @@ public interface ITimeSource {float DeltaTime{get;}}
 public class Clock:ITimeSource {public float DeltaTime=>.1f;}
 public class Timers:ITimerManager {
  int next;public float DeltaTime=>.1f;public readonly HashSet<int> Live=new HashSet<int>();public readonly Dictionary<int,float> Remaining=new Dictionary<int,float>();
- public TimerHandle Register(float d,ITimerListener l,float interval=0,bool paused=false){Live.Add(++next);Remaining[next]=d;return new TimerHandle{Id=next};}
+ readonly Dictionary<int,ITimerListener> listeners=new Dictionary<int,ITimerListener>();
+ readonly Dictionary<int,float> intervals=new Dictionary<int,float>(),elapsed=new Dictionary<int,float>();readonly Dictionary<int,bool> pausedTimers=new Dictionary<int,bool>();
+ public TimerHandle Register(float d,ITimerListener l,float interval=0,bool paused=false){Live.Add(++next);Remaining[next]=d;listeners[next]=l;intervals[next]=interval;elapsed[next]=0;pausedTimers[next]=paused;return new TimerHandle{Id=next};}
  public float GetRemaining(TimerHandle h)=>Remaining.TryGetValue(h.Id,out float r)?r:0;
- public bool Restart(TimerHandle h,float d,bool resetInterval=false){Remaining[h.Id]=d;return true;}
- public bool SetPaused(TimerHandle h,bool p)=>true;public bool Cancel(TimerHandle h){Remaining.Remove(h.Id);return Live.Remove(h.Id);}
+ public bool Restart(TimerHandle h,float d,bool resetInterval=false){Remaining[h.Id]=d;if(resetInterval)elapsed[h.Id]=0;return true;}
+ public bool SetPaused(TimerHandle h,bool p){if(!Live.Contains(h.Id))return false;pausedTimers[h.Id]=p;return true;}
+ public bool Cancel(TimerHandle h){Remaining.Remove(h.Id);listeners.Remove(h.Id);intervals.Remove(h.Id);elapsed.Remove(h.Id);pausedTimers.Remove(h.Id);return Live.Remove(h.Id);}
+ public void Advance(float delta){foreach(int id in new List<int>(Live)){if(!Live.Contains(id)||pausedTimers[id])continue;float active=Math.Min(delta,Remaining[id]);Remaining[id]=Math.Max(0,Remaining[id]-active);int due=0;if(intervals[id]>0){elapsed[id]+=active;due=(int)Math.Floor((elapsed[id]+.0000001f)/intervals[id]);elapsed[id]=Math.Max(0,elapsed[id]-due*intervals[id]);}if(due>0||Remaining[id]<=0)listeners[id].OnTimer(new TimerHandle{Id=id},new TimerResult{DueTickCount=due,Completed=Remaining[id]<=0});}}
 }
 public class LevelManager {public event Action RunReset;public event Action<int,int> RunLevelChanged;public void StartNewRun()=>Reset();public void Reset()=>RunReset?.Invoke();public void GainLevels(int previous,int current)=>RunLevelChanged?.Invoke(previous,current);}
 public class PlayerManager {

@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5507095334177811412}
   - component: {fileID: 824824760570852752}
   - component: {fileID: 4764190983187001961}
+  - component: {fileID: 19000001}
   m_Layer: 0
   m_Name: ForagingMaggot_Visual
   m_TagString: Untagged
@@ -85,6 +86,27 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &19000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5431945204154776163}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b24eb90f8c14392bdc21bf9ad8678da, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  target: {fileID: 824824760570852752}
+  frames:
+  - {fileID: 21300000, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  - {fileID: 21300002, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  - {fileID: 21300004, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  - {fileID: 21300006, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  - {fileID: 21300008, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  - {fileID: 21300010, guid: e9a58d8ee02541bc87933d1fc09e469b, type: 3}
+  frameRate: 12
 --- !u!95 &4764190983187001961
 Animator:
   serializedVersion: 5

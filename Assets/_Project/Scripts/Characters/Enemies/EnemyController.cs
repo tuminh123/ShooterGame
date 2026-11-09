@@ -245,8 +245,12 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     #region Death Behavior
 
-    // * Chết mới thu hồi; bỏ hoàn toàn hành vi test chạm Player thì biến mất.
-    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime) => characters.Despawn(view);
+    // Combat lifetime đã kết thúc; chỉ giữ visual cho đến khi chuỗi sprite chết hoàn tất.
+    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
+    {
+        if (!view.PlayEnemyDeathFeedback(() => characters.Despawn(view)))
+            characters.Despawn(view); // Không có visual đang hiển thị thì thu hồi ngay.
+    }
 
     #endregion
 }

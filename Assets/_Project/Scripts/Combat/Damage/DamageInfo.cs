@@ -15,6 +15,7 @@ public readonly struct DamageInfo
         SourceTeam = sourceTeam;
         IsCritical = isCritical;
     }
+
 }
 
 // Shield-only hits are accepted hits too, so projectiles, skills and feedback still respond.

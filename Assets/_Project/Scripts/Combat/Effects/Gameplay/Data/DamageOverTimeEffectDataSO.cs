@@ -1,14 +1,22 @@
 using System;
 using UnityEngine;
 
-// Separate Burn/Poison assets use the same periodic-damage strategy.
+// Dữ liệu DoT SO cũ cho Burn/Poison; pipeline hiện dùng DamageOverTimeEffect nhúng trong skill.
 [CreateAssetMenu(menuName = "Shooter Game/Effects/Damage Over Time")]
 public sealed class DamageOverTimeEffectDataSO : StatusEffectDataSO
 {
-    [SerializeField, Min(0.01f)] private float tickInterval = 1f;
-    [SerializeField, Min(0f)] private float damageMultiplierPerTick = 0.2f;
+    #region Legacy Periodic Damage Configuration
+
+    [SerializeField, Min(0.01f)] private float tickInterval = 1f; // Số giây giữa hai nhịp của cấu hình cũ.
+    [SerializeField, Min(0f)] private float damageMultiplierPerTick = 0.2f; // Hệ số damage cũ; khác damagePerTick cố định của cấu hình mới.
     public float TickInterval => tickInterval;
     public float DamageMultiplierPerTick => damageMultiplierPerTick;
+
+    #endregion
+
+    #region Validation
+
+    // Giữ asset hợp lệ; không chuyển hệ số cũ thành sát thương runtime trong lớp này.
     public override void Validate()
     {
         base.Validate();
@@ -17,4 +25,6 @@ public sealed class DamageOverTimeEffectDataSO : StatusEffectDataSO
             damageMultiplierPerTick < 0f)
             throw new InvalidOperationException($"Invalid damage over time: {name}.");
     }
+
+    #endregion
 }

@@ -10,9 +10,10 @@ public sealed class FrostAuraSkill : Skill
 
     [NonSerialized] private FrostAuraData data; // Cấu hình đang hoạt động.
     [NonSerialized] private IGameplayEffect[] effectSnapshot; // Danh sách effect của đúng cấp.
-    [NonSerialized] private Dictionary<CharacterTarget, (CharacterEffectHandler Handler, long Token)> slowed; // Token thuộc riêng nguồn aura.
+    [NonSerialized] private Dictionary<CharacterTarget, EffectHandle> slowed; // Handle runtime riêng của từng mục tiêu trong vùng.
+    [NonSerialized] private SlowEffect slowEffect; // Cấu hình slow dùng chung; manager sở hữu runtime.
     [NonSerialized] private HashSet<CharacterTarget> inside; // Mục tiêu được query trong bước này.
-    [NonSerialized] private List<CharacterTarget> leaving; // Buffer gỡ token không còn trong vùng.
+    [NonSerialized] private List<CharacterTarget> leaving; // Buffer gỡ effect không còn trong vùng.
     [NonSerialized] private CharacterTarget[] targets; // Buffer query dùng lại.
     [NonSerialized] private SkillAreaVisual visual; // Visual đang thuê pool.
     [NonSerialized] private float radius; // Bán kính được dùng khi query.
@@ -30,7 +31,8 @@ public sealed class FrostAuraSkill : Skill
     {
         data = null;
         effectSnapshot = Array.Empty<IGameplayEffect>();
-        slowed = new Dictionary<CharacterTarget, (CharacterEffectHandler, long)>();
+        slowed = new Dictionary<CharacterTarget, EffectHandle>();
+        slowEffect = null;
         inside = new HashSet<CharacterTarget>();
         leaving = new List<CharacterTarget>();
         targets = Array.Empty<CharacterTarget>();
@@ -40,7 +42,7 @@ public sealed class FrostAuraSkill : Skill
         paused = disposed = false;
     }
 
-    // Đổi data sẽ gỡ token cũ; bước Tick tiếp theo áp dụng đúng vùng và mức slow mới.
+    // Đổi data sẽ gỡ runtime cũ; bước Tick tiếp theo áp dụng đúng vùng và mức slow mới.
     public override void ApplyData(SkillBehaviourData configuration)
     {
         var next = configuration as FrostAuraData ?? throw new ArgumentException("FrostAuraSkill requires FrostAuraData.");
@@ -53,6 +55,7 @@ public sealed class FrostAuraSkill : Skill
             visual = null;
         }
         data = next;
+        slowEffect = new SlowEffect(next.slowFraction);
         radius = next.radius;
         effectSnapshot = next.effects.ToArray();
         if (visual != null) visual.SetRadius(radius);
@@ -81,18 +84,17 @@ public sealed class FrostAuraSkill : Skill
             for (int i = 0; i < found && !disposed && !paused && Owner.CanRun && currentRevision == revision; i++)
             {
                 CharacterTarget target = targets[i];
-                if (!target.TryGetCharacter(out CharacterView victim) || victim.Effects == null || victim.Effects.IsDisposed) continue;
+                if (!target.TryGetCharacter(out _)) continue;
                 inside.Add(target);
                 if (slowed.ContainsKey(target)) continue;
-                CharacterEffectHandler handler = victim.Effects;
-                long token = handler.AddSpeedMultiplier(1f - data.slowFraction);
+                EffectHandle handle = Services.Effects.ApplyMaintained(slowEffect, target, Owner.Identity.Team);
                 // Stats callback có thể vừa thu hồi chính chủ aura/mục tiêu.
                 if (disposed || paused || !Owner.CanRun || currentRevision != revision || !target.TryGetCharacter(out _))
                 {
-                    handler.RemoveSpeedMultiplier(token);
+                    Services.Effects.Remove(handle);
                     continue;
                 }
-                slowed.Add(target, (handler, token));
+                slowed.Add(target, handle);
                 // Chỉ áp dụng lúc vào vùng; không spam hoặc gia hạn duration mỗi frame.
                 if (Services.Effects != null)
                     foreach (IGameplayEffect effect in effectSnapshot)
@@ -118,12 +120,12 @@ public sealed class FrostAuraSkill : Skill
     {
         if (!slowed.TryGetValue(target, out var entry)) return;
         slowed.Remove(target); // Gỡ ownership trước callback tính lại stats.
-        entry.Handler.RemoveSpeedMultiplier(entry.Token);
+        Services.Effects.Remove(entry);
     }
 
     private void ClearSlow()
     {
-        // Không giữ enumerator khi gỡ token có thể phát callback. Mỗi token thuộc đúng một nguồn aura.
+        // Không giữ enumerator khi gỡ effect có thể phát callback. Mỗi handle thuộc đúng một nguồn aura.
         while (slowed.Count > 0)
         {
             CharacterTarget target;
