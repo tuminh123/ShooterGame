@@ -58,6 +58,8 @@ public sealed class SkillChoiceUI : MonoBehaviour
     [SerializeField] private TMP_Text heading; // Tiêu đề bảng, kèm số lượt còn lại nếu lớn hơn một.
     [SerializeField] private Card[] cards = new Card[3]; // Ba thẻ có sẵn trong scene; không tạo thêm object lúc chơi.
     [SerializeField] private StaggeredPopupTween popupTween; // Utils tween danh sách bất kỳ; view truyền thứ tự các thẻ.
+    [SerializeField] private Button rerollButton;
+    public event Action RerollRequested;
     public event Action<int> Selected; // Gửi index thẻ được chọn cho controller xử lý gameplay.
     public event Action Hidden; // Báo panel tắt để controller trả token pause.
     private UnityAction[] clicks; // Giữ delegate đã đăng ký để gỡ chính xác khi view bị hủy.
@@ -86,6 +88,8 @@ public sealed class SkillChoiceUI : MonoBehaviour
             if (card == null || card.button == null || card.icon == null || card.title == null ||
                 card.description == null || card.gemsOff == null || card.gemsOn == null)
                 throw new InvalidOperationException("Assign all SkillChoiceUI card references.");
+        if (rerollButton == null) throw new InvalidOperationException("Assign the reroll button in SkillChoiceUI.");
+        rerollButton.onClick.AddListener(Reroll);
         clicks = new UnityAction[cards.Length];
         for (int i = 0; i < cards.Length; i++)
         {
@@ -115,6 +119,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
         gameObject.SetActive(true);
         transform.SetAsLastSibling();
         offerCount = offers.Count;
+        rerollButton.interactable = offerCount > 0;
         if (heading != null) heading.text = pending > 1 ? $"SELECT A SKILL ({pending})" : "SELECT A SKILL";
         for (int i = 0; i < cards.Length; i++)
         {
@@ -126,8 +131,14 @@ public sealed class SkillChoiceUI : MonoBehaviour
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnLeft = cards[(i + offerCount - 1) % offerCount].button,
-                selectOnRight = cards[(i + 1) % offerCount].button
+                selectOnRight = cards[(i + 1) % offerCount].button,
+                selectOnDown = rerollButton
             };
+        rerollButton.navigation = new Navigation
+        {
+            mode = Navigation.Mode.Explicit,
+            selectOnUp = offerCount > 0 ? cards[0].button : null
+        };
         if (offerCount > 0 && EventSystem.current != null)
             EventSystem.current.SetSelectedGameObject(cards[0].button.gameObject);
         openedFrame = Time.frameCount;
@@ -187,7 +198,17 @@ public sealed class SkillChoiceUI : MonoBehaviour
         if (Time.frameCount <= openedFrame || Time.unscaledTime < nextInputAt || index < 0 || index >= offerCount) return;
         offerCount = 0; // Chặn click lặp cho tới khi manager render lại.
         foreach (Card card in cards) card.button.interactable = false;
+        rerollButton.interactable = false;
         Selected?.Invoke(index);
+    }
+
+    private void Reroll()
+    {
+        if (Time.frameCount <= openedFrame || Time.unscaledTime < nextInputAt || offerCount == 0) return;
+        offerCount = 0;
+        foreach (Card card in cards) card.button.interactable = false;
+        rerollButton.interactable = false;
+        RerollRequested?.Invoke();
     }
 
     #endregion
@@ -205,6 +226,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
     private void OnDisable()
     {
         offerCount = 0;
+        if (rerollButton != null) rerollButton.interactable = false;
         ReleaseOwnedSlots();
         if (EventSystem.current != null && previousSelection != null && previousSelection.activeInHierarchy)
             EventSystem.current.SetSelectedGameObject(previousSelection);
@@ -217,6 +239,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
     {
         ReleaseOwnedSlots();
         if (clicks == null) return;
+        if (rerollButton != null) rerollButton.onClick.RemoveListener(Reroll);
         for (int i = 0; i < clicks.Length; i++)
             if (cards[i]?.button != null) cards[i].button.onClick.RemoveListener(clicks[i]);
     }

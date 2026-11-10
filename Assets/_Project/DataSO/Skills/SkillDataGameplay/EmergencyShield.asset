@@ -15,10 +15,10 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Emergency Shield
-  description: Grants thirty shield at or below twenty percent HP, with a five-second cooldown.
+  description: "At 20% HP or below, adds +30 maximum shield and +30 current shield. Can activate again after 5 seconds while HP remains at or below 20%. Existing shield loss is preserved."
   icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
   levels:
-  - description: "Grants thirty shield at or below twenty percent HP, with a five-second cooldown."
+  - description: "At 20% HP or below, adds +30 maximum shield and +30 current shield. Can activate again after 5 seconds while HP remains at or below 20%. Existing shield loss is preserved."
     behaviours:
     - {rid: 1002}
   behaviours:

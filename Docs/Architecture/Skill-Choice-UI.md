@@ -95,7 +95,14 @@ Chỉ ẩn panel con; root controller vẫn hoạt động để nhận sự ki�
 Di chuyển script cùng file .meta để mọi reference trong scene/prefab giữ nguyên GUID.
 ## Slot skill đã sở hữu trong LevelUpPanel
 
-SkillChoiceController lấy snapshot innate + run của đúng Player từ SkillManager,
+LevelUpPanel có nút ROLL được gán vào `SkillChoiceUI.rerollButton`. Nút phát
+`RerollRequested`; controller roll lại ở LateUpdate, giữ nguyên lượt thưởng,
+runtime sở hữu và pause. Hiện roll miễn phí, không giới hạn. Bảng mới ưu tiên
+skill chưa có ở bảng trước; nếu thiếu ứng viên thì dùng lại để giữ đủ tối đa ba
+thẻ. Skill đã max hoặc bị đánh dấu lỗi vẫn bị loại. Input chọn/roll bị khóa chung
+cho đến khi các thẻ mới hiện xong; bàn phím/gamepad đi xuống từ thẻ tới nút ROLL.
+
+SkillChoiceController chỉ lấy snapshot skill Gameplay của đúng Player từ SkillManager,
 SkillChoiceUI quản lý các instance đang dùng, còn OwnedSkillSlot chỉ hiển thị icon/sao.
 Prefab: Assets/_Project/Prefabs/UI/OwnedSkillSlot.prefab. Kéo component prefab vào
 Owned Slot Template của SkillChoiceUI; reference icon, Gems Off và Gems On nằm sẵn trên prefab.

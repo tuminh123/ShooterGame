@@ -1,45 +1,44 @@
+using System;
 using UnityEngine;
 
-// Particle nằm trên visual con; EffectView quyết định thời điểm bắt đầu và kết thúc.
 [RequireComponent(typeof(ParticleSystem))]
 public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
 {
-    #region Particle State
+    private ParticleSystem particles;
+    private ParticleSystem[] particleSystems;
+    private bool playing;
+    public event Action Completed;
 
-    private ParticleSystem particles; // Particle gốc; withChildren xử lý cả nhánh con.
-    private ParticleSystem[] particleSystems; // Cache cả nhánh để vô hiệu auto-destroy trên từng particle con.
-
-    #endregion
-
-    #region Playback
-
-    // Cache nhánh particle ở lần đầu, vô hiệu cơ chế tự hủy rồi phát lại toàn bộ từ trạng thái sạch.
     public void Play()
     {
         if (particles == null) particles = GetComponent<ParticleSystem>();
         if (particleSystems == null) particleSystems = GetComponentsInChildren<ParticleSystem>(true);
+        StopAndReset();
         foreach (ParticleSystem particle in particleSystems)
         {
             ParticleSystem.MainModule settings = particle.main;
-            settings.playOnAwake = false; // Chỉ phát khi EffectView gọi Play.
-            settings.stopAction = ParticleSystemStopAction.None; // Không tự Destroy/Disable object thuộc pool.
+            settings.playOnAwake = false;
+            settings.stopAction = ParticleSystemStopAction.None;
+            settings.loop = false; // Impact phát một lần, không giữ vỏ trong pool mãi.
+            settings.useUnscaledTime = false; // Cùng pause/slow motion với gameplay.
         }
-        StopAndReset();
         particles.Play(true);
+        playing = true;
     }
 
-    // Clear cả hạt world-space để lần spawn sau không còn hạt ở vị trí cũ.
+    private void LateUpdate()
+    {
+        if (!playing || particles == null || particles.IsAlive(true)) return;
+        playing = false;
+        Completed?.Invoke();
+    }
+
     public void StopAndReset()
     {
+        playing = false;
         if (particles == null) particles = GetComponent<ParticleSystem>();
-        particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (particles != null) particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
     }
 
-    #endregion
-
-    #region Disable Cleanup
-
-    private void OnDisable() => StopAndReset(); // Vẫn dọn khi visual bị tắt trực tiếp.
-
-    #endregion
+    private void OnDisable() => StopAndReset();
 }

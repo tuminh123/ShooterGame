@@ -1,66 +1,84 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
-// Context của đúng lượt spawn, không sở hữu danh sách runtime hoặc một vòng tick production riêng.
+// Sở hữu skill Character/Equipment của một lượt spawn, độc lập với skill gameplay.
 public sealed class CharacterSkills : IDisposable
 {
-    #region Owner Context
-
-    private readonly SkillManager manager; // Nơi duy nhất giữ runtime của tất cả owner.
-    private readonly IReadOnlyList<SkillDataSO> initialDefinitions; // Chỉ giữ cấu hình ban đầu để rebuild khi reset owner còn sống.
-    private readonly ulong generation; // Không dùng context cũ khi pool tái sử dụng CharacterRuntimeData.
-    private bool disposed; // Context kết thúc trước khi owner chuyển sang lượt spawn mới.
+    private readonly List<SkillRuntime> skills = new List<SkillRuntime>();
+    private readonly ulong generation;
+    private bool disposed, ticking;
     internal CharacterView Owner { get; }
     internal CharacterRuntimeData Identity { get; }
     internal bool IsValid => !disposed && Owner != null && ReferenceEquals(Owner.RuntimeData, Identity) && Identity.Generation == generation && Identity.IsAlive;
     internal bool CanRun => IsValid && Owner.isActiveAndEnabled;
 
-    #endregion
-
-    #region Initialization And Access
-
-    // CharacterView có runtime trước; đăng ký skill ban đầu vào manager trước khi nhân vật được bật.
-    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillManager manager)
+    // CharacterView tạo context khi vỏ còn tắt; mọi runtime ban đầu thuộc context này.
+    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillFactory factory)
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Identity = owner.RuntimeData ?? throw new ArgumentException("Initialize character data before skills.");
         generation = Identity.Generation;
-        initialDefinitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
-        this.manager = manager ?? throw new ArgumentNullException(nameof(manager));
-        try { RebuildInitialSkills(); }
+        if (definitions == null) throw new ArgumentNullException(nameof(definitions));
+        if (factory == null) throw new ArgumentNullException(nameof(factory));
+        try
+        {
+            var unique = new HashSet<SkillDataSO>();
+            foreach (SkillDataSO definition in definitions)
+            {
+                if (definition == null || !unique.Add(definition)) throw new ArgumentException("Initial skills must be non-null and unique.");
+                if (definition.Source == SkillSource.Gameplay) throw new ArgumentException("Initial character skills must use separate Character/Equipment definitions.");
+                SkillRuntime runtime = factory.Create(definition, this);
+                if (!IsValid || !runtime.IsActive)
+                {
+                    runtime.Dispose();
+                    throw new InvalidOperationException("Character ended during skill initialization.");
+                }
+                skills.Add(runtime);
+            }
+            Identity.RefillSpawnVitals();
+        }
         catch { Dispose(); throw; }
     }
 
-    // Dựng từ definition: gameplay cấp một; nhân vật/trang bị giữ cấp config, từng buff tự quản lý token.
-    internal void RebuildInitialSkills()
+    public bool TryGetRuntime(SkillDataSO definition, out SkillRuntime runtime)
     {
-        var unique = new HashSet<SkillDataSO>();
-        foreach (SkillDataSO definition in initialDefinitions)
-        {
-            if (definition == null || !unique.Add(definition)) throw new ArgumentException("Initial skills must be non-null and unique.");
-            if (definition.Source == SkillSource.Gameplay) throw new ArgumentException("Initial character skills must use separate Character/Equipment definitions.");
-            if (!manager.AddInitialSkill(definition, this)) throw new InvalidOperationException("Could not register initial skill.");
-        }
-        Identity.RefillSpawnVitals(); // Chốt HP/shield đầy sau khi mọi bonus skill ban đầu đã được áp dụng.
+        foreach (SkillRuntime skill in skills)
+            if (skill.IsActive && skill.Definition == definition) { runtime = skill; return true; }
+        runtime = null;
+        return false;
     }
 
-    // Facade tiện cho caller cũ; không tìm trong collection riêng.
-    public bool TryGetRuntime(SkillDataSO definition, out SkillRuntime runtime) => manager.TryGetRuntime(definition, Owner, out runtime);
-    // Manual simulation cho test; production chỉ SkillManager.Tick được Zenject lên lịch.
-    public void Tick(float deltaTime) => manager.TickOwner(Owner, deltaTime);
-    // Unity owner tạm tắt/bật thì manager cập nhật mọi skill của owner đó.
-    internal void SetPaused(bool paused) => manager.SetOwnerPaused(Owner, paused);
+    // CharacterView gọi mỗi Update; không chạy khi game pause hoặc owner tạm tắt.
+    public void Tick(float deltaTime)
+    {
+        SkillRuntime.ValidateDeltaTime(deltaTime);
+        if (disposed || deltaTime == 0f || !CanRun) return;
+        if (ticking) throw new InvalidOperationException("Cannot recursively tick character skills.");
+        ticking = true;
+        try
+        {
+            for (int i = 0; i < skills.Count && CanRun; i++)
+                try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
+        }
+        finally { ticking = false; }
+    }
 
-    #endregion
+    internal void SetPaused(bool paused)
+    {
+        foreach (SkillRuntime skill in skills.ToArray())
+            if (skill.IsActive) skill.SetPaused(paused);
+    }
 
-    #region Cleanup
-
-    // Xóa cả skill ban đầu lẫn skill nhận thêm của đúng owner.
+    // Death/despawn/destroy dọn timer, visual và modifier của toàn bộ skill nhân vật.
     public void Dispose()
     {
         if (disposed) return;
-        disposed = true; manager.RemoveOwner(Owner);
+        disposed = true;
+        var failures = new List<Exception>();
+        foreach (SkillRuntime skill in skills.ToArray())
+            try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); }
+        skills.Clear();
+        if (failures.Count > 0) throw new AggregateException("Character skill cleanup failed.", failures);
     }
-
-    #endregion
 }

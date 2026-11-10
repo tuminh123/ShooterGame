@@ -1,40 +1,68 @@
+using System;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
-// Animator Controller trên prefab chứa animation VFX; không tham gia logic gameplay.
+// Phát trực tiếp clip một lần, không cần AnimatorController hoặc timer ước lượng.
 [RequireComponent(typeof(Animator))]
 public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
 {
-    #region Animation State
+    [SerializeField] private AnimationClip clip;
+    [SerializeField, Min(0.01f)] private float playbackSpeed = 1f;
+    private Animator animator;
+    private PlayableGraph graph;
+    private AnimationClipPlayable playable;
+    private bool playing;
+    public event Action Completed;
 
-    private Animator animator; // State mặc định của controller là animation cần phát.
+    public void SetVisual(AnimationClip animationClip)
+    {
+        StopAndReset();
+        clip = animationClip;
+    }
 
-    #endregion
-
-    #region Playback
-
-    // Rebind đưa controller về trạng thái mặc định thay vì tiếp tục animation của lần thuê trước.
     public void Play()
     {
+        StopAndReset();
+        if (clip == null || !(clip.length > 0f))
+            throw new InvalidOperationException("Assign a non-empty animation clip to AnimationEffectVisual.");
+        if (!(playbackSpeed > 0f) || float.IsInfinity(playbackSpeed))
+            throw new InvalidOperationException("Animation playback speed must be positive and finite.");
         if (animator == null) animator = GetComponent<Animator>();
-        animator.enabled = true;
-        animator.Rebind(); // Reset state và parameter trước khi phát lại từ đầu.
-        animator.Update(0f);
+        try
+        {
+            graph = PlayableGraph.Create("EffectAnimation");
+            graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+            playable = AnimationClipPlayable.Create(graph, clip);
+            playable.SetApplyFootIK(false);
+            playable.SetDuration(clip.length);
+            playable.SetSpeed(playbackSpeed);
+            AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Visual", animator);
+            output.SetSourcePlayable(playable);
+            graph.Play();
+            graph.Evaluate(0f); // Lần lấy từ pool luôn bắt đầu ở frame đầu tiên.
+            playing = true;
+        }
+        catch { StopAndReset(); throw; }
     }
 
-    // Reset controller rồi tắt cập nhật Animator; EffectView vẫn quyết định tuổi thọ của vỏ.
+    private void LateUpdate()
+    {
+        if (!playing || !graph.IsValid() || playable.GetTime() < clip.length) return;
+        playing = false;
+        graph.Stop();
+        Completed?.Invoke();
+    }
+
+    // Hủy/cleanup không được phát Completed.
     public void StopAndReset()
     {
-        if (animator == null) animator = GetComponent<Animator>();
-        animator.Rebind();
-        animator.enabled = false; // Play sẽ khởi động lại khi tái sử dụng.
+        playing = false;
+        if (graph.IsValid()) graph.Destroy();
+        graph = default;
+        playable = default;
     }
 
-    #endregion
-
-    #region Disable Cleanup
-
-    // Dọn cả khi hierarchy bị tắt trực tiếp mà không đi qua EffectView.Clear.
     private void OnDisable() => StopAndReset();
-
-    #endregion
+    private void OnDestroy() => StopAndReset();
 }

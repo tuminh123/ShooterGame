@@ -18,7 +18,6 @@ public sealed class ShootingData : SkillBehaviourData
     public bool requiresTarget = true; // Có mục tiêu mới cast.
     public Vector2 defaultDirection = Vector2.right; // Hướng khi không bắt buộc mục tiêu.
     [Min(0.01f)] public float speed = 2.4f; // Tốc độ world unit/giây.
-    [Min(0.001f)] public float hitRadius = 0.035f; // Bán kính va chạm đạn.
     [Min(0.01f)] public float lifetime = 3f; // Thời gian tồn tại tối đa.
     [SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>(); // Effect của đạn ở đúng cấp này.
     public override SkillBehaviourType Type => SkillBehaviourType.Shooting;
@@ -35,7 +34,7 @@ public sealed class ShootingData : SkillBehaviourData
             !Enum.IsDefined(typeof(BulletType), bulletType) || projectileCount < 1 || projectileCount > 1024 ||
             !Finite(muzzleOffset.x) || !Finite(muzzleOffset.y) || !Finite(defaultDirection.x) ||
             !Finite(defaultDirection.y) || defaultDirection.sqrMagnitude < 0.000001f ||
-            !Positive(speed) || !Positive(hitRadius) || !Positive(lifetime))
+            !Positive(speed) || !Positive(lifetime))
             throw new InvalidOperationException("Invalid shooting data.");
         shooter.Validate();
         ShootBehaviorFactory.ValidateSupported(shooter);

@@ -51,7 +51,7 @@ public sealed class SkillRuntime : IDisposable
             Action.SetPaused(value);
         }
 
-        // Timer không tự thực thi gameplay; SkillManager gọi Tick trên main thread.
+        // Timer không tự thực thi; CharacterSkills hoặc SkillManager gọi Tick trên main thread.
         public void OnTimer(TimerHandle handle, TimerResult result) { }
 
         // Dọn action kể cả khi timer cancellation lỗi.
@@ -197,7 +197,7 @@ public sealed class SkillRuntime : IDisposable
 
     #region Execution And Owner Lifecycle
 
-    // Một vòng tick chung do SkillManager điều phối; callback đổi cấp sẽ kết thúc vòng duyệt cũ.
+    // Chủ sở hữu runtime điều phối tick; callback đổi cấp sẽ kết thúc vòng duyệt cũ.
     internal void Tick()
     {
         if (!IsActive) return;

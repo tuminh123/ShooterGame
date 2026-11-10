@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
   m_Name: ForagingMaggot_Character
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   displayName: Foraging Maggot
   characterType: 2
   team: 1
@@ -21,15 +21,12 @@ MonoBehaviour:
     Scale: {x: 1, y: 1, z: 1}
     Offset: {x: 0, y: 0, z: 0}
     Hitbox:
-      Size: {x: 0.16, y: 0.09201882}
-      Offset: {x: 0, y: 0.04600941}
+      Size: {x: 0.06266174, y: 0.053805776}
+      Offset: {x: 0.020850137, y: 0.043051284}
     HealthBarSize: {x: 66.54, y: 16.06}
     HealthBarOffset: {x: 0, y: -0.04, z: 0}
     HealthBarScale: 0.0035
     ShieldThickness: 3
-  growthInterval: 50
-  growthPerStep:
-    maxHealth: 5
   baseStats:
     maxHealth: 20
     damage: 10

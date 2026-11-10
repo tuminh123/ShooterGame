@@ -8,7 +8,7 @@ public sealed class CharacterLevelService : IDisposable
 
     private readonly SaveManager saveManager;                                      // * Nguồn level hiện tại duy nhất, không copy level sang cache khác.
     private readonly Dictionary<CharacterType, CharacterDataSO> characters;                // * Tra template theo type, trung bình O(1).
-    private readonly Dictionary<CharacterType, PermanentLevelConfigSO> levelConfigs;       // * Tra config vĩnh viễn riêng theo cùng type.
+    private readonly Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs;       // * Tra config vĩnh viễn riêng theo cùng type.
     private bool changingLevel;                                                    // * Chặn gọi tăng cấp lồng nhau từ callback sự kiện.
     private bool disposed;                                                         // * Bảo vệ vòng đời service do Zenject quản lý.
 
@@ -33,8 +33,8 @@ public sealed class CharacterLevelService : IDisposable
             throw new ArgumentNullException(nameof(levelDatabase));
 
         characters = characterDatabase.CreateLookup();
-        Dictionary<CharacterType, PermanentLevelConfigSO> configsByType = levelDatabase.CreateTypeLookup();
-        levelConfigs = new Dictionary<CharacterType, PermanentLevelConfigSO>(characters.Count);
+        Dictionary<CharacterType, CharacterLevelConfigSO> configsByType = levelDatabase.CreateTypeLookup();
+        levelConfigs = new Dictionary<CharacterType, CharacterLevelConfigSO>(characters.Count);
 
         // * Vòng duyệt thứ hai ghép type nhân vật với config, dùng chính enum đó làm key runtime/save.
         foreach (CharacterDataSO character in characters.Values)
@@ -42,7 +42,7 @@ public sealed class CharacterLevelService : IDisposable
             // * Database chứa cả Enemy; chỉ Player có tiến trình level vĩnh viễn và trang bị trong hồ sơ.
             if (character.Team != CharacterTeam.Player)
                 continue;
-            if (!configsByType.TryGetValue(character.CharacterType, out PermanentLevelConfigSO config))
+            if (!configsByType.TryGetValue(character.CharacterType, out CharacterLevelConfigSO config))
                 throw new InvalidOperationException($"Missing level config for character type: {character.CharacterType}.");
             levelConfigs.Add(character.CharacterType, config);
         }
@@ -71,22 +71,22 @@ public sealed class CharacterLevelService : IDisposable
     // * Tính tổng bonus vĩnh viễn từ level hiện tại, không sửa template hoặc chỉ số runtime.
     public StatBonus GetTotalBonus(CharacterType characterType)
     {
-        PermanentLevelConfigSO config = GetConfig(characterType);
+        CharacterLevelConfigSO config = GetConfig(characterType);
         return config.GetTotalBonus(saveManager.GetPermanentLevel(characterType));
     }
 
     // * Lấy chi phí cấp tiếp theo; false nếu đã đạt hoặc vượt trần config.
     public bool TryGetUpgradeCost(CharacterType characterType, out long cost)
     {
-        PermanentLevelConfigSO config = GetConfig(characterType);
+        CharacterLevelConfigSO config = GetConfig(characterType);
         return config.TryGetUpgradeCost(saveManager.GetPermanentLevel(characterType), out cost);
     }
 
     // * Đọc config để UI hiển thị trần, bonus mỗi cấp và công thức giá.
-    public PermanentLevelConfigSO GetConfig(CharacterType characterType)
+    public CharacterLevelConfigSO GetConfig(CharacterType characterType)
     {
         GetCharacter(characterType);
-        if (!levelConfigs.TryGetValue(characterType, out PermanentLevelConfigSO config))
+        if (!levelConfigs.TryGetValue(characterType, out CharacterLevelConfigSO config))
             throw new KeyNotFoundException($"Character has no permanent level config: {characterType}.");
         return config;
     }
@@ -111,7 +111,7 @@ public sealed class CharacterLevelService : IDisposable
         if (changingLevel)
             throw new InvalidOperationException("Cannot change permanent level from a level notification callback.");
         saved = false;
-        PermanentLevelConfigSO config = GetConfig(characterType);
+        CharacterLevelConfigSO config = GetConfig(characterType);
         int previousLevel = saveManager.GetPermanentLevel(characterType);
         if (previousLevel >= config.MaxLevel)
             return false;

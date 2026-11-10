@@ -2,38 +2,23 @@ using System;
 using UnityEngine;
 using Zenject;
 
-// Vỏ VFX: quản lý tuổi thọ và visual con; không biết visual dùng animation, particle hay sprite.
-public sealed class EffectView : MonoBehaviour, ITimerListener
+// Vỏ VFX chỉ sở hữu visual và pooling; visual quyết định khi nào phát xong.
+public sealed class EffectView : MonoBehaviour
 {
-    #region Settings & Dependencies
+    private PoolManager pools;
+    private CombatSpawner spawner;
+    private GameObject visualObject;
+    private IEffectVisual visual;
+    private Action completed;
+    private int playbackVersion;
 
-    [SerializeField, Min(0.01f)] private float duration = 0.14f; // Số giây gameplay trước khi thu hồi cả vỏ và visual.
-    private PoolManager pools; // Visual con và vỏ được tái sử dụng qua pool chung.
-    private ITimerManager timers; // Dùng bộ đếm chung, không cần Update trên mỗi EffectView.
-    private CombatSpawner spawner; // Đầu mối thu hồi visual trước khi thu hồi vỏ.
-    private GameObject visualObject; // Clone visual được gắn dưới vỏ trong lượt spawn này.
-    private IEffectVisual visual; // Chỉ gọi hợp đồng phát/dừng, không rẽ nhánh theo loại VFX.
-    private TimerHandle lifetimeTimer; // Phân biệt callback hết hạn của từng lượt spawn.
-
-    #endregion
-
-    #region Dependency Injection
-
-    // Pool inject dịch vụ trước khi CombatSpawner chuẩn bị visual và bật vỏ.
     [Inject]
-    public void Construct(PoolManager pools, ITimerManager timers)
-    { this.pools = pools; this.timers = timers; }
+    public void Construct(PoolManager pools) => this.pools = pools;
 
-    #endregion
-
-    #region Spawn & Playback
-
-    // CombatSpawner gọi khi vỏ còn tắt; visual chỉ phát khi cả nhánh được bật.
+    // Chuẩn bị khi vỏ còn tắt, chỉ phát sau khi cả nhánh được bật.
     internal void Initialize(CombatSpawner spawner, GameObject visualPrefab)
     {
         Clear();
-        if (!(duration > 0f) || float.IsInfinity(duration))
-            throw new InvalidOperationException("EffectView duration must be positive and finite.");
         this.spawner = spawner;
         try
         {
@@ -41,7 +26,6 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
             if (visualObject == null) throw new InvalidOperationException("Could not spawn effect visual.");
             visual = visualObject.GetComponent<IEffectVisual>();
             if (visual == null) throw new InvalidOperationException("Effect visual prefab needs IEffectVisual on its root.");
-            // Khôi phục pose gốc vì visual trong pool có thể đã đổi scale/rotation ở lần phát trước.
             visualObject.transform.localPosition = visualPrefab.transform.localPosition;
             visualObject.transform.localRotation = visualPrefab.transform.localRotation;
             visualObject.transform.localScale = visualPrefab.transform.localScale;
@@ -49,32 +33,36 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
         catch { Clear(); throw; }
     }
 
-    // Chỉ phát sau Initialize thành công; duration của vỏ độc lập với thời lượng animation/particle con.
     private void OnEnable()
     {
         if (spawner == null || visualObject == null) return;
-        lifetimeTimer = timers.Register(duration, this);
-        visual.Play();
+        Unsubscribe();
+        int version = playbackVersion;
+        completed = () =>
+        {
+            if (version == playbackVersion && spawner != null) spawner.Release(gameObject);
+        };
+        visual.Completed += completed;
+        try { visual.Play(); }
+        catch
+        {
+            if (version == playbackVersion && spawner != null) spawner.Release(gameObject);
+            throw;
+        }
     }
 
-    // So handle để bỏ callback lifetime cũ khi cùng vỏ đã được pool dùng lại.
-    public void OnTimer(TimerHandle handle, TimerResult result)
+    private void Unsubscribe()
     {
-        if (spawner != null && lifetimeTimer.Equals(handle) && result.Completed)
-            spawner.Release(gameObject);
+        playbackVersion++;
+        if (visual != null && completed != null) visual.Completed -= completed;
+        completed = null;
     }
 
-    #endregion
-
-    #region Clear & Despawn
-
-    // Gọi TRƯỚC khi tắt vỏ: dừng/reset visual, trả con về pool rồi mới thu hồi cha.
+    // Gỡ callback trước StopAndReset/Despawn để không trả cùng object hai lần.
     internal void Clear()
     {
-        timers?.Cancel(lifetimeTimer);
-        lifetimeTimer = default;
+        Unsubscribe();
         spawner = null;
-        // Xóa ownership trước callback StopAndReset/Despawn để cleanup lồng nhau không trả con hai lần.
         GameObject previousObject = visualObject;
         IEffectVisual previousVisual = visual;
         visualObject = null;
@@ -84,22 +72,19 @@ public sealed class EffectView : MonoBehaviour, ITimerListener
         finally { pools.Despawn(previousObject); }
     }
 
-    // Chỉ dừng khi hierarchy đang tắt; không reparent/trả visual về pool bên trong OnDisable.
+    // Không reparent/trả con về pool trong callback tắt hierarchy.
     private void OnDisable()
     {
-        timers?.Cancel(lifetimeTimer);
-        lifetimeTimer = default;
+        Unsubscribe();
         if (visualObject != null) visual?.StopAndReset();
     }
 
-    // Destroy hủy luôn con; không trả object đang bị hủy về pool.
     private void OnDestroy()
     {
-        timers?.Cancel(lifetimeTimer);
+        Unsubscribe();
+        visual?.StopAndReset();
         spawner = null;
         visualObject = null;
         visual = null;
     }
-
-    #endregion
 }

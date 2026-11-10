@@ -106,9 +106,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcd5608b9e7026549994c89e4610e86e, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  enemyFeedbackSettings:
-    hitColor: {r: 1, g: 0.2, b: 0.2, a: 1}
-    hitDuration: 0.12
+  hitFlashDuration: 0.12
+  hitWhiteBlend: 0.22
+  statusColorBlend: 0.55
+  poisonColor: {r: 0.65, g: 0.35, b: 1, a: 1}
+  burnColor: {r: 1, g: 0.45, b: 0.15, a: 1}
+  slowColor: {r: 0.35, g: 0.8, b: 1, a: 1}
 --- !u!114 &2100100
 MonoBehaviour:
   m_ObjectHideFlags: 0

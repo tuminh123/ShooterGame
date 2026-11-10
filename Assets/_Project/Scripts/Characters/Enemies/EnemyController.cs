@@ -219,6 +219,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
     {
         if (disposed) return;
         disposed = true;
+        base.Dispose();
         timers?.Cancel(scanTimer);
         timers?.Cancel(recoilTimer);
         System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);

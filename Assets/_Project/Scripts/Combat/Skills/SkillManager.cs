@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// Sở hữu tất cả skill của Player/Enemy trong trận, không tách danh sách skill ban đầu và skill nhận thêm.
+// Chỉ sở hữu skill nhận trong gameplay; skill nhân vật thuộc CharacterSkills.
 public sealed class SkillManager : ITickable, IDisposable
 {
     #region Services And Runtime Collection
 
-    private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Nguồn runtime duy nhất, mỗi phần tử có owner + definition riêng.
+    private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
     private readonly LevelManager levels; // Nhận reset trận; không tự quyết định luồng game.
     private readonly ITimeSource timeSource; // Dùng scaled time để tôn trọng pause.
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
-    private readonly CharacterManager characters; // Dựng lại skill ban đầu nếu reset khi nhân vật còn tồn tại.
-    private bool disposed, ticking, clearing, adding, resetPending; // Guard callback lồng nhau và defer rebuild tới khi collection ổn định.
+    private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
     public int RunCount { get { int count = 0; foreach (SkillRuntime skill in skills) if (skill.IsActive) count++; return count; } }
 
@@ -22,13 +21,13 @@ public sealed class SkillManager : ITickable, IDisposable
     #region Initialization And Lookup
 
     // Singleton scene do Zenject tạo; không tạo runtime trước khi owner có dữ liệu spawn.
-    public SkillManager(LevelManager levels, ITimeSource timeSource, SkillFactory factory, CharacterManager characters)
+    public SkillManager(LevelManager levels, ITimeSource timeSource, SkillFactory factory)
     {
-        this.levels = levels; this.timeSource = timeSource; this.factory = factory; this.characters = characters;
+        this.levels = levels; this.timeSource = timeSource; this.factory = factory;
         levels.RunReset += OnRunReset;
     }
 
-    // UI đọc snapshot của đúng owner, không cần ghép hai nguồn skill.
+    // UI chỉ đọc skill gameplay của đúng owner.
     public void GetOwnedSkills(CharacterView owner, List<SkillRuntime> result)
     {
         if (result == null) throw new ArgumentNullException(nameof(result));
@@ -54,13 +53,13 @@ public sealed class SkillManager : ITickable, IDisposable
     {
         if (disposed || definition == null || definition.Source != SkillSource.Gameplay || owner == null || owner.Skills == null || !owner.Skills.IsValid) return false;
         if (TryGetRuntime(definition, owner, out SkillRuntime runtime)) return runtime.TryUpgrade();
-        return AddInitialSkill(definition, owner.Skills);
+        return AddGameplaySkill(definition, owner.Skills);
     }
 
-    // Dùng cả lúc khởi tạo context, khi owner.Skills chưa được gán xong trên CharacterView.
-    internal bool AddInitialSkill(SkillDataSO definition, CharacterSkills context)
+    // Tạo skill gameplay mới trong context của lượt spawn hiện tại.
+    private bool AddGameplaySkill(SkillDataSO definition, CharacterSkills context)
     {
-        if (disposed || context == null || !context.IsValid) return false;
+        if (disposed || definition == null || definition.Source != SkillSource.Gameplay || context == null || !context.IsValid) return false;
         if (clearing || adding) throw new InvalidOperationException("Cannot add skill during cleanup/stat callback.");
         if (TryGetRuntime(definition, context.Owner, out _)) return false;
         int version = runVersion; // Không commit nếu bonus callback reset cả trận.
@@ -72,22 +71,18 @@ public sealed class SkillManager : ITickable, IDisposable
             skills.Add(runtime);
             return true;
         }
-        finally { adding = false; ProcessPendingReset(); }
+        finally { adding = false; }
     }
 
     #endregion
 
     #region Scheduling And Owner Lifecycle
 
-    // Zenject chỉ gọi một vòng tick chung cho cả skill ban đầu và skill mới.
+    // Zenject chỉ tick skill gameplay; CharacterView tick skill nhân vật.
     public void Tick() => Tick(timeSource.DeltaTime);
     // Dùng cho test/manual simulation, cùng logic scheduler production.
-    public void Tick(float deltaTime) => TickSelected(deltaTime, null);
-    // Context cung cấp manual simulation cho đúng owner, không có một collection riêng.
-    internal void TickOwner(CharacterView owner, float deltaTime) => TickSelected(deltaTime, owner);
-
     // Callback có thể despawn/reset/spawn; chỉ duyệt số phần tử có sẵn ở đầu frame.
-    private void TickSelected(float deltaTime, CharacterView owner)
+    public void Tick(float deltaTime)
     {
         SkillRuntime.ValidateDeltaTime(deltaTime);
         if (disposed || deltaTime == 0f) return;
@@ -97,10 +92,9 @@ public sealed class SkillManager : ITickable, IDisposable
         try
         {
             for (int i = 0; i < count; i++)
-                if (owner == null || skills[i].BelongsTo(owner))
-                    try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
+                try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
         }
-        finally { ticking = false; RemoveInactive(); ProcessPendingReset(); }
+        finally { ticking = false; RemoveInactive(); }
     }
 
     // Owner tạm tắt: pause mọi hành vi và timer ngay, không chờ tới frame tick tiếp theo.
@@ -134,20 +128,8 @@ public sealed class SkillManager : ITickable, IDisposable
         if (failures.Count > 0) throw new AggregateException("Skill cleanup failed.", failures);
     }
 
-    // Reset đang callback phải hủy runtime cũ ngay; rebuild initial definitions đợi collection ổn định.
-    private void OnRunReset()
-    {
-        ClearRunSkills(); resetPending = true; ProcessPendingReset();
-    }
-
-    // Khi GameManager reset sau khi dọn world, registry rỗng nên không tự sinh skill/Player mới.
-    private void ProcessPendingReset()
-    {
-        if (!resetPending || ticking || adding || clearing || disposed) return;
-        resetPending = false;
-        foreach (CharacterView character in new List<CharacterView>(characters.Characters.Keys))
-            if (character != null && character.Skills != null && character.Skills.IsValid) character.Skills.RebuildInitialSkills();
-    }
+    // Reset chỉ xóa skill gameplay, không dựng lại skill nhân vật.
+    private void OnRunReset() => ClearRunSkills();
 
     // Chỉ xóa entry đã Dispose để không làm sai chỉ số khi đang duyệt callback.
     private void RemoveInactive() { for (int i = skills.Count - 1; i >= 0; i--) if (!skills[i].IsActive) skills.RemoveAt(i); }

@@ -2,14 +2,45 @@ using System;
 using UnityEngine;
 
 // Shared combat and innate-skill activation. Derived controllers specialize movement and death.
-public abstract class CharacterControllerBase : ICharacterController
+public abstract class CharacterControllerBase : ICharacterController, ICharacterFeedbackSource
 {
     #region Runtime Identity And Lifecycle
 
     // Controller có state pause riêng mới cần override.
     public virtual void SetPaused(bool paused) { }
     // Controller có tài nguyên riêng mới cần thu hồi.
-    public virtual void Dispose() { }
+    public virtual void Dispose()
+    {
+        feedbackDisposed = true;
+        FeedbackChanged = null;
+        Array.Clear(effectCounts, 0, effectCounts.Length);
+    }
+    public event Action<CharacterFeedbackKind, bool> FeedbackChanged;
+    private readonly int[] effectCounts = new int[4];
+    private bool feedbackDisposed;
+
+    public void NotifyEffect(CharacterView view, CharacterRuntimeData runtime, ulong spawnGeneration,
+        CharacterFeedbackKind kind, bool active)
+    {
+        if (feedbackDisposed || !IsCurrent(view, runtime) || runtime.Generation != spawnGeneration ||
+            kind == CharacterFeedbackKind.Hit || !Enum.IsDefined(typeof(CharacterFeedbackKind), kind)) return;
+        int index = (int)kind;
+        int previous = effectCounts[index];
+        effectCounts[index] = active ? previous + 1 : Math.Max(0, previous - 1);
+        if ((previous > 0) != (effectCounts[index] > 0)) PublishFeedback(kind, effectCounts[index] > 0);
+    }
+
+    private void PublishFeedback(CharacterFeedbackKind kind, bool active)
+    {
+        Action<CharacterFeedbackKind, bool> listeners = FeedbackChanged;
+        if (feedbackDisposed || listeners == null) return;
+        ulong currentGeneration = generation;
+        foreach (Action<CharacterFeedbackKind, bool> listener in listeners.GetInvocationList())
+        {
+            if (feedbackDisposed || identity == null || identity.Generation != currentGeneration) break;
+            try { listener(kind, active); } catch (Exception exception) { Debug.LogException(exception); }
+        }
+    }
     private CharacterRuntimeData deathHandled; // Chặn xử lý chết nhiều lần trên cùng lượt spawn.
     private CharacterRuntimeData identity; // Danh tính runtime đang thuộc controller.
     private ulong generation; // Không dùng controller cũ khi pool tái sử dụng runtime.
@@ -49,7 +80,11 @@ public abstract class CharacterControllerBase : ICharacterController
         {
             runtime.SetVitals(health - healthLost, shield - absorbed);
             if (IsCurrent(view, runtime))
-                view.NotifyDamageReceived(damage, result);
+            {
+                if (result.Accepted) PublishFeedback(CharacterFeedbackKind.Hit, true);
+                if (IsCurrent(view, runtime))
+                    view.NotifyDamageReceived(damage, result);
+            }
         }
         finally
         {
@@ -64,10 +99,13 @@ public abstract class CharacterControllerBase : ICharacterController
         if (float.IsNaN(amount) || float.IsInfinity(amount))
             throw new ArgumentOutOfRangeException(nameof(amount));
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
+        float previousHealth = runtime.CurrentHealth;
         try
         {
             runtime.SetVitals(Mathf.Max(0f, runtime.CurrentHealth + amount),
                 runtime.CurrentShield);
+            if (IsCurrent(view, runtime) && runtime.CurrentHealth < previousHealth)
+                PublishFeedback(CharacterFeedbackKind.Hit, true);
         }
         finally
         {

@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// * Tập trung config level vĩnh viễn theo nhân vật và một config level trong trận dùng chung.
+// Config cấp theo CharacterType dùng chung cho player/enemy và một config EXP trong trận của player.
 [CreateAssetMenu(fileName = "LevelDatabase", menuName = "Shooter Game/Levels/Level Database")]
 public sealed class LevelDatabaseSO : ScriptableObject
 {
-    #region Permanent Level Configurations
+    #region Character Level Configurations
 
-    [SerializeField] private List<PermanentLevelConfigSO> characterLevels = new List<PermanentLevelConfigSO>();  // * Danh sách config độc lập; mỗi config khai báo type, không nhập lại ID hoặc kéo character vào đây.
+    [SerializeField] private List<CharacterLevelConfigSO> characterLevels = new List<CharacterLevelConfigSO>();  // * Danh sách config độc lập; mỗi config khai báo type, không nhập lại ID hoặc kéo character vào đây.
 
     #endregion
 
@@ -23,10 +23,10 @@ public sealed class LevelDatabaseSO : ScriptableObject
     #region Runtime Lookup Creation
 
     // * Vòng duyệt thứ nhất dựng type → config; service tiếp tục duyệt danh sách nhân vật để ghép theo type.
-    public Dictionary<CharacterType, PermanentLevelConfigSO> CreateTypeLookup()
+    public Dictionary<CharacterType, CharacterLevelConfigSO> CreateTypeLookup()
     {
-        var lookup = new Dictionary<CharacterType, PermanentLevelConfigSO>(characterLevels.Count);
-        foreach (PermanentLevelConfigSO config in characterLevels)
+        var lookup = new Dictionary<CharacterType, CharacterLevelConfigSO>(characterLevels.Count);
+        foreach (CharacterLevelConfigSO config in characterLevels)
         {
             if (config == null || config.CharacterType == CharacterType.None || !Enum.IsDefined(typeof(CharacterType), config.CharacterType))
                 throw new InvalidOperationException("Level database contains a missing config or invalid character type.");

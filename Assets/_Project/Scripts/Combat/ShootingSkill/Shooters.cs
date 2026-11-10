@@ -7,7 +7,7 @@ public sealed class ShootBehaviorFactory
     // Danh mục kiểu bắn được hỗ trợ; không phụ thuộc vào class skill.
     private static readonly HashSet<Type> supportedShooters = new HashSet<Type>
     {
-        typeof(StraightShooter), typeof(CircularShooter), typeof(SpiralShooter)
+        typeof(StraightShooter), typeof(FanShooter), typeof(CircularShooter), typeof(SpiralShooter)
     };
 
     public static void ValidateSupported(IShooter shooter)
@@ -53,18 +53,29 @@ public interface IShooter
 [Serializable]
 public sealed class StraightShooter : IShooter
 {
-    [SerializeField, Range(0f, 360f)] private float spreadAngle; // Độ rộng cả chùm đạn, tính bằng độ.
-    [SerializeField] private float startAngle; // Góc lệch của cả chùm so với hướng ngắm.
-
     public IShooter CreateRuntime() => (StraightShooter)MemberwiseClone();
 
     public void OnShotCompleted() { } // Kiểu bắn này không có trạng thái giữa các lượt.
 
+    public void Validate() { } // Bắn thẳng không có thông số góc.
+
+    public Vector2 GetDirection(Vector2 aimDirection,
+        int projectileIndex, int projectileCount) => aimDirection;
+}
+
+[Serializable]
+public sealed class FanShooter : IShooter
+{
+    [SerializeField, Range(0f, 360f)] private float spreadAngle = 60f; // Tổng góc quạt; các viên tự chia đều quanh hướng ngắm.
+
+    public IShooter CreateRuntime() => (FanShooter)MemberwiseClone();
+
+    public void OnShotCompleted() { }
+
     public void Validate()
     {
-        if (!ShotGeometry.IsFiniteNumber(spreadAngle) || spreadAngle < 0f || spreadAngle > 360f ||
-            !ShotGeometry.IsFiniteNumber(startAngle))
-            throw new InvalidOperationException("Invalid straight shooting angles.");
+        if (!ShotGeometry.IsFiniteNumber(spreadAngle) || spreadAngle < 0f || spreadAngle > 360f)
+            throw new InvalidOperationException("Invalid fan shooting angle.");
     }
 
     public Vector2 GetDirection(Vector2 aimDirection,
@@ -73,7 +84,7 @@ public sealed class StraightShooter : IShooter
         // Một viên giữ hướng ngắm; nhiều viên trải đều hai bên hướng ngắm.
         float spreadOffsetDegrees = projectileCount == 1 ? 0f :
             -spreadAngle * 0.5f + spreadAngle * projectileIndex / (projectileCount - 1);
-        return ShotGeometry.Rotate(aimDirection, startAngle + spreadOffsetDegrees);
+        return ShotGeometry.Rotate(aimDirection, spreadOffsetDegrees);
     }
 }
 

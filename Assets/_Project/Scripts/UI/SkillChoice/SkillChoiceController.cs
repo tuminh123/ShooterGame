@@ -19,7 +19,7 @@ public sealed class SkillChoiceController : UIPanelController
     private readonly SkillChoicePool pool = new SkillChoicePool(); // Áp dụng luật roll cấp kế tiếp, loại skill max và skill đang bị chặn.
     private readonly SkillChoiceProgress progress = new SkillChoiceProgress(); // Số lượt thưởng chưa dùng; chỉ tiêu sau khi nhận/nâng thành công.
     private readonly List<SkillChoiceOffer> offers = new List<SkillChoiceOffer>(3); // Snapshot các lựa chọn đang hiển thị; không giữ qua lần roll mới.
-    private readonly List<SkillRuntime> ownedSkills = new List<SkillRuntime>(); // Snapshot innate + run để hiển thị slot đúng cấp thực tế.
+    private readonly List<SkillRuntime> ownedSkills = new List<SkillRuntime>(); // Chỉ skill gameplay; skill nhân vật thuộc CharacterSkills.
     private readonly HashSet<SkillDataSO> failedSkills = new HashSet<SkillDataSO>(); // Skill lỗi bị chặn tới khi reset trận, đổi Player hoặc gọi retry.
     private IReadOnlyList<SkillDataSO> catalog; // Snapshot skill được phép thưởng từ database được Zenject inject.
     private LevelManager levels; // Nguồn sự kiện tăng cấp và reset tiến trình trận.
@@ -33,6 +33,7 @@ public sealed class SkillChoiceController : UIPanelController
     private bool subscribed; // Chống đăng ký lặp event khi Construct và OnEnable cùng chạy.
     private bool refreshPending; // Hoãn roll/render đến LateUpdate sau khi callback gameplay hoàn tất.
     private bool selecting; // Chặn việc áp dụng lựa chọn lồng nhau trong callback.
+    private bool rerollPending;
     private bool visible; // UIManager cấp quyền trình bày; controller không tự chuyển các UI khác.
     private int version; // Phiên queue; reset/đổi Player vô hiệu hóa kết quả callback cũ.
     public int PendingSkillChoices => progress.Pending; // Cho bên ngoài đọc số lượt thưởng đang chờ, không cho sửa trực tiếp.
@@ -67,6 +68,7 @@ public sealed class SkillChoiceController : UIPanelController
         levels.RunReset += CancelChoices;
         players.PlayerChanged += OnPlayerChanged;
         levelUpPanel.Selected += Choose;
+        levelUpPanel.RerollRequested += Reroll;
         levelUpPanel.Hidden += OnPanelHidden;
         OnPlayerChanged(players.CurrentPlayer);
     }
@@ -129,7 +131,9 @@ public sealed class SkillChoiceController : UIPanelController
         refreshPending = false;
         if (progress.Pending == 0 || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive)
         { CancelChoices(); return; }
-        pool.Build(catalog, skills, owner, offers, excluded: failedSkills);
+        pool.Build(catalog, skills, owner, offers, excluded: failedSkills,
+            previousOffers: rerollPending ? offers : null);
+        rerollPending = false;
         if (offers.Count == 0)
         {
             // Pool cạn vì skill lỗi: giữ queue để retry sau khi sửa cấu hình.
@@ -137,7 +141,7 @@ public sealed class SkillChoiceController : UIPanelController
             FinishPresentation();
             return;
         }
-        RequestVisibility(true);
+        if (!visible) RequestVisibility(true);
         if (visible)
         {
             levelUpPanel.Show(offers, progress.Pending);
@@ -148,6 +152,15 @@ public sealed class SkillChoiceController : UIPanelController
     #endregion
 
     #region Selection And Error Recovery
+
+    // Roll miễn phí, không tiêu lượt thưởng và không nhả pause của popup.
+    private void Reroll()
+    {
+        if (!visible || selecting || refreshPending || progress.Pending == 0 || offers.Count == 0 ||
+            owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return;
+        rerollPending = true;
+        refreshPending = true;
+    }
 
     // Chỉ tiêu một lượt sau khi gameplay thành công; exception giữ lượt và chặn ứng viên lỗi khỏi các lần roll sau.
     private void Choose(int index)
@@ -206,7 +219,7 @@ public sealed class SkillChoiceController : UIPanelController
     // Xử lý panel bị tắt từ ngoài: trả pause và bỏ offer cũ, không tự xóa lượt đang chờ.
     private void OnPanelHidden()
     {
-        ReleasePause(); offers.Clear(); refreshPending = false;
+        ReleasePause(); offers.Clear(); refreshPending = false; rerollPending = false;
         if (visible) RequestVisibility(false);
     }
 
@@ -224,7 +237,7 @@ public sealed class SkillChoiceController : UIPanelController
     // Ẩn view và dọn offer/pause; giữ nguyên queue để hỗ trợ ẩn UI hoặc phục hồi sau lỗi.
     private void ClosePanel()
     {
-        levelUpPanel.Hide(); offers.Clear(); ReleasePause();
+        levelUpPanel.Hide(); offers.Clear(); rerollPending = false; ReleasePause();
     }
 
     // Kết thúc yêu cầu modal để UIManager quay về panel trước hoặc gameplay; không tự chuyển UI khác.
@@ -239,7 +252,7 @@ public sealed class SkillChoiceController : UIPanelController
     {
         version++;
         ReleaseSlowMotion(); // Reset, đổi Player hoặc kết thúc trận không để sót slow motion.
-        progress.Clear(); failedSkills.Clear(); refreshPending = false;
+        progress.Clear(); failedSkills.Clear(); refreshPending = false; rerollPending = false;
         ownedSkills.Clear();
         if (levelUpPanel != null) levelUpPanel.ShowOwnedSkills(ownedSkills);
         if (levelUpPanel != null) FinishPresentation();
@@ -275,6 +288,7 @@ public sealed class SkillChoiceController : UIPanelController
             levels.RunReset -= CancelChoices;
             players.PlayerChanged -= OnPlayerChanged;
             levelUpPanel.Selected -= Choose;
+            levelUpPanel.RerollRequested -= Reroll;
             levelUpPanel.Hidden -= OnPanelHidden;
             subscribed = false;
         }

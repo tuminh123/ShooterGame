@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
-[CustomEditor(typeof(CharacterDataSO))]
+// Helper dùng riêng trong HitboxEditorWindow; Inspector DataSO dùng giao diện mặc định.
 public sealed class CharacterVisualEditor : Editor
 {
     private readonly BoxBoundsHandle hitboxHandle = new BoxBoundsHandle();
@@ -14,9 +14,17 @@ public sealed class CharacterVisualEditor : Editor
     private BarView previewBar;
     private int tool;
 
+    public void OpenHitboxPreview()
+    {
+        tool = 1;
+        if (previewRoot == null) OpenPreview();
+    }
+
     public override void OnInspectorGUI()
     {
-        DrawDefaultInspector();
+        serializedObject.Update();
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("visualSettings"), true);
+        serializedObject.ApplyModifiedProperties();
         EditorGUILayout.Space();
         EditorGUILayout.HelpBox("Scale/Offset chỉ đổi hình ảnh. Hitbox và thanh máu có kích thước riêng. " +
             "Mở preview rồi kéo các tay nắm trong Scene; thay đổi được ghi vào asset và hỗ trợ Undo.", MessageType.Info);

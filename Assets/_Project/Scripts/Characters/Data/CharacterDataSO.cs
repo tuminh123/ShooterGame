@@ -27,13 +27,6 @@ public sealed class CharacterDataSO : ScriptableObject
     
     #endregion
 
-    [Header("Enemy Growth")]
-    [SerializeField, Min(0.01f)] private float growthInterval = 50f; // * Số giây game mỗi bậc tăng sức mạnh, tính từ lần đầu loại quái spawn thành công.
-    [SerializeField] private StatBonus growthPerStep = new StatBonus { maxHealth = 5f }; // * Bonus mỗi bậc; chỉ áp dụng cho cá thể được spawn sau mốc đó.
-
-    public float GrowthInterval => Mathf.Max(0.01f, growthInterval); // * Chặn chia cho 0 kể cả khi asset được sửa ngoài Inspector.
-    public StatBonus GrowthPerStep => growthPerStep; // * Giá trị struct sao chép, không thay đổi SO khi tính bonus.
-
     #endregion
 
     #region Base Stats Template

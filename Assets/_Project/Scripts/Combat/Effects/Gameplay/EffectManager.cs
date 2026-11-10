@@ -116,6 +116,11 @@ public sealed class EffectManager : IDisposable
             created.Apply();
             // Apply có thể kích hoạt callback thu hồi mục tiêu hoặc kết thúc trận.
             if (disposed || !target.TryGetCharacter(out _)) Deactivate(created);
+            if (created.IsActive)
+            {
+                created.FeedbackApplied = true;
+                NotifyFeedback(created, true);
+            }
             if (created.IsActive) handle = new EffectHandle(created);
             return created.IsActive;
         }
@@ -218,6 +223,26 @@ public sealed class EffectManager : IDisposable
         }
         activeEffects.RemoveAt(last);
         pendingReturns.Add(runtime);
+        if (runtime.FeedbackApplied)
+        {
+            runtime.FeedbackApplied = false;
+            NotifyFeedback(runtime, false);
+        }
+    }
+
+    private static void NotifyFeedback(EffectRuntime runtime, bool active)
+    {
+        if (runtime.Owner == null || !ReferenceEquals(runtime.Owner.RuntimeData, runtime.Identity) ||
+            runtime.Identity.Generation != runtime.Generation) return;
+        CharacterFeedbackKind kind;
+        switch (runtime.Configuration)
+        {
+            case PoisonEffect _: kind = CharacterFeedbackKind.Poison; break;
+            case BurnEffect _: kind = CharacterFeedbackKind.Burn; break;
+            case SlowEffect _: kind = CharacterFeedbackKind.Slow; break;
+            default: return;
+        }
+        runtime.Owner.NotifyEffectFeedback(runtime.Identity, runtime.Generation, kind, active);
     }
 
     // Chỉ thao tác ngoài cùng được trả pool, tránh callback lồng nhau tái sử dụng runtime còn đang chạy.

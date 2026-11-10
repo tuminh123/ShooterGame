@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using Zenject;
+using PrimeTween;
 
 // * Vỏ Unity dùng chung cho mọi nhân vật; không quyết định input hay AI.
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
@@ -20,15 +21,26 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private HitboxData hitbox; // Cấu hình local; không cần Collider2D trên vỏ nhân vật.
     private ISpatialManager spatial;
     private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
-    private SkillManager skillManager; // Manager sở hữu cả skill ban đầu và skill nhận thêm.
+    private SkillManager skillManager; // Chỉ quản lý skill nhận thêm trong gameplay.
+    private SkillFactory skillFactory; // CharacterSkills tự tạo và sở hữu skill ban đầu.
     private CharacterRuntimePool runtimePool;
 
     #endregion
 
-    #region Enemy Visual Feedback
+    #region Sprite Colors And Enemy Death Feedback
 
-    [SerializeField] private EnemyCombatFeedback.Settings enemyFeedbackSettings = new EnemyCombatFeedback.Settings();
-    private EnemyCombatFeedback enemyFeedback; // Chỉ tạo cho enemy; PlayerManager giữ feedback riêng của player.
+    [SerializeField, Min(0.01f)] private float hitFlashDuration = 0.12f;
+    [SerializeField, Range(0f, 1f)] private float hitWhiteBlend = 0.22f;
+    [SerializeField, Range(0f, 1f)] private float statusColorBlend = 0.55f;
+    [SerializeField] private Color poisonColor = new Color(0.65f, 0.35f, 1f, 1f);
+    [SerializeField] private Color burnColor = new Color(1f, 0.45f, 0.15f, 1f);
+    [SerializeField] private Color slowColor = new Color(0.35f, 0.8f, 1f, 1f);
+    private EnemyCombatFeedback enemyFeedback; // Chỉ giữ animation chết của enemy; màu sprite dùng chung ở view.
+    private ICharacterFeedbackSource feedbackSource;
+    private Color[] originalSpriteColors;
+    private readonly bool[] statusColors = new bool[4];
+    private Tween hitFlash;
+    private bool flashing;
 
     #endregion
 
@@ -62,12 +74,13 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     [Inject]
     public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
         ISpatialManager spatial, ICharacterSearch search, ITimerManager timers,
-        CharacterRuntimePool runtimePool, SkillManager skillManager)
+        CharacterRuntimePool runtimePool, SkillManager skillManager, SkillFactory skillFactory)
     {
         this.movement = movement;
         this.pools = pools;
         this.effectManager = effectManager;
         this.skillManager = skillManager;
+        this.skillFactory = skillFactory;
         this.runtimePool = runtimePool;
         this.spatial = spatial;
         Search = search;
@@ -111,10 +124,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         animators = visual.GetComponentsInChildren<Animator>(true);
         foreach (SpriteRenderer sprite in sprites)
             sprite.flipX = false;
+        originalSpriteColors = new Color[sprites.Length];
+        for (int i = 0; i < sprites.Length; i++) originalSpriteColors[i] = sprites[i].color;
+        feedbackSource = controller as ICharacterFeedbackSource;
+        if (feedbackSource != null) feedbackSource.FeedbackChanged += OnFeedbackChanged;
         if (runtime.Team == CharacterTeam.Enemy)
-            enemyFeedback = new EnemyCombatFeedback(this, visual.transform, sprites, animators,
-                enemyFeedbackSettings, visual.GetComponent<SpriteDeathAnimation>());
-        Skills = new CharacterSkills(this, template.Skills, skillManager);
+            enemyFeedback = new EnemyCombatFeedback(this, visual.transform, animators,
+                visual.GetComponent<SpriteDeathAnimation>());
+        Skills = new CharacterSkills(this, template.Skills, skillFactory);
         // Enemy bắt đầu ẩn; manager camera sẽ bật nếu visual giao khung hình trước khi render.
         visual.SetActive(runtime.Team != CharacterTeam.Enemy);
     }
@@ -132,6 +149,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         movementHandle = movement.Register(transform);
         SpatialHandle = spatial.Register(this);
         Skills?.SetPaused(false);
+        skillManager.SetOwnerPaused(this, false);
         effectManager.SetPaused(this, RuntimeData, false);
         controller?.SetPaused(false);
         ResetVisualAnimation();
@@ -145,6 +163,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             return;
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         controller.Tick(this, RuntimeData);
+        Skills?.Tick(Time.deltaTime);
     }
 
     #endregion
@@ -169,6 +188,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
             animator.Rebind();
             animator.Update(0f);
         }
+        ApplySpriteColors(); // Bật lại visual/camera không làm mất màu trạng thái đang còn hiệu lực.
     }
 
     // Tính từ local bounds và Transform mới, kể cả khi visual đang tắt và Renderer.bounds chưa được cập nhật.
@@ -257,8 +277,87 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     internal void NotifyDamageReceived(DamageInfo damage, DamageResult result)
     {
         if (!result.Accepted) return;
-        enemyFeedback?.Flash();
         DamageReceived?.Invoke(damage, result);
+    }
+
+    // EffectManager chỉ chuyển thông báo; controller quyết định trạng thái và phát sự kiện cho view.
+    internal void NotifyEffectFeedback(CharacterRuntimeData runtime, ulong generation,
+        CharacterFeedbackKind kind, bool active)
+    {
+        feedbackSource?.NotifyEffect(this, runtime, generation, kind, active);
+    }
+
+    private void OnFeedbackChanged(CharacterFeedbackKind kind, bool active)
+    {
+        switch (kind)
+        {
+            case CharacterFeedbackKind.Hit:
+                if (!active || !isActiveAndEnabled) return;
+                hitFlash.Stop();
+                flashing = true;
+                CharacterRuntimeData identity = RuntimeData;
+                ulong generation = identity.Generation;
+                hitFlash = Tween.Delay(this, hitFlashDuration, view =>
+                {
+                    if (!ReferenceEquals(view.RuntimeData, identity) || identity.Generation != generation) return;
+                    view.flashing = false;
+                    view.ApplySpriteColors();
+                });
+                break;
+            case CharacterFeedbackKind.Poison:
+            case CharacterFeedbackKind.Burn:
+            case CharacterFeedbackKind.Slow:
+                statusColors[(int)kind] = active;
+                break;
+            default: return;
+        }
+        ApplySpriteColors();
+    }
+
+    private Color StatusColor(CharacterFeedbackKind kind)
+    {
+        switch (kind)
+        {
+            case CharacterFeedbackKind.Poison: return poisonColor;
+            case CharacterFeedbackKind.Burn: return burnColor;
+            case CharacterFeedbackKind.Slow: return slowColor;
+            default: return Color.white;
+        }
+    }
+
+    // Trộn các trạng thái còn hiệu lực; hit chỉ pha trắng nhẹ lên màu hiện tại, giữ alpha gốc.
+    private void ApplySpriteColors()
+    {
+        if (sprites == null || originalSpriteColors == null) return;
+        Color combined = new Color(0f, 0f, 0f, 0f);
+        int count = 0;
+        for (int i = 1; i < statusColors.Length; i++)
+            if (statusColors[i]) { combined += StatusColor((CharacterFeedbackKind)i); count++; }
+        Color tint = count > 0 ? Color.Lerp(Color.white, combined / count, statusColorBlend) : Color.white;
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            if (sprites[i] == null) continue;
+            Color color = originalSpriteColors[i] * tint;
+            if (flashing) color = Color.Lerp(color, Color.white, hitWhiteBlend);
+            color.a = originalSpriteColors[i].a;
+            sprites[i].color = color;
+        }
+    }
+
+    private void StopHitFlash()
+    {
+        hitFlash.Stop();
+        flashing = false;
+        ApplySpriteColors();
+    }
+
+    private void ClearFeedback()
+    {
+        if (feedbackSource != null) feedbackSource.FeedbackChanged -= OnFeedbackChanged;
+        feedbackSource = null;
+        Array.Clear(statusColors, 0, statusColors.Length);
+        StopHitFlash();
+        originalSpriteColors = null;
     }
 
     // EnemyController quyết định lúc thu hồi; view chỉ phát các frame chết trên visual con.
@@ -282,7 +381,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
                     if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
                     {
                         try { effectManager.ClearTarget(this, identity); }
-                        finally { if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation) controller?.Dispose(); }
+                        finally
+                        {
+                            if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
+                            {
+                                ClearFeedback();
+                                controller?.Dispose();
+                            }
+                        }
                     }
                 }
             }
@@ -299,16 +405,20 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         Skills = null;
         try { previous?.Dispose(); }
         catch (Exception exception) { Debug.LogException(exception, this); }
+        try { skillManager?.RemoveOwner(this); }
+        catch (Exception exception) { Debug.LogException(exception, this); }
     }
 
     // * Unity đang thay đổi trạng thái cả hierarchy trong OnDisable: chỉ dừng movement, không thu hồi/reparent visual.
     // * Giữ data/hành vi để việc tắt rồi bật tạm thời có thể tiếp tục cùng cá thể.
     private void OnDisable()
     {
+        StopHitFlash();
         enemyFeedback?.SetPaused(true);
         StopMovement();
         StopSpatial();
         Skills?.SetPaused(true);
+        skillManager?.SetOwnerPaused(this, true);
         controller?.SetPaused(true);
         if (RuntimeData != null) effectManager?.SetPaused(this, RuntimeData, true);
         Deactivated?.Invoke();
@@ -322,6 +432,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     private void ClearController()
     {
+        ClearFeedback();
         ICharacterController previous = controller;
         controller = null;
         try { previous?.Dispose(); }

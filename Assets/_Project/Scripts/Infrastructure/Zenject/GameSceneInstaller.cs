@@ -20,8 +20,6 @@ public sealed class GameSceneInstaller : MonoInstaller
     #endregion
 
     [Header("Player Damage Feedback")]
-    [SerializeField, Min(0.01f)] private float damageFlashDuration = 0.12f;
-    [SerializeField] private Color damageFlashColor = new Color(1f, 0.2f, 0.2f, 1f);
 
     #region Gameplay Databases
 
@@ -76,7 +74,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<RunLevelService>().AsSingle().NonLazy();
         Container.Bind<LevelManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<CharacterFactory>().AsSingle().WithArguments(characterPrefab);
-        Container.BindInstance(new PlayerManager.Settings(defaultPlayerType, damageFlashDuration, damageFlashColor));
+        Container.BindInstance(new PlayerManager.Settings(defaultPlayerType));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
         Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Điều phối trên Canvas; controller từng panel tự nhận dependency qua scene injection.

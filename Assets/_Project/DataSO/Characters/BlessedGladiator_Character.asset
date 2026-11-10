@@ -21,22 +21,12 @@ MonoBehaviour:
     Scale: {x: 1, y: 1, z: 1}
     Offset: {x: 0.019989705, y: 0, z: 0}
     Hitbox:
-      Size: {x: 0.12002058, y: 0.16}
-      Offset: {x: -0.023002058, y: 0.08}
+      Size: {x: 0.11445118, y: 0.15475571}
+      Offset: {x: -0.024475697, y: 0.07934447}
     HealthBarSize: {x: 66.54, y: 16.06}
     HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
     HealthBarScale: 0.0035
     ShieldThickness: 3
-  growthInterval: 50
-  growthPerStep:
-    maxHealth: 5
-    damage: 0
-    defense: 0
-    moveSpeed: 0
-    critChance: 0
-    critDamageMultiplier: 0
-    effectResistance: 0
-    effectHit: 0
   baseStats:
     maxHealth: 100
     damage: 10

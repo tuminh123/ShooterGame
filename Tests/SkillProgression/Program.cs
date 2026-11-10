@@ -9,7 +9,15 @@ class Program
  static int checks;
  static void Equal(float actual,float expected,string label){if(Math.Abs(actual-expected)>.001f)throw new Exception(label+": "+actual+" != "+expected);checks++;}
  static void True(bool condition,string label){if(!condition)throw new Exception(label);checks++;}
- static void Set(object target,string field,object value)=>target.GetType().GetField(field,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(target,value);
+ static void Set(object target,string field,object value)
+ {
+  for(Type type=target.GetType();type!=null;type=type.BaseType)
+  {
+   FieldInfo member=type.GetField(field,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.DeclaredOnly);
+   if(member!=null){member.SetValue(target,value);return;}
+  }
+  throw new MissingFieldException(target.GetType().Name,field);
+ }
 
  static SkillDataSO Definition(ISkill[] actions,SkillBehaviourData[][] data,SkillSource source=SkillSource.Gameplay,int level=1)
  {
@@ -27,12 +35,12 @@ class Program
   public PoolManager Pools=new PoolManager();public CombatSpawner Spawner=new CombatSpawner();public Timers Timers=new Timers();
   public EffectManager Effects;public Search Search=new Search();public CharacterManager Characters=new CharacterManager();public LevelManager Levels=new LevelManager();
   public SkillFactory Factory;public SkillManager Manager;
-  public World(){Effects=new EffectManager(new EffectRuntimePool(new ClassPool<SlowEffectRuntime>(),new ClassPool<DamageOverTimeEffectRuntime>()),Timers);Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools,Effects);Manager=new SkillManager(Levels,new Clock(),Factory,Characters);}
+  public World(){Effects=new EffectManager(new EffectRuntimePool(new ClassPool<SlowEffectRuntime>(),new ClassPool<DamageOverTimeEffectRuntime>()),Timers);Factory=new SkillFactory(Spawner,new ShootBehaviorFactory(),new ProjectileMoveFactory(),Pools,Effects);Manager=new SkillManager(Levels,new Clock(),Factory);}
   public CharacterView Character(CharacterTeam team,params SkillDataSO[] definitions)
   {
    var template=new CharacterDataSO{CharacterType=CharacterType.BlessedGladiator,Team=team,BaseStats=new BaseStats{maxHealth=1000,damage=20,moveSpeed=1,critDamageMultiplier=50},Skills=definitions};
    var character=new CharacterView{RuntimeData=new CharacterRuntimeData(template),Search=Search,Timers=Timers};
-   character.EffectManager=Effects;character.Skills=new CharacterSkills(character,definitions,Manager);
+   character.EffectManager=Effects;character.FeedbackController=new FeedbackController();character.Skills=new CharacterSkills(character,definitions,Factory);
    Characters.Characters[character]=template;Search.Targets.Add(character);return character;
   }
  }
@@ -185,6 +193,8 @@ class Program
   late.Invoke(controller,null);True(!view.Visible,"popup waits for slow motion beat");
   Time.unscaledTime+=.31f;late.Invoke(controller,null);True(view.Visible,"popup appears after real time delay");Equal(Time.timeScale,0,"popup pauses gameplay after slow motion");
   late.Invoke(controller,null); // SetVisible yêu cầu render lại ở frame kế tiếp trước khi cho chọn.
+  view.Reroll();view.Reroll();view.Choose(0);Equal(controller.PendingSkillChoices,2,"reroll and same-frame select do not consume reward");
+  late.Invoke(controller,null);late.Invoke(controller,null);True(view.Visible&&view.Offers.Count==1,"small catalog remains selectable after reroll");Equal(Time.timeScale,0,"reroll keeps popup pause");
   view.Choose(0);late.Invoke(controller,null);True(view.Visible&&controller.PendingSkillChoices==1,"queued level presents next choices");Equal(Time.timeScale,0,"queued reward does not restart slow motion");
   view.Choose(0);late.Invoke(controller,null);True(!view.Visible,"last reward closes popup");Equal(Time.timeScale,1,"closing popup restores normal speed");
   w.Levels.GainLevels(2,3);Equal(Time.timeScale,.65f,"later level starts a new slow motion beat");
@@ -198,28 +208,139 @@ class Program
   Time.timeScale=1f;
   var w=new World();var enemy=w.Character(CharacterTeam.Enemy);var visual=new Transform{position=new Vector3(2,3,0)};
   var walkSprite=new Sprite();var sprites=new[]{new SpriteRenderer{color=new Color(.8f,.6f,.4f,.5f),sprite=walkSprite}};var animator=new Animator();
-  var settings=new EnemyCombatFeedback.Settings{hitDuration=.12f};
   var frames=new[]{new Sprite(),new Sprite(),new Sprite(),new Sprite(),new Sprite(),new Sprite()};
   var animation=new SpriteDeathAnimation();Set(animation,"target",sprites[0]);Set(animation,"frames",frames);
-  var feedback=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);
-  feedback.Flash();Equal(sprites[0].color.g,.12f,"hit flashes red");Equal(sprites[0].color.a,.5f,"flash preserves original alpha");
-  PrimeTween.TweenHost.Advance(.08f);feedback.Flash();PrimeTween.TweenHost.Advance(.05f);Equal(sprites[0].color.g,.12f,"old flash cannot reset a newer hit");
-  PrimeTween.TweenHost.Advance(.08f);Equal(sprites[0].color.g,.6f,"flash restores original tint");
-  int completed=0;feedback.Flash();True(feedback.PlayDeath(()=>completed++),"visible enemy starts sprite death");True(!animator.enabled,"death disables walking animator");
+  var feedback=new EnemyCombatFeedback(enemy,visual,new[]{animator},animation);
+  int completed=0;True(feedback.PlayDeath(()=>completed++),"visible enemy starts sprite death");True(!animator.enabled,"death disables walking animator");
   True(sprites[0].sprite==frames[0],"death starts at first sprite");True(!feedback.PlayDeath(()=>completed++),"death presentation cannot start twice");
-  PrimeTween.TweenHost.Advance(.13f);Equal(sprites[0].color.g,.6f,"lethal flash restores during death animation");
   w.Timers.Advance(.1f);True(sprites[0].sprite==frames[1],"death advances sprite at frame rate");Equal(completed,0,"death waits for all frames");
   feedback.SetPaused(true);w.Timers.Advance(1);Equal(completed,0,"temporary disable pauses death animation");feedback.SetPaused(false);
   w.Timers.Advance(.41f);Equal(completed,1,"death animation completes once");True(sprites[0].sprite==frames[5],"death ends on last sprite");
   Equal(visual.position.x,2,"sprite death does not launch enemy");Equal(visual.localEulerAngles.z,0,"sprite death does not rotate enemy");
   feedback.Dispose();True(sprites[0].sprite==walkSprite,"pool cleanup restores walk sprite");True(animator.enabled,"pool cleanup restores animator");
-  var cancelled=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);cancelled.Flash();cancelled.PlayDeath(()=>completed++);cancelled.Dispose();
+  var cancelled=new EnemyCombatFeedback(enemy,visual,new[]{animator},animation);cancelled.PlayDeath(()=>completed++);cancelled.Dispose();
   w.Timers.Advance(1);PrimeTween.TweenHost.Advance(1);Equal(completed,1,"despawn cancels delayed death callback");Equal(sprites[0].color.g,.6f,"despawn restores flash tint");
-  var stale=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);stale.PlayDeath(()=>completed++);
+  var stale=new EnemyCombatFeedback(enemy,visual,new[]{animator},animation);stale.PlayDeath(()=>completed++);
   enemy.RuntimeData.InitializeSpawn(new CharacterDataSO{Team=CharacterTeam.Enemy,BaseStats=BaseStats.Default},default);w.Timers.Advance(1);Equal(completed,1,"old spawn cannot complete death on reused runtime");stale.Dispose();
-  enemy.IsVisualVisible=false;var hidden=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings,animation);True(!hidden.PlayDeath(()=>completed++),"hidden enemy skips death visual");hidden.Dispose();
-  enemy.IsVisualVisible=true;var missing=new EnemyCombatFeedback(enemy,visual,sprites,new[]{animator},settings);True(!missing.PlayDeath(()=>completed++),"missing sprite animation uses immediate cleanup fallback");missing.Dispose();
+  enemy.IsVisualVisible=false;var hidden=new EnemyCombatFeedback(enemy,visual,new[]{animator},animation);True(!hidden.PlayDeath(()=>completed++),"hidden enemy skips death visual");hidden.Dispose();
+  enemy.IsVisualVisible=true;var missing=new EnemyCombatFeedback(enemy,visual,new[]{animator});True(!missing.PlayDeath(()=>completed++),"missing sprite animation uses immediate cleanup fallback");missing.Dispose();
   w.Manager.Dispose();enemy.Release();
+ }
+
+ static void CheckWaveProgress()
+ {
+  var enemy=new CharacterDataSO{Team=CharacterTeam.Enemy};
+  var first=new WaveConfigSO.Wave{duration=10,spawnCount=2,enemies=new[]{enemy}};
+  var second=new WaveConfigSO.Wave{duration=20,spawnCount=3,enemies=new[]{enemy}};
+  var config=new WaveConfigSO();Set(config,"waves",new[]{first,second});config.Validate();
+  var progress=new WaveProgress();progress.Reset(100);
+  Equal(progress.EnemyLevel,1,"first wave spawns level-one enemies");
+  True(!progress.Advance(config,109,20),"timed wave waits for duration");
+  True(progress.Advance(config,110,20)&&progress.WaveIndex==1,"timed wave advances despite living enemies");Equal(progress.EnemyLevel,2,"second wave increases enemy level");
+  True(progress.Advance(config,130,20)&&progress.WaveIndex==1,"last timed wave repeats itself");Equal(progress.EnemyLevel,3,"repeating last wave increases enemy level");
+  True(!progress.Advance(config,140,0),"last wave keeps its own duration rather than first wave duration");
+  True(progress.Advance(config,150,0)&&progress.WaveIndex==1&&progress.EnemyLevel==4,"each final-wave duration increases enemy level");
+  progress.Reset(0);True(progress.Advance(config,95,3)&&progress.WaveIndex==1&&progress.EnemyLevel==6,"long frame skips repeated last-wave durations and preserves remainder");
+  True(!progress.Advance(config,109,3)&&progress.Advance(config,110,3)&&progress.WaveIndex==1&&progress.EnemyLevel==7,"last-wave remainder transitions at exact boundary");
+  var single=new WaveConfigSO();Set(single,"waves",new[]{first});progress.Reset(0);progress.RecordSpawn();
+  True(progress.Advance(single,10,20)&&progress.WaveIndex==0&&progress.EnemyLevel==2,"single timed template repeats as next level");Equal(progress.SpawnedInWave,0,"repeating same template resets spawn counter");
+  progress.Reset(500);True(progress.EnemyLevel==1&&progress.WaveIndex==0&&!progress.Advance(single,509,0),"new run resets level, index and timer");
+  Set(config,"advanceCondition",WaveAdvanceCondition.AfterEnemiesCleared);config.Validate();progress.Reset(0);
+  True(!progress.Advance(config,1000,0),"clear mode ignores time and waits for successful spawn quota");
+  progress.RecordSpawn();True(progress.CanSpawn(config)&&!progress.Advance(config,1000,0),"partial clear quota cannot advance");
+  progress.RecordSpawn();True(!progress.CanSpawn(config)&&!progress.Advance(config,1000,1),"quota stops spawning while any enemy lives");
+  True(progress.Advance(config,1000,0)&&progress.WaveIndex==1&&progress.EnemyLevel==2,"clear quota advances when no living enemies remain");
+  Equal(progress.SpawnedInWave,0,"new wave starts a fresh quota");
+  progress.RecordSpawn();progress.RecordSpawn();True(!progress.Advance(config,2000,0),"second template uses its own quota");progress.RecordSpawn();
+  True(progress.Advance(config,2000,0)&&progress.WaveIndex==1&&progress.EnemyLevel==3&&progress.CanSpawn(config),"last clear wave repeats itself at higher level");
+  progress.RecordSpawn();progress.RecordSpawn();True(progress.CanSpawn(config)&&!progress.Advance(config,3000,0),"repeated final wave keeps final quota rather than first quota");
+  progress.RecordSpawn();True(!progress.CanSpawn(config)&&!progress.Advance(config,3000,1),"repeated final wave waits for survivors to die");
+  True(progress.Advance(config,3000,0)&&progress.WaveIndex==1&&progress.EnemyLevel==4,"next cleared final batch increases level again");
+  Set(single,"advanceCondition",WaveAdvanceCondition.AfterEnemiesCleared);progress.Reset(0);progress.RecordSpawn();progress.RecordSpawn();
+  True(progress.Advance(single,50,0)&&progress.WaveIndex==0&&progress.EnemyLevel==2&&progress.CanSpawn(single),"single clear template also repeats at higher level");
+  var enemyLevels=new CharacterLevelConfigSO();Set(enemyLevels,"characterType",CharacterType.ForagingMaggot);Set(enemyLevels,"maxLevel",3);Set(enemyLevels,"bonusPerLevel",new StatBonus{maxHealth=20});
+  Equal(enemyLevels.GetTotalBonus(1).maxHealth,0,"enemy level one retains base HP");Equal(enemyLevels.GetTotalBonus(2).maxHealth,20,"wave two adds one level bonus");Equal(enemyLevels.GetTotalBonus(9).maxHealth,40,"enemy growth respects config level cap");
+  var playerLevels=new CharacterLevelConfigSO();Set(playerLevels,"bonusPerLevel",new StatBonus{maxHealth=20,damage=2,defense=2});
+  Equal(playerLevels.GetTotalBonus(3).defense,4,"shared config retains player permanent growth");True(playerLevels.TryGetUpgradeCost(1,out long cost)&&cost==100,"player upgrade cost remains available");
+  Set(config,"advanceCondition",WaveAdvanceCondition.AfterDuration);first.duration=float.NaN;bool rejected=false;try{config.Validate();}catch(InvalidOperationException){rejected=true;}True(rejected,"timed wave rejects NaN duration");first.duration=10;
+  Set(config,"advanceCondition",WaveAdvanceCondition.AfterEnemiesCleared);first.spawnCount=0;rejected=false;try{config.Validate();}catch(InvalidOperationException){rejected=true;}True(rejected,"clear mode rejects zero quota");first.spawnCount=2;
+ }
+ static void CheckCharacterFeedback()
+ {
+  foreach(CharacterTeam team in new[]{CharacterTeam.Player,CharacterTeam.Enemy})
+  {
+   var w=new World();var owner=w.Character(team);var source=CharacterSearch.OpponentOf(team);
+   var events=new List<(CharacterFeedbackKind Kind,bool Active)>();
+   ICharacterFeedbackSource feedback=owner.FeedbackController;feedback.FeedbackChanged+=(kind,active)=>events.Add((kind,active));
+   int Count(CharacterFeedbackKind kind,bool active){int n=0;foreach(var e in events)if(e.Kind==kind&&e.Active==active)n++;return n;}
+   var poison=new PoisonEffect();Set(poison,"duration",2f);var burn=new BurnEffect();Set(burn,"duration",3f);
+   var slowA=new SlowEffect(.1f);Set(slowA,"duration",1f);var slowB=new SlowEffect(.2f);Set(slowB,"duration",3f);
+   True(w.Effects.Apply(poison,new CharacterTarget(owner),source),"poison applies to either character team");
+   True(w.Effects.Apply(poison,new CharacterTarget(owner),source),"poison refresh succeeds");Equal(Count(CharacterFeedbackKind.Poison,true),1,"refresh does not duplicate active feedback");
+   w.Effects.Apply(burn,new CharacterTarget(owner),source);w.Effects.Apply(slowA,new CharacterTarget(owner),source);w.Effects.Apply(slowB,new CharacterTarget(owner),source);
+   Equal(Count(CharacterFeedbackKind.Burn,true),1,"burn identified separately from poison shared runtime");Equal(Count(CharacterFeedbackKind.Slow,true),1,"stacked slow publishes one activation");
+   w.Timers.Advance(1f);Equal(Count(CharacterFeedbackKind.Slow,false),0,"one expired slow cannot clear another active slow");
+   w.Timers.Advance(1f);Equal(Count(CharacterFeedbackKind.Poison,false),1,"poison expiration publishes removal");Equal(Count(CharacterFeedbackKind.Burn,false),0,"poison expiration keeps burn active");
+   w.Timers.Advance(1f);Equal(Count(CharacterFeedbackKind.Slow,false),1,"last slow removal restores state");Equal(Count(CharacterFeedbackKind.Burn,false),1,"burn expiration publishes removal");
+   int hits=Count(CharacterFeedbackKind.Hit,true);
+   owner.FeedbackController.GrantShield(owner,owner.RuntimeData,10);Equal(Count(CharacterFeedbackKind.Hit,true),hits,"shield gain does not flash as damage");
+   var damage=owner.ReceiveDamage(new DamageInfo(2,source));True(damage.ShieldLost==2&&damage.HealthLost==0,"shield-only hit accepted");Equal(Count(CharacterFeedbackKind.Hit,true),hits+1,"shield-only hit emits feedback once");
+   owner.ReceiveDamage(new DamageInfo(2,team));Equal(Count(CharacterFeedbackKind.Hit,true),hits+1,"friendly rejected hit emits no feedback");
+   owner.FeedbackController.ChangeHealth(owner,owner.RuntimeData,-2);Equal(Count(CharacterFeedbackKind.Hit,true),hits+2,"direct health loss emits hit feedback");
+   owner.FeedbackController.ChangeHealth(owner,owner.RuntimeData,2);Equal(Count(CharacterFeedbackKind.Hit,true),hits+2,"health gain emits no hit feedback");
+   feedback.NotifyEffect(owner,owner.RuntimeData,owner.RuntimeData.Generation+1,CharacterFeedbackKind.Poison,true);Equal(Count(CharacterFeedbackKind.Poison,true),1,"stale spawn notification ignored");
+   int logs=0;Debug.ExceptionSink=_=>logs++;Action<CharacterFeedbackKind,bool> failing=(kind,active)=>throw new Exception("injected feedback listener failure");feedback.FeedbackChanged+=failing;
+   owner.ReceiveDamage(new DamageInfo(1,source));feedback.FeedbackChanged-=failing;Debug.ExceptionSink=null;Equal(logs,1,"feedback listener error is isolated");
+   w.Effects.Apply(poison,new CharacterTarget(owner),source);w.Effects.ClearTarget(owner,owner.RuntimeData);Equal(Count(CharacterFeedbackKind.Poison,false),2,"explicit cleanup removes status feedback");
+   w.Manager.Dispose();owner.Release();
+  }
+ }
+
+ static void CheckRerollPool()
+ {
+  var world=new World();var owner=world.Character(CharacterTeam.Player);var catalog=new List<SkillDataSO>();
+  for(int i=0;i<6;i++)catalog.Add(Definition(new ISkill[]{new StatBonusSkill()},new[]{new SkillBehaviourData[]{new StatBonusData{value=i+1}}}));
+  var pool=new SkillChoicePool(new System.Random(42));var offers=new List<SkillChoiceOffer>();
+  pool.Build(catalog,world.Manager,owner,offers);var previous=new HashSet<SkillDataSO>();foreach(var offer in offers)previous.Add(offer.Definition);
+  pool.Build(catalog,world.Manager,owner,offers,previousOffers:offers);
+  Equal(offers.Count,3,"reroll keeps three choices when available");foreach(var offer in offers)True(!previous.Contains(offer.Definition),"reroll prioritizes previously unseen skill");
+  var small=catalog.GetRange(0,4);pool.Build(small,world.Manager,owner,offers);previous.Clear();foreach(var offer in offers)previous.Add(offer.Definition);
+  pool.Build(small,world.Manager,owner,offers,previousOffers:offers);
+  var unique=new HashSet<SkillDataSO>();bool fresh=false;foreach(var offer in offers){True(unique.Add(offer.Definition),"reroll never duplicates cards");fresh|=!previous.Contains(offer.Definition);}
+  True(fresh&&offers.Count==3,"limited pool includes alternative and fills remaining slots");
+  var blocked=new HashSet<SkillDataSO>{catalog[5]};world.Manager.GrantOrUpgrade(catalog[4],owner);
+  pool.Build(catalog,world.Manager,owner,offers,excluded:blocked,previousOffers:offers);
+  foreach(var offer in offers)True(offer.Definition!=catalog[4]&&offer.Definition!=catalog[5],"reroll excludes maxed and failed skills");
+  world.Manager.Dispose();owner.Release();
+ }
+
+ static void CheckShooters()
+ {
+  var factory=new ShootBehaviorFactory();var straight=factory.CreateRuntime(new StraightShooter());
+  for(int i=0;i<5;i++)
+  {
+   Vector2 direction=straight.GetDirection(Vector2.up,i,5);
+   Equal(direction.x,0,"straight keeps aim x");Equal(direction.y,1,"straight keeps aim y");
+  }
+  var template=new FanShooter();var fan=factory.CreateRuntime(template);
+  True(!ReferenceEquals(template,fan),"fan runtime is separate from template");
+  for(int i=0;i<5;i++)
+  {
+   Vector2 direction=factory.ShootingHandle(fan,Vector2.right,i,5);
+   float angle=(-30f+15f*i)*Mathf.Deg2Rad;
+   Equal(direction.x,Mathf.Cos(angle),"fan spaces five projectiles evenly x");
+   Equal(direction.y,Mathf.Sin(angle),"fan spaces five projectiles evenly y");
+  }
+  Vector2 single=fan.GetDirection(Vector2.up,0,1);Equal(single.x,0,"single fan projectile follows aim x");Equal(single.y,1,"single fan projectile follows aim y");
+  Vector2 evenLeft=fan.GetDirection(Vector2.up,0,2),evenRight=fan.GetDirection(Vector2.up,1,2);
+  Equal(evenLeft.x,.5f,"even fan rotates around current aim");Equal(evenRight.x,-.5f,"even fan is symmetric");
+  foreach(float invalid in new[]{-1f,361f,float.NaN,float.PositiveInfinity})
+  {
+   Set(template,"spreadAngle",invalid);bool rejected=false;try{factory.CreateRuntime(template);}catch(InvalidOperationException){rejected=true;}
+   True(rejected,"fan rejects invalid angle");
+  }
+  Set(template,"spreadAngle",0f);fan=factory.CreateRuntime(template);Equal(fan.GetDirection(Vector2.right,0,3).y,0,"zero angle fan follows aim");
+  var shooting=new ShootingData{shooter=new FanShooter(),projectileCount=5};shooting.Validate();
  }
 
  static void Main(string[] args)
@@ -227,6 +348,10 @@ class Program
   if(Array.IndexOf(args,"--effects-only")>=0){CheckEffects();Console.WriteLine("PASS: "+checks+" focused effect checks.");return;}
   if(Array.IndexOf(args,"--stats-only")>=0){CheckVitals();CheckStats();Console.WriteLine("PASS: "+checks+" focused stat/vitals checks.");return;}
   if(Array.IndexOf(args,"--vitals-only")>=0){CheckVitals();Console.WriteLine("PASS: "+checks+" focused vitals checks.");return;}
+  CheckShooters();
+  CheckRerollPool();
+  CheckCharacterFeedback();
+  CheckWaveProgress();
   CheckEffects();
   CheckLevelUpPresentation();
   CheckEnemyFeedback();
@@ -250,11 +375,36 @@ class Program
   {
    var world=new World();
    var characterSkill=Definition(new ISkill[]{new ShootingSkill()},new[]{new SkillBehaviourData[]{new ShootingData()},new SkillBehaviourData[]{new ShootingData{projectileCount=2}}},SkillSource.Character,2);
-   var owner=world.Character(CharacterTeam.Player,characterSkill);world.Manager.TryGetRuntime(characterSkill,owner,out var runtime);
+   var owner=world.Character(CharacterTeam.Player,characterSkill);owner.Skills.TryGetRuntime(characterSkill,out var runtime);
    Equal(runtime.RunLevel,2,"character configured level");True(!runtime.TryUpgrade()&&!world.Manager.GrantOrUpgrade(characterSkill,owner),"character rejects gameplay upgrade");
+   True(!world.Manager.TryGetRuntime(characterSkill,owner,out _),"character runtime is not owned by gameplay manager");
+   var slots=new List<SkillRuntime>();world.Manager.GetOwnedSkills(owner,slots);Equal(slots.Count,0,"innate skill does not create gameplay slot");
+   world.Manager.Tick();Equal(world.Spawner.Shots.Count,0,"gameplay scheduler does not tick character skill");
+   owner.Skills.Tick(0f);Equal(world.Spawner.Shots.Count,0,"paused game does not cast character skill");
+   owner.Disable();owner.Skills.Tick(.1f);Equal(world.Spawner.Shots.Count,0,"disabled character does not cast");
+   var victim=world.Character(CharacterTeam.Enemy);victim.transform.position=new Vector3(.5f,0);
+   owner.Enable();owner.Skills.Tick(.1f);Equal(world.Spawner.Shots.Count,2,"character scheduler casts configured skill");
+   var acquired=Definition(new ISkill[]{new StatBonusSkill()},new[]{new SkillBehaviourData[]{new StatBonusData{value=5}}});
+   True(world.Manager.GrantOrUpgrade(acquired,owner),"acquire gameplay alongside character skill");
+   world.Manager.GetOwnedSkills(owner,slots);True(slots.Count==1&&slots[0].Definition==acquired,"slots contain only acquired gameplay skill");
+   world.Levels.Reset();True(runtime.IsActive&&owner.Skills.TryGetRuntime(characterSkill,out var retained)&&ReferenceEquals(runtime,retained),"run reset preserves character runtime and cooldown");
+   Equal(owner.RuntimeData.FinalStats.defense,0,"reset removes only acquired modifier");
    var database=new SkillDatabaseSO();var entry=new SkillDatabaseSO.Entry();Set(entry,"skill",characterSkill);Set(entry,"availableInRunChoices",true);Set(database,"skills",new List<SkillDatabaseSO.Entry>{entry});
    bool rejected=false;try{database.Validate();}catch(InvalidOperationException){rejected=true;}True(rejected,"gameplay database rejects character skill");
-   world.Manager.Dispose();owner.Release();
+   world.Manager.Dispose();True(runtime.IsActive,"disposing gameplay manager does not dispose character skill");
+   owner.Release();True(!runtime.IsActive,"releasing character disposes its own runtime");victim.Release();
+  }
+  // Buff và visual ban đầu đi theo vòng đời nhân vật, không theo reset trận.
+  {
+   var world=new World();var visual=new SkillAreaVisual();
+   var innate=Definition(new ISkill[]{new StatBonusSkill(),new OrbitSawSkill()},new[]{new SkillBehaviourData[]{new StatBonusData{stat=StatType.Damage,value=3},new OrbitSawData{visualPrefab=visual}}},SkillSource.Character);
+   var owner=world.Character(CharacterTeam.Player,innate);owner.Skills.TryGetRuntime(innate,out var runtime);
+   owner.Skills.Tick(.1f);Equal(world.Pools.Active.Count,1,"character owns saw visual");
+   owner.RuntimeData.SetVitals(500,0);world.Levels.Reset();
+   Equal(owner.RuntimeData.FinalStats.damage,23,"reset retains innate modifier");Equal(owner.RuntimeData.CurrentHealth,500,"reset does not refill living character");
+   owner.ReceiveDamage(new DamageInfo(10000,CharacterTeam.Enemy));
+   True(!runtime.IsActive,"death disposes character runtime");Equal(world.Pools.Active.Count,0,"death returns innate visual");Equal(owner.RuntimeData.FinalStats.damage,20,"death removes innate modifier");
+   owner.Release();world.Manager.Dispose();
   }
   // Buff theo cấp thay giá trị cũ, không cộng chồng.
   {
@@ -279,7 +429,7 @@ class Program
    True(resets==1&&!reentrantStarted&&!game.StartRun(),"one reset per run and duplicate/reentrant start rejected");
    True(ui.ActivePanel==gameplay&&gameplay.Visible,"state bus routes playing to gameplay UI");Equal(Time.timeScale,1,"playing releases only game flow pause");
    w.Character(CharacterTeam.Enemy);var oldPlayer=players.CurrentPlayer;
-   True(game.WinRun()&&game.State==GameState.Won&&!game.LoseRun(),"win ends run once");True(w.Manager.RunCount==0,"game end clears both initial and acquired skill runtimes");Equal(Time.timeScale,0,"result pauses gameplay");
+   True(game.WinRun()&&game.State==GameState.Won&&!game.LoseRun(),"win ends run once");True(w.Manager.RunCount==0,"game end clears acquired skill runtimes");Equal(Time.timeScale,0,"result pauses gameplay");
    True(ui.ActivePanel==null,"unmapped result state closes old UI without fallback");
    True(game.StartRun()&&players.CurrentPlayer!=oldPlayer&&w.Characters.Characters.Count==1,"restart removes old player enemies and spawns fresh player");
    True(resource.Calls==1&&resets==2&&projectiles.Clears==2,"restart reuses prepared resources and clears old projectiles");

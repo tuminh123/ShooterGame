@@ -31,6 +31,7 @@ public abstract class EffectRuntime : ITimerListener
     internal bool IsActive; // False ngay khi bị gỡ, dù Remove/Reset có thể đang chờ callback kết thúc.
     internal bool IsMaintained; // Skill chủ động gỡ; không tham gia bảng gia hạn của effect có thời hạn.
     internal ulong Version; // Không reset khi trả pool; mỗi lượt thuê có phiên bản riêng.
+    internal bool FeedbackApplied;
 
     #endregion
 
@@ -82,6 +83,7 @@ public abstract class EffectRuntime : ITimerListener
         TargetIndex = -1;
         IsActive = false;
         IsMaintained = false;
+        FeedbackApplied = false;
     }
 
     #endregion

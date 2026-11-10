@@ -15,10 +15,10 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Toughness
-  description: Grants two defense while this passive is attached.
+  description: "While owned, grants +2 maximum DEF (shield capacity) and +2 current shield once. Existing shield loss is preserved. This passive does not regenerate depleted shield over time."
   icon: {fileID: 21300000, guid: 9b48aebbded0f48c782d54dd6078bd7a, type: 3}
   levels:
-  - description: "Grants two defense while this passive is attached."
+  - description: "While owned, grants +2 maximum DEF (shield capacity) and +2 current shield once. Existing shield loss is preserved. This passive does not regenerate depleted shield over time."
     behaviours:
     - {rid: 1002}
   behaviours:

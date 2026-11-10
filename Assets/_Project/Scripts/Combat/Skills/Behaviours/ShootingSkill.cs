@@ -83,7 +83,7 @@ public sealed class ShootingSkill : Skill
             if (!Owner.CanRun) break;
             Vector2 direction = Services.Shooters.ShootingHandle(shooter, aim.normalized, i, shot.projectileCount);
             var projectile = new ProjectileSpawnData(shot.bulletType, CharacterRuntimeData.CreateDamage(stats, team),
-                shot.speed, shot.lifetime, shot.hitRadius, move, effects, stats.effectHit);
+                shot.speed, shot.lifetime, move, effects, stats.effectHit);
             if (Services.Spawner.SpawnBullet(projectile, position, direction, target)) spawned++;
         }
         if (spawned > 0) shooter.OnShotCompleted();

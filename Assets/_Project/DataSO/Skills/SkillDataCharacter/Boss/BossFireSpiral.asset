@@ -79,7 +79,6 @@ MonoBehaviour:
         requiresTarget: 0
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
         - {rid: 1004}
@@ -101,7 +100,6 @@ MonoBehaviour:
         requiresTarget: 0
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
         - {rid: 1004}
@@ -123,7 +121,6 @@ MonoBehaviour:
         requiresTarget: 0
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
         - {rid: 1004}
@@ -145,7 +142,6 @@ MonoBehaviour:
         requiresTarget: 0
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
         - {rid: 1004}
@@ -167,7 +163,6 @@ MonoBehaviour:
         requiresTarget: 0
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
         - {rid: 1004}

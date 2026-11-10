@@ -11,30 +11,36 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8d0268c30bce4b75b4b93fe4613bbd0c, type: 3}
   m_Name: CombatAssets
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   bulletPrefab: {fileID: 11400000, guid: a4a85c2799524f0fac7baeca32842686, type: 3}
+  effectPrefab: {fileID: 11400000, guid: 203b70ef700543ff8a9bc792e5d76aa1, type: 3}
   bullets:
   - type: 0
-    sprite: {fileID: 21300000, guid: 3238b243044641f4ac198585140c57d4, type: 3}
-    color: {r: 1, g: 1, b: 1, a: 1}
-    visualWidth: 0.18
+    visualPrefab: {fileID: 1141239420020085222, guid: 41f764bf3fd6f51408c66a31a1e707a0, type: 3}
     impactEffect: 1
+    hitRadius: 0.0067051817
+    hitOffset: {x: -0.037374016, y: -0.00057746656}
   - type: 1
-    sprite: {fileID: 21300000, guid: 3238b243044641f4ac198585140c57d4, type: 3}
-    color: {r: 1, g: 0.35, b: 0.1, a: 1}
-    visualWidth: 0.18
-    impactEffect: 1
+    visualPrefab: {fileID: 977664126498229335, guid: 9d6b9ed71a045b14aa642b2ccf38aaf7, type: 3}
+    impactEffect: 2
+    hitRadius: 0.025284015
+    hitOffset: {x: 0.045850765, y: 0.0011741538}
   - type: 2
-    sprite: {fileID: 21300000, guid: 3238b243044641f4ac198585140c57d4, type: 3}
-    color: {r: 0.3, g: 0.8, b: 1, a: 1}
-    visualWidth: 0.18
-    impactEffect: 1
+    visualPrefab: {fileID: 2726838381350925692, guid: e9ee02a0707d9444f948f8fd85ecdc59, type: 3}
+    impactEffect: 3
+    hitRadius: 0.011213143
+    hitOffset: {x: 0.052463736, y: -0.0004119929}
   - type: 3
-    sprite: {fileID: 21300000, guid: 3238b243044641f4ac198585140c57d4, type: 3}
-    color: {r: 0.3, g: 1, b: 0.3, a: 1}
-    visualWidth: 0.18
-    impactEffect: 1
+    visualPrefab: {fileID: 1662464265281183706, guid: 6180bffb337750a4c8489d23d6e5d877, type: 3}
+    impactEffect: 4
+    hitRadius: 0.015556015
+    hitOffset: {x: -0.00053037703, y: 0}
   effects:
   - type: 1
-    prefab: {fileID: 11400000, guid: 203b70ef700543ff8a9bc792e5d76aa1, type: 3}
-    visualPrefab: {fileID: 100000, guid: 9298c8a9672b42c88acd2665c761a53c, type: 3}
+    visualPrefab: {fileID: 9130346038966162769, guid: f7b2d3cf36cca8945abfb4365b23a67d, type: 3}
+  - type: 2
+    visualPrefab: {fileID: 8169028803997256639, guid: 99369e26c6c4b6846a674f82c0568c9e, type: 3}
+  - type: 4
+    visualPrefab: {fileID: 3804383069291552121, guid: 8c26fe53e3ae7174398039ddd9859a57, type: 3}
+  - type: 3
+    visualPrefab: {fileID: 4026322902362843390, guid: 39689d6beb37de44b821cf2e33f9df68, type: 3}

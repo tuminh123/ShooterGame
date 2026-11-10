@@ -27,13 +27,21 @@ SkillBehaviourData chỉ giữ cấu hình, Validate và cooldown nếu loại �
 - StatBonusData: chỉ số và giá trị đầy đủ tại cấp đó.
 
 Mỗi cấp khai báo đầy đủ, không kế thừa ngầm cấu hình hoặc effect của cấp trước.
+Trong ShootingData, StraightShooter luôn bắn theo hướng ngắm và không có tham số góc.
+FanShooter triển khai IShooter riêng, mặc định spreadAngle = 60 độ; projectileCount
+viên tự chia đều từ -spreadAngle/2 đến +spreadAngle/2 quanh hướng ngắm.
+Một viên giữ hướng ngắm. Chọn FanShooter trong selector Shooter để dùng bắn quạt.
 Ví dụ cấp 1 có ShootingData; cấp 2 thêm FrostAuraData thì runtime mở vùng băng ở
 cấp 2. Danh sách mẫu bên dưới phải chứa cả ShootingSkill và FrostAuraSkill.
 
 ## Runtime
 
-SkillManager giữ mọi combat runtime và là vòng tick production duy nhất.
-CharacterSkills giữ context của spawn và các definition ban đầu.
+SkillManager chỉ giữ và tick runtime nguồn Gameplay. Reset trận chỉ dọn nhóm này.
+CharacterSkills giữ context của spawn, tự tạo và sở hữu runtime Character/Equipment.
+CharacterView.Update gọi CharacterSkills.Tick; disable/enable pause/resume skill,
+chết/despawn/destroy dispose timer, visual và modifier. Skill nhân vật còn sống
+không bị xóa hoặc dựng lại khi reset riêng tiến trình trận.
+Slot trong LevelUpPanel chỉ hiển thị danh sách Gameplay từ SkillManager.
 SkillRuntime chọn data theo cấp, ghép theo Type, gọi ApplyData cho hành vi đã có,
 tạo instance cho loại mới và dispose loại không còn trong cấp mới.
 
@@ -63,8 +71,10 @@ di chuyển asset.
 - Hệ nâng cấp/lưu skill ở Home chưa được triển khai. Level config là giá trị
   khởi tạo hiện tại, không phải một hệ save mới.
 
-GameManager cleanup mọi combat instance khi kết thúc trận. Reset tạo lại các
-definition ban đầu nếu owner còn sống, không sửa asset hoặc dữ liệu lưu.
+GameManager dọn skill gameplay và giữ pause khi kết thúc trận. Skill nhân vật
+còn sống giữ nguyên runtime; chỉ dọn khi owner chết/despawn/destroy. Khi bắt đầu
+trận mới hoặc về Home, GameManager thu hồi nhân vật cũ trước khi reset tiến trình.
+Reset riêng tiến trình không dựng lại skill nhân vật, không sửa asset hoặc dữ liệu lưu.
 Owner chết/despawn gỡ timer, visual và token của chính owner đó.
 
 ## Damage và effect

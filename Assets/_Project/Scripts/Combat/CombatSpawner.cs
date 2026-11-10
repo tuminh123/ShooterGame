@@ -9,20 +9,18 @@ public readonly struct ProjectileSpawnData
     public DamageInfo Damage { get; } // Sát thương và phe nguồn.
     public float Speed { get; } // World unit/giây.
     public float Lifetime { get; } // Tuổi thọ tính bằng giây.
-    public float HitRadius { get; } // Bán kính phát hiện trúng.
     public IProjectileMove Movement { get; } // Cách tính hướng bay.
     public IReadOnlyList<IGameplayEffect> Effects { get; } // Cấu hình dùng chung, không chứa trạng thái runtime.
     public float EffectHit { get; } // Chính xác hiệu ứng của nguồn, chốt tại thời điểm bắn.
 
     public ProjectileSpawnData(BulletType bulletType, DamageInfo damage, float speed,
-        float lifetime, float hitRadius, IProjectileMove movement,
+        float lifetime, IProjectileMove movement,
         IReadOnlyList<IGameplayEffect> effects = null, float effectHit = 0f)
     {
         BulletType = bulletType;
         Damage = damage;
         Speed = speed;
         Lifetime = lifetime;
-        HitRadius = hitRadius;
         Movement = movement;
         Effects = effects ?? Array.Empty<IGameplayEffect>();
         EffectHit = effectHit;
@@ -31,7 +29,7 @@ public readonly struct ProjectileSpawnData
     public void Validate()
     {
         if (!Enum.IsDefined(typeof(BulletType), BulletType) || Movement == null ||
-            !IsPositiveFiniteNumber(Speed) || !IsPositiveFiniteNumber(Lifetime) || !IsPositiveFiniteNumber(HitRadius) ||
+            !IsPositiveFiniteNumber(Speed) || !IsPositiveFiniteNumber(Lifetime) ||
             float.IsNaN(EffectHit) || float.IsInfinity(EffectHit))
             throw new ArgumentException("Invalid projectile spawn data.");
         if (Effects == null) throw new ArgumentException("Initialize projectile spawn data before use.");
@@ -70,15 +68,20 @@ public sealed class CombatSpawner
             throw new ArgumentException("Bullet direction must be finite and nonzero.", nameof(shootingDirection));
         CombatAssetsSO.BulletVisual bulletVisual = combatAssets.GetBullet(projectileData.BulletType);
         return poolManager.Spawn(combatAssets.BulletPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Bullets,
-            beforeActivate: pooledObject => pooledObject.GetComponent<ProjectileView>().Initialize(
-                this, bulletVisual, projectileData, shootingDirection, target)) != null;
+            beforeActivate: pooledObject =>
+            {
+                pooledObject.transform.localScale = combatAssets.BulletPrefab.transform.localScale;
+                var view = pooledObject.GetComponent<ProjectileView>();
+                try { view.Initialize(this, bulletVisual, projectileData, shootingDirection, target); }
+                catch { view.ClearVisual(); throw; }
+            }) != null;
     }
 
     public void SpawnEffect(EffectType effectType, Vector3 spawnPosition)
     {
         CombatAssetsSO.EffectEntry entry = combatAssets.GetEffect(effectType);
-        if (entry.prefab == null) return;
-        poolManager.Spawn(entry.prefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Other,
+        if (effectType == EffectType.None) return;
+        poolManager.Spawn(combatAssets.EffectPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Other,
             beforeActivate: pooledObject => pooledObject.GetComponent<EffectView>().Initialize(this, entry.visualPrefab));
     }
 
@@ -89,6 +92,7 @@ public sealed class CombatSpawner
         try
         {
             if (instance.TryGetComponent(out EffectView effect)) effect.Clear();
+            if (instance.TryGetComponent(out ProjectileView projectile)) projectile.ClearVisual();
         }
         finally { poolManager.Despawn(instance); }
     }

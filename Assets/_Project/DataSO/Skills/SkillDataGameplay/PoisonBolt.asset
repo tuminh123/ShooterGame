@@ -11,50 +11,48 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
   m_Name: PoisonBolt
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   source: 0
   level: 1
   displayName: Poison Bolt
   description: Automatically fires the configured projectile pattern.
   icon: {fileID: 21300000, guid: 59daba922b5824633bc85c1d58a3d68a, type: 3}
   levels:
-  - description: "Fire 1 bolts that apply poison to enemies."
+  - description: Fire 1 bolts that apply poison to enemies.
     behaviours:
-    - {rid: 1006}
-    - {rid: 1007}
-  - description: "Fire 2 bolts that apply poison to enemies."
+    - rid: 1006
+    - rid: 1007
+  - description: Fire 2 bolts that apply poison to enemies.
     behaviours:
-    - {rid: 1008}
-    - {rid: 1009}
-  - description: "Fire 3 bolts that apply poison to enemies."
+    - rid: 1008
+    - rid: 1009
+  - description: Fire 3 bolts that apply poison to enemies.
     behaviours:
-    - {rid: 1010}
-    - {rid: 1011}
-  - description: "Fire 4 bolts that apply poison to enemies."
+    - rid: 1010
+    - rid: 1011
+  - description: Fire 4 bolts that apply poison to enemies.
     behaviours:
-    - {rid: 1012}
-    - {rid: 1013}
-  - description: "Fire 5 bolts that apply poison to enemies."
+    - rid: 1012
+    - rid: 1013
+  - description: Fire 5 bolts that apply poison to enemies.
     behaviours:
-    - {rid: 1014}
-    - {rid: 1015}
+    - rid: 1014
+    - rid: 1015
   behaviours:
-  - {rid: 1001}
-  - {rid: 1005}
+  - rid: 1001
+  - rid: 1005
   references:
     version: 2
     RefIds:
     - rid: 1001
       type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
-      data: {}
+      data: 
     - rid: 1002
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
-      data: {}
+      data: 
     - rid: 1003
       type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
-      data:
-        spreadAngle: 0
-        startAngle: 0
+      data: 
     - rid: 1004
       type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
       data:
@@ -65,114 +63,140 @@ MonoBehaviour:
         damagePerTick: 2.5
     - rid: 1005
       type: {class: StatBonusSkill, ns: , asm: Assembly-CSharp}
-      data: {}
+      data: 
     - rid: 1006
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 0.9
         range: 2
-        shooter: {rid: 1003}
-        projectileMove: {rid: 1002}
+        shooter:
+          rid: 1003
+        projectileMove:
+          rid: 1002
         bulletType: 3
         projectileCount: 1
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
-        - {rid: 1004}
+        - rid: 1004
     - rid: 1007
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 1
+        operation: 0
         value: 5
     - rid: 1008
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 0.9
         range: 2
-        shooter: {rid: 1003}
-        projectileMove: {rid: 1002}
+        shooter:
+          rid: 8867963934459297800
+        projectileMove:
+          rid: 1002
         bulletType: 3
         projectileCount: 2
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
-        - {rid: 1004}
+        - rid: 1004
     - rid: 1009
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 1
+        operation: 0
         value: 5
     - rid: 1010
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 0.9
         range: 2
-        shooter: {rid: 1003}
-        projectileMove: {rid: 1002}
+        shooter:
+          rid: 8867963934459297801
+        projectileMove:
+          rid: 1002
         bulletType: 3
         projectileCount: 3
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
-        - {rid: 1004}
+        - rid: 1004
     - rid: 1011
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 1
+        operation: 0
         value: 5
     - rid: 1012
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 0.9
         range: 2
-        shooter: {rid: 1003}
-        projectileMove: {rid: 1002}
+        shooter:
+          rid: 8867963934459297802
+        projectileMove:
+          rid: 1002
         bulletType: 3
         projectileCount: 4
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
-        - {rid: 1004}
+        - rid: 1004
     - rid: 1013
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 1
+        operation: 0
         value: 5
     - rid: 1014
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 0.9
         range: 2
-        shooter: {rid: 1003}
-        projectileMove: {rid: 1002}
+        shooter:
+          rid: 8867963934459297803
+        projectileMove:
+          rid: 1002
         bulletType: 3
         projectileCount: 5
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
-        hitRadius: 0.035
         lifetime: 3
         effects:
-        - {rid: 1004}
+        - rid: 1004
     - rid: 1015
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 1
+        operation: 0
         value: 5
+    - rid: 8867963934459297800
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 60
+    - rid: 8867963934459297801
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 60
+    - rid: 8867963934459297802
+      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+      data:
+        startAngle: 0
+    - rid: 8867963934459297803
+      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+      data:
+        startAngle: 0

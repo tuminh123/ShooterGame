@@ -58,9 +58,12 @@ public sealed class PoolPrewarmService
         }
         foreach (CombatAssetsSO.EffectEntry effect in combat.EffectEntries)
         {
-            Add(plan, effect.prefab.gameObject, settings.effectShells);
+            Add(plan, combat.EffectPrefab.gameObject, settings.effectShells);
             Add(plan, effect.visualPrefab, settings.effectShells);
         }
+        // Vỏ và visual là hai object có pool riêng; làm nóng cả visual để không Instantiate lúc bắn.
+        foreach (CombatAssetsSO.BulletVisual bullet in combat.BulletEntries)
+            Add(plan, bullet.visualPrefab, settings.bullets);
         foreach (PoolPrewarmSettingsSO.PrefabEntry entry in settings.additionalPrefabs)
             Add(plan, entry.prefab, entry.count);
         int totalObjects = 0;

@@ -14,4 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   characterLevels:
   - {fileID: 11400000, guid: b888c6c1969665e8025f68393d43f7a1, type: 2}
+  - {fileID: 11400000, guid: ecd8e1f477d6477fb00d63a3ca42d7e2, type: 2}
   runLevelConfig: {fileID: 11400000, guid: 93efe895ced70c8395eb4eac439696dc, type: 2}

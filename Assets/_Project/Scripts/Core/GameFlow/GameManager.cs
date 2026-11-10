@@ -16,7 +16,7 @@ public sealed class GameManager : IInitializable, IDisposable
     private readonly CharacterFactory factory; // Trả character về đúng pool, không Destroy trực tiếp.
     private readonly ProjectileManager projectiles; // Thu hồi đạn cũ trước khi tạo trận mới.
     private readonly GameplayPauseService pauses; // Token luồng game độc lập với pause thủ công và bảng chọn skill.
-    private readonly SkillManager skills; // Kết thúc trận dọn toàn bộ skill runtime, không chỉ skill nhận thêm.
+    private readonly SkillManager skills; // Dọn skill gameplay; skill nhân vật theo vòng đời CharacterView.
     private readonly bool autoStartRun; // Scene hiện chưa có Home UI nên mặc định tự vào trận sau khi sẵn sàng.
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
     private bool initialized; // Chặn Initialize lặp và API gameplay chạy trước bước chuẩn bị.

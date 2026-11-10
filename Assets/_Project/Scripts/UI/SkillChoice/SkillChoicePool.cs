@@ -37,6 +37,7 @@ public sealed class SkillChoicePool
     public const int StarLimit = 5; // UI hiện chỉ mở 5 cấp, chưa đưa tiến hóa level 6 vào phần thưởng.
     private readonly List<SkillChoiceOffer> candidates = new List<SkillChoiceOffer>();
     private readonly HashSet<SkillDataSO> unique = new HashSet<SkillDataSO>();
+    private readonly HashSet<SkillDataSO> previous = new HashSet<SkillDataSO>();
     private readonly Random random;
 
     public SkillChoicePool(Random random = null) => this.random = random ?? new Random();
@@ -47,8 +48,13 @@ public sealed class SkillChoicePool
 
     // Roll không lặp trong một bảng; bỏ skill max và các asset bị controller chặn sau exception.
     public void Build(IReadOnlyList<SkillDataSO> catalog, SkillManager manager, CharacterView owner,
-        List<SkillChoiceOffer> result, int count = 3, ISet<SkillDataSO> excluded = null)
+        List<SkillChoiceOffer> result, int count = 3, ISet<SkillDataSO> excluded = null,
+        IReadOnlyList<SkillChoiceOffer> previousOffers = null)
     {
+        previous.Clear();
+        // Chụp trước khi xóa result: controller có thể truyền cùng list để roll lại.
+        if (previousOffers != null)
+            foreach (SkillChoiceOffer offer in previousOffers) previous.Add(offer.Definition);
         result.Clear(); candidates.Clear(); unique.Clear();
         if (catalog == null || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return;
         foreach (SkillDataSO definition in catalog)
@@ -63,12 +69,17 @@ public sealed class SkillChoicePool
         while (result.Count < count && candidates.Count > 0)
         {
             int index = random.Next(candidates.Count);
+            // Ưu tiên skill chưa có trong bảng trước; thiếu ứng viên thì dùng lại để đủ ô.
+            int alternatives = 0;
+            if (previous.Count > 0)
+                for (int i = 0; i < candidates.Count; i++)
+                    if (!previous.Contains(candidates[i].Definition) && random.Next(++alternatives) == 0) index = i;
             result.Add(candidates[index]);
             int last = candidates.Count - 1;
             candidates[index] = candidates[last];
             candidates.RemoveAt(last);
         }
-        candidates.Clear(); unique.Clear();
+        candidates.Clear(); unique.Clear(); previous.Clear();
     }
     #endregion
 }

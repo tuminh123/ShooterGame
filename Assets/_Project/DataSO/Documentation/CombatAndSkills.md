@@ -11,6 +11,6 @@ See [Skill-Shooting-Pipeline](../../../../Docs/Architecture/Skill-Shooting-Pipel
 - Owner death/release disposes its run registrations. Run reset or explicit run cleanup removes only run skills and preserves innate bonuses.
 - Shared skill assets remain configuration/templates, never live state.
 - `CharacterManager` only tracks characters. `ShootingSkill` selects a shooter from `Dictionary<Type, IShooter>`; `CombatSpawner` creates bullets and visual effects through the pool.
-- Edit character bonuses in `SkillDataSO.StatBonus`; edit shooting and effect settings on the behavior. `CombatAssets` in `DataSO/Databases` holds the shared bullet prefab, bullet visuals and effect prefabs.
+- Edit character bonuses in `SkillDataSO.StatBonus`; edit shooting and effect settings on the behavior. `CombatAssets` in `DataSO/Databases` holds shared `ProjectileView` / `EffectView` shells and per-type child visual prefabs. Bullet entries select type, visual prefab and impact effect; effect entries select type and visual prefab. Configure appearance inside those prefabs, without sprite/color/width overrides in the catalog.
 - Bullet phase belongs to each live skill. Damage is snapshotted per bullet, and gameplay status effects remain separate from visual impacts.
 - Run skill upgrades and selection UI are connected. UI offers only the next level and currently caps stars at 5. Persistent skill upgrade/save remains separate work.

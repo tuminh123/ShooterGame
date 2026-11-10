@@ -43,6 +43,7 @@ namespace UnityEngine {
   public float sqrMagnitude=>x*x+y*y;public float magnitude=>(float)Math.Sqrt(sqrMagnitude);
   public Vector2 normalized=>magnitude>0?this*(1/magnitude):zero;
   public static Vector2 right=>new Vector2(1,0);public static Vector2 zero=>new Vector2();
+  public static Vector2 left=>new Vector2(-1,0);
   public static Vector2 up=>new Vector2(0,1);public void Normalize(){this=normalized;}
   public static Vector2 operator +(Vector2 a,Vector2 b)=>new Vector2(a.x+b.x,a.y+b.y);
   public static Vector2 operator -(Vector2 a,Vector2 b)=>new Vector2(a.x-b.x,a.y-b.y);
@@ -97,17 +98,24 @@ public class PoolManager {
 }
 public struct ProjectileSpawnData {
  public DamageInfo Damage;public IProjectileMove Movement;public IReadOnlyList<IGameplayEffect> Effects;
- public ProjectileSpawnData(BulletType b,DamageInfo d,float s,float l,float r,IProjectileMove m,IReadOnlyList<IGameplayEffect> e,float h){Damage=d;Movement=m;Effects=e;}
+ public ProjectileSpawnData(BulletType b,DamageInfo d,float s,float l,IProjectileMove m,IReadOnlyList<IGameplayEffect> e,float h){Damage=d;Movement=m;Effects=e;}
 }
 public class CombatSpawner {
  public readonly List<ProjectileSpawnData> Shots=new List<ProjectileSpawnData>();public Action OnSpawn;
  public bool SpawnBullet(ProjectileSpawnData d,UnityEngine.Vector2 p,UnityEngine.Vector2 dir,CharacterTarget t){Shots.Add(d);OnSpawn?.Invoke();return true;}
 }
 public class CharacterDataSO {
+ public UnityEngine.GameObject VisualPrefab=new UnityEngine.GameObject();
  public CharacterType CharacterType;public CharacterTeam Team;public string DisplayName;public BaseStats BaseStats;
  public SkillDataSO[] Skills=Array.Empty<SkillDataSO>();public void ValidateStats()=>BaseStats.Validate();
 }
 public class CharacterView {
+ public FeedbackController FeedbackController;
+ public int DamageNotifications;
+ public int GetInstanceID()=>GetHashCode();
+ public void NotifyEffectFeedback(CharacterRuntimeData runtime,ulong generation,CharacterFeedbackKind kind,bool active)=>FeedbackController?.NotifyEffect(this,runtime,generation,kind,active);
+ public void NotifyDamageReceived(DamageInfo damage,DamageResult result){DamageNotifications++;}
+ public void EndCombatLifetime(){Died?.Invoke(this);Skills?.Dispose();EffectManager?.ClearTarget(this,RuntimeData);FeedbackController?.Dispose();}
  public void ChangeHealth(float amount)=>RuntimeData.SetVitals(Math.Max(0,RuntimeData.CurrentHealth+amount),RuntimeData.CurrentShield);
  public void GrantShield(float amount)=>RuntimeData.AddShield(amount);
  public DamageResult DealDamage(CharacterTarget target)=>target.TryGetCharacter(out var victim)?victim.ReceiveDamage(RuntimeData.CreateDamage()):default;
@@ -117,6 +125,7 @@ public class CharacterView {
  public bool IsVisualVisible=true;
  public event Action<CharacterView> Died,Released;public event Action Deactivated;
  public DamageResult ReceiveDamage(DamageInfo d){
+  if(FeedbackController!=null)return FeedbackController.ReceiveDamage(this,RuntimeData,d);
   if(!RuntimeData.IsAlive||d.SourceTeam==RuntimeData.Team)return default;
   float shield=Math.Min(RuntimeData.CurrentShield,d.Amount);float health=Math.Min(RuntimeData.CurrentHealth,d.Amount-shield);
   RuntimeData.SetVitals(RuntimeData.CurrentHealth-health,RuntimeData.CurrentShield-shield);
@@ -127,6 +136,10 @@ public class CharacterView {
  public void Disable(){isActiveAndEnabled=false;Skills?.SetPaused(true);Deactivated?.Invoke();}
  public void Enable(){isActiveAndEnabled=true;Skills?.SetPaused(false);}
  public void Release(){Released?.Invoke(this);Skills?.Dispose();EffectManager?.ClearTarget(this,RuntimeData);}
+}
+public sealed class FeedbackController:CharacterControllerBase {
+ protected override void TickMovement(CharacterView view,CharacterRuntimeData runtime){}
+ public override void OnDeath(CharacterView view,CharacterRuntimeData runtime){}
 }
 public class Search {
  public readonly List<CharacterView> Targets=new List<CharacterView>();
@@ -181,7 +194,7 @@ public class CharacterFactory {public CharacterManager Registry;public int Retur
 public class PauseUI {public void Resume(){}}
 // Native panel/rendering double; UIManager and SkillChoiceController are production code.
 public class SkillChoiceUI {
- public event Action<int> Selected;public event Action Hidden;
+ public event Action<int> Selected;public event Action Hidden;public event Action RerollRequested;
  public List<SkillChoiceOffer> Offers=new List<SkillChoiceOffer>();public bool Visible;
  public List<SkillRuntime> Owned=new List<SkillRuntime>();
  public bool FailOwnedRendering;
@@ -189,5 +202,6 @@ public class SkillChoiceUI {
  public void Show(IReadOnlyList<SkillChoiceOffer> offers,int pending){Offers=new List<SkillChoiceOffer>(offers);Visible=true;}
  public void Hide(){if(!Visible)return;Visible=false;Hidden?.Invoke();}
  public void Choose(int index)=>Selected?.Invoke(index);
+ public void Reroll()=>RerollRequested?.Invoke();
 }
 public class CharacterManager {public readonly Dictionary<CharacterView,CharacterDataSO> Characters=new Dictionary<CharacterView,CharacterDataSO>();public event Action<CharacterView> CharacterDied;public void NotifyDied(CharacterView character)=>CharacterDied?.Invoke(character);}

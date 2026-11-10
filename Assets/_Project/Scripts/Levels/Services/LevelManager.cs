@@ -65,7 +65,7 @@ public sealed class LevelManager
     public int GetPermanentLevel(CharacterType characterType) => characterLevels.GetLevel(characterType);
 
     // * Đọc config tăng trưởng riêng để hiển thị trần cấp hoặc bonus mỗi cấp.
-    public PermanentLevelConfigSO GetPermanentConfig(CharacterType characterType) => characterLevels.GetConfig(characterType);
+    public CharacterLevelConfigSO GetPermanentConfig(CharacterType characterType) => characterLevels.GetConfig(characterType);
 
     // * Tính bonus vĩnh viễn, chưa bao gồm level trong trận hoặc trang bị.
     public StatBonus GetPermanentBonus(CharacterType characterType) => characterLevels.GetTotalBonus(characterType);
