@@ -1,0 +1,515 @@
+================================================================================
+  2D Minimal Character - PartsManager User Guide
+================================================================================
+
+Table of Contents
+  1. Inspector Overview
+  2. Auto Setup
+  3. Category System
+  4. Saving & Using Prefabs
+  5. Scripting API
+  6. Demo Equipment, Fishing & Mounts
+  7. Update History
+
+================================================================================
+1. Inspector Overview
+================================================================================
+
+Select a GameObject with the PartsManager component to view the custom inspector.
+
+[Animator]
+  - Reference to the character's Animator component
+  - On the supplied Character prefab, the Animator is on the Rider child.
+  - Used for playing character animations
+
+[Auto Setup]
+  - Base Folder : Path to the sprite asset folder
+    Default: Assets/Layer Lab/2D Minimal-CharacterMaker/Extenstions
+  - Use the Browse button to select a different folder
+  - Clicking "Auto Setup" runs three steps in order:
+    1) Renderer mapping (scans child objects by name to find SpriteRenderers)
+    2) Sprite loading (assigns sprites from the folder to each parts category)
+    3) Thumbnail loading (loads thumbnail images for UI display)
+
+[Color Targets]
+  - Skin Renderers  : SpriteRenderers affected by skin color (Body, Head)
+  - Hair Renderers  : SpriteRenderers affected by hair color (Hair, Hair_Helmet)
+  - Eye Renderers   : SpriteRenderers affected by eye color (Eye)
+  - Beard Renderers : SpriteRenderers affected by beard color (Beard)
+  * If left empty, Init() auto-detects renderers by child object name.
+
+[Categories]
+  - Detailed settings for each parts category (see Section 3)
+
+================================================================================
+2. Auto Setup
+================================================================================
+
+After adding a PartsManager component to a new character prefab:
+
+  1) Assign the Animator component to the Animator field
+  2) Verify the Base Folder points to the correct sprite directory
+  3) Click the "Auto Setup" button
+
+Auto Setup handles the following:
+  - Renderer mapping: matches child object names to PartsType enums
+    e.g.) Child named "Sword" -> PartsType.Sword
+          Child named "Hair_Helmet" -> PartsType.HelmetHair
+          Children named "Body", "Head" -> PartsType.Skin
+
+  - Renderer Name Mapping:
+    PartsType     | Child Object Name(s)
+    --------------|-------------------
+    Eye           | Eye
+    Hair          | Hair
+    Helmet        | Helmet
+    Beard         | Beard
+    Chest         | Chest
+    Sword         | Sword
+    Axe           | Axe
+    Bow           | Bow (+ Bow_Line_Up, Bow_Line_Down)
+    Shield        | Shield
+    Wand          | Wand
+    Staff         | Staff
+    Spear         | Spear
+    Blunt         | Blunt
+    Crossbow      | Crossbow (+ Crossbow_Line_Up, Crossbow_Line_Down)
+    Gun           | Gun
+    Fishing       | Tool_Fishing
+    Pickaxe       | Tool_Pick
+    Mount         | Mount, Mount_Down
+    SubItem       | Sub_Item
+    Arrow         | Arrow, Bolt
+    HelmetHair    | Hair_Helmet
+    Skin          | Body, Head
+
+  - Sprite Folder Structure (Pack-based):
+    Base Folder/                    <- e.g. Extenstions/
+    ├── Parts Pack Base/            <- Pack folder (free naming)
+    │   ├── Parts/                  <- Equipment groups
+    │   │   ├── Chest/
+    │   │   ├── Helmet/
+    │   │   ├── HandRight/          <- Recursively scanned
+    │   │   │   ├── Sword/
+    │   │   │   ├── Axe/
+    │   │   │   ├── Bow/
+    │   │   │   └── ...
+    │   │   └── HandLeft/
+    │   │       ├── Shield/
+    │   │       └── Sub_Item/
+    │   ├── Character/              <- Body / facial parts
+    │   │   ├── Eye/
+    │   │   ├── Hair/
+    │   │   ├── Beard/
+    │   │   └── Helmet_Hair/
+    │   └── Thumbnail/              <- Thumbnails per PartsType
+    │       ├── Eye/, Hair/, Beard/, Skin/
+    │       ├── Chest/, Helmet/, Shield/, Sub_Item/
+    │       └── Sword/, Axe/, Bow/, Wand/, Staff/, Spear/, Blunt/, Crossbow/, Arrow/
+    ├── Parts Pack Vol.1/           <- Additional pack (same structure)
+    │   ├── Parts/
+    │   ├── Character/    (optional)
+    │   └── Thumbnail/
+    └── Parts Pack Vol.X/           <- Add more packs at any time
+
+  - Aggregation rule:
+    * Every first-level folder under Base Folder is treated as a "Pack".
+      Pack folder names are free (e.g. "Parts Pack Base", "Parts Pack Vol.1", ...).
+    * Inside each Pack, every subfolder EXCEPT "Thumbnail" is recursively scanned
+      for sprites. Folder names matching a PartsType (see PartsFolderMap) are
+      collected as that part type's sprites and merged across all packs.
+    * Thumbnails are read from "{Pack}/Thumbnail/{PartsType folder}" and merged
+      across all packs as well.
+    * Adding a new pack (e.g. Vol.2, Vol.3) requires NO code change — drop the
+      pack folder under Base Folder and click Auto Setup again.
+
+  - Folder name -> PartsType mapping (PartsFolderMap):
+    Folder Name   | PartsType
+    --------------|-------------
+    Eye           | Eye
+    Hair          | Hair
+    Beard         | Beard
+    Helmet_Hair   | HelmetHair
+    Skin          | Skin
+    Chest         | Chest
+    Helmet        | Helmet
+    Shield        | Shield
+    Sub_Item      | SubItem
+    Sword         | Sword
+    Axe           | Axe
+    Bow           | Bow
+    Wand          | Wand
+    Staff         | Staff
+    Spear         | Spear
+    Blunt         | Blunt
+    Crossbow      | Crossbow
+    Arrow         | Arrow
+    Gun           | Gun
+    Mount         | Mount
+    Tool          | Fishing or Pickaxe, determined by sprite name
+
+    In the base pack, use Parts/HandRight/Gun/ for guns and Parts/HandRight/Tool/
+    for both tools. Include Tool_Fishing_ or Tool_Pick_ in the tool sprite name.
+    Store mounts in the pack's Mount/ folder. Pair the main sprite with its
+    lower layer by name, e.g. FA_Mount_002_Blue and FA_Mount_002_Blue_Down.
+    Thumbnail folders for these four categories are Gun/, Tool_Fishing/,
+    Tool_Pick/ and Mount/ under the pack's Thumbnail/ folder.
+
+    Folders not present in this map are ignored (or descended into for recursion).
+
+================================================================================
+3. Category System
+================================================================================
+
+Each PartsCategory has the following properties:
+
+  type            : PartsType enum (Eye, Hair, Sword, etc.)
+  displayName     : Name displayed in the UI
+  renderers       : PartRenderer[] (SpriteRenderer + Sprite[] pairs)
+  thumbnails      : Sprite[] (thumbnail images for the parts list UI)
+  canToggle       : Whether the part can be equipped/unequipped (false for Eye, Skin)
+  canChangeColor  : Whether color customization is supported
+  colorTarget     : Color target type (Skin / Hair / Eye / Beard)
+  isCommon        : Whether this part is shared across all themes
+
+UI Category Groups:
+  UICategory    | Included PartsTypes
+  --------------|--------------------------------------------------
+  Hair          | Hair
+  Eye           | Eye
+  Beard         | Beard
+  Skin          | Skin
+  Helmet        | Helmet
+  Chest         | Chest
+  HandRight     | Sword, Axe, Bow, Wand, Staff, Spear, Blunt, Crossbow, Gun
+  HandLeft      | Shield, SubItem
+  Fishing       | Fishing
+  Pickaxe       | Pickaxe
+  Mount         | Mount
+
+Auto-Synced Parts (managed automatically, do not control directly):
+  - Arrow       : Bow visible -> Arrow enabled, Crossbow visible -> Bolt enabled
+  - HelmetHair  : When both Helmet and Hair are visible -> Hair is replaced by HelmetHair
+
+Color-Enabled Parts:
+  - Hair   -> ColorTargetType.Hair
+  - Beard  -> ColorTargetType.Beard
+  - Skin   -> ColorTargetType.Skin
+  - Eye    -> Color change disabled (canChangeColor = false)
+
+================================================================================
+4. Saving & Using Prefabs
+================================================================================
+
+[Editor Preset Slots (OnGUI)]
+
+  During Play Mode, preset save slots [1]~[10] appear at the bottom of the screen.
+  - Click a slot to save the current character state to that slot
+  - Slots with data display as [1], empty slots display as 1
+  - Save location: Assets/Layer Lab/.../Data/EquipmentPresetData.asset
+
+[Save as Prefab]
+
+  Use the "Save Prefab" button in PanelPartsControl, or call from code:
+
+    CharacterPrefabSaver.Save(partsManager, cameraSize, cameraOffset);
+
+  Result:
+  - A prefab is created in Assets/CharacterPrefabs/
+  - Filename: Character_20260223_143000.prefab (timestamped)
+  - Thumbnail: Character_20260223_143000_Thumbnail.png (512x512)
+  - A CharacterPrefabData component is automatically added to the prefab
+
+[Using Saved Prefabs]
+
+  Method 1 - Place in Scene:
+    1) Drag the prefab from Assets/CharacterPrefabs/ into the scene
+    2) On Play, CharacterPrefabData.Start() automatically:
+       - Calls PartsManager.Init()
+       - Applies saved parts, colors, and visibility
+
+  Method 2 - Apply Preset from Code:
+    var presetData = Resources.Load<PresetData>("EquipmentPresetData");
+    var item = presetData.GetItem(slotIndex);  // 0~9
+    partsManager.ApplyPresetItem(item);
+
+  Method 3 - Copy from Another Character:
+    targetPartsManager.CopyFrom(sourcePartsManager);
+
+================================================================================
+5. Scripting API
+================================================================================
+
+[Namespace]
+  Add this directive at the top of scripts that use the character maker API:
+    using LayerLab.ArtMakerUnity;
+
+[Initialization]
+  partsManager.Init();
+  * Must be called before any other API calls.
+
+[Equip / Unequip Parts]
+  partsManager.EquipParts(PartsType.Sword, 3);     // Equip 4th Sword sprite
+  partsManager.UnequipParts(PartsType.Helmet);      // Unequip Helmet
+  partsManager.NextParts(PartsType.Hair);           // Next Hair style
+  partsManager.PrevParts(PartsType.Hair);           // Previous Hair style
+
+[Visibility Toggle]
+  partsManager.ToggleParts(PartsType.Beard, false); // Hide Beard
+  partsManager.ToggleParts(PartsType.Beard, true);  // Show Beard
+
+[Color Changes]
+  partsManager.SetColor(ColorTargetType.Hair, Color.red);
+  partsManager.SetColor(ColorTargetType.Skin, new Color(0.9f, 0.7f, 0.5f));
+  Color currentColor = partsManager.GetColor(ColorTargetType.Hair);
+
+[Randomization]
+  partsManager.RandomizeAll();
+  // Randomizes all parts + colors (Skin, Hair, Beard)
+  // Selects a combat weapon and a compatible left-hand item when available.
+  // The preview can show a pickaxe while retaining the combat weapon.
+  // Beard, Helmet and Mount each have a 50% chance to be unequipped.
+
+[Reset]
+  partsManager.ResetAll();
+  // Resets all parts, visibility, and colors to Init() defaults.
+  // Fires all change events so UI listeners (e.g. ColorPicker) stay in sync.
+  // Does not affect Animator state or PanelPartsControl preset index.
+  // Use DemoControl.OnClickResetAll() to wire this to a UI button.
+
+[Presets]
+  // Save
+  PresetData.PresetItem item = partsManager.ToPresetItem();
+
+  // Load
+  partsManager.ApplyPresetItem(item);
+
+  // Copy from another character
+  partsManager.CopyFrom(otherPartsManager);
+
+[State Queries]
+  int count = partsManager.GetPartsCount(PartsType.Sword);   // Available sprite count
+  int index = partsManager.GetActiveIndex(PartsType.Sword);   // Current equipped index
+  bool equipped = partsManager.IsEquipped(PartsType.Helmet);   // Is equipped?
+  bool visible = partsManager.IsPartsVisible(PartsType.Bow);   // Is visible?
+  Sprite thumb = partsManager.GetThumbnail(PartsType.Sword, 0); // Get thumbnail
+
+[Animation]
+  partsManager.PlayAnimation("Idle");
+  string current = partsManager.GetCurrentAnimation();
+  string[] names = partsManager.GetAnimationNames();
+
+[Events]
+  partsManager.OnPartsChanged += (type, index) => { };
+  partsManager.OnVisibilityChanged += (type, visible) => { };
+  partsManager.OnColorChanged += (target, color) => { };
+
+================================================================================
+6. Demo Equipment, Fishing & Mounts
+================================================================================
+
+Open Common/Scenes/DemoScene.unity and enter Play Mode. The base pack includes
+three guns, three fishing rods, three pickaxes and three mounts.
+
+[Equipment slots]
+  - Select the right-hand slot to choose a gun. Bow, Crossbow, Spear, Staff and
+    Gun are two-handed. Equipping one clears the left-hand slot. Equipping a
+    shield or sub-item clears an equipped two-handed weapon.
+  - The fishing rod and pickaxe have their own slots. Choose the sprite in
+    each slot, then click its tool indicator to hold it. The dimmed state means
+    the tool is stored. Click the weapon eye to show the combat weapon again.
+    Switching the held item preserves the tool selection.
+
+[Fishing and mining]
+  The demo buttons preview individual actions. In your game, choose when to
+  advance from one Animator state to the next:
+
+    Demo button       Animator state       Action
+    Fishing Throwing  Fishing_Throwing     Cast the line
+    Fishing Idle      Fishing_Idle         Wait for a bite
+    Fishing Reel      Fishing_Real         Reel in (use this exact state name)
+    Fishing Catch     Fishing_Catch        Lift the rod and retrieve the line
+
+  FishingEquip on Character shows the equipped rod during these states and
+  restores the previous hand equipment when fishing ends. FishingLine on
+  Tool_Fishing draws from the rod tip to its End Point, Tool_Fishing_Point.
+  The supplied fishing clips animate the point's active state.
+
+    partsManager.EquipParts(PartsType.Fishing, 0);
+    partsManager.PlayAnimation("Fishing_Throwing");
+    // When casting is complete:
+    partsManager.PlayAnimation("Fishing_Idle");
+
+  For a mining interaction, call SetMining(true) on the character's
+  FishingEquip when mining begins and SetMining(false) when it ends.
+
+[Fishing line and target point]
+  Open Common/Prefabs/Character.prefab. Select Rider/HandRight/Tool_Fishing
+  and find the FishingLine component in the Inspector.
+  - Rod Tip is the start of the line, in the rod's local coordinates.
+    Adjust it if the line starts short of the tip on a custom rod sprite.
+  - End Point is already assigned to Rider/Tool_Fishing_Point. Move this
+    empty Transform to the desired float or landing position. To follow a
+    moving target, set the point's world position from your gameplay code.
+    Keep its name and parent so the supplied clips can activate it.
+  - Width controls thickness; Sag controls the downward bend between the
+    ends (0 gives a straight line). Width scales with the character.
+    The component creates the LineRenderer and draws it behind the rod.
+
+  Tool_Fishing_Point starts inactive. The four fishing clips activate it.
+  Casting extends the line in an arc. Waiting and reeling keep the end at
+  the point; catching retracts it to the tip. For a quick check, equip a
+  rod, play Fishing Idle and move Tool_Fishing_Point in the Scene view:
+  the end of the line should follow. In Idle or Walk the line is hidden.
+
+[Mounts]
+  Choose a mount in the slot below the left-hand slot, or use:
+    partsManager.EquipParts(PartsType.Mount, 0);
+    partsManager.UnequipParts(PartsType.Mount);
+
+  MountSeat raises Rider by Seat Height (0.15 local units on the supplied
+  prefab). The Character root stays at ground level. The rider uses the same
+  animation clips on foot and while mounted. Shadow and Dead stay grounded.
+  When adapting a custom prefab, keep its Animator on Rider and preserve the
+  child paths used by the clips. Update code that formerly looked for the
+  Animator directly on Character.
+
+[Jump Attack events]
+  AnimationEventReceiver on Rider exposes two callbacks for Jump Attack:
+    0.633 s   OnProjectileReleaseEvent   Spawn a projectile while airborne.
+    0.817 s   OnAttackHitEvent           Apply a melee hit on landing.
+  The clip sends both signals. In your combat code, handle the one appropriate
+  to the equipped weapon. OnSkillHitEvent remains available for the Skill clip.
+
+================================================================================
+7. Update History
+================================================================================
+
+[2026-11-06] Tools, Guns, Mounts and Fishing
+  Added four equipment categories and four fishing animations to the demo.
+  See Section 2 for sprite naming, Section 5 for the API namespace and
+  Section 6 for equipment switching, mount setup and Jump Attack timing.
+
+[2026-05-23] R Key Shortcut Removed
+
+  Summary
+  -------
+  - Removed the R key shortcut and InputField focus guard from DemoControl.
+      Deleted Update() / IsResetKeyPressed() / IsTextInputFocused() methods.
+      DemoControl.OnClickResetAll() is retained and can still be wired to a
+      Unity Button OnClick event.
+
+[2026-05-23] Player Movement & GameMode Removed
+
+  Summary
+  -------
+  - Removed all movement and input handling from Player.cs.
+      Removed fields (rb / moveSpeed / moveTarget / isMoving / _mainCamera /
+      currentMode), constants (ANIM_WALK / MIN_DIRECTION_THRESHOLD /
+      ARRIVAL_DISTANCE), methods (Update / HandleClick / UpdateMovement /
+      SetMode) and the OnModeChanged event.
+      Player.Init() now simply initializes PartsManager and plays the Idle animation.
+  - Removed the GameMode enum (Home / Experience) from PartsType.cs.
+      Click-to-move in Experience mode is no longer available; Walk animation
+      is no longer triggered by Player (call partsManager.PlayAnimation("Walk")
+      externally if needed).
+
+[2026-05-23] ColorPicker Input System Compatibility
+
+  Summary
+  -------
+  - Fixed InvalidOperationException thrown by ColorPicker.Update() when
+    "Active Input Handling" is set to "Input System Package (New)" in
+    Player Settings.
+  - ColorPicker now implements IPointerUpHandler and clears drag flags in
+    OnPointerUp instead of polling Input.GetMouseButtonUp(0) in Update().
+    Update() was removed entirely.
+  - When running with the new Input System, make sure the scene's
+    EventSystem uses InputSystemUIInputModule so the pointer callbacks fire.
+
+[2026-05-08] ResetAll() Added
+
+  Summary
+  -------
+  - Added PartsManager.ResetAll()
+      Re-runs Init() and fires every category/color change event so UI
+      listeners (e.g. ColorPicker) auto-synchronize.
+      Does not affect Animator state, selectedThemes, or the
+      PanelPartsControl preset index.
+
+  - Added DemoControl.OnClickResetAll()
+      Wire to a Unity Button OnClick event.
+
+  - ColorPicker external color sync
+      Subscribes to PartsManager.OnColorChanged so that when a color is
+      changed from outside (e.g. ResetAll), the sliders, hex input, and
+      color preview update automatically.
+
+[2026-05-07] Folder Structure Reworked — Pack-based Aggregation
+
+  Summary
+  -------
+  - Base Folder default path changed
+      Before : Assets/Layer Lab/2D Art Maker Unity/AMMinimalGame Character/Sprites/Character
+      After  : Assets/Layer Lab/2D Minimal-CharacterMaker/Extenstions
+
+  - Theme-based loading removed (Fantasy / Fantasy1 / ...)
+      ThemeType / selectedThemes usage was fully removed from the Editor.
+      You no longer need to select a theme in the inspector.
+      (The selectedThemes field in PartsManager.cs is kept for serialization
+       compatibility but is no longer referenced at runtime or in the editor.)
+
+  - Folder structure generalized: per-Pack auto aggregation
+      Every first-level folder under Base Folder is treated as a "Pack",
+      and every subfolder inside each Pack (except Thumbnail) is recursively
+      scanned. Sprites under folders matching PartsFolderMap are collected
+      per PartsType and merged across all packs.
+
+      Before:
+        Base Folder/Common/{Eye,Hair,Beard,Helmet_Hair,Skin}
+        Base Folder/Theme/{Fantasy|Fantasy1|...}/{Chest,Helmet,Sword,...}
+
+      After:
+        Base Folder/{Pack}/Parts/{Chest,Helmet,HandRight/*,HandLeft/*}
+        Base Folder/{Pack}/Character/{Eye,Hair,Beard,Helmet_Hair,...}
+        Base Folder/{Pack}/Thumbnail/{PartsType...}
+
+      Pack names are free-form (e.g. Parts Pack Base, Parts Pack Vol.1).
+      Adding Vol.2 / Vol.3 / ... requires no code change — just run Auto
+      Setup again.
+
+  - Fixed "Thumnail" typo (Thumnail -> Thumbnail)
+      The editor constant THUMBNAIL_SUBFOLDER is also corrected to "Thumbnail".
+
+  - Group folder auto-detection
+      Adding a new group folder inside a Pack (e.g. Character) requires no
+      code change. Only the Thumbnail folder is excluded; everything else
+      is recursively scanned.
+
+  Impact
+  ------
+  - Editor : Common/Scripts/Editor/PartsManagerEditor.cs
+      * DEFAULT_SPRITE_FOLDER path changed
+      * Removed selectedThemesProp / IsThemeSelected / AddTheme / RemoveTheme
+      * Removed CommonFolderMap / ThemeFolderMap →
+        consolidated into PartsFolderMap (folder name -> PartsType)
+      * Added ThumbnailFolderMap (PartsType -> folder name)
+      * Rewrote LoadSpritesFromFolder / LoadThumbnails
+      * Renamed ScanThemeFolder -> ScanPartsFolder (recursive scan preserved)
+      * Removed unused FindCategoryIndex / SetSpritesToCategory
+
+  Migration Guide
+  ---------------
+  1) Set the PartsManager inspector's [Base Folder] to
+     Assets/Layer Lab/2D Minimal-CharacterMaker/Extenstions
+     (EditorPrefs may hold the previous path, so reselect it once.)
+  2) Click the [Auto Setup] button.
+     - Auto-maps child SpriteRenderers
+     - Aggregates Parts/Character sprites across every Pack
+     - Aggregates Thumbnails across every Pack
+  3) When adding a new content pack:
+     Place the new pack under Extenstions/{new Pack folder}/ using the same
+     convention (Parts/, Character/ optional, Thumbnail/) and press Auto
+     Setup again — it will be picked up automatically.
+
+================================================================================

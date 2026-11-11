@@ -1,0 +1,855 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 896e881ee78374a3e9f40b690fff4518, type: 3}
+  m_Name: PresetData
+  m_EditorClassIdentifier: 
+  items:
+  - parts:
+    - type: 0
+      index: 0
+    - type: 1
+      index: 15
+    - type: 2
+      index: -1
+    - type: 3
+      index: -1
+    - type: 4
+      index: 49
+    - type: 5
+      index: 9
+    - type: 6
+      index: 1
+    - type: 7
+      index: 7
+    - type: 8
+      index: 6
+    - type: 9
+      index: 9
+    - type: 10
+      index: 15
+    - type: 11
+      index: 9
+    - type: 12
+      index: 8
+    - type: 13
+      index: 5
+    - type: 14
+      index: 27
+    - type: 15
+      index: 9
+    - type: 16
+      index: 15
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.49145108, g: 0.90865034, b: 0.65421087, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.95413476, g: 0.38536122, b: 0.8566955, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 0
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 1
+    - type: 8
+      visible: 1
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 1
+    - type: 16
+      visible: 0
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 10
+    - type: 1
+      index: 4
+    - type: 2
+      index: 53
+    - type: 3
+      index: -1
+    - type: 4
+      index: 35
+    - type: 5
+      index: 2
+    - type: 6
+      index: 12
+    - type: 7
+      index: 10
+    - type: 8
+      index: 6
+    - type: 9
+      index: 5
+    - type: 10
+      index: 5
+    - type: 11
+      index: 9
+    - type: 12
+      index: 8
+    - type: 13
+      index: 5
+    - type: 14
+      index: 19
+    - type: 15
+      index: 9
+    - type: 16
+      index: 4
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.7976917, g: 0.26504242, b: 0.64978445, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.7976917, g: 0.2650424, b: 0.6497844, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 1
+    - type: 8
+      visible: 0
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 1
+    - type: 15
+      visible: 1
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 0
+    - type: 1
+      index: -1
+    - type: 2
+      index: 16
+    - type: 3
+      index: 2
+    - type: 4
+      index: 20
+    - type: 5
+      index: 12
+    - type: 6
+      index: 1
+    - type: 7
+      index: 7
+    - type: 8
+      index: 15
+    - type: 9
+      index: 5
+    - type: 10
+      index: 9
+    - type: 11
+      index: 9
+    - type: 12
+      index: 8
+    - type: 13
+      index: 3
+    - type: 14
+      index: 23
+    - type: 15
+      index: 9
+    - type: 16
+      index: 10
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.13333334, g: 0.12941177, b: 0.12941177, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.70980394, g: 0.5019608, b: 0.37254903, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 0
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 1
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 1
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 1
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 0
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 0
+    - type: 1
+      index: 4
+    - type: 2
+      index: -1
+    - type: 3
+      index: -1
+    - type: 4
+      index: 17
+    - type: 5
+      index: -1
+    - type: 6
+      index: -1
+    - type: 7
+      index: -1
+    - type: 8
+      index: -1
+    - type: 9
+      index: -1
+    - type: 10
+      index: -1
+    - type: 11
+      index: -1
+    - type: 12
+      index: -1
+    - type: 13
+      index: 9
+    - type: 14
+      index: -1
+    - type: 15
+      index: 9
+    - type: 16
+      index: 4
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.40392157, g: 0.2509804, b: 0.23137255, a: 1}
+    - target: 1
+      color: {r: 0.8901961, g: 0.2352941, b: 0.46666667, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.16534258, g: 0.089319, b: 0.51155955, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 0
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 0
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 1
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 1
+    - type: 16
+      visible: 0
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 0
+    - type: 1
+      index: 18
+    - type: 2
+      index: 50
+    - type: 3
+      index: -1
+    - type: 4
+      index: 17
+    - type: 5
+      index: 15
+    - type: 6
+      index: 1
+    - type: 7
+      index: 2
+    - type: 8
+      index: -1
+    - type: 9
+      index: 5
+    - type: 10
+      index: 3
+    - type: 11
+      index: 3
+    - type: 12
+      index: 12
+    - type: 13
+      index: 9
+    - type: 14
+      index: 51
+    - type: 15
+      index: 9
+    - type: 16
+      index: 18
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.45490196, g: 0.3019608, b: 0.27058825, a: 1}
+    - target: 1
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.16534258, g: 0.089319, b: 0.51155955, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 1
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 0
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 1
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 7
+    - type: 1
+      index: 21
+    - type: 2
+      index: -1
+    - type: 3
+      index: 14
+    - type: 4
+      index: 7
+    - type: 5
+      index: 0
+    - type: 6
+      index: 6
+    - type: 7
+      index: 10
+    - type: 8
+      index: 3
+    - type: 9
+      index: 5
+    - type: 10
+      index: 3
+    - type: 11
+      index: 3
+    - type: 12
+      index: 12
+    - type: 13
+      index: 0
+    - type: 14
+      index: 3
+    - type: 15
+      index: 9
+    - type: 16
+      index: 21
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.7058824, g: 0.4117647, b: 0.25490198, a: 1}
+    - target: 1
+      color: {r: 0.55, g: 0.47843137, b: 0.45490196, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.55, g: 0.47843137, b: 0.45490196, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 0
+    - type: 3
+      visible: 1
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 1
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 1
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 0
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 18
+    - type: 1
+      index: 19
+    - type: 2
+      index: 33
+    - type: 3
+      index: -1
+    - type: 4
+      index: 38
+    - type: 5
+      index: 19
+    - type: 6
+      index: 12
+    - type: 7
+      index: 4
+    - type: 8
+      index: 13
+    - type: 9
+      index: 9
+    - type: 10
+      index: 3
+    - type: 11
+      index: 2
+    - type: 12
+      index: 0
+    - type: 13
+      index: 4
+    - type: 14
+      index: 2
+    - type: 15
+      index: 10
+    - type: 16
+      index: 19
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.70980394, g: 0.5019608, b: 0.37254903, a: 1}
+    - target: 1
+      color: {r: 0.33259133, g: 0.47347826, b: 0.034675363, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.931026, g: 0.6197011, b: 0.21706691, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 1
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 1
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 12
+    - type: 1
+      index: 19
+    - type: 2
+      index: 53
+    - type: 3
+      index: 2
+    - type: 4
+      index: 33
+    - type: 5
+      index: 8
+    - type: 6
+      index: 12
+    - type: 7
+      index: 4
+    - type: 8
+      index: 2
+    - type: 9
+      index: 9
+    - type: 10
+      index: 3
+    - type: 11
+      index: 2
+    - type: 12
+      index: 0
+    - type: 13
+      index: 4
+    - type: 14
+      index: 5
+    - type: 15
+      index: 10
+    - type: 16
+      index: 19
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.33259133, g: 0.47347826, b: 0.034675363, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.9882353, g: 0.99215686, b: 0.92941177, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 1
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 1
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 0
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 1
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 11
+    - type: 1
+      index: 22
+    - type: 2
+      index: 6
+    - type: 3
+      index: -1
+    - type: 4
+      index: 23
+    - type: 5
+      index: -1
+    - type: 6
+      index: -1
+    - type: 7
+      index: -1
+    - type: 8
+      index: 8
+    - type: 9
+      index: -1
+    - type: 10
+      index: -1
+    - type: 11
+      index: -1
+    - type: 12
+      index: -1
+    - type: 13
+      index: -1
+    - type: 14
+      index: 45
+    - type: 15
+      index: 10
+    - type: 16
+      index: 22
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.9882353, g: 0.99215686, b: 0.92941177, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.9882353, g: 0.99215686, b: 0.92941177, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 0
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 0
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 0
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 1
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0
+  - parts:
+    - type: 0
+      index: 15
+    - type: 1
+      index: 19
+    - type: 2
+      index: 38
+    - type: 3
+      index: 2
+    - type: 4
+      index: 36
+    - type: 5
+      index: 12
+    - type: 6
+      index: 12
+    - type: 7
+      index: 4
+    - type: 8
+      index: 2
+    - type: 9
+      index: 9
+    - type: 10
+      index: 3
+    - type: 11
+      index: 2
+    - type: 12
+      index: 0
+    - type: 13
+      index: 4
+    - type: 14
+      index: 4
+    - type: 15
+      index: 10
+    - type: 16
+      index: 19
+    - type: 17
+      index: 0
+    colors:
+    - target: 0
+      color: {r: 0.98039216, g: 0.7882353, b: 0.6745098, a: 1}
+    - target: 1
+      color: {r: 0.33259133, g: 0.47347826, b: 0.034675363, a: 1}
+    - target: 2
+      color: {r: 1, g: 1, b: 1, a: 1}
+    - target: 3
+      color: {r: 0.85882354, g: 0.654902, b: 0.48235294, a: 1}
+    visibility:
+    - type: 0
+      visible: 1
+    - type: 1
+      visible: 1
+    - type: 2
+      visible: 1
+    - type: 3
+      visible: 1
+    - type: 4
+      visible: 1
+    - type: 5
+      visible: 1
+    - type: 6
+      visible: 0
+    - type: 7
+      visible: 0
+    - type: 8
+      visible: 1
+    - type: 9
+      visible: 0
+    - type: 10
+      visible: 0
+    - type: 11
+      visible: 0
+    - type: 12
+      visible: 0
+    - type: 13
+      visible: 0
+    - type: 14
+      visible: 0
+    - type: 15
+      visible: 0
+    - type: 16
+      visible: 1
+    - type: 17
+      visible: 1
+    isEmpty: 0

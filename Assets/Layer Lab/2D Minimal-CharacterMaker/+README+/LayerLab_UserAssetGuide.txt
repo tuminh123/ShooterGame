@@ -1,0 +1,98 @@
+Thank you for choosing and using our assets!
+
+For detailed information and guidance on assets, please refer to the LayerLab User Asset Guide. 
+You can access the guide by copying and pasting the following link into your browser:
+--------------------------------------
+https://tinyurl.com/LayerLabAssetGuide
+--------------------------------------
+
+
+
+## Font Information & License:
+
+The text in this asset uses the 'LineSeedSans' fonts provided by LY Corp.
+
+You must review and comply with the licensing terms for each font.
+
+- LineSeedSans
+https://seed.line.me/index_kr.html
+https://scripts.sil.org/OFL
+
+
+##  Link to download Spine
+https://ko.esotericsoftware.com/spine-unity-download
+
+
+
+================================================================================
+Update History
+================================================================================
+
+[2026-05-07] Folder Structure Reworked — Pack-based Aggregation
+
+  Summary
+  -------
+  - Base Folder default path changed
+      Before : Assets/Layer Lab/2D Art Maker Unity/AMMinimalGame Character/Sprites/Character
+      After  : Assets/Layer Lab/2D Minimal-CharacterMaker/Extenstions
+
+  - Theme-based loading removed (Fantasy / Fantasy1 / ...)
+      ThemeType / selectedThemes usage was fully removed from the Editor.
+      You no longer need to select a theme in the inspector.
+      (The selectedThemes field in PartsManager.cs is kept for serialization
+       compatibility but is no longer referenced at runtime or in the editor.)
+
+  - Folder structure generalized: per-Pack auto aggregation
+      Every first-level folder under Base Folder is treated as a "Pack",
+      and every subfolder inside each Pack (except Thumbnail) is recursively
+      scanned. Sprites under folders matching PartsFolderMap are collected
+      per PartsType and merged across all packs.
+
+      Before:
+        Base Folder/Common/{Eye,Hair,Beard,Helmet_Hair,Skin}
+        Base Folder/Theme/{Fantasy|Fantasy1|...}/{Chest,Helmet,Sword,...}
+
+      After:
+        Base Folder/{Pack}/Parts/{Chest,Helmet,HandRight/*,HandLeft/*}
+        Base Folder/{Pack}/Character/{Eye,Hair,Beard,Helmet_Hair,...}
+        Base Folder/{Pack}/Thumbnail/{PartsType...}
+
+      Pack names are free-form (e.g. Parts Pack Base, Parts Pack Vol.1).
+      Adding Vol.2 / Vol.3 / ... requires no code change — just run Auto
+      Setup again.
+
+  - Fixed "Thumnail" typo (Thumnail -> Thumbnail)
+      The editor constant THUMBNAIL_SUBFOLDER is also corrected to "Thumbnail".
+
+  - Group folder auto-detection
+      Adding a new group folder inside a Pack (e.g. Character) requires no
+      code change. Only the Thumbnail folder is excluded; everything else
+      is recursively scanned.
+
+  Impact
+  ------
+  - Editor : Common/Scripts/Editor/PartsManagerEditor.cs
+      * DEFAULT_SPRITE_FOLDER path changed
+      * Removed selectedThemesProp / IsThemeSelected / AddTheme / RemoveTheme
+      * Removed CommonFolderMap / ThemeFolderMap →
+        consolidated into PartsFolderMap (folder name -> PartsType)
+      * Added ThumbnailFolderMap (PartsType -> folder name)
+      * Rewrote LoadSpritesFromFolder / LoadThumbnails
+      * Renamed ScanThemeFolder -> ScanPartsFolder (recursive scan preserved)
+      * Removed unused FindCategoryIndex / SetSpritesToCategory
+
+  Migration Guide
+  ---------------
+  1) Set the PartsManager inspector's [Base Folder] to
+     Assets/Layer Lab/2D Minimal-CharacterMaker/Extenstions
+     (EditorPrefs may hold the previous path, so reselect it once.)
+  2) Click the [Auto Setup] button.
+     - Auto-maps child SpriteRenderers
+     - Aggregates Parts/Character sprites across every Pack
+     - Aggregates Thumbnails across every Pack
+  3) When adding a new content pack:
+     Place the new pack under Extenstions/{new Pack folder}/ using the same
+     convention (Parts/, Character/ optional, Thumbnail/) and press Auto
+     Setup again — it will be picked up automatically.
+
+  For detailed inspector / API usage, see UserGuide.txt in the same folder.
