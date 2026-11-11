@@ -34,6 +34,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Game Flow Settings
 
     [SerializeField] private bool autoStartRun = true; // Scene hiện chưa có Home UI; tắt để chờ GameManager.StartRun từ nút Play sau này.
+    [SerializeField] private StageDataSO stageData;
 
     #endregion
 
@@ -58,10 +59,17 @@ public sealed class GameSceneInstaller : MonoInstaller
         if (poolPrewarmSettings == null)
             throw new InvalidOperationException("Assign Pool Prewarm Settings in GameSceneInstaller.");
         poolPrewarmSettings.Validate();
+        if (stageData == null) throw new InvalidOperationException("Assign Stage Data in GameSceneInstaller.");
+        stageData.Validate();
         SignalBusInstaller.Install(Container);
         Container.BindInterfacesAndSelfTo<GameplayPauseService>().AsSingle();
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInterfacesAndSelfTo<SaveManager>().AsSingle().NonLazy();
+        Container.BindInterfacesAndSelfTo<SaveMigration>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<SaveMigration>(-180);
+        Container.BindInterfacesAndSelfTo<CurrencyService>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<CurrencyService>(-150);
+        Container.BindDisposableExecutionOrder<CurrencyService>(0); // Gỡ listener trước khi SaveManager ghi và kết thúc.
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();
         Container.Bind<LevelDatabaseSO>().FromInstance(levelDatabase).AsSingle();
         Container.Bind<EquipmentDatabaseSO>().FromInstance(equipmentDatabase).AsSingle();
@@ -70,13 +78,22 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<CharacterManager>().AsSingle();
         Container.BindInterfacesAndSelfTo<EnemyVisualManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<PlayerEquipmentService>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<PlayerEquipmentService>(-150);
         Container.BindInterfacesAndSelfTo<CharacterLevelService>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<CharacterLevelService>(-150);
         Container.BindInterfacesAndSelfTo<RunLevelService>().AsSingle().NonLazy();
         Container.Bind<LevelManager>().AsSingle().NonLazy();
         Container.BindInterfacesAndSelfTo<CharacterFactory>().AsSingle().WithArguments(characterPrefab);
         Container.BindInstance(new PlayerManager.Settings(defaultPlayerType));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
         Container.BindInterfacesAndSelfTo<PlayerManager>().AsSingle().NonLazy();
+        Container.BindInstance(stageData);
+        Container.Bind<EnemySpawnManager>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<GroundChunkManager>().FromComponentInHierarchy().AsSingle();
+        Container.BindInterfacesAndSelfTo<StageManager>().AsSingle().NonLazy();
+        Container.BindTickableExecutionOrder<StageManager>(200); // Sau projectile/timer gameplay, kiểm tra dọn hết màn.
+        Container.BindDisposableExecutionOrder<StageManager>(250); // Sau GameManager, trước factory và pool.
+        Container.BindInitializableExecutionOrder<PlayerManager>(-150);
         Container.Bind<UIManager>().FromComponentInHierarchy().AsSingle(); // Điều phối trên Canvas; controller từng panel tự nhận dependency qua scene injection.
         Container.BindInterfacesAndSelfTo<GameManager>().AsSingle().WithArguments(autoStartRun).NonLazy();
         Container.BindInitializableExecutionOrder<GameManager>(100); // Sau Save/RunSession/Loot đã đăng ký; manager tự chuẩn bị tài nguyên rồi spawn Player.

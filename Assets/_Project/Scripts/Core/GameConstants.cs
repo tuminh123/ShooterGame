@@ -15,7 +15,12 @@ public static class GameConstants
         #region Player Save Storage
 
         public const string PlayerFile = "PlayerSave.es3";  // * File trong persistentDataPath, có thể đổi từ GameSceneInstaller.
-        public const string PlayerData = "player_data";     // * Key chứa một PlayerSaveData; đổi key cần migration dữ liệu cũ.
+        public const string PlayerData = "player_data";     // Legacy schema 2/3; chỉ SaveMigration đọc.
+        public const string Format = "save_format";
+        public const string PlayerSelection = "player_selection";
+        public const string CharacterLevels = "character_levels";
+        public const string Equipment = "equipment";
+        public const string Currencies = "currencies";
 
         #endregion
     }

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Zenject;
 
 // * Loadout chung của người chơi; chưa quản lý inventory, slot, mở khóa hoặc nâng cấp vật phẩm.
-public sealed class PlayerEquipmentService : IDisposable
+public sealed class PlayerEquipmentService : IInitializable, IDisposable
 {
     private readonly SaveManager saves;
     private readonly Dictionary<string, StatBonus> bonuses;
+    private EquipmentSaveData data;
     private bool disposed;
     private bool changingEquipment;
 
@@ -19,9 +21,24 @@ public sealed class PlayerEquipmentService : IDisposable
         bonuses = database.CreateBonusLookup();
     }
 
+    public void Initialize()
+    {
+        if (!saves.IsLoaded || data != null) return;
+        data = saves.Load(GameConstants.SaveKeys.Equipment, new EquipmentSaveData(), ValidateData);
+    }
+
+    internal static void ValidateData(EquipmentSaveData value)
+    {
+        if (value == null || value.equippedItemIds == null) throw new InvalidOperationException("Missing equipped items.");
+        var unique = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string id in value.equippedItemIds)
+            if (string.IsNullOrWhiteSpace(id) || !unique.Add(id))
+                throw new InvalidOperationException("Equipment IDs must be non-empty and unique.");
+    }
+
     public IReadOnlyList<string> EquippedItemIds
     {
-        get { EnsureAvailable(); return saves.GetEquippedItemIds(); }
+        get { EnsureAvailable(); return data.equippedItemIds.ToArray(); }
     }
 
     public StatBonus TotalBonus
@@ -30,7 +47,7 @@ public sealed class PlayerEquipmentService : IDisposable
         {
             EnsureAvailable();
             StatBonus total = default;
-            foreach (string id in saves.GetEquippedItemIds())
+            foreach (string id in data.equippedItemIds)
                 total += GetBonus(id);
             return total;
         }
@@ -57,8 +74,9 @@ public sealed class PlayerEquipmentService : IDisposable
         changingEquipment = true;
         try
         {
-            bool changed = saves.SetEquippedItemIds(ids);
-            bool saved = !saves.IsDirty || saves.Save();
+            bool changed = ids.Count != data.equippedItemIds.Count || !unique.SetEquals(data.equippedItemIds);
+            if (changed) data.equippedItemIds = ids;
+            bool saved = changed ? SaveEquipment() : saves.SaveIfDirty();
             if (changed)
                 EquipmentChanged?.Invoke();
             return saved;
@@ -67,6 +85,13 @@ public sealed class PlayerEquipmentService : IDisposable
         {
             changingEquipment = false;
         }
+    }
+
+    public bool SaveEquipment()
+    {
+        EnsureAvailable();
+        ValidateData(data);
+        return saves.Save(GameConstants.SaveKeys.Equipment, data.Clone());
     }
 
     private StatBonus GetBonus(string id)
@@ -83,11 +108,13 @@ public sealed class PlayerEquipmentService : IDisposable
         disposed = true;
         EquipmentChanged = null;
         bonuses.Clear();
+        data = null;
     }
 
     private void EnsureAvailable()
     {
         if (disposed)
             throw new ObjectDisposedException(nameof(PlayerEquipmentService));
+        if (data == null || !saves.IsLoaded) throw new InvalidOperationException("Equipment data has not loaded.");
     }
 }

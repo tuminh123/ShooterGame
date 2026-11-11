@@ -13,6 +13,8 @@ public sealed class SkillDataSO : ScriptableObject
     [SerializeField] private string displayName; // Tên hiển thị.
     [SerializeField, TextArea] private string description; // Mô tả dự phòng khi cấp chưa có mô tả riêng.
     [SerializeField] private Sprite icon; // Icon thẻ và slot sở hữu.
+    [Tooltip("Chỉ dùng cho boss: animation khi Shooting thực thi thành công. Chọn Idle để không yêu cầu animation; NormalAttack của boss dùng Attack.")]
+    [SerializeField] private CharacterVisualState shootingVisualState = CharacterVisualState.Cast;
 
     #endregion
 
@@ -27,6 +29,7 @@ public sealed class SkillDataSO : ScriptableObject
     public string DisplayName => displayName;
     public string Description => description;
     public Sprite Icon => icon;
+    public CharacterVisualState ShootingVisualState => shootingVisualState;
     public IReadOnlyList<SkillLevelData> Levels => Array.AsReadOnly(levels);
     public IReadOnlyList<ISkill> Behaviours => Array.AsReadOnly(behaviours);
 

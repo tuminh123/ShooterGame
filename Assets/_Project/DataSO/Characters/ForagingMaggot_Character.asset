@@ -17,7 +17,7 @@ MonoBehaviour:
   team: 1
   isBoss: 0
   visualSettings:
-    Prefab: {fileID: 5431945204154776163, guid: 3d96b928b36232346bba972e0c334e49, type: 3}
+    Prefab: {fileID: 555968590948372189, guid: a99495e4f1cb69d4785c2f46192cb041, type: 3}
     Scale: {x: 1, y: 1, z: 1}
     Offset: {x: 0, y: 0, z: 0}
     Hitbox:

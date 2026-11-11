@@ -10,6 +10,7 @@ public sealed class SkillRuntime : IDisposable
     private sealed class Behaviour : IDisposable, ITimerListener
     {
         internal readonly ISkill Action; // Bản sao riêng, không chạy template.
+        private readonly SkillRuntime runtime;
         private readonly ITimerManager timers; // TimerManager của scene.
         private TimerHandle timer; // Cooldown đang chạy, được giữ khi đổi data.
         private float cooldown; // Nhịp mới áp dụng cho lần cast thành công tiếp theo.
@@ -18,9 +19,10 @@ public sealed class SkillRuntime : IDisposable
         internal float Remaining => timers.GetRemaining(timer);
 
         // Giao ownership action ngay khi timer đăng ký thành công.
-        internal Behaviour(ISkill action, ITimerManager timers, bool paused)
+        internal Behaviour(ISkill action, ITimerManager timers, bool paused, SkillRuntime runtime)
         {
             Action = action;
+            this.runtime = runtime;
             this.timers = timers;
             this.paused = paused;
             timer = timers.Register(0f, this, paused: paused);
@@ -38,8 +40,9 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed || paused) return;
             Action.Tick(timers.DeltaTime);
-            if (!disposed && Remaining <= 0f && Action.TryExecute() && !disposed)
-                timers.Restart(timer, cooldown);
+            if (disposed || Remaining > 0f || !Action.TryExecute() || disposed) return;
+            timers.Restart(timer, cooldown);
+            runtime.NotifyVisualAction(Action.Type);
         }
 
         // Đồng bộ timer và visual/state của hành vi.
@@ -146,7 +149,7 @@ public sealed class SkillRuntime : IDisposable
             if (behaviour == null)
             {
                 ISkill action = factory.CreateBehaviour(Definition, item.Type, context);
-                try { behaviour = new Behaviour(action, owner.Timers, paused); }
+                try { behaviour = new Behaviour(action, owner.Timers, paused, this); }
                 catch { action.Dispose(); throw; }
                 behaviours.Add(behaviour); // Nhận ownership trước callback ApplyData để reset/dispose có thể dọn ngay.
             }
@@ -196,6 +199,24 @@ public sealed class SkillRuntime : IDisposable
     #endregion
 
     #region Execution And Owner Lifecycle
+
+    // Chỉ boss yêu cầu Attack/Cast; Player và enemy thường vẫn thực thi skill nhưng không phát ani tấn công.
+    private void NotifyVisualAction(SkillBehaviourType type)
+    {
+        if (!IsActive || !owner.IsBoss || !context.IsValid || !ReferenceEquals(owner.RuntimeData, identity) ||
+            identity.Generation != generation || !identity.IsAlive) return;
+        switch (type)
+        {
+            case SkillBehaviourType.NormalAttack:
+                owner.RequestVisualState(CharacterVisualState.Attack);
+                break;
+            case SkillBehaviourType.Shooting:
+                CharacterVisualState state = Definition.ShootingVisualState;
+                if (state == CharacterVisualState.Attack || state == CharacterVisualState.Cast)
+                    owner.RequestVisualState(state);
+                break;
+        }
+    }
 
     // Chủ sở hữu runtime điều phối tick; callback đổi cấp sẽ kết thúc vòng duyệt cũ.
     internal void Tick()

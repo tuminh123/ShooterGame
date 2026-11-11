@@ -27,7 +27,7 @@ public sealed class CombatAssetsSO : ScriptableObject
     public struct EffectEntry
     {
         public EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
-        [Tooltip("Prefab visual con có AnimationEffectVisual hoặc ParticleEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.")]
+        [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.")]
         public GameObject visualPrefab;
     }
 

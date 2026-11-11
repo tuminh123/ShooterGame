@@ -16,12 +16,13 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     private readonly PoolManager pools;
     private readonly ITimeSource timeSource; // Chỉ đọc trạng thái pause khi kiểm tra nhặt.
     private readonly RunSessionManager session; // Nhận thưởng vàng, không giao dữ liệu trực tiếp cho UI.
+    private readonly CurrencyService currencies; // Ví vĩnh viễn: vàng được lưu ngay khi nhặt.
     private readonly List<PickupView> pickups = new List<PickupView>(128); // Vật phẩm còn trên mặt đất, tái sử dụng qua pool.
     private int runVersion; // Dừng lượt nhặt cũ nếu callback nhận EXP vừa reset trận.
     private bool disposed;
 
     public LootManager(LootDatabaseSO database, CharacterManager characters, PlayerManager players,
-        LevelManager levels, PoolManager pools, ITimeSource timeSource, RunSessionManager session)
+        LevelManager levels, PoolManager pools, ITimeSource timeSource, RunSessionManager session, CurrencyService currencies)
     {
         this.database = database != null ? database : throw new ArgumentNullException(nameof(database));
         drops = database.CreateLookup();
@@ -31,6 +32,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
         this.pools = pools;
         this.timeSource = timeSource;
         this.session = session;
+        this.currencies = currencies;
     }
 
     #endregion
@@ -93,7 +95,13 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
             if (pickup != null) pools.Despawn(pickup.gameObject);
             if (amount <= 0) continue;
             if (type == PickupType.Experience) levels.AddRunExperience(amount);
-            else session.AddGold(amount);
+            else if (type == PickupType.Gold)
+            {
+                // Add đã cập nhật ví và thử lưu. IO lỗi giữ snapshot để retry, không cộng thưởng lần nữa.
+                currencies.Add(CurrencyType.Gold, amount);
+                if (disposed || runVersion != version) return;
+                session.AddGold(amount); // Chỉ thống kê vàng kiếm trong trận, không quyết toán lại cuối trận.
+            }
             if (disposed || runVersion != version) return;
         }
     }

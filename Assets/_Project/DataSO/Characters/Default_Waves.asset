@@ -15,8 +15,7 @@ MonoBehaviour:
   advanceCondition: 0
   waves:
   - spawnCount: 20
-    duration: 30
+    delayAfterSpawn: 20
     spawnInterval: 0.5
-    maxAliveEnemies: 20
     enemies:
     - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}

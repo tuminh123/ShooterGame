@@ -10,7 +10,7 @@ try {
     $referenceFramework = Get-ChildItem (Join-Path $referencePack.FullName 'ref') -Directory | Select-Object -First 1
     $compilerArgs = @('-nologo', '-target:exe', '-nowarn:0649', ('-out:"' + (Join-Path $output 'Checks.dll') + '"'))
     $compilerArgs += Get-ChildItem $referenceFramework.FullName -Filter *.dll | ForEach-Object { '-r:"' + $_.FullName + '"' }
-    $compilerArgs += @('"Assets/_Project/Scripts/Combat/Effects/Visuals/IEffectVisual.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/EffectView.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/AnimationEffectVisual.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/ParticleEffectVisual.cs"', '"Tests/EffectPlayback/Program.cs"')
+    $compilerArgs += @('"Assets/_Project/Scripts/Combat/Effects/Visuals/IEffectVisual.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/EffectView.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/AnimationEffectVisual.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/ParticleEffectVisual.cs"', '"Assets/_Project/Scripts/Combat/Effects/Visuals/ObjectEffectVisual.cs"', '"Assets/_Project/Scripts/Core/JobSystem/Timer/ITimerManager.cs"', '"Assets/_Project/Scripts/Core/JobSystem/Timer/TimerData.cs"', '"Tests/EffectPlayback/Program.cs"')
     $response = Join-Path $output 'checks.rsp'
     $compilerArgs | Set-Content -LiteralPath $response -Encoding UTF8
     & (Join-Path $UnityEditor 'Data/NetCoreRuntime/dotnet.exe') (Join-Path $UnityEditor 'Data/DotNetSdkRoslyn/csc.dll') ('@' + $response)

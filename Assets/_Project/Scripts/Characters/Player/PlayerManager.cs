@@ -4,7 +4,7 @@ using UnityEngine;
 using Zenject;
 
 // * Class thuần quản lý Player; GameManager gọi SpawnPlayer/RemovePlayer theo luồng trận, Zenject quản lý Dispose.
-public sealed class PlayerManager : IDisposable
+public sealed class PlayerManager : IInitializable, IDisposable
 {
 
     #region Player Configuration & Dependencies
@@ -25,7 +25,8 @@ public sealed class PlayerManager : IDisposable
     private readonly CharacterFactory factory; // * Lấy cùng prefab vỏ với Enemy, gắn dữ liệu/hành vi trước khi bật.
     private readonly VirtualJoystick joystick; // * Truyền cho PlayerController thuần; manager không đọc input.
     private readonly Settings settings; // * Loại Player mặc định khi hồ sơ chưa chọn nhân vật.
-    private readonly SaveManager saves; // * Đọc nhân vật đã chọn và tiến trình đã load, không ghi HP của lượt chơi.
+    private readonly SaveManager saves; // Chỉ đọc/ghi lựa chọn nhân vật qua key riêng.
+    private PlayerSelectionSaveData selection;
     private readonly LevelManager levels; // * Tính bonus Player và thông báo khi level thay đổi.
     private readonly PlayerEquipmentService equipment;  // * Cung cấp bonus và thông báo khi trang bị thay đổi.
     private bool disposed;                   // * Chặn tạo player sau khi dịch vụ kết thúc.
@@ -38,8 +39,40 @@ public sealed class PlayerManager : IDisposable
     public CharacterRuntimeData RuntimeData => CurrentPlayer != null ? CurrentPlayer.RuntimeData : null;
     public Transform PlayerTransform => CurrentPlayer != null ? CurrentPlayer.transform : null;  // * Mục tiêu world-space.
     public event Action<CharacterView> PlayerChanged; // * Vỏ Player mới hoặc null; camera/nền không phụ thuộc kiểu controller.
+    public CharacterType SelectedCharacterType
+    {
+        get { EnsureSelectionLoaded(); return selection.selectedCharacterType; }
+    }
 
     #endregion
+
+    public void Initialize()
+    {
+        if (!saves.IsLoaded || selection != null) return;
+        selection = saves.Load(GameConstants.SaveKeys.PlayerSelection, new PlayerSelectionSaveData(), ValidateSelectionData);
+    }
+
+    internal static void ValidateSelectionData(PlayerSelectionSaveData value)
+    {
+        if (value == null || !Enum.IsDefined(typeof(CharacterType), value.selectedCharacterType))
+            throw new InvalidOperationException("Selected character type is not defined.");
+    }
+
+    // Ghi lựa chọn cho lần spawn tiếp theo; không đổi nhân vật giữa một trận đang chơi.
+    public bool SelectCharacter(CharacterType type)
+    {
+        EnsureSelectionLoaded();
+        if (type == CharacterType.None || levels.GetCharacter(type).Team != CharacterTeam.Player)
+            throw new ArgumentOutOfRangeException(nameof(type));
+        selection.selectedCharacterType = type;
+        return saves.Save(GameConstants.SaveKeys.PlayerSelection, selection.Clone());
+    }
+
+    private void EnsureSelectionLoaded()
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(PlayerManager));
+        if (selection == null || !saves.IsLoaded) throw new InvalidOperationException("Player selection has not loaded.");
+    }
 
     #region Service Initialization
 
@@ -70,7 +103,7 @@ public sealed class PlayerManager : IDisposable
             throw new ObjectDisposedException(nameof(PlayerManager));
         if (CurrentPlayer != null)
             return CurrentPlayer;
-        CharacterType type = saves.GetSnapshot().selectedCharacterType;
+        CharacterType type = SelectedCharacterType;
         if (type == CharacterType.None)
             type = settings.DefaultType;
         CharacterDataSO template = levels.GetCharacter(type);
@@ -152,6 +185,7 @@ public sealed class PlayerManager : IDisposable
         equipment.EquipmentChanged -= RefreshRuntime;
         RemovePlayer();
         PlayerChanged = null;
+        selection = null;
     }
 
     #endregion

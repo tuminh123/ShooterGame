@@ -7,7 +7,7 @@ using PrimeTween;
 
 // * Vỏ Unity dùng chung cho mọi nhân vật; không quyết định input hay AI.
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
-public sealed class CharacterView : MonoBehaviour, IDamageReceiver
+public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVisualEventSource
 {
     #region Dependencies & Spawn State
 
@@ -16,8 +16,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private MovementHandle movementHandle; // * Đăng ký của lần hoạt động hiện tại; vô hiệu ngay khi tắt vỏ.
     private ICharacterController controller; // * Hành vi được gắn lúc spawn, không serialize vào prefab.
     private GameObject visual; // * Bản sao visual con, lấy từ prefab được khai báo trong CharacterDataSO.
-    private SpriteRenderer[] sprites; // * Cache để lật hướng hiển thị, không tìm component trong từng frame.
-    private Animator[] animators; // * Reset animation khi bật lại để không giữ animation của lượt sử dụng trước.
+    private SpriteRenderer[] sprites; // Cache màu và bounds; quay mặt/animation thuộc CharacterVisualHandle.
+    private CharacterVisualHandle visualHandle;
     private HitboxData hitbox; // Cấu hình local; không cần Collider2D trên vỏ nhân vật.
     private ISpatialManager spatial;
     private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
@@ -27,7 +27,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     #endregion
 
-    #region Sprite Colors And Enemy Death Feedback
+    #region Sprite Colors And Feedback
 
     [SerializeField, Min(0.01f)] private float hitFlashDuration = 0.12f;
     [SerializeField, Range(0f, 1f)] private float hitWhiteBlend = 0.22f;
@@ -35,12 +35,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     [SerializeField] private Color poisonColor = new Color(0.65f, 0.35f, 1f, 1f);
     [SerializeField] private Color burnColor = new Color(1f, 0.45f, 0.15f, 1f);
     [SerializeField] private Color slowColor = new Color(0.35f, 0.8f, 1f, 1f);
-    private EnemyCombatFeedback enemyFeedback; // Chỉ giữ animation chết của enemy; màu sprite dùng chung ở view.
     private ICharacterFeedbackSource feedbackSource;
     private Color[] originalSpriteColors;
     private readonly bool[] statusColors = new bool[4];
     private Tween hitFlash;
     private bool flashing;
+    private bool resultPresentation;
 
     #endregion
 
@@ -55,6 +55,13 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
     public bool IsVisualVisible => visual != null && visual.activeSelf;
     public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);
+    
+    //animtion + faceing
+    public CharacterVisualState MovementVisualState { get; private set; } = CharacterVisualState.Idle;
+    public bool FacingRight { get; private set; } = true;
+    public bool IsVisualAlive => RuntimeData != null && RuntimeData.IsAlive;
+    public event Action<CharacterVisualState> VisualStateRequested;
+    public event Action<bool> FacingChanged;
 
     #endregion
 
@@ -111,8 +118,11 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         hitbox = presentation.Hitbox;
 
         RuntimeData = runtime;
+        resultPresentation = false;
         IsBoss = template.IsBoss;
         controller = behavior;
+        MovementVisualState = CharacterVisualState.Idle;
+        FacingRight = true;
         // * Parent vẫn đang tắt nên visual cũng được chuẩn bị trước khi xuất hiện trong scene.
         visual = pools.Spawn(template.VisualPrefab, transform.position, transform.rotation, PoolGroup.Other, transform);
         if (visual == null)
@@ -121,16 +131,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         // Áp dụng mỗi lần spawn để vỏ pool không giữ kích thước thanh máu của loại boss trước.
         if (TryGetComponent<CharacterUI>(out var characterUI)) characterUI.ApplyLayout(presentation);
         sprites = visual.GetComponentsInChildren<SpriteRenderer>(true);
-        animators = visual.GetComponentsInChildren<Animator>(true);
-        foreach (SpriteRenderer sprite in sprites)
-            sprite.flipX = false;
+        visualHandle = visual.GetComponent<CharacterVisualHandle>();
+        visualHandle?.Bind(this);
         originalSpriteColors = new Color[sprites.Length];
         for (int i = 0; i < sprites.Length; i++) originalSpriteColors[i] = sprites[i].color;
         feedbackSource = controller as ICharacterFeedbackSource;
         if (feedbackSource != null) feedbackSource.FeedbackChanged += OnFeedbackChanged;
-        if (runtime.Team == CharacterTeam.Enemy)
-            enemyFeedback = new EnemyCombatFeedback(this, visual.transform, animators,
-                visual.GetComponent<SpriteDeathAnimation>());
         Skills = new CharacterSkills(this, template.Skills, skillFactory);
         // Enemy bắt đầu ẩn; manager camera sẽ bật nếu visual giao khung hình trước khi render.
         visual.SetActive(runtime.Team != CharacterTeam.Enemy);
@@ -144,7 +150,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         if (RuntimeData == null)
             return;
-        enemyFeedback?.SetPaused(false);
         if (!RuntimeData.IsAlive) return; // Bật lại xác đang phát ani chết không đăng ký lại movement/hitbox/AI.
         movementHandle = movement.Register(transform);
         SpatialHandle = spatial.Register(this);
@@ -152,12 +157,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         skillManager.SetOwnerPaused(this, false);
         effectManager.SetPaused(this, RuntimeData, false);
         controller?.SetPaused(false);
-        ResetVisualAnimation();
+        ApplySpriteColors();
     }
 
     private void Update()
     {
-        if (RuntimeData == null)
+        if (RuntimeData == null || resultPresentation)
             return;
         if (!isActiveAndEnabled)
             return;
@@ -175,20 +180,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     {
         if (visual == null || visual.activeSelf == visible) return;
         visual.SetActive(visible);
-        if (visible) ResetVisualAnimation();
+        if (visible) ApplySpriteColors();
         VisualVisibilityChanged?.Invoke(visible);
-    }
-
-    // Reset khi vừa hiện hoặc bật lại vỏ; không cập nhật Animator trên visual đang tắt.
-    private void ResetVisualAnimation()
-    {
-        foreach (Animator animator in animators)
-        {
-            if (!animator.isActiveAndEnabled) continue;
-            animator.Rebind();
-            animator.Update(0f);
-        }
-        ApplySpriteColors(); // Bật lại visual/camera không làm mất màu trạng thái đang còn hiệu lực.
     }
 
     // Tính từ local bounds và Transform mới, kể cả khi visual đang tắt và Renderer.bounds chưa được cập nhật.
@@ -222,18 +215,40 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     public void Move(Vector2 direction, float speed, float maxDistance = float.PositiveInfinity,
         float? facingDirection = null)
     {
+        if (resultPresentation) return;
         FaceDirection(facingDirection ?? direction.x);
         movement?.SetMovement(movementHandle, direction, speed, maxDistance);
+        if (!IsVisualAlive) return;
+        CharacterVisualState next = speed > 0.0001f && direction.sqrMagnitude > 0.000001f && maxDistance > 0.0001f
+            ? CharacterVisualState.Move : CharacterVisualState.Idle;
+        if (MovementVisualState == next) return;
+        MovementVisualState = next;
+        RequestVisualState(next);
     }
 
     private void FaceDirection(float horizontalDirection)
     {
-        if (Mathf.Abs(horizontalDirection) <= 0.01f || sprites == null)
+        if (Mathf.Abs(horizontalDirection) <= 0.01f || !IsVisualAlive)
             return;
+        bool facingRight = horizontalDirection > 0f;
+        if (FacingRight == facingRight) return;
+        FacingRight = facingRight;
+        try { FacingChanged?.Invoke(facingRight); }
+        catch (Exception exception) { Debug.LogException(exception, this); }
+    }
 
-        bool flip = horizontalDirection < 0f;
-        foreach (SpriteRenderer sprite in sprites)
-            sprite.flipX = flip;
+    // Enum là hợp đồng gameplay; view không biết tên state Animator của từng prefab.
+    public void RequestVisualState(CharacterVisualState state)
+    {
+        if (RuntimeData == null) return;
+        bool resultState = state == CharacterVisualState.Win || state == CharacterVisualState.Lose;
+        if (resultState && RuntimeData.Team != CharacterTeam.Player) return;
+        if (resultPresentation && !resultState) return;
+        if (!RuntimeData.IsAlive && state != CharacterVisualState.Death && state != CharacterVisualState.Lose) return;
+        // Player và enemy thường chỉ trình diễn locomotion/hit/death. Attack/Cast dành riêng cho boss.
+        if (!IsBoss && (state == CharacterVisualState.Attack || state == CharacterVisualState.Cast)) return;
+        try { VisualStateRequested?.Invoke(state); }
+        catch (Exception exception) { Debug.LogException(exception, this); }
     }
 
     #endregion
@@ -265,18 +280,20 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // Unity damage endpoint only; the controller owns shield/HP/death behavior.
     public DamageResult ReceiveDamage(DamageInfo damage)
     {
+        if (resultPresentation) return default;
         return controller != null ? controller.ReceiveDamage(this, RuntimeData, damage) : default;
     }
 
-    public void ChangeHealth(float amount) => controller?.ChangeHealth(this, RuntimeData, amount);
-    public void GrantShield(float amount) => controller?.GrantShield(this, RuntimeData, amount);
+    public void ChangeHealth(float amount) { if (!resultPresentation) controller?.ChangeHealth(this, RuntimeData, amount); }
+    public void GrantShield(float amount) { if (!resultPresentation) controller?.GrantShield(this, RuntimeData, amount); }
 
     public DamageResult DealDamage(CharacterTarget target, float multiplier = 1f)
-        => controller != null ? controller.DealDamage(this, RuntimeData, target, multiplier) : default;
+        => !resultPresentation && controller != null ? controller.DealDamage(this, RuntimeData, target, multiplier) : default;
 
     internal void NotifyDamageReceived(DamageInfo damage, DamageResult result)
     {
         if (!result.Accepted) return;
+        if (!result.Killed) RequestVisualState(CharacterVisualState.Hit);
         DamageReceived?.Invoke(damage, result);
     }
 
@@ -360,9 +377,25 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         originalSpriteColors = null;
     }
 
-    // EnemyController quyết định lúc thu hồi; view chỉ phát các frame chết trên visual con.
-    internal bool PlayEnemyDeathFeedback(Action onComplete)
-        => enemyFeedback != null && enemyFeedback.PlayDeath(onComplete);
+    // Enemy chờ Death trước khi trả về pool.
+    internal bool WaitForDeathAnimation(Action onComplete)
+        => visualHandle != null && IsVisualVisible && visualHandle.WaitForDeathAnimation(onComplete);
+
+    // GameManager quyết định kết quả; view chỉ khóa hành vi Player và chuyển yêu cầu cho visual.
+    internal bool PlayResultAnimation(CharacterVisualState state, Action onComplete)
+    {
+        if (state != CharacterVisualState.Win && state != CharacterVisualState.Lose)
+            throw new ArgumentOutOfRangeException(nameof(state));
+        if (RuntimeData == null || RuntimeData.Team != CharacterTeam.Player) return false;
+        resultPresentation = true;
+        StopMovement();
+        StopSpatial();
+        ClearSkills();
+        effectManager?.ClearTarget(this, RuntimeData);
+        ClearFeedback();
+        RequestVisualState(state);
+        return visualHandle != null && IsVisualVisible && visualHandle.WaitForResultAnimation(state, onComplete);
+    }
 
     internal void EndCombatLifetime()
     {
@@ -370,6 +403,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         StopSpatial();
         CharacterRuntimeData identity = RuntimeData;
         ulong generation = identity != null ? identity.Generation : 0;
+        RequestVisualState(identity != null && identity.Team == CharacterTeam.Player
+            ? CharacterVisualState.Lose : CharacterVisualState.Death);
         try { Died?.Invoke(this); }
         finally
         {
@@ -414,7 +449,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     private void OnDisable()
     {
         StopHitFlash();
-        enemyFeedback?.SetPaused(true);
         StopMovement();
         StopSpatial();
         Skills?.SetPaused(true);
@@ -468,19 +502,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
     #region Destruction & Pool Release
 
-    // Gỡ reference trước Dispose để callback thu hồi lồng nhau không dọn cùng feedback hai lần.
-    private void ClearEnemyFeedback()
-    {
-        EnemyCombatFeedback previous = enemyFeedback;
-        enemyFeedback = null;
-        previous?.Dispose();
-    }
-
     // * Khi bị Destroy trực tiếp, Unity hủy cả visual con; chỉ gỡ tham chiếu và báo chủ sở hữu.
     // * Không trả visual về pool từ callback này vì hierarchy có thể đang trong quá trình hủy/tắt.
     private void OnDestroy()
     {
-        ClearEnemyFeedback();
+        visualHandle?.Unbind();
+        visualHandle = null;
         CharacterRuntimeData previousRuntime = RuntimeData;
         ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
@@ -494,7 +521,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         IsBoss = false;
         visual = null;
         sprites = null;
-        animators = null;
         try { NotifyReleased(); }
         finally { runtimePool?.TryReturn(previousRuntime, previousGeneration); }
     }
@@ -503,7 +529,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
     // * Visual được thu hồi xong rồi chủ sở hữu mới được thông báo, sau đó factory trả vỏ về pool.
     internal void ClearSpawn()
     {
-        ClearEnemyFeedback(); // Dừng ani chết và trả sprite/màu trước khi visual được đưa về pool.
+        visualHandle?.Unbind();
+        visualHandle = null;
         CharacterRuntimeData previousRuntime = RuntimeData;
         ulong previousGeneration = previousRuntime != null ? previousRuntime.Generation : 0;
         StopMovement();
@@ -516,7 +543,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         RuntimeData = null;
         IsBoss = false;
         sprites = null;
-        animators = null;
         if (visual != null)
         {
             GameObject previousVisual = visual;
@@ -535,6 +561,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
         DamageReceived = null;
         Deactivated = null;
         VisualVisibilityChanged = null;
+        VisualStateRequested = null;
+        FacingChanged = null;
         released?.Invoke(this);
     }
 

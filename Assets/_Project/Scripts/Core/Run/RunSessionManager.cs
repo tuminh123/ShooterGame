@@ -13,7 +13,7 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
     private TimerHandle clock; // Nhịp một giây của lượt hiện tại; hủy khi reset/dispose.
     private bool disposed;
 
-    public int Gold { get; private set; } // Vàng trong trận, chưa ghi vào save vĩnh viễn.
+    public int Gold { get; private set; } // Thống kê vàng trận; LootManager đã cộng vào ví, không cộng lại khi kết thúc.
     public int ElapsedSeconds { get; private set; } // Số giây gameplay, chịu ảnh hưởng timeScale.
     public int EnemiesDefeated { get; private set; }
     public event Action<int> GoldChanged;
@@ -35,7 +35,7 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
         clock = timers.RegisterPeriodic(1f, this, 1f);
     }
 
-    // Loot hoặc nguồn thưởng khác đều dùng cùng API; không phát event khi lượng nhận bằng 0.
+    // Chỉ cập nhật thống kê; nguồn thưởng phải cộng ví qua CurrencyService riêng.
     public void AddGold(int amount)
     {
         if (disposed) throw new ObjectDisposedException(nameof(RunSessionManager));

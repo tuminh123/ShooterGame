@@ -22,6 +22,33 @@ class Program
         public Action Snapshot => Completed;
     }
 
+    sealed class Timers : ITimerManager
+    {
+        uint version;
+        public TimerHandle Current;
+        public ITimerListener Listener;
+        public float Duration;
+        public bool Registered;
+        public float DeltaTime => 0f;
+        public TimerHandle Register(float duration, ITimerListener listener, float interval = 0f, bool paused = false)
+        {
+            Current = new TimerHandle(this, 0, ++version);
+            Duration = duration; Listener = listener; Registered = true;
+            return Current;
+        }
+        public TimerHandle RegisterPeriodic(float interval, ITimerListener listener, float firstDelay) => throw new NotSupportedException();
+        public bool IsRegistered(TimerHandle handle) => Registered && Current.Equals(handle);
+        public float GetRemaining(TimerHandle handle) => IsRegistered(handle) ? Duration : 0f;
+        public bool Restart(TimerHandle handle, float duration, bool resetInterval = false) => throw new NotSupportedException();
+        public bool SetPaused(TimerHandle handle, bool paused) => throw new NotSupportedException();
+        public bool Cancel(TimerHandle handle)
+        {
+            if (!IsRegistered(handle)) return false;
+            Registered = false; return true;
+        }
+        public void Complete() => Listener.OnTimer(Current, new TimerResult(0, true));
+    }
+
     static void Main()
     {
         var animator = new Animator();
@@ -54,6 +81,41 @@ class Program
         particleVisual.Play(); particleVisual.StopAndReset(); Call(particleVisual, "LateUpdate"); Check(particleFinished == 1 && !particles.Alive, "particle cancellation clears particles without completion");
         particleVisual.Play(); Call(particleVisual, "OnDisable"); Check(particleFinished == 1 && !particles.Alive, "disable clears particles");
 
+        var timers = new Timers(); var objectVisual = new ObjectEffectVisual(); objectVisual.Construct(timers);
+        int objectFinished = 0; objectVisual.Completed += () => objectFinished++;
+        Set(objectVisual, "duration", .35f); objectVisual.Play();
+        Check(objectVisual.gameObject.activeSelf && timers.Registered && timers.Duration == .35f,
+            "object visual activates and registers its authored gameplay duration");
+        TimerHandle oldTimer = timers.Current;
+        objectVisual.OnTimer(oldTimer, new TimerResult(0, false));
+        Check(objectFinished == 0 && objectVisual.gameObject.activeSelf, "object visual waits for timer completion");
+        objectVisual.Play();
+        Check(!timers.Current.Equals(oldTimer), "replay replaces the previous lifetime handle");
+        objectVisual.OnTimer(oldTimer, new TimerResult(0, true));
+        Check(objectFinished == 0 && objectVisual.gameObject.activeSelf, "stale expiry cannot end a reused object visual");
+        timers.Complete(); timers.Complete();
+        Check(objectFinished == 1 && !objectVisual.gameObject.activeSelf && !timers.Registered,
+            "object expiry hides the visual, frees its timer and completes exactly once");
+        objectVisual.Play(); objectVisual.StopAndReset(); timers.Complete();
+        Check(objectFinished == 1 && !objectVisual.gameObject.activeSelf && !timers.Registered,
+            "object cancellation hides and unregisters without completion");
+        objectVisual.Play(); Call(objectVisual, "OnDisable");
+        Check(objectFinished == 1 && !timers.Registered, "object disable cancels its lifetime");
+        objectVisual.Play(); Call(objectVisual, "OnDestroy");
+        Check(objectFinished == 1 && !timers.Registered, "object destruction cancels its lifetime");
+        Set(objectVisual, "duration", float.NaN);
+        bool rejected = false;
+        try { objectVisual.Play(); } catch (InvalidOperationException) { rejected = true; }
+        Check(rejected && !timers.Registered && !objectVisual.gameObject.activeSelf, "invalid object lifetime fails without leaking a timer");
+        Set(objectVisual, "duration", .2f);
+
+        var objectClone = new GameObject(); objectClone.Components.Add(objectVisual);
+        var objectPool = new PoolManager { Next = objectClone }; var objectShell = new EffectView(); objectShell.Construct(objectPool);
+        var objectSpawner = new CombatSpawner(); objectSpawner.OnRelease = objectShell.Clear;
+        objectShell.Initialize(objectSpawner, new GameObject()); Call(objectShell, "OnEnable"); timers.Complete();
+        Check(objectSpawner.Releases == 1 && objectPool.Returns == 1 && !timers.Registered,
+            "object completion releases through the existing effect shell and pool");
+
         var visual = new Visual(); var clone = new GameObject(); clone.Components.Add(visual);
         var pool = new PoolManager { Next = clone }; var shell = new EffectView(); shell.Construct(pool);
         var spawner = new CombatSpawner(); spawner.OnRelease = shell.Clear;
@@ -80,6 +142,8 @@ namespace UnityEngine
     public class Transform { public Vector3 position, localPosition, localScale; public Quaternion rotation, localRotation; }
     public class GameObject
     {
+        public bool activeSelf = true;
+        public void SetActive(bool value) { activeSelf = value; }
         public readonly Transform transform = new Transform();
         public readonly List<object> Components = new List<object>();
         public T GetComponent<T>() where T : class { foreach (var c in Components) if (c is T t) return t; return null; }

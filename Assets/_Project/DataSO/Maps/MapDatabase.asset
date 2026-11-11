@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e0233a956da94f2d8ff81ae5713658cf, type: 3}
   m_Name: MapDatabase
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   maps:
   - key: grass
     sprite: {fileID: 21300000, guid: 749bedb810f34ea08294982c9e1fc617, type: 3}

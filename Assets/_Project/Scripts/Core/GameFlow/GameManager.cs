@@ -17,11 +17,13 @@ public sealed class GameManager : IInitializable, IDisposable
     private readonly ProjectileManager projectiles; // Thu hồi đạn cũ trước khi tạo trận mới.
     private readonly GameplayPauseService pauses; // Token luồng game độc lập với pause thủ công và bảng chọn skill.
     private readonly SkillManager skills; // Dọn skill gameplay; skill nhân vật theo vòng đời CharacterView.
+    private readonly StageManager stage;
     private readonly bool autoStartRun; // Scene hiện chưa có Home UI nên mặc định tự vào trận sau khi sẵn sàng.
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
     private bool initialized; // Chặn Initialize lặp và API gameplay chạy trước bước chuẩn bị.
     private bool transitioning; // Chặn yêu cầu chuyển luồng lồng nhau từ callback UI hoặc gameplay.
     private bool disposed; // Không xử lý yêu cầu sau khi SceneContext đã kết thúc.
+    private int resultVersion; // Hủy callback cũ khi rời trận, restart hoặc dispose.
     public GameState State { get; private set; } = GameState.Boot; // Nguồn trạng thái duy nhất; bus/UI không tự ghi.
     public Exception LastError { get; private set; } // Cho loading/error UI đọc nguyên nhân chuẩn bị thất bại.
 
@@ -32,12 +34,13 @@ public sealed class GameManager : IInitializable, IDisposable
     // Zenject cung cấp service; constructor chưa spawn Player hoặc phát sự kiện khi UI chưa inject xong.
     public GameManager(SaveManager saves, PoolPrewarmService resources, LevelManager levels,
         PlayerManager players, CharacterManager characters, CharacterFactory factory,
-        ProjectileManager projectiles, GameplayPauseService pauses, SkillManager skills, bool autoStartRun = true)
+        ProjectileManager projectiles, GameplayPauseService pauses, SkillManager skills, StageManager stage, bool autoStartRun = true)
     {
         this.saves = saves; this.resources = resources; this.levels = levels; this.players = players;
         this.characters = characters; this.factory = factory; this.projectiles = projectiles;
         this.pauses = pauses; this.autoStartRun = autoStartRun;
         this.skills = skills;
+        this.stage = stage;
     }
 
     // Chạy sau Save/RunSession.Initialize; chỉ cho vào Playing sau khi pool sẵn sàng và spawn thành công.
@@ -48,9 +51,12 @@ public sealed class GameManager : IInitializable, IDisposable
         transitioning = true;
         HoldFlowPause();
         characters.CharacterDied += OnCharacterDied;
+        stage.Cleared += OnStageCleared;
+        stage.Failed += Fail;
         try
         {
             if (!saves.IsLoaded) throw new InvalidOperationException("Cannot initialize game before save data is loaded.");
+            stage.Validate();
             resources.Prewarm();
             if (!resources.IsReady) throw new InvalidOperationException("Gameplay resources are not ready.");
             ChangeState(GameState.Home);
@@ -74,9 +80,11 @@ public sealed class GameManager : IInitializable, IDisposable
         try
         {
             LastError = null;
+            resultVersion++;
             ChangeState(GameState.PreparingRun);
             CleanupCharactersAndProjectiles();
             levels.StartNewRun();
+            stage.BeginRun();
             CharacterView player = players.SpawnPlayer(); // PlayerChanged được phát trước khi UI/gameplay nhận Playing.
             if (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive)
                 throw new InvalidOperationException("Player must be alive before entering Playing.");
@@ -102,6 +110,8 @@ public sealed class GameManager : IInitializable, IDisposable
         HoldFlowPause();
         try
         {
+            resultVersion++;
+            stage.StopRun();
             CleanupCharactersAndProjectiles();
             levels.StartNewRun();
             ChangeState(GameState.Home);
@@ -115,12 +125,34 @@ public sealed class GameManager : IInitializable, IDisposable
 
     #region Transition And Cleanup
 
-    // Dừng gameplay trước khi thông báo kết quả; giữ snapshot trận để UI kết quả đọc cho tới restart/về Home.
+    // Khóa gameplay ngay, chờ animation Player trước khi công bố Won/Lost cho UI.
     private bool FinishRun(GameState result)
     {
         if (!CanTransition() || State != GameState.Playing) return false;
         transitioning = true;
-        try { HoldFlowPause(); skills.ClearRunSkills(); ChangeState(result); return true; }
+        try
+        {
+            CharacterView player = players.CurrentPlayer;
+            if (result == GameState.Won && (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive))
+                return false;
+            HoldFlowPause();
+            stage.FinishRun(result == GameState.Won);
+            skills.ClearRunSkills();
+            GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
+            CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
+            int version = ++resultVersion;
+            CharacterRuntimeData identity = player != null ? player.RuntimeData : null;
+            ulong generation = identity != null ? identity.Generation : 0;
+            ChangeState(ending);
+            if (player == null || !player.PlayResultAnimation(animation, () =>
+            {
+                if (!disposed && resultVersion == version && State == ending &&
+                    ReferenceEquals(player, players.CurrentPlayer) && ReferenceEquals(player.RuntimeData, identity) &&
+                    identity != null && identity.Generation == generation)
+                    CompleteResult(result);
+            })) ChangeState(result); // Thiếu visual/state: không để luồng game bị kẹt.
+            return true;
+        }
         catch (Exception exception) { Fail(exception); return false; }
         finally { transitioning = false; }
     }
@@ -128,7 +160,18 @@ public sealed class GameManager : IInitializable, IDisposable
     // CharacterManager có thể phát cả chết Enemy; chỉ cái chết của Player hiện tại mới kết thúc trận.
     private void OnCharacterDied(CharacterView character)
     {
-        if (ReferenceEquals(character, players.CurrentPlayer)) LoseRun();
+        if (!ReferenceEquals(character, players.CurrentPlayer) || State != GameState.Playing) return;
+        LoseRun();
+    }
+
+    private void OnStageCleared() => WinRun();
+
+    private void CompleteResult(GameState result)
+    {
+        transitioning = true;
+        try { ChangeState(result); }
+        catch (Exception exception) { Fail(exception); }
+        finally { transitioning = false; }
     }
 
     // Một nơi kiểm tra vòng đời/khóa chuyển state cho tất cả command.
@@ -168,6 +211,7 @@ public sealed class GameManager : IInitializable, IDisposable
     private void Fail(Exception exception)
     {
         LastError = exception;
+        stage.StopRun();
         HoldFlowPause();
         ChangeState(GameState.Faulted);
         Debug.LogException(exception);
@@ -178,7 +222,11 @@ public sealed class GameManager : IInitializable, IDisposable
     {
         if (disposed) return;
         disposed = true;
+        resultVersion++;
         characters.CharacterDied -= OnCharacterDied;
+        stage.Cleared -= OnStageCleared;
+        stage.Failed -= Fail;
+        stage.StopRun();
         ReleaseFlowPause();
     }
 

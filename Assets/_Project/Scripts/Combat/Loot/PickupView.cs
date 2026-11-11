@@ -23,7 +23,7 @@ public sealed class PickupView : MonoBehaviour
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
         spriteRenderer.sprite = sprite;
         spriteRenderer.color = Color.white;
-        transform.localScale = Vector3.one; // Vỏ luôn scale 1; kích thước từng sprite do Pixels Per Unit quyết định.
+        // Pool khôi phục scale từ prefab mỗi lần spawn; giữ nguyên kích thước đã chỉnh trong Inspector.
     }
 
     private void OnDisable()

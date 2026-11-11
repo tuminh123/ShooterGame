@@ -32,7 +32,7 @@ public sealed class PlayerController : CharacterControllerBase
 
     public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
-        // * Giữ vỏ cho màn hình game over sau này; skill ngừng tick khi chủ sở hữu hết HP.
+        // Giữ vỏ cho Lose; GameManager chuyển Lost sau khi visual phát xong.
         view.Move(Vector2.zero, 0f);
     }
 }

@@ -3,7 +3,8 @@ using UnityEngine.Scripting.APIUpdating;
 
 namespace LayerLab.ArtMakerUnity
 {
-    [MovedFrom(true, sourceNamespace: "", sourceAssembly: "LayerLab.ArtMakerUnity", sourceClassName: "FishingLine")]
+    // Giữ thông tin migration cho serializer, không yêu cầu API Updater sửa assembly của project.
+    [MovedFrom(false, sourceNamespace: "", sourceAssembly: "LayerLab.ArtMakerUnity", sourceClassName: "FishingLine")]
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(SpriteRenderer))]

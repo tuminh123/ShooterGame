@@ -38,6 +38,7 @@ MonoBehaviour:
     - Assembly-CSharp-firstpass
     - CW.Common
     - IngameDebugConsole.Runtime
+    - LayerLab.ArtMakerUnity
     - LeanCommon
     - LeanPool
     - PrimeTween.Debug

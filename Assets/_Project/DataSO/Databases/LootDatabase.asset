@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a629a723cc398cf4ca36fce9b6d48709, type: 3}
   m_Name: LootDatabase
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   drops:
   - type: 0
-    sprite: {fileID: 21300000, guid: e834c5ebcadb4a5cb2d333e149ad3d2a, type: 3}
+    sprite: {fileID: 21300000, guid: 0701aeb26b447a24c80bcc67e3a55764, type: 3}
     amount: 1
     dropChance: 1
   - type: 1
-    sprite: {fileID: 21300000, guid: ec752e4e5e2840c9b4b426596324cd96, type: 3}
+    sprite: {fileID: 21300000, guid: cfd153be0ba5c4f2eb993fefb57851a8, type: 3}
     amount: 1
     dropChance: 0.2
   pickupPrefab: {fileID: 11400000, guid: 85d22ce20d2f49188eaec296186e2617, type: 3}

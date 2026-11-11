@@ -7,5 +7,7 @@ public enum GameState
     Playing, // Trận đang hoạt động; pause tạm thời vẫn giữ state này.
     Won, // Điều kiện thắng đã được gameplay báo về GameManager.
     Lost, // Player chết hoặc gameplay yêu cầu kết thúc thua.
-    Faulted // Chuẩn bị tài nguyên/trận lỗi; giữ pause và LastError để chẩn đoán.
+    Faulted, // Chuẩn bị tài nguyên/trận lỗi; giữ pause và LastError để chẩn đoán.
+    EndingWin, // Gameplay dừng, chờ Player phát xong Win trước khi hiện kết quả.
+    EndingLose // Gameplay dừng, chờ Player phát xong Lose trước khi hiện kết quả.
 }

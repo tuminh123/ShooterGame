@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public enum WaveAdvanceCondition { AfterDuration, AfterEnemiesCleared }
 
@@ -9,10 +10,10 @@ public sealed class WaveConfigSO : ScriptableObject
     [Serializable]
     public sealed class Wave
     {
-        [Min(0.01f)] public float duration = 60f; // AfterDuration: chuyển theo thời gian, không chờ giết hết.
-        [Min(1)] public int spawnCount = 20; // AfterEnemiesCleared: tổng số quái phải spawn thành công trước khi chờ dọn hết.
+        [FormerlySerializedAs("duration")]
+        [Min(0f)] public float delayAfterSpawn = 20f; // Sau khi spawn đủ quái và boss, chờ bấy nhiêu giây trước wave tiếp.
+        [Min(1)] public int spawnCount = 20; // Tổng số quái phải spawn thành công trong wave ở cả hai chế độ.
         [Min(0.01f)] public float spawnInterval = 0.5f;
-        [Min(1)] public int maxAliveEnemies = 20; // Bao gồm quái sống còn lại từ wave trước.
         public CharacterDataSO[] enemies = Array.Empty<CharacterDataSO>();
     }
 
@@ -34,20 +35,20 @@ public sealed class WaveConfigSO : ScriptableObject
         foreach (Wave wave in waves)
         {
             if (wave == null ||
-                !Positive(wave.spawnInterval) || wave.maxAliveEnemies < 1 || wave.enemies == null || wave.enemies.Length == 0)
-                throw new InvalidOperationException("Each wave needs a valid condition, spawn timing, alive limit and enemy data.");
+                !Positive(wave.spawnInterval) || wave.spawnCount < 1 || wave.enemies == null || wave.enemies.Length == 0)
+                throw new InvalidOperationException("Each wave needs a positive enemy count, valid spawn timing and enemy data.");
             switch (advanceCondition)
             {
                 case WaveAdvanceCondition.AfterDuration:
-                    if (!Positive(wave.duration)) throw new InvalidOperationException("Timed wave duration must be positive and finite.");
+                    if (float.IsNaN(wave.delayAfterSpawn) || float.IsInfinity(wave.delayAfterSpawn) || wave.delayAfterSpawn < 0f)
+                        throw new InvalidOperationException("Delay after spawning must be non-negative and finite.");
                     break;
                 case WaveAdvanceCondition.AfterEnemiesCleared:
-                    if (wave.spawnCount < 1) throw new InvalidOperationException("Clear wave needs at least one enemy to spawn.");
                     break;
             }
             foreach (CharacterDataSO enemy in wave.enemies)
-                if (enemy == null || enemy.Team != CharacterTeam.Enemy || enemy.VisualPrefab == null)
-                    throw new InvalidOperationException("Waves can only spawn Enemy data with a visual prefab.");
+                if (enemy == null || enemy.Team != CharacterTeam.Enemy || enemy.IsBoss || enemy.VisualPrefab == null)
+                    throw new InvalidOperationException("Waves only contain normal Enemy data with visual prefabs. Configure bosses on StageDataSO.");
         }
     }
 

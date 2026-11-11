@@ -16,7 +16,7 @@
 | Level trận | RunLevelService | Nhận EXP, phát sự kiện tăng cấp/EXP và reset lượt chơi |
 | Trạng thái level trận | RunLevelProgress | Chi tiết tính tiến trình nội bộ do RunLevelService sở hữu |
 | Dữ liệu lưu lâu dài | PlayerSaveData | Nhân vật đang chọn và level vĩnh viễn của từng nhân vật |
-| IO và quản lý hồ sơ | SaveManager | Load/save Easy Save 3, kiểm tra dữ liệu và quản lý thay đổi chưa lưu |
+| IO hồ sơ | SaveManager | Đọc/ghi Easy Save 3 theo key, giữ snapshot chưa ghi được để retry |
 | Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
 | Danh mục trang bị | EquipmentDatabaseSO | Tra bonus cộng thẳng bằng ID vật phẩm |
 | Trang bị đang mặc | PlayerEquipmentService | Đọc/thay loadout đã lưu, tính tổng bonus và phát sự kiện |
@@ -171,23 +171,25 @@ File chỉ chứa hồ sơ người chơi. Không lưu chỉ số tổng, curren
 
 Không có bản ghi cho một nhân vật thì GetPermanentLevel trả 1. Việc đọc không tự thêm bản ghi. Danh sách tiến trình không phải danh sách mở khóa nhân vật; cơ chế mở khóa chưa được triển khai. SelectCharacter lưu type đang chọn, không tự tạo tiến trình hoặc xác nhận template đã được đăng ký trong database.
 
-Đang dùng schema phiên bản 2: khóa enum thay cho string ID. Easy Save trong project ghi enum bằng giá trị số (BlessedGladiator = 1). Save phiên bản 1 chưa có migration, sẽ bị từ chối và không ghi đè tự động; chưa chỉnh hoặc xóa file save thật. Dữ liệu trùng type, type không khai báo, type None trong bản ghi tiến trình hoặc level dưới 1 cũng bị từ chối.
+Ví dụ trên là schema 2 cũ. Hiện dùng schema 4 tách theo key; SaveMigration chuyển schema 2/3 sang cấu trúc mới và giữ key cũ. Enum vẫn lưu bằng giá trị số, không đổi các ID đã phát hành. Schema 1 không được hỗ trợ, bị chặn ghi đè. Service sở hữu từng phần kiểm tra dữ liệu trước khi dùng.
 
 equippedItemIds là field tùy chọn bổ sung cho schema 2: file cũ thiếu field này được đọc như loadout rỗng. ID trang bị phân biệt hoa/thường, không rỗng, không trùng và phải có trong EquipmentDatabase. Save không lưu bonus tính sẵn. Nếu database thiếu ID đã lưu, bước tạo runtime báo lỗi rõ ràng thay vì bỏ mất bonus âm thầm.
 
 ## 7. SaveManager, Easy Save và Zenject
 
-SaveManager là class thuần, implements IInitializable và IDisposable. GameSceneInstaller bind một instance cho scene và settings tên file. Initialize có priority -200, trước PlayerManager (-100). Hai service level và LevelManager là class thuần được bind AsSingle; constructor chỉ dựng cấu hình, không đọc save trước Initialize. CharacterLevelService và RunLevelService được dispose trước SaveManager để hủy callback, cache.
+SaveManager chỉ xử lý lưu trữ qua Load<T>(key, defaultData, validate), Save<T>(key, snapshot), SaveIfDirty và ResetData. CurrencyService, CharacterLevelService, PlayerEquipmentService và PlayerManager sở hữu dữ liệu, kiểm tra và quyết định thời điểm lưu. GameSceneInstaller khởi tạo SaveManager (-200), SaveMigration (-180), các service dữ liệu (-150), rồi mới chạy gameplay.
 
-Mặc định dùng file `PlayerSave.es3`, key `player_data`; hằng số nằm ở GameConstants.SaveKeys. Field Player Save File trên installer cho phép đổi tên file. Tên khác tương ứng file khác, không tự di chuyển save cũ.
+Mặc định dùng chung file `PlayerSave.es3`, các key `player_selection`, `character_levels`, `equipment`, `currencies`, và marker `save_format` phiên bản 4. Hằng số ở GameConstants.SaveKeys. `player_data` chỉ còn phục vụ migration. Field Player Save File trên installer cho phép đổi tên file; tên khác không tự di chuyển save cũ.
 
 Easy Save dùng Location.File và Directory.PersistentDataPath; đường dẫn dựa trên thư mục dữ liệu ứng dụng của Unity. Không ghi vào Assets. Trên nền tảng plugin chuyển File sang PlayerPrefs, hành vi tuân theo Easy Save.
 
-Load chỉ đọc key này hoặc tạo hồ sơ mới trong RAM nếu key chưa tồn tại; chưa tự ghi file khi mới mở game. Nếu đọc lỗi, IsLoaded = false, LastError giữ lỗi và API thay đổi/ghi bị khóa. Không tự reset hồ sơ để ghi đè file đang lỗi. Có thể gọi Load lại sau khi nguyên nhân được xử lý; không có API xóa/reset file ở bước này.
+SaveMigration ghi các section mặc định cho hồ sơ mới, hoặc chuyển hồ sơ cũ; marker phiên bản ghi sau cùng. Nếu đọc hoặc migration lỗi, IsLoaded = false và ghi bị khóa để bảo vệ file. ResetSaveButton xóa save rồi reload scene nếu người dùng chủ động reset.
 
-SetPermanentLevel và SelectCharacter chỉ thay đổi RAM, đánh dấu IsDirty. Gọi Save sau các thay đổi quan trọng để ghi ngay xuống lưu trữ. Save trả false khi ghi thất bại, giữ thay đổi chưa lưu để có thể thử lại và ghi LastError. Không reload khi IsDirty vì có thể mất thay đổi.
+Các service cập nhật RAM rồi gửi bản sao độc lập để lưu ngay. Save trả false khi IO lỗi; SaveManager giữ snapshot mới nhất theo key để retry. Retry ghi snapshot, không phát lại thao tác cộng tiền/tăng cấp. Không reload key còn pending.
 
-Dispose cố lưu nếu còn dirty khi scene container bị giải phóng. Đây là điểm lưu bổ sung, không bảo đảm cứu dữ liệu nếu ứng dụng bị kill/crash. Chưa có hook tự lưu khi mobile pause; bên điều phối ứng dụng cần gọi Save tại mốc phù hợp sau này. Chưa có hệ thống backup/recovery riêng, cloud hoặc nhiều profile.
+Installer gọi SaveIfDirty khi pause, mất focus và thoát; Dispose cũng thử ghi phần pending. Không bảo đảm ghi được nếu ứng dụng bị kill/crash hoặc thiết bị còn lỗi IO. Chưa có backup/cloud hay nhiều profile.
+
+LootManager nhặt vàng → CurrencyService.Add(CurrencyType.Gold, amount) → lưu key currencies ngay. RunSessionManager.Gold chỉ thống kê vàng trong trận; kết thúc trận không cộng lại. Kim cương dùng CurrencyType.Diamond trong cùng ví.
 
 Service hiện có scope theo scene. Nếu sau này nhiều scene cùng cần một hồ sơ đang dùng, chuyển binding sang ProjectContext để có một instance chung; không bind lại đồng thời ở cả ProjectContext lẫn SceneContext.
 
@@ -212,7 +214,7 @@ Gameplay inject LevelManager làm đầu mối cho cả hai loại level. Các s
 |---|---|
 | GetCharacter(type) | Tra template theo type |
 | GetPermanentConfig(type) | Tra config vĩnh viễn |
-| GetPermanentLevel(type) | Đọc level hiện tại từ SaveManager |
+| GetPermanentLevel(type) | Đọc level do CharacterLevelService sở hữu |
 | GetPermanentBonus(type) | Tính tổng bonus vĩnh viễn |
 | TryGetUpgradeCost(type, out cost) | Giá lần nâng tiếp theo; false khi đạt trần |
 | TryIncreasePermanentLevel(type, out saved) | Tăng một cấp, thử ghi save và phát sự kiện |
@@ -220,7 +222,7 @@ Gameplay inject LevelManager làm đầu mối cho cả hai loại level. Các s
 
 Chỉ gọi API đọc/thay đổi save sau SaveManager.Initialize thành công. Không đọc tiến trình trong constructor của class khác.
 
-TryIncreasePermanentLevel chưa kiểm tra sở hữu, điều kiện mở khóa hoặc trừ tài nguyên vì chưa có ví. Bên gọi phải xác nhận điều kiện đó trước khi gọi.
+TryIncreasePermanentLevel chưa tự kiểm tra sở hữu, mở khóa hoặc trừ tài nguyên. Bên gọi xử lý điều kiện/thanh toán bằng CurrencyService trước khi tăng cấp.
 
 ```csharp
 // levelManager được Zenject inject; ví dụ chỉ gọi sau khi save đã load thành công.
@@ -284,9 +286,9 @@ Level trận phát sự kiện nhưng không gọi save lâu dài. Muốn tiếp
 
 ### Save snapshot và dictionary
 
-GetSnapshot của SaveManager trả bản sao độc lập. Sửa snapshot không đánh dấu dirty hoặc thay hồ sơ đang quản lý.
+Service giữ dữ liệu đang dùng và gửi Clone() vào SaveManager.Save; snapshot pending không thay đổi theo dữ liệu runtime.
 
-SaveManager có dictionary CharacterType → bản ghi tiến trình, dựng lại sau load và cập nhật khi thêm bản ghi. CharacterLevelService có dictionary CharacterType → template và CharacterType → config. Các cache dùng enum làm khóa, tra cứu trung bình O(1), không ghi dictionary lặp vào file save.
+CharacterLevelService giữ dictionary CharacterType → tiến trình/template/config; CurrencyService giữ dictionary CurrencyType → số dư. SaveManager chỉ giữ dictionary key → snapshot còn lỗi ghi. Cache không được lưu lặp vào file.
 
 ## 9. Thư mục và bộ dữ liệu mẫu
 
@@ -343,8 +345,9 @@ CharacterDataSO stores one Skills list of SkillDataSO assets. Each CharacterView
 Luồng khởi động hiện tại:
 
 ```text
-SaveManager.Load (priority -200)
-    -> PlayerManager.SpawnPlayer (priority -100)
+SaveManager.Initialize (-200) -> SaveMigration (-180)
+    -> các service dữ liệu Initialize (-150)
+    -> GameManager.Initialize (100) -> PlayerManager.SpawnPlayer
     -> lấy nhân vật được chọn và template
     -> đọc level vĩnh viễn, level trận và ID trang bị
     -> tạo CharacterRuntimeData riêng, đầy HP
@@ -364,7 +367,7 @@ bool saved = equipmentService.SetEquippedItems(new[] { "boots" });
 equipmentService.SetEquippedItems(System.Array.Empty<string>());
 ```
 
-Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. SaveManager lưu danh sách và đánh dấu dirty; service thử save ngay rồi phát EquipmentChanged để runtime tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
+Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. PlayerEquipmentService sở hữu danh sách, gửi snapshot vào key equipment ngay rồi phát EquipmentChanged để runtime tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
 
 Skill, shooting, đạn và hiệu ứng đã được nối vào Character runtime. Enemy dùng chung vỏ/runtime và chết qua pipeline damage/despawn. Chưa nối EXP nhặt được, UI chọn thưởng, ví tài nguyên hoặc game over/chơi lại hoàn chỉnh. Các blueprint kiến trúc cũ cần được đối chiếu với mã hiện tại; tài liệu Skill-Shooting-Pipeline.md mô tả phần đã triển khai.
 

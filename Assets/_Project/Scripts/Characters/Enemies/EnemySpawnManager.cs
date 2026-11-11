@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// * Sinh quái theo nhịp ở các điểm trên viền hình chữ nhật và giới hạn số quái đang hoạt động.
+// * Sinh đủ số lượng từng wave theo nhịp ở các điểm trên viền hình chữ nhật.
 public class EnemySpawnManager : MonoBehaviour
 {
 
@@ -10,7 +10,7 @@ public class EnemySpawnManager : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform spawnCenter;   // * Tâm vùng sinh quái; mặc định lấy camera chính nếu chưa gán trong Inspector.
-    [SerializeField] private WaveConfigSO waveConfig; // * Chọn loại quái/nhịp/trần theo wave; mọi loại dùng cùng vỏ từ CharacterFactory.
+    private WaveConfigSO waveConfig; // StageManager cung cấp cấu hình của màn hiện tại.
 
     [Header("Enemy Separation")]
     [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings(); // * Một bộ cấu hình cho quái do spawner tạo; không thêm trạng thái né lên CharacterDataSO.
@@ -40,41 +40,37 @@ public class EnemySpawnManager : MonoBehaviour
     private Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs;
     public int CurrentWaveNumber => progress.WaveIndex + 1;
     public int CurrentEnemyLevel => progress.EnemyLevel;
+    public int AliveEnemyCount => CountAliveEnemies();
+    public event System.Action<int> WaveSpawnCompleted;
     private float nextSpawnTime;  // * Mốc Time.time sớm nhất được kiểm tra sinh tiếp, tính bằng giây.
-    private LevelManager levels; // * Nghe StartNewRun để reset wave, đồng hồ và thu hồi quái của lượt trước.
     private CharacterFactory factory; // * Ghép runtime/hành vi với prefab vỏ chung.
     private PlayerManager players; // * Truyền mục tiêu cho EnemyController và dừng spawn khi chưa có Player sống.
-    private GameManager game; // Chỉ được sinh quái khi luồng game đã vào Playing.
 
     [Inject]
-    public void Construct(CharacterFactory factory, PlayerManager players, LevelManager levels, GameManager game, LevelDatabaseSO levelDatabase)
+    public void Construct(CharacterFactory factory, PlayerManager players, LevelDatabaseSO levelDatabase)
     {
-        if (this.levels != null)
-            this.levels.RunReset -= ResetRun;
         this.factory = factory;
         this.players = players;
-        this.levels = levels;
-        this.game = game;
         levelConfigs = levelDatabase.CreateTypeLookup();
-        this.levels.RunReset += ResetRun;
     }
 
-    private void Start()
+    public void ValidateConfig(WaveConfigSO config)
     {
-        if (waveConfig == null)
-            throw new System.InvalidOperationException("Assign Wave Config on EnemySpawnManager.");
-        waveConfig.Validate();
-        for (int i = 0; i < waveConfig.Count; i++)
-            foreach (CharacterDataSO enemy in waveConfig.GetWave(i).enemies)
-            {
-                if (!levelConfigs.TryGetValue(enemy.CharacterType, out CharacterLevelConfigSO config))
-                    throw new System.InvalidOperationException($"Missing level config for wave enemy: {enemy.name}.");
-                config.GetTotalBonus(1);
-            }
+        config.Validate();
+        for (int i = 0; i < config.Count; i++)
+            foreach (CharacterDataSO enemy in config.GetWave(i).enemies) ValidateCharacter(enemy);
+        if (spawnCenter == null) throw new System.InvalidOperationException("Assign a spawn center or MainCamera.");
+    }
+
+    public void ValidateCharacter(CharacterDataSO enemy)
+    {
+        if (!levelConfigs.TryGetValue(enemy.CharacterType, out CharacterLevelConfigSO config))
+            throw new System.InvalidOperationException($"Missing level config for stage enemy/boss: {enemy.name}.");
+        config.GetTotalBonus(1);
     }
 
     // * Reset chỉ khi bắt đầu lượt mới; tắt/bật spawner hoặc đổi wave không làm reset đồng hồ loại quái.
-    private void ResetRun()
+    public void ResetRun()
     {
         while (activeEnemies.Count > 0)
         {
@@ -86,7 +82,15 @@ public class EnemySpawnManager : MonoBehaviour
             enemy.Released -= OnEnemyReleased;
             factory.Despawn(enemy);
         }
-        progress.Reset(Time.time);
+        waveConfig = null;
+        progress.Reset();
+        nextSpawnTime = Time.time;
+    }
+
+    public void BeginWave(WaveConfigSO config, int index)
+    {
+        waveConfig = config;
+        progress.BeginWave(index);
         nextSpawnTime = Time.time;
     }
 
@@ -101,45 +105,44 @@ public class EnemySpawnManager : MonoBehaviour
             spawnCenter = Camera.main.transform;
     }
 
-    // Chuyển wave theo điều kiện cấu hình; đến nhịp thì spawn nếu còn quota và chỗ trống.
-    private void Update()
+    // StageManager gọi Tick; spawner không tự chuyển wave hoặc quyết định thắng.
+    public void TickSpawning()
     {
-        if (game == null || game.State != GameState.Playing || waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
+        if (!isActiveAndEnabled || waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
             !players.RuntimeData.IsAlive || Time.deltaTime <= 0f)
             return;
 
-        int aliveEnemies = CountAliveEnemies();
-        if (progress.Advance(waveConfig, Time.time, aliveEnemies)) nextSpawnTime = Time.time;
         WaveConfigSO.Wave wave = waveConfig.GetWave(progress.WaveIndex);
         if (!progress.CanSpawn(waveConfig) || Time.time < nextSpawnTime)
             return;
         nextSpawnTime = Time.time + wave.spawnInterval;
 
-        if (aliveEnemies < wave.maxAliveEnemies)
-            SpawnEnemy(wave.enemies[Random.Range(0, wave.enemies.Length)]);
+        CharacterView enemy = SpawnCharacter(wave.enemies[Random.Range(0, wave.enemies.Length)], progress.EnemyLevel);
+        if (enemy == null) return;
+        enemy.Released += OnEnemyReleased;
+        activeEnemies.Add(enemy);
+        progress.RecordSpawn();
+        if (!progress.CanSpawn(waveConfig)) WaveSpawnCompleted?.Invoke(CurrentWaveNumber);
     }
 
+    public CharacterView SpawnBoss(CharacterDataSO boss, int level) => SpawnCharacter(boss, level);
+
     // * Tính lại viền theo tâm hiện tại, chọn ngẫu nhiên một điểm và lấy quái từ Lean Pool.
-    private void SpawnEnemy(CharacterDataSO template)
+    private CharacterView SpawnCharacter(CharacterDataSO template, int level)
     {
         BuildSpawnPoints();
         if (spawnPoints.Count == 0)
-            return;
+            return null;
 
         // * Chọn đều giữa các điểm có sẵn, không chọn liên tục mọi vị trí trên viền.
         Vector2 point = spawnPoints[Random.Range(0, spawnPoints.Count)];
         // * Factory thuê runtime rảnh và chốt bonus cho lượt spawn; không cộng vào SO/cá thể đang sống.
-        StatBonus bonus = levelConfigs[template.CharacterType].GetTotalBonus(progress.EnemyLevel);
+        StatBonus bonus = levelConfigs[template.CharacterType].GetTotalBonus(level);
         // * Controller mới mỗi lần spawn: hướng tách cache và lịch quét không đi theo vỏ được tái sử dụng.
         CharacterView enemy = factory.Spawn(template, bonus, new EnemyController(players, factory, separation, recoil),
             new Vector3(point.x, point.y, spawnZ));
 
-        if (enemy != null)
-        {
-            progress.RecordSpawn();
-            enemy.Released += OnEnemyReleased;
-            activeEnemies.Add(enemy);
-        }
+        return enemy;
     }
 
     #endregion
@@ -197,9 +200,8 @@ public class EnemySpawnManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (levels != null)
-            levels.RunReset -= ResetRun;
         ResetRun();
+        WaveSpawnCompleted = null;
     }
 
     #endregion

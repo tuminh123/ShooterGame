@@ -24,7 +24,8 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | Hệ thống | Thành phần chính | Trách nhiệm hiện tại |
 | --- | --- | --- |
 | Khởi tạo | GameSceneInstaller, Zenject | Bind dependency, thứ tự khởi tạo và dọn dịch vụ. |
-| Save | SaveManager | Load/save tiến trình và xử lý hồ sơ. |
+| Save | SaveManager, SaveMigration | Đọc/ghi theo key, retry snapshot lỗi; chuyển save cũ sang các section. |
+| Tiền tệ | CurrencyService, CurrencyType | Sở hữu số dư vàng/kim cương; cộng/trừ và lưu ví ngay khi thay đổi. |
 | Character | CharacterFactory, CharacterView, CharacterRuntimeData | Ghép vỏ, runtime và hành vi; quản lý HP/giáp, spawn/despawn. |
 | Player | PlayerManager, PlayerController | Nhân vật đang chơi, input và áp dụng bonus level/trang bị. |
 | Enemy/boss | EnemySpawnManager, EnemyController, WaveConfigSO | Chọn đợt/quái, sinh theo vùng, đuổi player, tách đàn và thu hồi. |
@@ -36,6 +37,7 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | Effect hình ảnh | CombatAssetsSO, CombatSpawner, EffectView | Tra và phát prefab VFX; tách khỏi trạng thái effect gameplay. |
 | Level | LevelManager, CharacterLevelService, RunLevelService | Level vĩnh viễn và EXP/level của lượt chơi. |
 | Trang bị | PlayerEquipmentService, EquipmentDatabaseSO | Loadout và tổng bonus theo dữ liệu trang bị. |
+| Màn chơi | StageManager, StageDataSO | Chọn map, điều phối wave/boss, xác nhận clear và cấp thưởng kết quả một lần. |
 | Loot/lượt chơi | LootManager, PickupView, RunSessionManager | Vật phẩm rơi, nhận EXP/vàng, đồng hồ và số enemy bị hạ. |
 | UI | UIManager, RunUI, CharacterUI, PauseUI | Trạm UI, HUD trận, máu/giáp theo nhân vật và pause. |
 | Job System | MovementManager, TimerManager, SpatialManager | Buffer dùng lại, cập nhật movement/timer và truy vấn không gian. |
@@ -49,6 +51,8 @@ Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
 ```text
 Bind dịch vụ và inject scene
 → SaveManager.Initialize (-200)
+→ SaveMigration.Initialize (-180)
+→ CurrencyService / CharacterLevelService / PlayerEquipmentService / PlayerManager.Initialize (-150)
 → RunSessionManager.Initialize (-50)
 → Các service scene còn lại Initialize
 → GameManager.Initialize (100)
@@ -87,6 +91,9 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 - Cơ chế băng đạn/nạp đạn cùng UI số đạn/thanh nạp đã được gỡ.
 
 ## UI và visual hiện tại
+
+- Hai prefab trong `Prefabs/CharacterType` dùng `CharacterVisualHandle` nhận enum/event từ `CharacterView` để quay mặt toàn mô hình và phát animation. Xem [Character visual events](Character-Visual-Events.md).
+- `ResultController` dùng chung cho Won/Lost: mở popup Victory/Defeat có sẵn trong SampleScene, gọi `StaggeredPopupTween` hiện có để scale nội dung và cho Continue bắt đầu trận mới. Popup chạy bằng unscaled time; Player được phát hết Death trước khi chuyển Lost. Điều kiện thắng vẫn do gameplay gọi `GameManager.WinRun()`.
 
 - Thanh máu dùng `Slider_Player` trên Canvas world space của character.
 - Player và boss hiển thị máu/giáp; enemy thường không bật thanh này.

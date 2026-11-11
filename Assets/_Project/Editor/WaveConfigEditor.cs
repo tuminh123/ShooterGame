@@ -12,7 +12,7 @@ public sealed class WaveConfigEditor : Editor
         SerializedProperty condition = serializedObject.FindProperty("advanceCondition");
         EditorGUILayout.PropertyField(condition);
         bool timed = (WaveAdvanceCondition)condition.enumValueIndex == WaveAdvanceCondition.AfterDuration;
-        EditorGUILayout.HelpBox("After the last wave, repeat that last wave. Enemy level increases after every completed duration or cleared batch.", MessageType.Info);
+        EditorGUILayout.HelpBox("Each wave spawns Enemy Count normal enemies, one per Spawn Interval. Stage spawns its configured bosses afterwards. Timed mode waits Delay After Spawn before the next wave; clear mode waits until enemies and bosses die. The final wave always requires every enemy and boss to be cleared. Bosses and rewards are configured on StageDataSO.", MessageType.Info);
         SerializedProperty waves = serializedObject.FindProperty("waves");
         waves.isExpanded = EditorGUILayout.Foldout(waves.isExpanded, $"Waves ({waves.arraySize})", true);
         if (waves.isExpanded)
@@ -33,9 +33,9 @@ public sealed class WaveConfigEditor : Editor
                 }
                 if (wave.isExpanded)
                 {
-                    EditorGUILayout.PropertyField(wave.FindPropertyRelative(timed ? "duration" : "spawnCount"));
+                    if (timed) EditorGUILayout.PropertyField(wave.FindPropertyRelative("delayAfterSpawn"));
+                    EditorGUILayout.PropertyField(wave.FindPropertyRelative("spawnCount"), new GUIContent("Enemy Count", "Total enemies to spawn in this wave."));
                     EditorGUILayout.PropertyField(wave.FindPropertyRelative("spawnInterval"));
-                    EditorGUILayout.PropertyField(wave.FindPropertyRelative("maxAliveEnemies"));
                     EditorGUILayout.PropertyField(wave.FindPropertyRelative("enemies"), true);
                 }
                 EditorGUILayout.EndVertical();
@@ -47,10 +47,9 @@ public sealed class WaveConfigEditor : Editor
                 added.isExpanded = true;
                 if (waves.arraySize == 1)
                 {
-                    added.FindPropertyRelative("duration").floatValue = 30f;
+                    added.FindPropertyRelative("delayAfterSpawn").floatValue = 20f;
                     added.FindPropertyRelative("spawnCount").intValue = 20;
                     added.FindPropertyRelative("spawnInterval").floatValue = 0.5f;
-                    added.FindPropertyRelative("maxAliveEnemies").intValue = 20;
                 }
             }
         }

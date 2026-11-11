@@ -246,10 +246,10 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     #region Death Behavior
 
-    // Combat lifetime đã kết thúc; chỉ giữ visual cho đến khi chuỗi sprite chết hoàn tất.
+    // Cùng animation Death với Player; controller chỉ quyết định lúc thu hồi quái.
     public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
-        if (!view.PlayEnemyDeathFeedback(() => characters.Despawn(view)))
+        if (!view.WaitForDeathAnimation(() => characters.Despawn(view)))
             characters.Despawn(view); // Không có visual đang hiển thị thì thu hồi ngay.
     }
 
