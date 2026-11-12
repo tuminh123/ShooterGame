@@ -20,7 +20,7 @@ public sealed class SaveManager : IInitializable, IDisposable
     private interface IPendingWrite
     {
         string Key { get; }
-        void Write(ES3Settings storage);
+        void Write(ES3File file);
     }
 
     private sealed class PendingWrite<T> : IPendingWrite
@@ -28,7 +28,7 @@ public sealed class SaveManager : IInitializable, IDisposable
         public string Key { get; }
         private readonly T snapshot;
         public PendingWrite(string key, T snapshot) { Key = key; this.snapshot = snapshot; }
-        public void Write(ES3Settings storage) => ES3.Save(Key, snapshot, storage);
+        public void Write(ES3File file) => file.Save(Key, snapshot);
     }
 
     private readonly ES3Settings storage;
@@ -84,40 +84,59 @@ public sealed class SaveManager : IInitializable, IDisposable
     public bool Save<T>(string key, T snapshot)
     {
         EnsureAvailable();
-        ValidateKey(key);
-        if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
-        var write = new PendingWrite<T>(key, snapshot);
-        pending[key] = write;
-        return TryWrite(write);
+        Queue(key, snapshot);
+        return TryWritePending();
     }
 
-    private bool TryWrite(IPendingWrite write)
+    // Queue both sections before touching disk; retries include the whole pending snapshot.
+    public bool SaveBatch<TFirst, TSecond>(string firstKey, TFirst first, string secondKey, TSecond second)
     {
+        EnsureAvailable();
+        ValidateKey(firstKey);
+        ValidateKey(secondKey);
+        if (firstKey == secondKey) throw new ArgumentException("Batch keys must be distinct.");
+        if (first == null || second == null) throw new ArgumentNullException("snapshot");
+        Queue(firstKey, first);
+        Queue(secondKey, second);
+        return TryWritePending();
+    }
+
+    private void Queue<T>(string key, T snapshot)
+    {
+        ValidateKey(key);
+        if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+        pending[key] = new PendingWrite<T>(key, snapshot);
+    }
+
+    private bool TryWritePending()
+    {
+        if (pending.Count == 0) return true;
+        var writes = new List<IPendingWrite>(pending.Values);
         try
         {
-            write.Write(storage);
-            if (pending.TryGetValue(write.Key, out IPendingWrite latest) && ReferenceEquals(latest, write))
-                pending.Remove(write.Key);
+            // Preserve existing keys, stage changes in memory, then write the file once.
+            var file = new ES3File(storage);
+            foreach (IPendingWrite write in writes) write.Write(file);
+            file.Sync();
+            foreach (IPendingWrite write in writes)
+                if (pending.TryGetValue(write.Key, out IPendingWrite latest) && ReferenceEquals(latest, write))
+                    pending.Remove(write.Key);
             LastError = null;
             return true;
         }
         catch (Exception exception)
         {
             LastError = exception;
-            Debug.LogError($"Save write failed for '{write.Key}': {exception.Message}");
+            Debug.LogError($"Save write failed: {exception.Message}");
             return false;
         }
     }
 
-    // Pause/mất focus/thoát chỉ ghi lại các key còn lỗi.
+    // Pause/focus/quit retry pending snapshots without applying rewards again.
     public bool SaveIfDirty()
     {
         if (disposed || !IsLoaded) return false;
-        Exception failure = null;
-        foreach (IPendingWrite write in new List<IPendingWrite>(pending.Values))
-            if (!TryWrite(write)) failure = LastError;
-        if (failure != null) LastError = failure;
-        return !IsDirty;
+        return TryWritePending();
     }
 
     // ResetSaveButton reload scene sau khi xóa, các service mới sẽ đọc mặc định.

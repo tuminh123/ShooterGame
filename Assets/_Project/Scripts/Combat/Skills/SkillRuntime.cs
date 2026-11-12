@@ -225,7 +225,8 @@ public sealed class SkillRuntime : IDisposable
         if (!context.IsValid || owner == null || !ReferenceEquals(owner.RuntimeData, identity) ||
             identity.Generation != generation || !identity.IsAlive)
         { Dispose(); return; }
-        SetPaused(!owner.isActiveAndEnabled);
+        // Choáng/tuần tra chỉ pause hành vi và timer; không Dispose như khi chết hoặc pool đổi danh tính.
+        SetPaused(!owner.isActiveAndEnabled || !owner.CanUseSkills);
         if (paused) return;
         int currentRevision = revision;
         try

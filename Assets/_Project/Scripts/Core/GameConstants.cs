@@ -21,6 +21,7 @@ public static class GameConstants
         public const string CharacterLevels = "character_levels";
         public const string Equipment = "equipment";
         public const string Currencies = "currencies";
+        public const string StageProgress = "stage_progress";
 
         #endregion
     }

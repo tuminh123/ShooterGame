@@ -50,10 +50,13 @@ public sealed class CurrencyService : IInitializable, IDisposable
     }
 
     // Cấp nhiều loại tiền: kiểm tra toàn bộ trước khi sửa RAM, ghi chung một snapshot ví.
-    public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts)
+    public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts) => AddBatch(amounts, null);
+
+    internal bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts, StageProgressSaveData stageProgress)
     {
         EnsureCanChange(0);
         if (amounts == null) throw new ArgumentNullException(nameof(amounts));
+        if (stageProgress != null) StageProgressService.ValidateData(stageProgress);
         var targets = new Dictionary<CurrencyType, long>();
         foreach (KeyValuePair<CurrencyType, long> reward in amounts)
         {
@@ -74,7 +77,10 @@ public sealed class CurrencyService : IInitializable, IDisposable
                 }
                 entry.balance = target.Value;
             }
-            bool saved = targets.Count > 0 ? Save() : saves.SaveIfDirty();
+            bool saved = stageProgress != null
+                ? saves.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(),
+                    GameConstants.SaveKeys.StageProgress, stageProgress.Clone())
+                : targets.Count > 0 ? Save() : saves.SaveIfDirty();
             foreach (KeyValuePair<CurrencyType, long> target in targets)
             {
                 NotifyBalance(target.Key, target.Value);

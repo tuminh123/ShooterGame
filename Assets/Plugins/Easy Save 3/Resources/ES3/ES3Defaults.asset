@@ -41,6 +41,7 @@ MonoBehaviour:
     - LayerLab.ArtMakerUnity
     - LeanCommon
     - LeanPool
+    - MCPForUnity.Runtime
     - PrimeTween.Debug
     - PrimeTween.Demo
     - PrimeTween.Runtime

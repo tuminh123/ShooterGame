@@ -52,6 +52,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     public SpatialHandle SpatialHandle { get; private set; }
     public ICharacterSearch Search { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
     public ITimerManager Timers { get; private set; }
+    // Trình diễn/spatial vẫn hoạt động khi enemy choáng hoặc tuần tra; chỉ khóa quyền thực thi skill.
+    public bool CanUseSkills => !(controller is EnemyController enemy) || enemy.CanAttack;
     public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
     public bool IsVisualVisible => visual != null && visual.activeSelf;
     public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);

@@ -114,7 +114,8 @@ public abstract class CharacterControllerBase : ICharacterController, ICharacter
     }
 
     // Gửi damage tới đúng lượt spawn của mục tiêu.
-    public DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
+    // EnemyController ghi đè cửa vào này để từ chối đánh khi choáng/tuần tra mà vẫn dùng chung xử lý damage.
+    public virtual DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
         CharacterTarget target, float multiplier = 1f)
     {
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive ||

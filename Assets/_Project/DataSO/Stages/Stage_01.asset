@@ -11,12 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a837bf06466747d0a709cbd1d4482291, type: 3}
   m_Name: Stage_01
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   stageId: stage_01
   displayName: Stage 1
   mapKey: desert
   waves: {fileID: 11400000, guid: ab8b7fb8877c4f01a5f20d14548da409, type: 2}
   bosses: []
-  clearRewards: []
-  victoryRewards: []
-  defeatRewards: []
+  firstClearStageRewards:
+  - type: 0
+    amount: 100
+  victoryRewards:
+  - type: 0
+    amount: 50
+  defeatRewards:
+  - type: 0
+    amount: 10

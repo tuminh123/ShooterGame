@@ -14,8 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   advanceCondition: 0
   waves:
-  - spawnCount: 20
-    delayAfterSpawn: 20
+  - delayAfterSpawn: 20
+    spawnCount: 50
     spawnInterval: 0.5
     enemies:
     - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+    formationSpawnAfter: 0
+    formationSpawns:
+    - formation: {fileID: 11400000, guid: 73d0d2b4f05eb26caed874063e55e776, type: 2}
+      path: {fileID: 11400000, guid: 49575b46a2622896f0b011e6d18a946e, type: 2}
+      settings:
+        movement: 0
+        passes: 1
+        followSpacing: 0.8
+        knockbackDuration: 0.2
+        stunDuration: 0.29

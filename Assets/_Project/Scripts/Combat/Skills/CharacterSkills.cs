@@ -11,7 +11,8 @@ public sealed class CharacterSkills : IDisposable
     internal CharacterView Owner { get; }
     internal CharacterRuntimeData Identity { get; }
     internal bool IsValid => !disposed && Owner != null && ReferenceEquals(Owner.RuntimeData, Identity) && Identity.Generation == generation && Identity.IsAlive;
-    internal bool CanRun => IsValid && Owner.isActiveAndEnabled;
+    // Khóa hành động tạm thời không làm IsValid mất hiệu lực: skill phải còn để tiếp tục sau choáng.
+    internal bool CanRun => IsValid && Owner.isActiveAndEnabled && Owner.CanUseSkills;
 
     // CharacterView tạo context khi vỏ còn tắt; mọi runtime ban đầu thuộc context này.
     public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillFactory factory)

@@ -1,90 +1,120 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Zenject;
 
-// * Sinh đủ số lượng từng wave theo nhịp ở các điểm trên viền hình chữ nhật.
-public class EnemySpawnManager : MonoBehaviour
+// Wave quản lý enemy thường và các thực thể đội hình. Boss chỉ nhờ spawner tạo nhân vật tại điểm spawn;
+// không lấy enemy của Wave để tạo hộ tống hoặc đấu trường nữa.
+[DefaultExecutionOrder(10000)]
+public sealed class EnemySpawnManager : MonoBehaviour
 {
-
-    #region Spawn Settings
+    #region Scene Configuration
 
     [Header("References")]
-    [SerializeField] private Transform spawnCenter;   // * Tâm vùng sinh quái; mặc định lấy camera chính nếu chưa gán trong Inspector.
-    private WaveConfigSO waveConfig; // StageManager cung cấp cấu hình của màn hiện tại.
+    [SerializeField] private Transform spawnCenter;
+
+    [Tooltip("Camera làm tâm cho Path đội hình. Bỏ trống để dùng Main Camera. Spawn Center chỉ dành cho quái thường.")]
+    [SerializeField] private Camera formationCamera;
 
     [Header("Enemy Separation")]
-    [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings(); // * Một bộ cấu hình cho quái do spawner tạo; không thêm trạng thái né lên CharacterDataSO.
+    [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings();
 
-    [Header("Enemy Attack Recoil")]
-    [UnityEngine.Serialization.FormerlySerializedAs("contactAttack")]
+    [Header("Ordinary Attack Recoil")]
+    [FormerlySerializedAs("contactAttack")]
     [SerializeField] private EnemyController.RecoilSettings recoil = new EnemyController.RecoilSettings();
 
-    [Header("Spawn Area")]
-    // * Chiều rộng X và chiều cao Y của toàn vùng sinh, tính bằng world unit; chỉ sinh trên viền.
-    [Tooltip("World-space width and height of the rectangular spawn perimeter.")]
-    [SerializeField] private Vector2 areaSize = new Vector2(10f, 6f); // * Kích thước toàn vùng spawn theo world unit, chỉ lấy điểm trên viền.
-    // * Số điểm mỗi cạnh, tính cả góc; các góc chung chỉ thêm một lần.
-    // * Tổng điểm = 4 * pointsPerSide - 4; giá trị 4 tạo 12 điểm.
-    [Tooltip("Includes the two corners on each side. 4 creates 12 unique spawn points.")]
-    [SerializeField, Min(2)] private int pointsPerSide = 4; // * Số điểm mỗi cạnh gồm hai góc; 4 tạo tổng cộng 12 điểm riêng biệt.
-    [SerializeField] private float spawnZ = 0f;  // * Tọa độ Z của quái khi sinh; không phải khoảng cách ngẫu nhiên theo chiều sâu.
+    [Header("Spawn Perimeter")]
+    [Tooltip("Chiều rộng/cao vùng chọn điểm spawn quanh Spawn Center, theo world unit.")]
+    [SerializeField] private Vector2 areaSize = new Vector2(10f, 6f);
+
+    [Min(2)] [SerializeField] private int pointsPerSide = 4;
+    [SerializeField] private float spawnZ;
 
     #endregion
 
-    #region Spawn State & Dependencies
+    #region Dependencies And Run State
 
-    // * Danh sách tọa độ XY trên viền; được xóa nội dung và dùng lại khi tính vùng mới.
-    private readonly List<Vector2> spawnPoints = new List<Vector2>(); // * Buffer điểm spawn được xóa và tái sử dụng khi tâm di chuyển.
-    private readonly List<CharacterView> activeEnemies = new List<CharacterView>(); // * Được xóa ngay khi Released để tránh đếm nhầm vỏ đã dùng lại làm Player.
+    private readonly List<Vector2> spawnPoints = new List<Vector2>();
+    private readonly List<CharacterView> activeEnemies = new List<CharacterView>();
+    private readonly List<EnemyFormationRuntime> groups = new List<EnemyFormationRuntime>();
     private readonly WaveProgress progress = new WaveProgress();
     private Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs;
+    private CharacterFactory factory;
+    private ISpatialManager spatial;
+    private PlayerManager players;
+    private WaveConfigSO waveConfig;
+    private float nextSpawnTime;
+
+    // Dữ liệu hình học dùng chung với Workbench; đọc không thay đổi cấu hình scene.
+    public Vector2 SpawnCenterPosition => spawnCenter != null ? (Vector2)spawnCenter.position :
+        Camera.main != null ? (Vector2)Camera.main.transform.position : (Vector2)transform.position;
+    public Camera FormationCamera => formationCamera != null ? formationCamera : Camera.main;
+    public float BaseKnockbackDistance => recoil != null ? recoil.knockbackDistance : 0.35f;
+    public Vector2 SpawnAreaSize => areaSize;
+    public float SpawnPlaneZ => spawnZ;
+
     public int CurrentWaveNumber => progress.WaveIndex + 1;
     public int CurrentEnemyLevel => progress.EnemyLevel;
+    public int SpawnedInWave => progress.SpawnedInWave;
     public int AliveEnemyCount => CountAliveEnemies();
-    public event System.Action<int> WaveSpawnCompleted;
-    private float nextSpawnTime;  // * Mốc Time.time sớm nhất được kiểm tra sinh tiếp, tính bằng giây.
-    private CharacterFactory factory; // * Ghép runtime/hành vi với prefab vỏ chung.
-    private PlayerManager players; // * Truyền mục tiêu cho EnemyController và dừng spawn khi chưa có Player sống.
+    public event Action<int> WaveSpawnCompleted;
 
     [Inject]
-    public void Construct(CharacterFactory factory, PlayerManager players, LevelDatabaseSO levelDatabase)
+    public void Construct(CharacterFactory factory, PlayerManager players, LevelDatabaseSO levelDatabase, ISpatialManager spatial)
     {
         this.factory = factory;
+        this.spatial = spatial;
         this.players = players;
         levelConfigs = levelDatabase.CreateTypeLookup();
     }
 
+    private void Awake()
+    {
+        if (spawnCenter == null && Camera.main != null)
+        {
+            spawnCenter = Camera.main.transform;
+        }
+    }
+
+    #endregion
+
+    #region Configuration And Wave Lifecycle
+
     public void ValidateConfig(WaveConfigSO config)
     {
         config.Validate();
+
         for (int i = 0; i < config.Count; i++)
-            foreach (CharacterDataSO enemy in config.GetWave(i).enemies) ValidateCharacter(enemy);
-        if (spawnCenter == null) throw new System.InvalidOperationException("Assign a spawn center or MainCamera.");
+        {
+            foreach (CharacterDataSO enemy in config.GetWave(i).enemies)
+            {
+                ValidateCharacter(enemy);
+            }
+        }
+
+        if (spawnCenter == null)
+        {
+            throw new InvalidOperationException("Cần gán Spawn Center hoặc camera MainCamera.");
+        }
+
+        for (int i = 0; i < config.Count; i++)
+        {
+            if (config.GetWave(i).UsesFormation && FormationCamera == null)
+            {
+                throw new InvalidOperationException("Wave có đội hình cần Formation Camera hoặc Main Camera.");
+            }
+        }
     }
 
     public void ValidateCharacter(CharacterDataSO enemy)
     {
         if (!levelConfigs.TryGetValue(enemy.CharacterType, out CharacterLevelConfigSO config))
-            throw new System.InvalidOperationException($"Missing level config for stage enemy/boss: {enemy.name}.");
-        config.GetTotalBonus(1);
-    }
-
-    // * Reset chỉ khi bắt đầu lượt mới; tắt/bật spawner hoặc đổi wave không làm reset đồng hồ loại quái.
-    public void ResetRun()
-    {
-        while (activeEnemies.Count > 0)
         {
-            int last = activeEnemies.Count - 1;
-            CharacterView enemy = activeEnemies[last];
-            activeEnemies.RemoveAt(last);
-            if (enemy == null)
-                continue;
-            enemy.Released -= OnEnemyReleased;
-            factory.Despawn(enemy);
+            throw new InvalidOperationException("Thiếu cấu hình level cho enemy/boss: " + enemy.name);
         }
-        waveConfig = null;
-        progress.Reset();
-        nextSpawnTime = Time.time;
+
+        config.GetTotalBonus(1);
     }
 
     public void BeginWave(WaveConfigSO config, int index)
@@ -94,108 +124,224 @@ public class EnemySpawnManager : MonoBehaviour
         nextSpawnTime = Time.time;
     }
 
-    #endregion
-
-    #region Spawn Loop
-
-    // * Khởi tạo tâm sinh mặc định theo camera có tag MainCamera.
-    private void Awake()
+    public void StopFormations()
     {
-        if (spawnCenter == null && Camera.main != null)
-            spawnCenter = Camera.main.transform;
+        foreach (EnemyFormationRuntime group in groups)
+        {
+            group.Dispose();
+        }
+
+        groups.Clear();
     }
 
-    // StageManager gọi Tick; spawner không tự chuyển wave hoặc quyết định thắng.
+    public void ResetRun()
+    {
+        StopFormations();
+
+        while (activeEnemies.Count > 0)
+        {
+            int last = activeEnemies.Count - 1;
+            CharacterView enemy = activeEnemies[last];
+            activeEnemies.RemoveAt(last);
+
+            if (enemy != null)
+            {
+                enemy.Released -= OnEnemyReleased;
+                factory.Despawn(enemy);
+            }
+        }
+
+        waveConfig = null;
+        progress.Reset();
+        nextSpawnTime = Time.time;
+    }
+
+    #endregion
+
+    #region Spawn And Group Updates
+
     public void TickSpawning()
     {
-        if (!isActiveAndEnabled || waveConfig == null || spawnCenter == null || players.CurrentPlayer == null ||
-            !players.RuntimeData.IsAlive || Time.deltaTime <= 0f)
+        if (!isActiveAndEnabled || waveConfig == null || spawnCenter == null ||
+            players.CurrentPlayer == null || players.RuntimeData == null || !players.RuntimeData.IsAlive || Time.deltaTime <= 0f)
+        {
             return;
+        }
+
+        // Các nhóm thuộc wave trước vẫn phải di chuyển ngay cả khi wave hiện tại đã spawn đủ.
+        for (int i = groups.Count - 1; i >= 0; i--)
+        {
+            groups[i].Tick(Time.deltaTime);
+
+            if (groups[i].IsBroken)
+            {
+                groups.RemoveAt(i);
+            }
+        }
+
+        if (!progress.CanSpawn(waveConfig) || Time.time < nextSpawnTime)
+        {
+            return;
+        }
 
         WaveConfigSO.Wave wave = waveConfig.GetWave(progress.WaveIndex);
-        if (!progress.CanSpawn(waveConfig) || Time.time < nextSpawnTime)
-            return;
         nextSpawnTime = Time.time + wave.spawnInterval;
 
-        CharacterView enemy = SpawnCharacter(wave.enemies[Random.Range(0, wave.enemies.Length)], progress.EnemyLevel);
-        if (enemy == null) return;
-        enemy.Released += OnEnemyReleased;
-        activeEnemies.Add(enemy);
-        progress.RecordSpawn();
-        if (!progress.CanSpawn(waveConfig)) WaveSpawnCompleted?.Invoke(CurrentWaveNumber);
+        // Lịch đã dành đủ ngân sách: trước/sau mốc là quái thường, trong mốc là nhóm đầy đủ.
+        if (wave.UsesFormation && wave.GetFormationSpawnPlan().TryGetFormationIndex(progress.SpawnedInWave, out int formationIndex))
+        {
+            SpawnFormation(wave, wave.formationSpawns[formationIndex]);
+        }
+        else
+        {
+            SpawnWaveEnemy(wave, ChooseSpawnPoint(), null, Vector2.zero);
+        }
     }
 
-    public CharacterView SpawnBoss(CharacterDataSO boss, int level) => SpawnCharacter(boss, level);
+    private void SpawnFormation(WaveConfigSO.Wave wave, EnemyFormationSpawn entry)
+    {
+        EnemyFormationSettings settings = entry.settings.Copy();
+        int remaining = wave.spawnCount - progress.SpawnedInWave;
+        int count = entry.formation.SlotCount;
 
-    // * Tính lại viền theo tâm hiện tại, chọn ngẫu nhiên một điểm và lấy quái từ Lean Pool.
-    private CharacterView SpawnCharacter(CharacterDataSO template, int level)
+        // Không âm thầm đổi một nhóm đã đặt lịch thành quái thường nếu cấu hình bị sửa sai.
+        if (remaining < count)
+        {
+            throw new InvalidOperationException("Wave không còn đủ enemy cho một đội hình đầy đủ. Kiểm tra lại lịch spawn.");
+        }
+
+        Camera camera = FormationCamera;
+
+        if (camera == null)
+        {
+            throw new InvalidOperationException("Không tìm thấy camera cho Path đội hình.");
+        }
+
+        // Nhóm sinh trực tiếp tại A. Route chốt hình học và offset tâm, chỉ bám vị trí camera.
+        var route = new EnemyPathRoute(EnemyPathBuilder.Build(entry.path, camera.transform.position), camera.transform);
+        Vector2[] offsets = FormationBuilder.Build(entry.formation);
+        var group = new EnemyFormationRuntime(route, settings, BaseKnockbackDistance, entry.formation.Speed);
+        groups.Add(group);
+
+        for (int slot = 0; slot < count; slot++)
+        {
+            Vector2 point = route.MemberPosition(settings, 0f, slot, offsets[slot]);
+            SpawnWaveEnemy(wave, point, group, offsets[slot]);
+        }
+
+        group.Seal();
+    }
+
+    private void SpawnWaveEnemy(WaveConfigSO.Wave wave, Vector2 point, EnemyFormationRuntime group, Vector2 offset)
+    {
+        CharacterDataSO template = wave.enemies[UnityEngine.Random.Range(0, wave.enemies.Length)];
+        var controller = new EnemyController(players, factory, separation, recoil);
+        CharacterView enemy = SpawnCharacter(template, progress.EnemyLevel, point, controller);
+
+        if (enemy == null)
+        {
+            throw new InvalidOperationException("Không thể spawn enemy của wave.");
+        }
+
+        activeEnemies.Add(enemy);
+        enemy.Released += OnEnemyReleased;
+        group?.Add(enemy, controller, offset);
+        progress.RecordSpawn();
+
+        if (!progress.CanSpawn(waveConfig))
+        {
+            WaveSpawnCompleted?.Invoke(CurrentWaveNumber);
+        }
+    }
+
+    // Boss không vào activeEnemies hoặc ngân sách quái thường. Stage sở hữu danh sách boss.
+    public CharacterView SpawnBoss(CharacterDataSO boss, int level)
+    {
+        return SpawnCharacter(boss, level, ChooseSpawnPoint(), new EnemyController(players, factory, separation, recoil));
+    }
+
+    private CharacterView SpawnCharacter(CharacterDataSO template, int level, Vector2 point, EnemyController controller)
+    {
+        StatBonus bonus = levelConfigs[template.CharacterType].GetTotalBonus(level);
+        return factory.Spawn(template, bonus, controller, new Vector3(point.x, point.y, spawnZ));
+    }
+
+    #endregion
+
+    #region Spawn Geometry And Tracking
+
+    private Vector2 ChooseSpawnPoint()
     {
         BuildSpawnPoints();
-        if (spawnPoints.Count == 0)
-            return null;
-
-        // * Chọn đều giữa các điểm có sẵn, không chọn liên tục mọi vị trí trên viền.
-        Vector2 point = spawnPoints[Random.Range(0, spawnPoints.Count)];
-        // * Factory thuê runtime rảnh và chốt bonus cho lượt spawn; không cộng vào SO/cá thể đang sống.
-        StatBonus bonus = levelConfigs[template.CharacterType].GetTotalBonus(level);
-        // * Controller mới mỗi lần spawn: hướng tách cache và lịch quét không đi theo vỏ được tái sử dụng.
-        CharacterView enemy = factory.Spawn(template, bonus, new EnemyController(players, factory, separation, recoil),
-            new Vector3(point.x, point.y, spawnZ));
-
-        return enemy;
+        return spawnPoints[UnityEngine.Random.Range(0, spawnPoints.Count)];
     }
 
-    #endregion
-
-    #region Spawn Perimeter
-
-    // * Dựng các điểm cách đều trên bốn cạnh, không lặp góc; không sinh điểm trong lòng hình chữ nhật.
     private void BuildSpawnPoints()
     {
-        spawnPoints.Clear();
+        GetSpawnPoints(spawnPoints);
+    }
 
-        Vector2 center = (Vector2)spawnCenter.position;
-        Vector2 halfSize = areaSize * 0.5f;       // * Nửa kích thước để tính các mép trái/phải/trên/dưới từ tâm.
-        int count = Mathf.Max(2, pointsPerSide);  // * Bảo đảm ít nhất hai điểm mỗi cạnh, tránh phép chia cho 0 trong nội suy.
-
-        // * Hai cạnh trên/dưới gồm cả bốn góc; t từ 0 đến 1 là tỷ lệ nội suy dọc cạnh.
-        // * Top and bottom edges, including their corners.
-        for (int i = 0; i < count; i++)
+    // Tool và gameplay gọi cùng thuật toán để các điểm minh họa luôn trùng điểm spawn thật.
+    public void GetSpawnPoints(List<Vector2> destination)
+    {
+        if (destination == null)
         {
-            float t = i / (float)(count - 1);
-            float x = Mathf.Lerp(center.x - halfSize.x, center.x + halfSize.x, t);
-            spawnPoints.Add(new Vector2(x, center.y + halfSize.y));
-            spawnPoints.Add(new Vector2(x, center.y - halfSize.y));
+            throw new ArgumentNullException(nameof(destination));
         }
 
-        // * Hai cạnh trái/phải bỏ góc vì các góc đã được thêm ở vòng lặp phía trên.
-        // * Left and right edges, excluding corners already added above.
+        destination.Clear();
+        Vector2 center = SpawnCenterPosition;
+        Vector2 half = areaSize * 0.5f;
+        int count = Mathf.Max(2, pointsPerSide);
+
+        for (int i = 0; i < count; i++)
+        {
+            float x = Mathf.Lerp(center.x - half.x, center.x + half.x, i / (float)(count - 1));
+            destination.Add(new Vector2(x, center.y - half.y));
+            destination.Add(new Vector2(x, center.y + half.y));
+        }
+
         for (int i = 1; i < count - 1; i++)
         {
-            float t = i / (float)(count - 1);
-            float y = Mathf.Lerp(center.y - halfSize.y, center.y + halfSize.y, t);
-            spawnPoints.Add(new Vector2(center.x - halfSize.x, y));
-            spawnPoints.Add(new Vector2(center.x + halfSize.x, y));
+            float y = Mathf.Lerp(center.y - half.y, center.y + half.y, i / (float)(count - 1));
+            destination.Add(new Vector2(center.x - half.x, y));
+            destination.Add(new Vector2(center.x + half.x, y));
         }
     }
 
-    #endregion
-
-    #region Active Enemy Tracking
-
-    // Quái đang phát animation chết vẫn ở pool registry nhưng không chặn điều kiện dọn hết wave.
     private int CountAliveEnemies()
     {
         int count = 0;
+
         foreach (CharacterView enemy in activeEnemies)
-            if (enemy != null && enemy.RuntimeData != null && enemy.RuntimeData.IsAlive) count++;
+        {
+            if (enemy != null && enemy.RuntimeData != null && enemy.RuntimeData.IsAlive)
+            {
+                count++;
+            }
+        }
+
         return count;
     }
 
-    // * Loại ngay theo vòng đời, không đợi nhịp spawn rồi kiểm tra activeInHierarchy trên vỏ có thể đã đổi chủ.
     private void OnEnemyReleased(CharacterView enemy)
     {
         activeEnemies.Remove(enemy);
+    }
+
+    private void LateUpdate()
+    {
+        bool moved = false;
+
+        foreach (EnemyFormationRuntime group in groups)
+        {
+            moved |= group.ApplyCameraMotion();
+        }
+
+        if (moved)
+        {
+            spatial?.Invalidate();
+        }
     }
 
     private void OnDestroy()
@@ -204,31 +350,23 @@ public class EnemySpawnManager : MonoBehaviour
         WaveSpawnCompleted = null;
     }
 
-    #endregion
-
-    #region Scene Gizmos
-
-    // * Chỉ vẽ hỗ trợ trong Scene view khi chọn đối tượng: viền xanh và các điểm sinh màu vàng.
-    // * Không sinh quái; dùng chung hàm tính điểm để hình minh họa khớp vùng sinh.
     private void OnDrawGizmosSelected()
     {
-        if (spawnCenter == null && Camera.main != null)
-            spawnCenter = Camera.main.transform;
         if (spawnCenter == null)
+        {
             return;
+        }
 
         BuildSpawnPoints();
-        Vector3 center = spawnCenter.position;
-        center.z = spawnZ;
-
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireCube(center, new Vector3(areaSize.x, areaSize.y, 0f));
-
+        Gizmos.DrawWireCube(spawnCenter.position, new Vector3(areaSize.x, areaSize.y, 0f));
         Gizmos.color = Color.yellow;
+
         foreach (Vector2 point in spawnPoints)
+        {
             Gizmos.DrawSphere(new Vector3(point.x, point.y, spawnZ), 0.08f);
+        }
     }
 
     #endregion
-
 }

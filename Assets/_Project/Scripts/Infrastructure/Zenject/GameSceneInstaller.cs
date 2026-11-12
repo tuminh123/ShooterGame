@@ -69,6 +69,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInitializableExecutionOrder<SaveMigration>(-180);
         Container.BindInterfacesAndSelfTo<CurrencyService>().AsSingle().NonLazy();
         Container.BindInitializableExecutionOrder<CurrencyService>(-150);
+        Container.BindInterfacesAndSelfTo<StageProgressService>().AsSingle().NonLazy();
+        Container.BindInitializableExecutionOrder<StageProgressService>(-140);
         Container.BindDisposableExecutionOrder<CurrencyService>(0); // Gỡ listener trước khi SaveManager ghi và kết thúc.
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();
         Container.Bind<LevelDatabaseSO>().FromInstance(levelDatabase).AsSingle();

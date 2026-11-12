@@ -18,23 +18,23 @@ MonoBehaviour:
   - type: 0
     visualPrefab: {fileID: 1141239420020085222, guid: 41f764bf3fd6f51408c66a31a1e707a0, type: 3}
     impactEffect: 1
-    hitRadius: 0.0067051817
-    hitOffset: {x: -0.037374016, y: -0.00057746656}
+    hitRadius: 0.022210669
+    hitOffset: {x: -0.068385005, y: -0.009437747}
   - type: 1
     visualPrefab: {fileID: 977664126498229335, guid: 9d6b9ed71a045b14aa642b2ccf38aaf7, type: 3}
     impactEffect: 2
-    hitRadius: 0.025284015
-    hitOffset: {x: 0.045850765, y: 0.0011741538}
+    hitRadius: 0.028608631
+    hitOffset: {x: 0.016360667, y: -0.002150476}
   - type: 2
     visualPrefab: {fileID: 2726838381350925692, guid: e9ee02a0707d9444f948f8fd85ecdc59, type: 3}
     impactEffect: 3
-    hitRadius: 0.011213143
-    hitOffset: {x: 0.052463736, y: -0.0004119929}
+    hitRadius: 0.019813549
+    hitOffset: {x: 0.017556194, y: -0.004965149}
   - type: 3
     visualPrefab: {fileID: 1662464265281183706, guid: 6180bffb337750a4c8489d23d6e5d877, type: 3}
     impactEffect: 4
-    hitRadius: 0.015556015
-    hitOffset: {x: -0.00053037703, y: 0}
+    hitRadius: 0.037991405
+    hitOffset: {x: -0.036260813, y: 0}
   effects:
   - type: 1
     visualPrefab: {fileID: 9130346038966162769, guid: f7b2d3cf36cca8945abfb4365b23a67d, type: 3}

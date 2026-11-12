@@ -21,8 +21,8 @@ MonoBehaviour:
     Scale: {x: 1, y: 1, z: 1}
     Offset: {x: 0, y: 0, z: 0}
     Hitbox:
-      Size: {x: 0.06266174, y: 0.053805776}
-      Offset: {x: 0.020850137, y: 0.043051284}
+      Size: {x: 0.11336526, y: 0.11133478}
+      Offset: {x: -0.020102724, y: 0.061090034}
     HealthBarSize: {x: 66.54, y: 16.06}
     HealthBarOffset: {x: 0, y: -0.04, z: 0}
     HealthBarScale: 0.0035
