@@ -27,7 +27,8 @@
 *.sln.meta
 
 # Local tools, credentials and signing keys
-/.codex/
+/.codex/*
+!/.codex/config.toml
 /.agents/
 /.aws/
 .env
@@ -38,6 +39,11 @@
 *.p12
 *.keystore
 *.jks
+
+# Machine-local MCP tools, Python environment and caches
+/.mcp-tools/
+/Tools/MCP/.venv/
+__pycache__/
 
 # Local saves and crash reports
 *.es3

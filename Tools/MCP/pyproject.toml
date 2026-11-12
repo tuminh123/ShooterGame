@@ -1,0 +1,8 @@
+[project]
+name = "shootergame-mcp-tools"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = ["mcpforunityserver"]
+
+[tool.uv.sources]
+mcpforunityserver = { git = "https://github.com/CoplayDev/unity-mcp.git", rev = "aa5fc638d623f56178d50329d9ad8c541a57fe66", subdirectory = "Server" }

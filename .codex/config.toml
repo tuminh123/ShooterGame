@@ -1,0 +1,6 @@
+# Start the project server with Tools/MCP/Start-Server.ps1 before opening Codex.
+# This URL is local to each machine; no account, token or absolute path is shared.
+[mcp_servers.unity]
+url = "http://127.0.0.1:8080/mcp"
+startup_timeout_sec = 30
+tool_timeout_sec = 120

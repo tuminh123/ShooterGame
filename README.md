@@ -1,5 +1,7 @@
 # ShooterGame
 
+Hướng dẫn cài MCP cho Unity và khôi phục trên máy khác: [Unity MCP](Docs/Tools/Unity-MCP.md).
+
 Dự án game hành động 2D đang phát triển bằng **Unity 2022.3.62f3**.
 
 ## Mở dự án
