@@ -49,6 +49,9 @@ public sealed class CharacterVisualHandle : MonoBehaviour
 
     private static int Hash(string name) => string.IsNullOrWhiteSpace(name) ? 0 : Animator.StringToHash(name);
 
+    // Capture the scale after CharacterView applies the template's visual settings.
+    public void CaptureFacingScale() => originalFacingScale = facingRoot.localScale;
+
     public void Bind(ICharacterVisualEventSource eventSource)
     {
         Unbind();
@@ -139,7 +142,11 @@ public sealed class CharacterVisualHandle : MonoBehaviour
             case CharacterVisualState.Cast: return HasState(castHash) ? castHash : attackHash;
             case CharacterVisualState.Hit: return hitHash;
             case CharacterVisualState.Death: return deathHash;
-            case CharacterVisualState.Win: return winHash;
+            case CharacterVisualState.Win:
+            {
+                // Animator thiếu Victory thì giữ nhân vật ở Idle.
+                return HasState(winHash) ? winHash : idleHash;
+            }
             case CharacterVisualState.Lose: return loseHash;
             default: return 0;
         }

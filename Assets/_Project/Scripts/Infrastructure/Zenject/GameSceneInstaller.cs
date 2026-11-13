@@ -92,6 +92,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(stageData);
         Container.Bind<EnemySpawnManager>().FromComponentInHierarchy().AsSingle();
         Container.Bind<GroundChunkManager>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<BossHandleSummon>().AsSingle();
         Container.BindInterfacesAndSelfTo<StageManager>().AsSingle().NonLazy();
         Container.BindTickableExecutionOrder<StageManager>(200); // Sau projectile/timer gameplay, kiểm tra dọn hết màn.
         Container.BindDisposableExecutionOrder<StageManager>(250); // Sau GameManager, trước factory và pool.
@@ -119,7 +120,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<SpatialManager>().AsSingle();
         Container.Bind<ICharacterSearchFactory>().To<CharacterSearchFactory>().AsSingle();
         Container.Bind<ICharacterSearch>().To<CharacterSearch>().AsSingle();
-        Container.Bind<CombatSpawner>().AsSingle();
+        Container.BindInterfacesAndSelfTo<CombatSpawner>().AsSingle();
+        Container.BindDisposableExecutionOrder<CombatSpawner>(160); // Thu hồi VFX trước khi PoolManager được giải phóng.
         Container.Bind<ShootBehaviorFactory>().AsSingle();
         Container.Bind<ProjectileMoveFactory>().AsSingle();
         Container.BindInterfacesAndSelfTo<ProjectileManager>().AsSingle();

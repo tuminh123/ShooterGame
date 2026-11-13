@@ -87,8 +87,12 @@ public sealed class MovementManager : ILateTickable, IDisposable
     private JobHandle pendingJob;              // * Job gần nhất; luôn Complete trước khi sửa/giải phóng buffer.
     private long nextId;                       // * Mã tiếp theo; không reset trong vòng đời dịch vụ.
     private bool disposed;                     // * Chặn đăng ký hoặc chạy sau khi Zenject đã giải phóng dịch vụ.
+    private Bounds? arenaBounds;
 
     public int Count => entries.Count;  // * Số đối tượng đang đăng ký, phục vụ theo dõi trong debugger/profiler.
+
+    /// <summary>Giới hạn chuyển động XY trong đấu trường; null sẽ gỡ giới hạn.</summary>
+    public void SetArenaBounds(Bounds? bounds) => arenaBounds = bounds;
 
     #endregion
 
@@ -191,6 +195,15 @@ public sealed class MovementManager : ILateTickable, IDisposable
         for (int i = 0; i < entries.Count; i++)
         {
             float3 position = buffer[i].Position;
+            int layer = entries[i].Target.gameObject.layer;
+            bool character = layer == LayerMask.NameToLayer(GameConstants.PhysicsLayers.Player) ||
+                layer == LayerMask.NameToLayer(GameConstants.PhysicsLayers.Enemy);
+            if (arenaBounds.HasValue && character)
+            {
+                Bounds bounds = arenaBounds.Value;
+                position.x = math.clamp(position.x, bounds.min.x, bounds.max.x);
+                position.y = math.clamp(position.y, bounds.min.y, bounds.max.y);
+            }
             entries[i].Target.position = new Vector3(position.x, position.y, position.z);
         }
         // Snapshot không gian phải lấy vị trí mới nếu có truy vấn sau LateTick trong cùng frame.

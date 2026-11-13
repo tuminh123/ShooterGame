@@ -47,16 +47,19 @@ public readonly struct ProjectileSpawnData
         => value > 0f && !float.IsInfinity(value);
 }
 
-public sealed class CombatSpawner
+public sealed class CombatSpawner : IDisposable
 {
     private readonly PoolManager poolManager;
     private readonly CombatAssetsSO combatAssets;
+    private readonly HashSet<EffectView> activeEffects = new HashSet<EffectView>();
+    private bool disposed;
 
     public CombatSpawner(PoolManager poolManager, CombatAssetsSO combatAssets)
     {
         this.poolManager = poolManager ?? throw new ArgumentNullException(nameof(poolManager));
         this.combatAssets = combatAssets != null ? combatAssets : throw new ArgumentNullException(nameof(combatAssets));
         combatAssets.Validate();
+        GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
     // Chỉ tạo một viên và gắn thông số; không xử lý số viên hay kiểu phát đạn.
@@ -81,8 +84,28 @@ public sealed class CombatSpawner
     {
         CombatAssetsSO.EffectEntry entry = combatAssets.GetEffect(effectType);
         if (effectType == EffectType.None) return;
+        if (disposed) return;
         poolManager.Spawn(combatAssets.EffectPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Other,
-            beforeActivate: pooledObject => pooledObject.GetComponent<EffectView>().Initialize(this, entry.visualPrefab));
+            beforeActivate: pooledObject =>
+            {
+                EffectView view = pooledObject.GetComponent<EffectView>();
+                view.Initialize(this, entry.visualPrefab);
+                activeEffects.Add(view);
+            });
+    }
+
+    // Thu hồi các VFX một lần đang chạy khi trận kết thúc.
+    public void ClearEffects()
+    {
+        foreach (EffectView effect in new List<EffectView>(activeEffects))
+            if (effect != null) Release(effect.gameObject);
+        activeEffects.Clear();
+    }
+
+    private void OnGameStateChanged(GameState previous, GameState current)
+    {
+        if (current == GameState.EndingWin || current == GameState.EndingLose)
+            ClearEffects();
     }
 
     // Dọn visual con trước khi pool tắt/reparent vỏ; đạn vẫn dùng cùng API thu hồi.
@@ -91,7 +114,11 @@ public sealed class CombatSpawner
         if (instance == null) return;
         try
         {
-            if (instance.TryGetComponent(out EffectView effect)) effect.Clear();
+            if (instance.TryGetComponent(out EffectView effect))
+            {
+                activeEffects.Remove(effect);
+                effect.Clear();
+            }
             if (instance.TryGetComponent(out ProjectileView projectile)) projectile.ClearVisual();
         }
         finally { poolManager.Despawn(instance); }
@@ -99,4 +126,12 @@ public sealed class CombatSpawner
 
     // Chặn NaN/vô cực trước khi dùng hướng bắn để di chuyển hoặc quét hitbox.
     private static bool IsFiniteNumber(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        GameUIEventBus.StateChanged -= OnGameStateChanged;
+        ClearEffects();
+    }
 }

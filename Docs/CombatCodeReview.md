@@ -2174,7 +2174,7 @@ public sealed class EnemyController : ICharacterController
 
 ### EnemySpawnManager.cs
 
-Nguồn: [Assets/_Project/Scripts/Characters/Enemies/EnemySpawnManager.cs](../Assets/_Project/Scripts/Characters/Enemies/EnemySpawnManager.cs)
+Nguồn: [Assets/_Project/Scripts/Spawning/Core/EnemySpawnManager.cs](../Assets/_Project/Scripts/Spawning/Core/EnemySpawnManager.cs)
 
 Phần thay đổi so với HEAD:
 

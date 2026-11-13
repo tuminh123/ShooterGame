@@ -23,7 +23,9 @@ public sealed class GameManager : IInitializable, IDisposable
     private bool initialized; // Chặn Initialize lặp và API gameplay chạy trước bước chuẩn bị.
     private bool transitioning; // Chặn yêu cầu chuyển luồng lồng nhau từ callback UI hoặc gameplay.
     private bool disposed; // Không xử lý yêu cầu sau khi SceneContext đã kết thúc.
-    private int resultVersion; // Hủy callback cũ khi rời trận, restart hoặc dispose.
+    private bool playerResultComplete;
+    private bool enemiesResultComplete;
+    private GameState? completedDuringTransition; // Giữ kết quả nếu hoàn tất ngay trong lúc bus đang phát state.
     public GameState State { get; private set; } = GameState.Boot; // Nguồn trạng thái duy nhất; bus/UI không tự ghi.
     public Exception LastError { get; private set; } // Cho loading/error UI đọc nguyên nhân chuẩn bị thất bại.
 
@@ -51,6 +53,7 @@ public sealed class GameManager : IInitializable, IDisposable
         transitioning = true;
         HoldFlowPause();
         characters.CharacterDied += OnCharacterDied;
+        characters.EnemyCelebrationsCompleted += OnEnemyCelebrationsCompleted;
         stage.Cleared += OnStageCleared;
         stage.Failed += Fail;
         try
@@ -80,7 +83,7 @@ public sealed class GameManager : IInitializable, IDisposable
         try
         {
             LastError = null;
-            resultVersion++;
+            completedDuringTransition = null;
             ChangeState(GameState.PreparingRun);
             CleanupCharactersAndProjectiles();
             levels.StartNewRun();
@@ -96,7 +99,7 @@ public sealed class GameManager : IInitializable, IDisposable
         finally { transitioning = false; }
     }
 
-    // Điều kiện thắng do hệ thống gameplay gọi; enum Won không được phát trực tiếp từ UI bus.
+    // Điều kiện thắng do hệ thống gameplay gọi; UI không tự quyết định state Won.
     public bool WinRun() => FinishRun(GameState.Won);
 
     // Có thể gọi từ gameplay; Player chết cũng đi qua cùng API để kết thúc đúng một lần.
@@ -110,7 +113,6 @@ public sealed class GameManager : IInitializable, IDisposable
         HoldFlowPause();
         try
         {
-            resultVersion++;
             stage.StopRun();
             CleanupCharactersAndProjectiles();
             levels.StartNewRun();
@@ -125,7 +127,7 @@ public sealed class GameManager : IInitializable, IDisposable
 
     #region Transition And Cleanup
 
-    // Khóa gameplay ngay, chờ animation Player trước khi công bố Won/Lost cho UI.
+    // Khóa gameplay, phát state kết thúc để listener dọn đạn và chạy animation kết quả.
     private bool FinishRun(GameState result)
     {
         if (!CanTransition() || State != GameState.Playing) return false;
@@ -139,18 +141,20 @@ public sealed class GameManager : IInitializable, IDisposable
             stage.FinishRun(result == GameState.Won);
             skills.ClearRunSkills();
             GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
-            CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
-            int version = ++resultVersion;
-            CharacterRuntimeData identity = player != null ? player.RuntimeData : null;
-            ulong generation = identity != null ? identity.Generation : 0;
+            completedDuringTransition = null;
+            playerResultComplete = false;
+            enemiesResultComplete = result == GameState.Won;
             ChangeState(ending);
-            if (player == null || !player.PlayResultAnimation(animation, () =>
+            CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
+            if (player == null || !player.PlayResultAnimation(animation, () => OnPlayerResultAnimationCompleted(ending)))
+                playerResultComplete = true;
+            TryCompleteResultPresentation();
+            if (completedDuringTransition.HasValue)
             {
-                if (!disposed && resultVersion == version && State == ending &&
-                    ReferenceEquals(player, players.CurrentPlayer) && ReferenceEquals(player.RuntimeData, identity) &&
-                    identity != null && identity.Generation == generation)
-                    CompleteResult(result);
-            })) ChangeState(result); // Thiếu visual/state: không để luồng game bị kẹt.
+                GameState completed = completedDuringTransition.Value;
+                completedDuringTransition = null;
+                if (State == ending) ChangeState(completed);
+            }
             return true;
         }
         catch (Exception exception) { Fail(exception); return false; }
@@ -165,6 +169,29 @@ public sealed class GameManager : IInitializable, IDisposable
     }
 
     private void OnStageCleared() => WinRun();
+
+    // Chờ cả Player và nhóm enemy/boss trước khi công bố state cuối.
+    private void OnPlayerResultAnimationCompleted(GameState ending)
+    {
+        if (disposed || State != ending) return;
+        playerResultComplete = true;
+        TryCompleteResultPresentation();
+    }
+
+    private void OnEnemyCelebrationsCompleted()
+    {
+        if (disposed || State != GameState.EndingLose) return;
+        enemiesResultComplete = true;
+        TryCompleteResultPresentation();
+    }
+
+    private void TryCompleteResultPresentation()
+    {
+        if (!playerResultComplete || !enemiesResultComplete) return;
+        GameState result = State == GameState.EndingWin ? GameState.Won : GameState.Lost;
+        if (transitioning) completedDuringTransition = result;
+        else CompleteResult(result);
+    }
 
     private void CompleteResult(GameState result)
     {
@@ -181,7 +208,7 @@ public sealed class GameManager : IInitializable, IDisposable
     private void ChangeState(GameState next)
     {
         if (State == next) return;
-        GameState previous = State; // Chụp trạng thái cũ để UI biết bước vừa kết thúc.
+        GameState previous = State; // Chụp state cũ trước khi phát thông báo cho các listener.
         State = next;
         GameUIEventBus.Publish(previous, next);
     }
@@ -222,8 +249,8 @@ public sealed class GameManager : IInitializable, IDisposable
     {
         if (disposed) return;
         disposed = true;
-        resultVersion++;
         characters.CharacterDied -= OnCharacterDied;
+        characters.EnemyCelebrationsCompleted -= OnEnemyCelebrationsCompleted;
         stage.Cleared -= OnStageCleared;
         stage.Failed -= Fail;
         stage.StopRun();

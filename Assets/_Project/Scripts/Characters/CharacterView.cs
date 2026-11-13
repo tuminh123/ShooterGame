@@ -41,6 +41,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     private Tween hitFlash;
     private bool flashing;
     private bool resultPresentation;
+    private bool deathPresentation;
 
     #endregion
 
@@ -55,6 +56,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     // Trình diễn/spatial vẫn hoạt động khi enemy choáng hoặc tuần tra; chỉ khóa quyền thực thi skill.
     public bool CanUseSkills => !(controller is EnemyController enemy) || enemy.CanAttack;
     public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
+    public bool IsElite { get; internal set; }
     public bool IsVisualVisible => visual != null && visual.activeSelf;
     public Vector3 HitPosition => transform.TransformPoint(hitbox.Offset);
     
@@ -121,7 +123,9 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
 
         RuntimeData = runtime;
         resultPresentation = false;
+        deathPresentation = false;
         IsBoss = template.IsBoss;
+        IsElite = false;
         controller = behavior;
         MovementVisualState = CharacterVisualState.Idle;
         FacingRight = true;
@@ -134,6 +138,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         if (TryGetComponent<CharacterUI>(out var characterUI)) characterUI.ApplyLayout(presentation);
         sprites = visual.GetComponentsInChildren<SpriteRenderer>(true);
         visualHandle = visual.GetComponent<CharacterVisualHandle>();
+        visualHandle?.CaptureFacingScale();
         visualHandle?.Bind(this);
         originalSpriteColors = new Color[sprites.Length];
         for (int i = 0; i < sprites.Length; i++) originalSpriteColors[i] = sprites[i].color;
@@ -169,8 +174,19 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         if (!isActiveAndEnabled)
             return;
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
-        controller.Tick(this, RuntimeData);
-        Skills?.Tick(Time.deltaTime);
+        ICharacterController behavior = controller;
+        CharacterRuntimeData identity = RuntimeData;
+        ulong generation = identity.Generation;
+        behavior.Tick(this, identity);
+        try
+        {
+            if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation && ReferenceEquals(controller, behavior))
+                Skills?.Tick(Time.deltaTime);
+        }
+        finally
+        {
+            if (behavior is EnemyController enemy) enemy.CompletePatternContact(this, identity, generation);
+        }
     }
 
     #endregion
@@ -180,6 +196,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     // Chỉ đổi trạng thái object visual con; vỏ vẫn Update, di chuyển và nhận sát thương bình thường.
     internal void SetVisualVisible(bool visible)
     {
+        if (resultPresentation || deathPresentation) visible = true;
         if (visual == null || visual.activeSelf == visible) return;
         visual.SetActive(visible);
         if (visible) ApplySpriteColors();
@@ -244,7 +261,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     {
         if (RuntimeData == null) return;
         bool resultState = state == CharacterVisualState.Win || state == CharacterVisualState.Lose;
-        if (resultState && RuntimeData.Team != CharacterTeam.Player) return;
+        if (resultState && RuntimeData.Team != CharacterTeam.Player &&
+            !(RuntimeData.Team == CharacterTeam.Enemy && state == CharacterVisualState.Win)) return;
         if (resultPresentation && !resultState) return;
         if (!RuntimeData.IsAlive && state != CharacterVisualState.Death && state != CharacterVisualState.Lose) return;
         // Player và enemy thường chỉ trình diễn locomotion/hit/death. Attack/Cast dành riêng cho boss.
@@ -379,22 +397,31 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         originalSpriteColors = null;
     }
 
-    // Enemy chờ Death trước khi trả về pool.
+    // Boss luôn hiện và chờ Death; enemy thường ngoài màn hình có thể trả về pool ngay.
     internal bool WaitForDeathAnimation(Action onComplete)
-        => visualHandle != null && IsVisualVisible && visualHandle.WaitForDeathAnimation(onComplete);
+    {
+        if (IsBoss)
+        {
+            deathPresentation = true;
+            SetVisualVisible(true);
+        }
+        return visualHandle != null && IsVisualVisible && visualHandle.WaitForDeathAnimation(onComplete);
+    }
 
-    // GameManager quyết định kết quả; view chỉ khóa hành vi Player và chuyển yêu cầu cho visual.
+    // Khóa nhân vật và phát animation kết quả đã cấu hình trên visual.
     internal bool PlayResultAnimation(CharacterVisualState state, Action onComplete)
     {
         if (state != CharacterVisualState.Win && state != CharacterVisualState.Lose)
             throw new ArgumentOutOfRangeException(nameof(state));
-        if (RuntimeData == null || RuntimeData.Team != CharacterTeam.Player) return false;
+        if (RuntimeData == null || (RuntimeData.Team != CharacterTeam.Player &&
+            !(RuntimeData.Team == CharacterTeam.Enemy && state == CharacterVisualState.Win))) return false;
         resultPresentation = true;
         StopMovement();
         StopSpatial();
         ClearSkills();
         effectManager?.ClearTarget(this, RuntimeData);
         ClearFeedback();
+        SetVisualVisible(true);
         RequestVisualState(state);
         return visualHandle != null && IsVisualVisible && visualHandle.WaitForResultAnimation(state, onComplete);
     }
@@ -521,6 +548,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         ClearController();
         RuntimeData = null;
         IsBoss = false;
+        IsElite = false;
+        deathPresentation = false;
         visual = null;
         sprites = null;
         try { NotifyReleased(); }
@@ -544,6 +573,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         ClearController();
         RuntimeData = null;
         IsBoss = false;
+        IsElite = false;
+        deathPresentation = false;
         sprites = null;
         if (visual != null)
         {

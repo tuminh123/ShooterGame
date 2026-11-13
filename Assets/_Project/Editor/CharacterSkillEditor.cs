@@ -6,31 +6,76 @@ using UnityEngine;
 [CustomEditor(typeof(SkillDataSO), true)]
 public sealed class CharacterSkillEditor : Editor
 {
+    private static GUIStyle sectionHeaderStyle;
+
     #region Inspector
 
-    // Display/source riêng, data từng cấp phía trên, danh sách hành vi phía dưới.
+    // Chia dữ liệu skill thành các vùng rõ ràng trong Inspector.
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        DrawPropertiesExcluding(serializedObject, "m_Script", "levels", "behaviours");
-        DrawLevels(serializedObject.FindProperty("levels"));
-        DrawReferences(serializedObject.FindProperty("behaviours"), "Behaviour Templates", StrategySelector.GetTypes<ISkill>());
+        DrawSection("SKILL INFO", "Thông tin nhận diện và nguồn cấp skill.", () =>
+        {
+            DrawProperty("source");
+            DrawProperty("level");
+            DrawProperty("displayName");
+            DrawProperty("description");
+            DrawProperty("icon");
+        });
+        DrawSection("BOSS VISUAL", "Trạng thái animation được yêu cầu khi boss thực hiện hành vi bắn.",
+            () => DrawProperty("shootingVisualState"));
+        DrawSection($"LEVEL DATA     MAX LEVEL: {serializedObject.FindProperty("levels").arraySize}",
+            "Mỗi phần tử là cấu hình của một cấp. Chỉ các Behaviour Data có trong cấp mới được kích hoạt ở cấp đó.",
+            () => DrawLevels(serializedObject.FindProperty("levels")));
+        DrawSection("BEHAVIOUR TEMPLATES", "Mẫu quyết định cách từng hành vi chạy. Thông số riêng theo cấp nằm trong Level Data.",
+            () => DrawReferences(serializedObject.FindProperty("behaviours"), "Template", StrategySelector.GetTypes<ISkill>()));
         serializedObject.ApplyModifiedProperties();
         try { ((SkillDataSO)target).Validate(); }
         catch (Exception exception) { EditorGUILayout.HelpBox(exception.Message, MessageType.Error); }
     }
 
+    // Vẽ một thuộc tính theo tên field đã serialize.
+    private void DrawProperty(string name)
+        => EditorGUILayout.PropertyField(serializedObject.FindProperty(name), true);
+
+    // Khung riêng có tiêu đề lớn, mô tả ngắn và nội dung.
+    private static void DrawSection(string title, string description, Action drawContent)
+    {
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField(title, SectionHeaderStyle, GUILayout.Height(24f));
+        EditorGUILayout.LabelField(description, EditorStyles.wordWrappedMiniLabel);
+        EditorGUILayout.Space(4f);
+        drawContent();
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(5f);
+    }
+
+    // Kiểu tiêu đề dùng chung cho các vùng trong Inspector.
+    private static GUIStyle SectionHeaderStyle
+    {
+        get
+        {
+            if (sectionHeaderStyle == null)
+            {
+                sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    fontSize = 14,
+                    fontStyle = FontStyle.Bold
+                };
+            }
+            return sectionHeaderStyle;
+        }
+    }
+
     // Mỗi phần tử là cấu hình đầy đủ một cấp; số phần tử chính là MaxLevel.
     private static void DrawLevels(SerializedProperty levels)
     {
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField($"Level Data — Max Level: {levels.arraySize}", EditorStyles.boldLabel);
         for (int i = 0; i < levels.arraySize; i++)
         {
             SerializedProperty level = levels.GetArrayElementAtIndex(i);
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.BeginHorizontal();
-            level.isExpanded = EditorGUILayout.Foldout(level.isExpanded, $"Level {i + 1}", true);
+            level.isExpanded = EditorGUILayout.Foldout(level.isExpanded, $"LEVEL {i + 1}", true, EditorStyles.foldoutHeader);
             bool remove = GUILayout.Button("Remove", GUILayout.Width(65));
             EditorGUILayout.EndHorizontal();
             if (remove)
@@ -42,6 +87,7 @@ public sealed class CharacterSkillEditor : Editor
             if (level.isExpanded)
             {
                 EditorGUILayout.PropertyField(level.FindPropertyRelative("description"));
+                EditorGUILayout.LabelField("BEHAVIOUR DATA", EditorStyles.boldLabel);
                 DrawReferences(level.FindPropertyRelative("behaviours"), "Behaviour Data", StrategySelector.GetTypes<SkillBehaviourData>());
             }
             EditorGUILayout.EndVertical();
@@ -55,19 +101,17 @@ public sealed class CharacterSkillEditor : Editor
             level.FindPropertyRelative("behaviours").arraySize = 0;
             level.isExpanded = true;
         }
-        EditorGUILayout.HelpBox("Each level contains its full configuration. A behaviour starts only when that level contains its data. Each type appears once.", MessageType.Info);
     }
 
     // Dùng chung selector cho data và hành vi, không cần nhập enum hoặc string ID.
-    private static void DrawReferences(SerializedProperty list, string title, Type[] types)
+    private static void DrawReferences(SerializedProperty list, string itemLabel, Type[] types)
     {
-        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
         for (int i = 0; i < list.arraySize; i++)
         {
             SerializedProperty entry = list.GetArrayElementAtIndex(i);
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField($"Item {i + 1}");
+            EditorGUILayout.LabelField($"{itemLabel.ToUpperInvariant()} {i + 1}", EditorStyles.boldLabel);
             bool up = GUILayout.Button("Up", GUILayout.Width(40));
             bool down = GUILayout.Button("Down", GUILayout.Width(50));
             bool remove = GUILayout.Button("Remove", GUILayout.Width(65));
@@ -78,7 +122,7 @@ public sealed class CharacterSkillEditor : Editor
                 EditorGUILayout.EndVertical();
                 break;
             }
-            StrategySelector.Draw(entry, types);
+            StrategySelector.Draw(entry, types, "Type");
             EditorGUILayout.EndVertical();
             if (up && i > 0) { list.MoveArrayElement(i, i - 1); break; }
             if (down && i + 1 < list.arraySize) { list.MoveArrayElement(i, i + 1); break; }
@@ -103,7 +147,7 @@ internal static class StrategySelector
                            type.GetConstructor(Type.EmptyTypes) != null)
             .OrderBy(type => type.Name).ToArray();
 
-    public static void Draw(SerializedProperty property, params Type[] types)
+    public static void Draw(SerializedProperty property, Type[] types, string label = null)
     {
         var names = new string[types.Length + 1];
         names[0] = "(Select strategy)";
@@ -114,7 +158,7 @@ internal static class StrategySelector
             names[index + 1] = types[index].Name;
             if (actual == types[index]) current = index + 1;
         }
-        int selected = EditorGUILayout.Popup(property.displayName, current, names);
+        int selected = EditorGUILayout.Popup(label ?? property.displayName, current, names);
         if (selected != current)
             property.managedReferenceValue = selected == 0 ? null : Activator.CreateInstance(types[selected - 1]);
         if (property.managedReferenceValue == null) return;

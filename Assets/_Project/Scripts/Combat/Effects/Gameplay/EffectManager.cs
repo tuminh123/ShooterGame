@@ -25,7 +25,11 @@ public sealed class EffectManager : IDisposable
 
     // Zenject cung cấp pool runtime và đồng hồ chung của scene.
     public EffectManager(EffectRuntimePool pool, ITimerManager timers)
-    { this.pool = pool; this.timers = timers; }
+    {
+        this.pool = pool;
+        this.timers = timers;
+        GameUIEventBus.StateChanged += OnGameStateChanged;
+    }
 
     #endregion
 
@@ -58,6 +62,19 @@ public sealed class EffectManager : IDisposable
         operationDepth++;
         try { Deactivate(handle.Runtime); }
         finally { EndOperation(); }
+    }
+
+    // Thu hồi gameplay effect đang chạy khi trận vào state kết quả.
+    public void ClearAll()
+    {
+        if (disposed) return;
+        DeactivateAll();
+    }
+
+    private void OnGameStateChanged(GameState previous, GameState current)
+    {
+        if (current == GameState.EndingWin || current == GameState.EndingLose)
+            ClearAll();
     }
 
     #endregion
@@ -269,17 +286,24 @@ public sealed class EffectManager : IDisposable
 
     #region Disposal
 
-    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về pool.
-    public void Dispose()
+    // Thu hồi mọi runtime an toàn cả khi đang có callback lồng nhau.
+    private void DeactivateAll()
     {
-        if (disposed) return;
-        disposed = true;
         operationDepth++;
         try
         {
             while (activeEffects.Count > 0) Deactivate(activeEffects[activeEffects.Count - 1]);
         }
         finally { EndOperation(); }
+    }
+
+    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về pool.
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        GameUIEventBus.StateChanged -= OnGameStateChanged;
+        DeactivateAll();
     }
 
     #endregion

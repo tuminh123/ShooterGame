@@ -38,11 +38,21 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
     private ITimerManager timers;
     private TimerHandle scanTimer;
     private TimerHandle recoilTimer;
-    private TimerHandle stunTimer; // Dùng cùng đồng hồ gameplay để choáng dừng theo pause/slow motion.
-    private EnemyFormationRuntime formation; // Null nghĩa là dùng chase/separation thông thường.
-    private int formationSlot;
-    // CharacterView/skill runtime đọc cờ này; quái vẫn có thể nhận sát thương khi đang choáng.
-    public bool CanAttack => !disposed && (timers == null || timers.GetRemaining(stunTimer) <= 0f);
+    private EnemyFormationRuntime formation; // Chủ sở hữu nhóm, giữ cả khi con đã tách chuyển động.
+    private EnemyFormationRuntime pendingPatternContact;
+    private int formationMemberIndex;
+    private bool patternTouching;
+    private float patternKnockbackDistance, patternKnockbackDuration;
+    private EnemyPathRoute remainingPath;
+    private float pathTravelled, pathSpeed;
+    private int pathPasses;
+    private Vector2 pathAnchorOffset;
+    private bool pathFinished;
+    // Va chạm không gây choáng hoặc khóa skill; cooldown vẫn do skill quản lý.
+    public bool CanAttack => !disposed;
+    /// <summary>Cho biết controller còn đang thực hiện phản lực riêng.</summary>
+    internal bool IsKnockedBack => timers != null &&
+        (timers.GetRemaining(recoilTimer) > 0f || previousRecoilRemaining > 0f);
     private bool scanReady; // Nhiều nhịp trễ được gộp thành một lần quét, không tính hàng xóm lặp lại vô ích.
     private bool disposed;
     private readonly float knockbackDistance;
@@ -88,6 +98,12 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         // * Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết.
         if (ApplyKnockback(view))
         {
+            if (remainingPath != null) pathAnchorOffset = remainingPath.AnchorOffset;
+            return;
+        }
+        if (pathFinished)
+        {
+            characters.Despawn(view);
             return;
         }
         CharacterView target = players.CurrentPlayer;
@@ -98,27 +114,23 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
             return;
         }
 
-        // Kiểm tra hitbox trực tiếp, không chờ cooldown gây damage mới phá nhóm khi chạm player.
-        if (formation != null && !formation.IsBroken && CharacterSearch.Overlaps(view, target))
+        if (formation != null)
         {
-            TryBreakFormation(view, (Vector2)(view.HitPosition - target.HitPosition));
-            view.Move(Vector2.zero, 0f);
-            return;
-        }
-        // Knockback đã được ưu tiên ở trên. Hết phản lực mà còn choáng thì đứng yên trước khi chase.
-        if (timers.GetRemaining(stunTimer) > 0f)
-        {
-            view.Move(Vector2.zero, 0f);
-            return;
-        }
-        // Nhóm quyết định vị trí chung. Không cho mỗi enemy tự chạy đuổi slot bằng tốc độ riêng,
-        // vì như vậy khối sẽ bị kéo giãn. Lệnh dưới đưa mọi thành viên tới đúng vị trí của bước này.
-        if (formation != null && formation.TryGetTarget(formationSlot, out Vector2 destination))
-        {
-            Vector2 delta = destination - (Vector2)view.transform.position;
-            float speed = delta.magnitude / timers.DeltaTime;
-            view.Move(delta, speed, delta.magnitude);
-            return;
+            // Cho skill tiếp xúc xử lý damage trước khi bắt đầu phản lực cá thể.
+            if (CharacterSearch.Overlaps(view, target)) pendingPatternContact = formation;
+            else patternTouching = false;
+            if (remainingPath != null)
+            {
+                MoveRemainingPath(view);
+                return;
+            }
+            if (formation.TryGetTarget(formationMemberIndex, out Vector2 destination))
+            {
+                Vector2 delta = destination - (Vector2)view.transform.position;
+                view.Move(delta, delta.magnitude / timers.DeltaTime, delta.magnitude);
+            }
+            else view.Move(Vector2.zero, 0f);
+            return; // Pattern enemies never fall back to chasing.
         }
         UpdateSeparation(view);
         Vector2 toPlayer = target.transform.position - view.transform.position;
@@ -134,67 +146,94 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     #endregion
 
-    #region Formation Membership And Combat Gate
+    #region Thành viên Pattern và tiếp xúc
 
-    // Khi chuyển sang nhóm khác, vô hiệu slot cũ nhưng không thay controller hoặc thuê lại runtime.
-    internal void JoinFormation(EnemyFormationRuntime group, int slot)
+    /// <summary>Nhận nhóm sở hữu, chỉ số thành viên và cấu hình phản lực cá thể.</summary>
+    internal void JoinFormation(EnemyFormationRuntime group, int memberIndex, float recoilDistance, float recoilDuration)
     {
         formation?.Remove(this);
         formation = group;
-        formationSlot = slot;
+        formationMemberIndex = memberIndex;
+        patternKnockbackDistance = recoilDistance;
+        patternKnockbackDuration = recoilDuration;
+        patternTouching = false;
+        remainingPath = null;
+        pathFinished = false;
         separationDirection = Vector2.zero;
     }
 
-    // Chỉ nhóm đang sở hữu mới được trả thành viên về chase; cleanup dùng stunDuration = 0.
-    internal void LeaveFormation(EnemyFormationRuntime group, CharacterView view, float stunDuration)
+    /// <summary>Chốt tiếp xúc sau skill; chỉ con va chạm bị tách và nhận knockback.</summary>
+    internal void CompletePatternContact(CharacterView view, CharacterRuntimeData identity, ulong generation)
     {
-        if (!ReferenceEquals(formation, group))
-        {
-            return;
-        }
-        formation = null;
-        separationDirection = Vector2.zero;
-        if (stunDuration <= 0f || disposed)
-        {
-            return;
-        }
-        EnsureTimers(view);
-        timers.Restart(stunTimer, stunDuration);
-        view.Move(Vector2.zero, 0f);
-    }
-
-    // Runtime gọi cho mọi thành viên khi va player: văng trước, rồi đứng choáng đủ thời lượng.
-    internal void BreakFormation(EnemyFormationRuntime group, CharacterView view, Vector2 away,
-        float distance, float duration, float stunDuration)
-    {
-        if (!ReferenceEquals(formation, group) || disposed)
-        {
-            return;
-        }
-
-        LeaveFormation(group, view, 0f);
-        EnsureTimers(view);
-        float recoilTime = distance > 0f && view.isActiveAndEnabled ? Mathf.Max(0.01f, duration) : 0f;
-
-        // Timer choáng bao gồm thời gian phản lực để countdown không làm mất phần choáng sau khi văng.
-        // TickMovement ưu tiên phản lực; combat bị khóa trong cả hai giai đoạn.
-        timers.Restart(stunTimer, recoilTime + stunDuration);
-        StartKnockback(view, away, distance, duration);
-        view.Move(Vector2.zero, 0f);
-    }
-
-    private bool TryBreakFormation(CharacterView view, Vector2 away)
-    {
-        EnemyFormationRuntime group = formation;
+        EnemyFormationRuntime group = pendingPatternContact;
+        pendingPatternContact = null;
+        if (disposed || group == null || group.IsBroken || !ReferenceEquals(group, formation) ||
+            view == null || !view.isActiveAndEnabled || !ReferenceEquals(view.RuntimeData, identity) ||
+            identity.Generation != generation || !identity.IsAlive || timers == null || timers.DeltaTime <= 0f) return;
         CharacterView player = players.CurrentPlayer;
-        Vector2 playerPosition = player != null ? (Vector2)player.HitPosition : (Vector2)view.HitPosition - away;
-        return group != null && group.OnPlayerContact(this, playerPosition);
+        if (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive) return;
+        bool touching = CharacterSearch.Overlaps(view, player);
+        bool newContact = touching && !patternTouching;
+        patternTouching = touching;
+        if (!newContact) return;
+        group.DetachMember(formationMemberIndex);
+        StartKnockback(view, (Vector2)view.HitPosition - (Vector2)player.HitPosition,
+            patternKnockbackDistance, patternKnockbackDuration);
     }
 
-    // Chặn damage ngay tại cửa combat, kể cả khi có skill cố đánh trong thời gian bị khóa.
+    // Controller đã dispose không tiếp tục gửi damage qua callback cũ.
     public override DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
         CharacterTarget target, float multiplier = 1f)
         => CanAttack ? base.DealDamage(view, runtime, target, multiplier) : default;
+
+    #endregion
+
+    #region Path độc lập sau khi tách đội hình
+
+    /// <summary>Giữ Path còn lại và tốc độ nhóm; không nhận lại slot hoặc chuyển sang chase.</summary>
+    internal void FollowRemainingPath(EnemyPathRoute path, float travelled, int passes, float speed)
+    {
+        remainingPath = path;
+        pathTravelled = travelled;
+        pathPasses = passes;
+        pathSpeed = speed;
+        pathAnchorOffset = path.AnchorOffset;
+        pathFinished = false;
+    }
+
+    /// <summary>Di chuyển qua các góc còn lại bằng tốc độ đã nhận; thu hồi sau khi tới đích.</summary>
+    private void MoveRemainingPath(CharacterView view)
+    {
+        Vector2 position = view.transform.position;
+        Vector2 destination = position + remainingPath.AnchorOffset - pathAnchorOffset;
+        pathAnchorOffset = remainingPath.AnchorOffset;
+        float budget = pathSpeed * timers.DeltaTime;
+        float end = remainingPath.Length * pathPasses;
+        while (budget > 0f && !pathFinished)
+        {
+            float corner = remainingPath.NextCornerDistance(pathTravelled, pathPasses);
+            Vector2 point = remainingPath.Sample(corner, pathPasses);
+            float distance = Vector2.Distance(destination, point);
+            destination = Vector2.MoveTowards(destination, point, budget);
+            if (distance > budget) break;
+            budget -= distance;
+            pathTravelled = corner;
+            pathFinished = pathTravelled >= end;
+        }
+        Vector2 delta = destination - position;
+        view.Move(delta, delta.magnitude / timers.DeltaTime, delta.magnitude);
+    }
+
+    /// <summary>Bù dịch camera cuối frame cho con tách nhóm; bỏ bù khi đang knockback.</summary>
+    internal bool ApplyPathCameraMotion(CharacterView view)
+    {
+        if (remainingPath == null || disposed) return false;
+        Vector2 delta = remainingPath.AnchorOffset - pathAnchorOffset;
+        pathAnchorOffset = remainingPath.AnchorOffset;
+        if (IsKnockedBack || delta.sqrMagnitude <= 0f) return false;
+        view.transform.position += new Vector3(delta.x, delta.y, 0f);
+        return true;
+    }
 
     #endregion
 
@@ -280,11 +319,12 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     protected override void OnAttack(CharacterView view, CharacterRuntimeData runtime, Vector2 away)
     {
-        // Đường dự phòng khi đòn đánh thành công trước kiểm tra va chạm của TickMovement.
-        if (!TryBreakFormation(view, away))
+        if (formation != null)
         {
-            StartKnockback(view, away, knockbackDistance, knockbackDuration);
+            // Pattern chốt tiếp xúc sau skill, dùng chung StartKnockback với enemy thường.
+            return;
         }
+        StartKnockback(view, away, knockbackDistance, knockbackDuration);
     }
 
     // Chỉ gửi lệnh di chuyển cho view enemy này; không tác động controller hoặc Transform của player.
@@ -339,7 +379,6 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
             scanTimer = timers.RegisterPeriodic(scanInterval, this, firstDelay);
         }
         recoilTimer = timers.Register(0f, this);
-        stunTimer = timers.Register(0f, this);
     }
 
     public void OnTimer(TimerHandle handle, TimerResult result)
@@ -354,7 +393,6 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
     {
         timers?.SetPaused(scanTimer, paused);
         timers?.SetPaused(recoilTimer, paused);
-        timers?.SetPaused(stunTimer, paused);
     }
 
     public override void Dispose()
@@ -367,10 +405,11 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         // Bỏ slot trước khi vỏ/runtime quay về pool để nhóm cũ không giữ quyền điều khiển.
         formation?.Remove(this);
         formation = null;
+        pendingPatternContact = null;
+        remainingPath = null;
         base.Dispose();
         timers?.Cancel(scanTimer);
         timers?.Cancel(recoilTimer);
-        timers?.Cancel(stunTimer);
         System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);
         neighborBuffer = System.Array.Empty<CharacterTarget>();
     }
@@ -397,9 +436,16 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     #region Death Behavior
 
-    // Cùng animation Death với Player; controller chỉ quyết định lúc thu hồi quái.
+    // Boss giữ xác sau Death; enemy thường trả về pool khi Death hoàn tất.
     public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
+        if (view.IsBoss)
+        {
+            // Boss giữ lại trong scene ở frame cuối của animation chết.
+            view.WaitForDeathAnimation(null);
+            return;
+        }
+
         if (!view.WaitForDeathAnimation(() => characters.Despawn(view)))
         {
             characters.Despawn(view); // Không có visual đang hiển thị thì thu hồi ngay.

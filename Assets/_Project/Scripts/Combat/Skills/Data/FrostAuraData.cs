@@ -8,10 +8,10 @@ public sealed class FrostAuraData : SkillBehaviourData
 {
     #region Configuration
 
-    public SkillAreaVisual visualPrefab; // Visual của vùng tác động.
-    [Min(0.01f)] public float radius = 1f; // Bán kính ở cấp này.
-    [Range(0f, 1f)] public float slowFraction = 0.3f; // Tỷ lệ làm chậm duy trì khi còn trong vùng.
-    [SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>(); // Effect bổ sung lúc vào vùng.
+    [Tooltip("Prefab hiển thị vùng aura quanh chủ nhân.")] public SkillAreaVisual visualPrefab;
+    [Tooltip("Bán kính tác động của aura ở cấp này.")][Min(0.01f)] public float radius = 1f;
+    [Tooltip("Tỷ lệ giảm tốc độ mục tiêu trong vùng, từ 0 đến 1.")][Range(0f, 1f)] public float slowFraction = 0.3f;
+    [Tooltip("Các hiệu ứng áp dụng khi mục tiêu đi vào vùng aura.")][SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>();
     public override SkillBehaviourType Type => SkillBehaviourType.SlowAura;
 
     #endregion

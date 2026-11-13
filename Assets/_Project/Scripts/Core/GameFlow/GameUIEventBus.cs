@@ -1,17 +1,17 @@
-using System;
+﻿using System;
 using UnityEngine;
 
-// Bus chỉ thông báo cho UI. Trạng thái hiện tại và quyền chuyển trạng thái thuộc GameManager.
+// Bus phát thay đổi state của GameManager cho gameplay và UI.
 public static class GameUIEventBus
 {
-    #region UI Notifications
+    #region State Notifications
 
-    public static event Action<GameState, GameState> StateChanged; // Trạng thái cũ/mới; UI tự chọn cách trình bày.
+    public static event Action<GameState, GameState> StateChanged; // State trước và sau khi chuyển.
 
-    // Chỉ GameManager công bố chuyển trạng thái; lỗi một listener không chặn các UI còn lại.
+    // GameManager là nơi duy nhất phát state; lỗi một listener không chặn listener khác.
     internal static void Publish(GameState previous, GameState current)
     {
-        Action<GameState, GameState> handlers = StateChanged; // Snapshot để listener tự gỡ trong callback vẫn duyệt an toàn.
+        Action<GameState, GameState> handlers = StateChanged; // Chụp danh sách để listener tự gỡ an toàn khi đang phát.
         if (handlers == null) return;
         foreach (Action<GameState, GameState> handler in handlers.GetInvocationList())
         {
@@ -24,7 +24,7 @@ public static class GameUIEventBus
 
     #region Play Session Lifecycle
 
-    // Domain Reload tắt vẫn phải xóa listener static từ phiên Play trước; bus không giữ state hoặc reference manager.
+    // Xóa listener static giữa các phiên Play khi Domain Reload bị tắt.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetListeners() => StateChanged = null;
 

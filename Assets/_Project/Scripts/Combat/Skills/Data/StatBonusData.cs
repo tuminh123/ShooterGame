@@ -7,9 +7,9 @@ public sealed class StatBonusData : SkillBehaviourData
 {
     #region Configuration
 
-    public StatType stat = StatType.Defense; // Enum chung với toàn bộ hệ stat; giữ thứ tự asset cũ.
-    public StatOperation operation; // Add hoặc Percent, mặc định Add để giữ hành vi asset hiện có.
-    public float value = 2f; // Ví dụ Add +10 damage, Percent -20 damage, Add -10 điểm crit.
+    [Tooltip("Chỉ số nhân vật sẽ bị thay đổi.")] public StatType stat = StatType.Defense;
+    [Tooltip("Add cộng trực tiếp; Percent thay đổi theo phần trăm.")] public StatOperation operation;
+    [Tooltip("Giá trị cộng hoặc tỷ lệ phần trăm; số âm tạo debuff.")] public float value = 2f;
     public StatModifier Modifier => new StatModifier(stat, operation, value);
     public override SkillBehaviourType Type => SkillBehaviourType.StatBuff;
 

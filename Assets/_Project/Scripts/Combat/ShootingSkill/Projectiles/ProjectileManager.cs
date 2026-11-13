@@ -39,6 +39,7 @@ public sealed class ProjectileManager : ITickable, IDisposable
         queries = new NativeArray<SpatialQuery>(128, Allocator.Persistent);
         results = new NativeArray<SpatialHit>(128, Allocator.Persistent);
         Camera.onPreCull += DespawnOutsideCamera;
+        GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
     internal void Register(ProjectileView projectile, MovementHandle handle)
@@ -178,11 +179,19 @@ public sealed class ProjectileManager : ITickable, IDisposable
                 registration.Projectile.Release();
     }
 
+    // Thu hồi toàn bộ đạn khi bắt đầu state kết quả.
+    private void OnGameStateChanged(GameState previous, GameState current)
+    {
+        if (current == GameState.EndingWin || current == GameState.EndingLose)
+            ClearProjectiles();
+    }
+
     public void Dispose()
     {
         if (disposed) return;
         disposed = true;
         Camera.onPreCull -= DespawnOutsideCamera; // Event static không được giữ manager sau khi scene kết thúc.
+        GameUIEventBus.StateChanged -= OnGameStateChanged;
         activeProjectiles.Clear();
         indices.Clear();
         tickSnapshot.Clear();

@@ -1,13 +1,13 @@
-// Trạng thái luồng một scene; pause chọn skill vẫn thuộc GameplayPauseService, không đổi trạng thái trận.
+// State trận đấu được phát cho gameplay và UI qua GameUIEventBus.
 public enum GameState
 {
-    Boot, // Scene mới vào; save/prewarm chưa được GameManager xác nhận sẵn sàng.
-    PreparingRun, // Đang dọn lượt cũ, reset tiến trình và tạo Player; gameplay còn pause.
-    Home, // Chờ bắt đầu lượt mới; chưa có panel Home riêng trong scene hiện tại.
-    Playing, // Trận đang hoạt động; pause tạm thời vẫn giữ state này.
-    Won, // Điều kiện thắng đã được gameplay báo về GameManager.
-    Lost, // Player chết hoặc gameplay yêu cầu kết thúc thua.
-    Faulted, // Chuẩn bị tài nguyên/trận lỗi; giữ pause và LastError để chẩn đoán.
-    EndingWin, // Gameplay dừng, chờ Player phát xong Win trước khi hiện kết quả.
-    EndingLose // Gameplay dừng, chờ Player phát xong Lose trước khi hiện kết quả.
+    Boot, // Scene đang khởi tạo tài nguyên.
+    PreparingRun, // Dọn lượt cũ và tạo Player cho lượt mới.
+    Home, // Sẵn sàng bắt đầu lượt chơi.
+    Playing, // Trận đấu đang diễn ra.
+    Won, // Animation kết quả xong, UI thắng được mở.
+    Lost, // Animation kết quả xong, UI thua được mở.
+    Faulted, // Khởi tạo lượt chơi lỗi; gameplay giữ pause.
+    EndingWin, // Khóa gameplay và phát animation kết thúc thắng.
+    EndingLose // Khóa gameplay và phát animation kết thúc thua.
 }

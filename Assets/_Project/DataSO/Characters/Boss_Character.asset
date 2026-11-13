@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: Boss_Character
+  m_EditorClassIdentifier: 
+  displayName: Boss
+  characterType: 3
+  team: 1
+  isBoss: 1
+  visualSettings:
+    Prefab: {fileID: 108019695963274740, guid: cf9dc8c3a4a694748a857b0a8ff04841, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.60554504, y: 0.6208844}
+      Offset: {x: -0.023008823, y: 0.619063}
+    HealthBarSize: {x: 200, y: 50}
+    HealthBarOffset: {x: 0, y: 0.06, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 4
+  baseStats:
+    maxHealth: 1000
+    damage: 30
+    defense: 100
+    moveSpeed: 0.7
+    critChance: 5
+    critDamageMultiplier: 50
+    effectResistance: 50
+    effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: 061da97c15db4a5dab3305462bfec056, type: 2}
+  - {fileID: 11400000, guid: e730abcb6d2a4e15b2888543fdd8c20e, type: 2}

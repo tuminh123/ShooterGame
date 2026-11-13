@@ -8,18 +8,22 @@ public sealed class ShootingData : SkillBehaviourData
 {
     #region Shooting Configuration
 
-    [Min(0f)] public float cooldown = 0.8f; // Khoảng cách giữa hai lượt bắn thành công.
-    [Min(0f)] public float range = 2f; // Tầm tìm mục tiêu.
-    [SerializeReference] public IShooter shooter = new StraightShooter(); // Cách phát đạn.
-    [SerializeReference] public IProjectileMove projectileMove = new StraightProjectileMove(); // Cách bay.
-    public BulletType bulletType; // Hình ảnh lấy từ CombatAssetsSO.
-    [Min(1)] public int projectileCount = 1; // Số viên mỗi lượt.
-    public Vector2 muzzleOffset = new Vector2(0f, 0.02f); // Điểm phát đạn tương đối với owner.
-    public bool requiresTarget = true; // Có mục tiêu mới cast.
-    public Vector2 defaultDirection = Vector2.right; // Hướng khi không bắt buộc mục tiêu.
-    [Min(0.01f)] public float speed = 2.4f; // Tốc độ world unit/giây.
-    [Min(0.01f)] public float lifetime = 3f; // Thời gian tồn tại tối đa.
-    [SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>(); // Effect của đạn ở đúng cấp này.
+    [Tooltip("Thời gian tối thiểu giữa hai lần bắn thành công.")][Min(0f)] public float cooldown = 0.8f;
+    [Tooltip("Khoảng cách tối đa để tìm mục tiêu.")][Min(0f)] public float range = 2f;
+    [Tooltip("Chọn cách tạo và phát projectile.")][SerializeReference] public IShooter shooter = new StraightShooter();
+    [Tooltip("Chọn cách projectile di chuyển sau khi được tạo.")][SerializeReference] public IProjectileMove projectileMove = new StraightProjectileMove();
+    [Tooltip("Loại visual projectile lấy từ CombatAssetsSO.")]
+    public BulletType bulletType;
+    [Tooltip("Số projectile tạo trong một lần bắn.")][Min(1)] public int projectileCount = 1;
+    [Tooltip("Độ lệch điểm xuất hiện so với vị trí nhân vật.")]
+    public Vector2 muzzleOffset = new Vector2(0f, 0.02f);
+    [Tooltip("Bật để chỉ bắn khi tìm được mục tiêu hợp lệ.")]
+    public bool requiresTarget = true;
+    [Tooltip("Hướng dùng khi không bắt buộc có mục tiêu.")]
+    public Vector2 defaultDirection = Vector2.right;
+    [Tooltip("Tốc độ projectile theo world unit mỗi giây.")][Min(0.01f)] public float speed = 2.4f;
+    [Tooltip("Thời gian tối đa projectile tồn tại trước khi thu hồi.")][Min(0.01f)] public float lifetime = 3f;
+    [Tooltip("Các hiệu ứng được áp dụng khi projectile đánh trúng.")][SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>();
     public override SkillBehaviourType Type => SkillBehaviourType.Shooting;
     public override float Cooldown => cooldown;
 
