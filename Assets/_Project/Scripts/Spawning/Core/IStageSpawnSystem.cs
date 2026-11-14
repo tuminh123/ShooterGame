@@ -1,5 +1,8 @@
 using System;
 
+/// <summary>Loại cảnh báo spawn; số lớn hơn được ưu tiên khi xuất hiện cùng lúc.</summary>
+public enum StageSpawnWarning { SimultaneousWave, Elite, Boss }
+
 #region Stage Spawm System
 
 /// <summary>Kiểm tra, nhận dữ liệu và dừng hệ thống spawn.</summary>

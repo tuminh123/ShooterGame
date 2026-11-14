@@ -1,16 +1,16 @@
 using System;
 using Zenject;
+using UnityEngine;
 
 // Trạng thái của lượt chơi: giữ vàng và đồng hồ; không biết UI hay cách tạo/nhặt vật phẩm.
-public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposable
+public sealed class RunSessionManager : IInitializable, ITickable, IDisposable
 {
     #region Dependencies & State
 
     private readonly PlayerManager players; // Chỉ cộng thời gian khi Player đang sống và hoạt động.
     private readonly LevelManager levels; // Nhận thông báo reset lượt chơi từ đầu mối hiện có.
-    private readonly ITimerManager timers; // Phép tính thời gian vẫn chạy trong TimerJob chung.
     private readonly CharacterManager characters;
-    private TimerHandle clock; // Nhịp một giây của lượt hiện tại; hủy khi reset/dispose.
+    private double elapsed; // Giữ phần giây lẻ, chỉ phát TimeChanged khi số giây nguyên đổi.
     private bool disposed;
 
     public int Gold { get; private set; } // Thống kê vàng trận; LootManager đã cộng vào ví, không cộng lại khi kết thúc.
@@ -20,9 +20,9 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
     public event Action<int> TimeChanged;
     public event Action<int> EnemiesDefeatedChanged;
 
-    public RunSessionManager(PlayerManager players, LevelManager levels, ITimerManager timers,
+    public RunSessionManager(PlayerManager players, LevelManager levels,
         CharacterManager characters)
-    { this.players = players; this.levels = levels; this.timers = timers; this.characters = characters; }
+    { this.players = players; this.levels = levels; this.characters = characters; }
 
     #endregion
 
@@ -32,7 +32,6 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
     {
         levels.RunReset += ResetRun;
         characters.CharacterDied += OnCharacterDied;
-        clock = timers.RegisterPeriodic(1f, this, 1f);
     }
 
     // Chỉ cập nhật thống kê; nguồn thưởng phải cộng ví qua CurrencyService riêng.
@@ -45,12 +44,15 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
         GoldChanged?.Invoke(Gold);
     }
 
-    public void OnTimer(TimerHandle handle, TimerResult result)
+    public void Tick()
     {
         CharacterView player = players.CurrentPlayer;
-        if (disposed || !clock.Equals(handle) || player == null || !player.isActiveAndEnabled ||
+        if (disposed || Time.deltaTime <= 0f || player == null || !player.isActiveAndEnabled ||
             player.RuntimeData == null || !player.RuntimeData.IsAlive) return;
-        ElapsedSeconds = checked(ElapsedSeconds + result.DueTickCount);
+        elapsed += Time.deltaTime;
+        int seconds = checked((int)Math.Floor(elapsed + 0.0000001d));
+        if (seconds == ElapsedSeconds) return;
+        ElapsedSeconds = seconds;
         TimeChanged?.Invoke(ElapsedSeconds);
     }
 
@@ -69,10 +71,9 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
     {
         Gold = 0;
         ElapsedSeconds = 0;
+        elapsed = 0d;
         EnemiesDefeated = 0;
         EnemiesDefeatedChanged?.Invoke(EnemiesDefeated);
-        timers.Cancel(clock);
-        clock = timers.RegisterPeriodic(1f, this, 1f);
         GoldChanged?.Invoke(Gold);
         TimeChanged?.Invoke(ElapsedSeconds);
     }
@@ -83,7 +84,6 @@ public sealed class RunSessionManager : IInitializable, ITimerListener, IDisposa
         disposed = true;
         levels.RunReset -= ResetRun;
         characters.CharacterDied -= OnCharacterDied;
-        timers.Cancel(clock);
         GoldChanged = null;
         TimeChanged = null;
         EnemiesDefeatedChanged = null;

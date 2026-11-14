@@ -13,11 +13,13 @@ public sealed class CombatAssetsSO : ScriptableObject
     [Serializable]
     public struct BulletVisual
     {
+        [Tooltip("Loại đạn được skill dùng để tra visual và hitbox. Mỗi BulletType chỉ khai báo một lần.")]
         public BulletType type;
         [Tooltip("Prefab hình ảnh con của đạn. Chỉnh màu, scale, sprite/animation/particle ngay trong prefab này; trục +X là hướng bay.")]
         public GameObject visualPrefab;
         [Tooltip("Hiệu ứng hình ảnh khi đạn trúng mục tiêu; không phải hiệu ứng gameplay như cháy hoặc độc.")]
         public EffectType impactEffect;
+        [Tooltip("Bán kính hitbox quét va chạm của đạn, theo world unit; phải lớn hơn 0, độc lập kích thước visual.")]
         [Min(0.001f)] public float hitRadius;
         [Tooltip("Tâm hitbox theo hướng bay: X phía trước, Y bên trái; world unit, không theo scale visual.")]
         public Vector2 hitOffset;
@@ -26,18 +28,19 @@ public sealed class CombatAssetsSO : ScriptableObject
     [Serializable]
     public struct EffectEntry
     {
+        [Tooltip("ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.")]
         public EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
         [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.")]
         public GameObject visualPrefab;
     }
 
-    [Header("Shared view prefabs")]
     [Tooltip("Vỏ ProjectileView dùng chung cho mọi loại đạn, không chứa SpriteRenderer.")]
     [SerializeField, InspectorName("Projectile View Prefab")] private ProjectileView bulletPrefab;
     [Tooltip("Vỏ EffectView dùng chung; mỗi entry bên dưới chọn một visual riêng.")]
     [SerializeField, InspectorName("Effect View Prefab")] private EffectView effectPrefab;
-    [Header("Visual prefabs by type")]
+    [Tooltip("Visual và hitbox cho từng BulletType. Skill giữ tốc độ/sát thương; catalog này chỉ giữ tài nguyên hiển thị và hình học va chạm.")]
     [SerializeField] private BulletVisual[] bullets = Array.Empty<BulletVisual>();
+    [Tooltip("Danh sách VFX theo EffectType; prefab phải có IEffectVisual trên root để báo hoàn tất và thu hồi về pool.")]
     [SerializeField] private EffectEntry[] effects = Array.Empty<EffectEntry>();
 
     public ProjectileView BulletPrefab => bulletPrefab;

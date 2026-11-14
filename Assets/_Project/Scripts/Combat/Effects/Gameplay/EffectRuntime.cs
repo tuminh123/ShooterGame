@@ -14,7 +14,7 @@ public readonly struct EffectHandle
 }
 
 // Một bản đang chạy trên đúng một lượt spawn; chỉ EffectManager quản lý thời gian và quyền sở hữu.
-public abstract class EffectRuntime : ITimerListener
+public abstract class EffectRuntime
 {
     #region Context And Manager State
 
@@ -24,8 +24,9 @@ public abstract class EffectRuntime : ITimerListener
     internal ulong Generation; // Phiên bản spawn của mục tiêu, khác với Version của chính effect runtime.
     protected CharacterTarget Target; // Kiểm tra lại mục tiêu giữa các tick/callback damage.
     protected CharacterTeam SourceTeam; // Chốt phe nguồn lúc áp dụng; runtime không cần giữ người bắn.
-    internal TimerHandle Timer; // Mặc định nếu effect duy trì không có tick định kỳ.
-    internal EffectManager Manager; // Bên duy nhất đăng ký, hủy và trả runtime về pool.
+    internal double Remaining, TickElapsed; // Thời hạn và pha tick riêng của lượt effect này.
+    internal bool Paused;
+    internal EffectManager Manager; // Bên duy nhất cập nhật và trả runtime về pool.
     internal int ActiveIndex; // Cho phép manager gỡ O(1) bằng đổi chỗ phần tử cuối.
     internal int TargetIndex; // Chỉ số trong nhóm effect của đúng cá thể.
     internal bool IsActive; // False ngay khi bị gỡ, dù Remove/Reset có thể đang chờ callback kết thúc.
@@ -52,17 +53,11 @@ public abstract class EffectRuntime : ITimerListener
 
     #endregion
 
-    #region Gameplay Behavior And Timer Callback
+    #region Gameplay Behavior
 
     public abstract void Apply(); // Thiết lập tác động ban đầu sau khi manager đã đăng ký runtime.
-    public virtual void Tick(int tickCount) { } // TimerJob đã tính nhịp; runtime chỉ thực hiện hành vi.
+    public virtual void Tick(int tickCount) { } // Manager tính nhịp đến hạn; runtime chỉ thực hiện hành vi.
     public abstract void Remove(); // Hoàn tác tài nguyên/modifier runtime sở hữu trước khi Reset.
-
-    // Bỏ callback của lịch cũ; manager tiếp tục kiểm tra danh tính và vòng đời mục tiêu.
-    public void OnTimer(TimerHandle handle, TimerResult result)
-    {
-        if (IsActive && Timer.Equals(handle)) Manager.HandleTimer(this, result);
-    }
 
     #endregion
 
@@ -77,7 +72,8 @@ public abstract class EffectRuntime : ITimerListener
         Generation = 0;
         Target = default;
         SourceTeam = default;
-        Timer = default;
+        Remaining = TickElapsed = 0d;
+        Paused = false;
         Manager = null;
         ActiveIndex = -1;
         TargetIndex = -1;
@@ -134,7 +130,7 @@ public sealed class SlowEffectRuntime : EffectRuntime
     #endregion
 }
 
-// Burn/Poison dùng cùng hành vi; cấu hình quyết định lượng damage và nhịp timer.
+// Burn/Poison dùng cùng hành vi; mỗi runtime giữ duration và pha damage riêng.
 public sealed class DamageOverTimeEffectRuntime : EffectRuntime
 {
     #region Periodic Damage State
@@ -158,7 +154,7 @@ public sealed class DamageOverTimeEffectRuntime : EffectRuntime
         }
     }
 
-    // Không giữ modifier hay visual riêng; manager đã hủy timer trước khi gọi Remove.
+    // Không giữ modifier hay visual riêng; manager đã ngừng cập nhật trước khi gọi Remove.
     public override void Remove() { }
 
     #endregion

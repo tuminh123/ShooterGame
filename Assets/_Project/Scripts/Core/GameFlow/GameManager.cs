@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zenject;
 
@@ -9,7 +11,7 @@ public sealed class GameManager : IInitializable, IDisposable
     #region Dependencies And Flow State
 
     private readonly SaveManager saves; // Save đã load trước Initialize theo execution order của Zenject.
-    private readonly PoolPrewarmService resources; // Chuẩn bị tài nguyên đồng bộ hiện có, chỉ chạy một lần.
+    private readonly PoolPrewarmService resources; // Chuẩn bị tài nguyên theo batch, chỉ chạy một lần.
     private readonly LevelManager levels; // Reset level, bonus, skill và các hệ thống nghe RunReset đúng một lần mỗi trận.
     private readonly PlayerManager players; // GameManager là nơi quyết định lúc spawn/remove Player.
     private readonly CharacterManager characters; // Nhận Player chết và thu thập character còn lại khi dọn trận.
@@ -18,7 +20,8 @@ public sealed class GameManager : IInitializable, IDisposable
     private readonly GameplayPauseService pauses; // Token luồng game độc lập với pause thủ công và bảng chọn skill.
     private readonly SkillManager skills; // Dọn skill gameplay; skill nhân vật theo vòng đời CharacterView.
     private readonly StageManager stage;
-    private readonly bool autoStartRun; // Scene hiện chưa có Home UI nên mặc định tự vào trận sau khi sẵn sàng.
+    private readonly bool autoStartRun; // Tắt để chờ người chơi bấm Play tại Home.
+    private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
     private bool initialized; // Chặn Initialize lặp và API gameplay chạy trước bước chuẩn bị.
     private bool transitioning; // Chặn yêu cầu chuyển luồng lồng nhau từ callback UI hoặc gameplay.
@@ -36,7 +39,7 @@ public sealed class GameManager : IInitializable, IDisposable
     // Zenject cung cấp service; constructor chưa spawn Player hoặc phát sự kiện khi UI chưa inject xong.
     public GameManager(SaveManager saves, PoolPrewarmService resources, LevelManager levels,
         PlayerManager players, CharacterManager characters, CharacterFactory factory,
-        ProjectileManager projectiles, GameplayPauseService pauses, SkillManager skills, StageManager stage, bool autoStartRun = true)
+        ProjectileManager projectiles, GameplayPauseService pauses, SkillManager skills, StageManager stage, bool autoStartRun = false)
     {
         this.saves = saves; this.resources = resources; this.levels = levels; this.players = players;
         this.characters = characters; this.factory = factory; this.projectiles = projectiles;
@@ -50,6 +53,12 @@ public sealed class GameManager : IInitializable, IDisposable
     {
         if (initialized || disposed) return;
         initialized = true;
+        InitializeAsync().Forget();
+    }
+
+    // Nhường một frame trước prewarm để Loading hiện; hủy an toàn khi rời scene/thoát ứng dụng.
+    private async UniTask InitializeAsync()
+    {
         transitioning = true;
         HoldFlowPause();
         characters.CharacterDied += OnCharacterDied;
@@ -60,13 +69,16 @@ public sealed class GameManager : IInitializable, IDisposable
         {
             if (!saves.IsLoaded) throw new InvalidOperationException("Cannot initialize game before save data is loaded.");
             stage.Validate();
-            resources.Prewarm();
+            await UniTask.NextFrame(cancellationToken: lifetime.Token);
+            await resources.PrewarmAsync(lifetime.Token);
             if (!resources.IsReady) throw new InvalidOperationException("Gameplay resources are not ready.");
+            await UniTask.NextFrame(cancellationToken: lifetime.Token); // Cho Loading vẽ mốc 100%.
             ChangeState(GameState.Home);
         }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception exception) { Fail(exception); }
         finally { transitioning = false; }
-        if (autoStartRun && State == GameState.Home) StartRun();
+        if (!disposed && autoStartRun && State == GameState.Home) StartRun();
     }
 
     #endregion
@@ -75,9 +87,17 @@ public sealed class GameManager : IInitializable, IDisposable
 
     // Bắt đầu hoặc chơi lại từ Home/thắng/thua; không cho double click khởi tạo lại một trận đang chạy.
     public bool StartRun()
+        => BeginRun(false);
+
+    // Pause gọi riêng lệnh chơi lại; StartRun vẫn chặn double click khi đang Playing.
+    public bool RestartRun()
+        => BeginRun(true);
+
+    private bool BeginRun(bool restart)
     {
         if (!CanTransition() || !resources.IsReady ||
-            (State != GameState.Home && State != GameState.Won && State != GameState.Lost)) return false;
+            (restart ? State != GameState.Playing :
+                State != GameState.Home && State != GameState.Won && State != GameState.Lost)) return false;
         transitioning = true;
         HoldFlowPause();
         try
@@ -85,6 +105,7 @@ public sealed class GameManager : IInitializable, IDisposable
             LastError = null;
             completedDuringTransition = null;
             ChangeState(GameState.PreparingRun);
+            stage.StopRun();
             CleanupCharactersAndProjectiles();
             levels.StartNewRun();
             stage.BeginRun();
@@ -249,6 +270,8 @@ public sealed class GameManager : IInitializable, IDisposable
     {
         if (disposed) return;
         disposed = true;
+        lifetime.Cancel(); // Hủy prewarm trước khi các pool bắt đầu Dispose.
+        lifetime.Dispose();
         characters.CharacterDied -= OnCharacterDied;
         characters.EnemyCelebrationsCompleted -= OnEnemyCelebrationsCompleted;
         stage.Cleared -= OnStageCleared;

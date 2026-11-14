@@ -2,8 +2,40 @@ using UnityEngine;
 
 // Visual đơn giản bằng mesh để hai skill dùng được ngay, không phụ thuộc sprite tải thêm.
 // Không gây damage/slow tại đây; gameplay thuộc behavior C# thuần. Object này được PoolManager tái sử dụng.
-public sealed class SkillAreaVisual : MonoBehaviour
+public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 300);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    private void OnEnable() => activationFrame = Time.frameCount;
+
+    #endregion
+
+    #region Geometry & Owner Binding
     [SerializeField] private bool sawBlade;
     private CharacterView owner;
     private Vector2 offset;
@@ -56,14 +88,20 @@ public sealed class SkillAreaVisual : MonoBehaviour
         rotation = 0f;
         transform.localScale = Vector3.one * radius;
         meshRenderer.enabled = true;
-        LateUpdate();
+        ApplyPose();
     }
 
     public void SetRadius(float radius) => transform.localScale = Vector3.one * radius;
     public void SetPose(Vector2 localOffset, float angle) { offset = localOffset; rotation = angle; }
     public void SetVisible(bool visible) { if (meshRenderer != null) meshRenderer.enabled = visible; }
 
-    private void LateUpdate()
+    public void LateTick()
+    {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
+        ApplyPose();
+    }
+
+    private void ApplyPose()
     {
         // Visual không làm con của character: cleanup không reparent một hierarchy đang bị Unity hủy.
         // Theo vị trí mới sau movement; quỹ đạo không bị flip/scale của sprite nhân vật ảnh hưởng.
@@ -73,10 +111,16 @@ public sealed class SkillAreaVisual : MonoBehaviour
             Quaternion.Euler(0f, 0f, rotation));
     }
 
-    private void OnDisable() { owner = null; offset = Vector2.zero; }
+    private void OnDisable()
+    {
+        owner = null; offset = Vector2.zero;
+    }
     private void OnDestroy()
     {
+        StopFrameUpdates();
+        OnDisable();
         if (mesh != null) Destroy(mesh);
         if (material != null) Destroy(material);
     }
+    #endregion
 }

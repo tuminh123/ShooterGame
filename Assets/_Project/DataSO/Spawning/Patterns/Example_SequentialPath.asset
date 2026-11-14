@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Example_SequentialPath
   m_EditorClassIdentifier: 
   type: 1
+  delay: 0
   enemies:
   - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
   enemyLevel: 1
@@ -22,6 +23,8 @@ MonoBehaviour:
   path: {fileID: 11400000, guid: 49575b46a2622896f0b011e6d18a946e, type: 2}
   speed: 2.5
   passes: 1
-  enemyCount: 12
   spawnInterval: 0.3
+  areaShrinkMode: 0
   shrinkDuration: 5
+  shrinkBurstDuration: 1
+  shrinkPauseDuration: 1

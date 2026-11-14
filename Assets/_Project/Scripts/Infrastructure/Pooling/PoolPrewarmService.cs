@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
-// GameManager gọi Prewarm trước khi cho spawn Player; IsReady là điều kiện bước vào gameplay.
-// Hiện thực hiện đồng bộ: chi phí Instantiate/Inject được đưa về bước chuẩn bị, chưa chia frame/loading UI.
+// Loading chuẩn bị pool theo batch; chỉ mở Home khi mọi GameObject và buffer đã sẵn sàng.
 public sealed class PoolPrewarmService
 {
+    #region Dependencies And Progress
+
     private readonly PoolPrewarmSettingsSO settings;
     private readonly CharacterView characterPrefab;
     private readonly CharacterDatabaseSO characters;
@@ -14,17 +17,22 @@ public sealed class PoolPrewarmService
     private readonly PoolManager objects;
     private readonly CharacterRuntimePool characterRuntimes;
     private readonly EffectRuntimePool effectRuntimes;
-    private readonly TimerManager timers;
     private readonly MovementManager movement;
     private readonly ProjectileManager projectiles;
     private readonly ISpatialManager spatial;
 
     public bool IsReady { get; private set; }
     public int PreparedObjectCount { get; private set; }
+    public float Progress { get; private set; }
+    public event Action<float> ProgressChanged;
+
+    #endregion
+
+    #region Injection
 
     public PoolPrewarmService(PoolPrewarmSettingsSO settings, CharacterView characterPrefab,
         CharacterDatabaseSO characters, CombatAssetsSO combat, LootDatabaseSO loot, PoolManager objects,
-        CharacterRuntimePool characterRuntimes, EffectRuntimePool effectRuntimes, TimerManager timers,
+        CharacterRuntimePool characterRuntimes, EffectRuntimePool effectRuntimes,
         MovementManager movement, ProjectileManager projectiles, ISpatialManager spatial)
     {
         this.settings = settings;
@@ -35,14 +43,17 @@ public sealed class PoolPrewarmService
         this.objects = objects;
         this.characterRuntimes = characterRuntimes;
         this.effectRuntimes = effectRuntimes;
-        this.timers = timers;
         this.movement = movement;
         this.projectiles = projectiles;
         this.spatial = spatial;
     }
 
+    #endregion
+
+    #region Loading Preparation
+
     // GameManager gọi ở bước khởi tạo; không tự prewarm/spawn ngoài luồng game.
-    public void Prewarm()
+    public async UniTask PrewarmAsync(CancellationToken cancellationToken)
     {
         if (IsReady) return;
         settings.Validate();
@@ -74,7 +85,6 @@ public sealed class PoolPrewarmService
         effectRuntimes.Prewarm<SlowEffectRuntime>(settings.slowRuntimes);
         effectRuntimes.Prewarm<DamageOverTimeEffectRuntime>(settings.damageOverTimeRuntimes);
         // Tạo sẵn cả vùng nhớ job: chỉ prewarm GameObject sẽ vẫn bị resize buffer trong trận đầu.
-        timers.PrewarmCapacity(settings.timerCapacity);
         movement.PrewarmCapacity(checked(settings.characterShells + settings.bullets + settings.pickups));
         projectiles.PrewarmCapacity(settings.bullets);
         if (spatial is SpatialManager spatialManager) spatialManager.PrewarmCapacity(settings.characterShells);
@@ -82,10 +92,18 @@ public sealed class PoolPrewarmService
         PreparedObjectCount = 0;
         foreach (KeyValuePair<GameObject, int> entry in plan)
         {
-            objects.Prewarm(entry.Key, entry.Value);
-            PreparedObjectCount += entry.Value;
+            await objects.PrewarmAsync(entry.Key, entry.Value, settings.objectsPerFrame, count =>
+            {
+                PreparedObjectCount += count;
+                Progress = totalObjects == 0 ? 1f : (float)PreparedObjectCount / totalObjects;
+                ProgressChanged?.Invoke(Progress);
+            }, cancellationToken);
+            await UniTask.NextFrame(cancellationToken: cancellationToken);
         }
+        cancellationToken.ThrowIfCancellationRequested();
         IsReady = true; // Chỉ mở trạng thái sẵn sàng sau khi toàn bộ kế hoạch thành công.
+        Progress = 1f;
+        ProgressChanged?.Invoke(Progress);
         Debug.Log($"[PoolPrewarm] Ready: {PreparedObjectCount} objects, " +
             $"{characterRuntimes.AvailableCount} character runtimes; player can spawn.");
     }
@@ -98,4 +116,6 @@ public sealed class PoolPrewarmService
         plan.TryGetValue(prefab, out int previous);
         plan[prefab] = checked(previous + count);
     }
+
+    #endregion
 }

@@ -5,8 +5,40 @@ using UnityEngine.Playables;
 
 // Phát trực tiếp clip một lần, không cần AnimatorController hoặc timer ước lượng.
 [RequireComponent(typeof(Animator))]
-public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
+public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 500);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    private void OnEnable() => activationFrame = Time.frameCount;
+
+    #endregion
+
+    #region Playback & Completion
     [SerializeField] private AnimationClip clip;
     [SerializeField, Min(0.01f)] private float playbackSpeed = 1f;
     private Animator animator;
@@ -46,8 +78,9 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
         catch { StopAndReset(); throw; }
     }
 
-    private void LateUpdate()
+    public void LateTick()
     {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (!playing || !graph.IsValid() || playable.GetTime() < clip.length) return;
         playing = false;
         graph.Stop();
@@ -63,6 +96,10 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
         playable = default;
     }
 
-    private void OnDisable() => StopAndReset();
-    private void OnDestroy() => StopAndReset();
+    private void OnDisable()
+    {
+        StopAndReset();
+    }
+    private void OnDestroy() { StopFrameUpdates(); OnDisable(); }
+    #endregion
 }

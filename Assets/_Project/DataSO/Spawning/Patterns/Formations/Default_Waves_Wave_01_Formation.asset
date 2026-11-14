@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Default_Waves_Wave_01_Formation
   m_EditorClassIdentifier: 
   shape: 2
+  fillMode: 0
   level: 3
   size: {x: 1, y: 1}
   rotation: 0

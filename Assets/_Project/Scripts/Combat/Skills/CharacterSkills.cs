@@ -60,7 +60,7 @@ public sealed class CharacterSkills : IDisposable
         try
         {
             for (int i = 0; i < skills.Count && CanRun; i++)
-                try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
+                try { skills[i].Tick(deltaTime); } catch (Exception exception) { Debug.LogException(exception); }
         }
         finally { ticking = false; }
     }
@@ -71,7 +71,7 @@ public sealed class CharacterSkills : IDisposable
             if (skill.IsActive) skill.SetPaused(paused);
     }
 
-    // Death/despawn/destroy dọn timer, visual và modifier của toàn bộ skill nhân vật.
+    // Death/despawn/destroy dọn cooldown, visual và modifier của toàn bộ skill nhân vật.
     public void Dispose()
     {
         if (disposed) return;

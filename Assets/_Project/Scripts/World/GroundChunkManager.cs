@@ -4,8 +4,34 @@ using Zenject;
 
 
 // * Quản lý nền lặp bằng một lưới chunk quanh người chơi; dùng Lean Pool tái sử dụng các mảnh nền.
-public class GroundChunkManager : MonoBehaviour
+public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.Add(this, 400);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.Remove(this);
+        registeredForTicks = false;
+    }
+
+    #endregion
 
     #region Player Dependencies & Startup State
 
@@ -77,6 +103,7 @@ public class GroundChunkManager : MonoBehaviour
     // * Nhận player hiện tại và các lần tạo/gỡ tiếp theo.
     private void OnEnable()
     {
+        activationFrame = Time.frameCount;
         if (playerManager == null)
             return;
         playerManager.PlayerChanged -= OnPlayerChanged;
@@ -117,6 +144,7 @@ public class GroundChunkManager : MonoBehaviour
     // * Kiểm tra dữ liệu, tắt mẫu nền và dựng lưới đầu tiên tại vị trí người chơi.
     private void Start()
     {
+        StartFrameUpdates();
         if (groundChunkPrefab == null || poolManager == null)
         {
             Debug.LogError("GroundChunkManager needs a Ground template and Zenject injection.", this);
@@ -148,8 +176,9 @@ public class GroundChunkManager : MonoBehaviour
     }
 
     // * Mỗi frame kiểm tra tọa độ chunk; chỉ dựng lại tập cần giữ khi người chơi sang chunk khác.
-    private void Update()
+    public void Tick()
     {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (!initialized || player == null)
             return;
 
@@ -276,6 +305,7 @@ public class GroundChunkManager : MonoBehaviour
     // * Khi manager bị hủy, trả các chunk đang giữ về Lean Pool rồi xóa bảng theo dõi.
     private void OnDestroy()
     {
+        StopFrameUpdates();
         foreach (GameObject chunk in activeChunks.Values)
             poolManager?.Despawn(chunk);
 

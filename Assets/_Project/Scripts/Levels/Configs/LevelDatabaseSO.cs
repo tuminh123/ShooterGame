@@ -8,12 +8,14 @@ public sealed class LevelDatabaseSO : ScriptableObject
 {
     #region Character Level Configurations
 
+    [Tooltip("Ghép cấu hình cấp theo CharacterType; mỗi type chỉ có một config, không dùng thứ tự danh sách làm ID.")]
     [SerializeField] private List<CharacterLevelConfigSO> characterLevels = new List<CharacterLevelConfigSO>();  // * Danh sách config độc lập; mỗi config khai báo type, không nhập lại ID hoặc kéo character vào đây.
 
     #endregion
 
     #region Shared Run Configuration
 
+    [Tooltip("Công thức EXP và bonus cấp dùng chung cho Player trong trận; tiến trình được tạo riêng và reset theo lượt chơi.")]
     [SerializeField] private RunLevelConfigSO runLevelConfig;  // * Công thức EXP và bonus chung cho người chơi trong trận, không gắn vào template nhân vật.
 
     public RunLevelConfigSO RunLevelConfig => runLevelConfig;  // * Service tạo trạng thái riêng từ config dùng chung này.

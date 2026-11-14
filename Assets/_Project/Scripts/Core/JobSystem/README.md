@@ -1,16 +1,13 @@
 # Job systems
 
-## Timer
+## Runtime durations and Zenject updates
 
-- `ITimeSource` supplies the frame delta on the main thread. The scene binds `GameplayTimeSource` (`Time.deltaTime`, affected by `timeScale`). Jobs receive numbers only.
-- `TimerManager.Register(duration, listener, interval, paused)` returns a versioned handle. An interval of zero means completion only. `RegisterPeriodic` creates an unlimited repeating timer with an optional first-phase delay.
-- `TimerJob` updates the native slots in parallel and emits at most one event per slot, containing the number of due ticks and the completion flag. The final periodic tick is included before completion.
-- Events are copied before dispatch; callbacks execute on the main thread after the job completes. Cancellation/reuse and restart revisions invalidate obsolete events. Callbacks can register/cancel/restart other timers without modifying buffers owned by a running job.
-- Completed timers remain registered until canceled so cooldown owners can restart the same handle. Owners must cancel on destruction/despawn. Resetting duration preserves interval progress unless `resetInterval` is requested.
-- Pause is per timer. `CharacterView` pauses innate cooldowns, status effects and controller timers on temporary disable; a new enable resumes them. Death/despawn cancels registrations. Pausing does not undo time already calculated earlier in that frame.
-- Current consumers: innate/run skill cooldowns, gameplay-effect duration and periodic ticks, projectile lifetime, enemy separation scan cadence and recoil duration. VFX presentation and the low-count wave/growth clocks keep their existing implementation.
-- A new cooldown or recoil timer begins consuming time in the next timer step. Recoil waits for that step before moving, so its final partial movement uses exactly the consumed time.
-- Zenject updates timers before skill/projectile managers. Do not call `Simulate` manually in addition to the scene tick. Native slot buffers grow as needed and are reused; inactive slots are recycled with new versions.
+- There is no separate timer manager, timer job, time-source interface or frame-listener framework.
+- Zenject calls ITickable and ILateTickable directly. Gameplay uses Time.deltaTime; UI uses Time.unscaledTime while paused.
+- Each skill behaviour owns its cooldown. EffectRuntime owns remaining duration and periodic tick phase; EffectManager advances a snapshot and preserves phase when refreshing duration.
+- ProjectileManager updates projectile lifetime during its existing traversal. EnemyController owns scan and knockback countdowns. RunSessionManager accumulates gameplay seconds.
+- Pooled presentation components register with TickableManager once after startup, skip disabled/newly activated instances, and unregister on destruction. This avoids duplicate queued registrations during rapid disable/enable.
+- Movement and spatial jobs remain; do not manually simulate a manager in addition to its scene tick.
 
 ## Spatial
 
@@ -26,9 +23,9 @@
 - `ISpatialSearchFactory` builds geometry query descriptions and maps spatial query types to shared `ISpatialSearchStrategy` instances. `SpatialManager` supplies buffers and dispatches Run/Schedule through that interface. Strategy interfaces and factories stay on the main thread, outside Burst.
 - Strategies currently include nearest, swept-circle and all-in-circle searches. Nearest and sweep share grid traversal/job setup to avoid duplication; the all-in-circle strategy uses the multiple-hit buffer. Mixed single-hit batches schedule each represented strategy once with dependencies, leaving other query slots untouched. Multiple-region batches require a separate result layout and are not accepted by the single-hit batch API.
 - `ICharacterSearch.TryFind(CharacterSearchType, CharacterSearchRequest, ...)` and `FindAll(CharacterSearchType, CharacterSearchRequest, ref CharacterTarget[])` provide generic entry points. Convenience methods delegate to the character factory. A new gameplay selection can reuse spatial queries without adding a spatial job type; new geometry algorithms are registered separately in the spatial factory. `SpatialHit` remains result data.
-- Consumers inject `ICharacterSearch`, `ICharacterSearchFactory`, `ISpatialSearchFactory`, `ISpatialManager` and `ITimerManager`; Zenject owns their implementations. Handles identify their issuing manager through the interface. Timer Tick/Dispose remain owned by Zenject rather than exposed to timer consumers.
+- Consumers inject `ICharacterSearch`, `ICharacterSearchFactory`, `ISpatialSearchFactory`, `ISpatialManager`; Zenject owns their implementations. Handles identify their issuing manager through the interface.
 - Enemy separation keeps its own result buffer and clears target references after reading it, preserving array capacity for the next scan. New callers must read only the returned count and clear references when they no longer need them. Keep separate buffers when results must survive a nested query.
 - New bulk consumers can call `ExecuteQueries` with persistent native query/result buffers. Do not write native inputs while a job is running. Managers complete jobs before callbacks, resizing or disposal.
 - The sample character assets were migrated to `HitboxData`, preserving their numeric values, and `BoxCollider2D` was removed from the shared character prefab. No physical collision response or wall blocking is provided by this search system.
 
-These systems do not establish a measured 100,000-object performance target. Timer slots are still scanned in the job, immediate AI queries still execute individually, and character transforms/gameplay callbacks remain main-thread work. Profile actual density, query count and event volume before adding timing wheels, further query batching or a different representation for very large simulations.
+These systems do not establish a measured 100,000-object performance target. Immediate AI queries still execute individually, and character transforms/gameplay callbacks remain main-thread work. Profile actual density, query count and event volume before adding timing wheels, further query batching or a different representation for very large simulations.

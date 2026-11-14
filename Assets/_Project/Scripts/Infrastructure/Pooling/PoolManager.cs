@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Lean.Pool;
 using UnityEngine;
 using Zenject;
@@ -62,10 +64,12 @@ public sealed class PoolManager : IDisposable
     }
 
     // Chuẩn bị đủ clone rảnh và inject trước gameplay, không gọi Initialize/OnEnable của nhân vật/đạn.
-    public void Prewarm(GameObject prefab, int count)
+    public async UniTask PrewarmAsync(GameObject prefab, int count, int batchSize,
+        Action<int> reportPrepared, CancellationToken cancellationToken)
     {
         if (prefab == null) throw new ArgumentNullException(nameof(prefab));
         if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (batchSize < 1) throw new ArgumentOutOfRangeException(nameof(batchSize));
         EnsureHolders();
         if (count == 0) return;
         LeanGameObjectPool pool = GetPool(prefab);
@@ -83,19 +87,26 @@ public sealed class PoolManager : IDisposable
             // Giữ đồng thời count clone: spawn/despawn ngay trong vòng lặp chỉ làm nóng đúng một clone.
             for (int index = 0; index < count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 GameObject clone = LeanPool.Spawn(prefab, Vector3.zero, Quaternion.identity, stagingHolder);
                 if (clone == null) throw new InvalidOperationException($"Could not prewarm {prefab.name}.");
                 prepared.Add(clone);
-                if (injectedClones.Contains(clone)) continue;
-                container.InjectGameObject(clone);
-                injectedClones.Add(clone);
+                if (!injectedClones.Contains(clone))
+                {
+                    container.InjectGameObject(clone);
+                    injectedClones.Add(clone);
+                }
+                reportPrepared?.Invoke(1);
+                // Giữ các clone đã lấy để batch sau không lấy lại chúng; nhường frame cho Loading vẽ.
+                if ((index + 1) % batchSize == 0)
+                    await UniTask.NextFrame(cancellationToken: cancellationToken);
             }
         }
         finally
         {
             foreach (GameObject clone in prepared)
                 if (clone != null && LeanPool.Links.ContainsKey(clone)) LeanPool.Despawn(clone);
-            pool.Recycle = previousRecycle;
+            if (pool != null) pool.Recycle = previousRecycle;
         }
     }
 

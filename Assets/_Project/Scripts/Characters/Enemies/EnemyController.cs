@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // * Hành vi riêng của quái: tự tìm hướng đến Player hiện tại, hoàn toàn không đọc joystick.
-public sealed class EnemyController : CharacterControllerBase, ITimerListener
+public sealed class EnemyController : CharacterControllerBase
 {
     #region Separation Configuration
 
@@ -35,9 +35,8 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
     private readonly float scanInterval; // * Chu kỳ quét của cá thể, tối thiểu 0.01 giây dù cấu hình bị sửa ngoài Inspector.
     private Vector2 separationDirection; // * Hướng ra xa đã tính ở lượt quét trước; dùng lại giữa các lần quét.
     private CharacterTarget[] neighborBuffer = System.Array.Empty<CharacterTarget>(); // Mảng của controller, chỉ tăng khi thiếu chỗ; không mượn/trả mỗi lần tìm.
-    private ITimerManager timers;
-    private TimerHandle scanTimer;
-    private TimerHandle recoilTimer;
+    private float scanRemaining, recoilRemaining;
+    private bool timingInitialized, paused;
     private EnemyFormationRuntime formation; // Chủ sở hữu nhóm, giữ cả khi con đã tách chuyển động.
     private EnemyFormationRuntime pendingPatternContact;
     private int formationMemberIndex;
@@ -51,15 +50,13 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
     // Va chạm không gây choáng hoặc khóa skill; cooldown vẫn do skill quản lý.
     public bool CanAttack => !disposed;
     /// <summary>Cho biết controller còn đang thực hiện phản lực riêng.</summary>
-    internal bool IsKnockedBack => timers != null &&
-        (timers.GetRemaining(recoilTimer) > 0f || previousRecoilRemaining > 0f);
+    internal bool IsKnockedBack => recoilRemaining > 0f;
     private bool scanReady; // Nhiều nhịp trễ được gộp thành một lần quét, không tính hàng xóm lặp lại vô ích.
     private bool disposed;
     private readonly float knockbackDistance;
     private readonly float knockbackDuration;
     private float activeKnockbackDistance;
     private float activeKnockbackDuration;
-    private float previousRecoilRemaining; // Chênh lệch với kết quả TimerJob cho biết bước lùi của frame, không tự trừ thời gian.
     private Vector2 knockbackDirection; // * Hướng lùi chốt lúc trúng, không đổi theo Player trong lúc lùi.
 
     public EnemyController(PlayerManager players, CharacterFactory characters,
@@ -83,17 +80,17 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     protected override void TickMovement(CharacterView view, CharacterRuntimeData runtime)
     {
-        EnsureTimers(view);
         // * Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
         if (!runtime.IsAlive)
         {
             characters.Despawn(view);
             return;
         }
-        if (timers.DeltaTime <= 0f)
+        if (paused || Time.deltaTime <= 0f)
         {
             return;
         }
+        AdvanceScanClock(view, Time.deltaTime);
         // * Phản lực đang chạy có ưu tiên hơn đuổi/tách; hai lệnh không triệt tiêu nhau.
         // * Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết.
         if (ApplyKnockback(view))
@@ -127,7 +124,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
             if (formation.TryGetTarget(formationMemberIndex, out Vector2 destination))
             {
                 Vector2 delta = destination - (Vector2)view.transform.position;
-                view.Move(delta, delta.magnitude / timers.DeltaTime, delta.magnitude);
+                view.Move(delta, delta.magnitude / Time.deltaTime, delta.magnitude);
             }
             else view.Move(Vector2.zero, 0f);
             return; // Pattern enemies never fall back to chasing.
@@ -169,7 +166,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         pendingPatternContact = null;
         if (disposed || group == null || group.IsBroken || !ReferenceEquals(group, formation) ||
             view == null || !view.isActiveAndEnabled || !ReferenceEquals(view.RuntimeData, identity) ||
-            identity.Generation != generation || !identity.IsAlive || timers == null || timers.DeltaTime <= 0f) return;
+            identity.Generation != generation || !identity.IsAlive || paused || Time.deltaTime <= 0f) return;
         CharacterView player = players.CurrentPlayer;
         if (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive) return;
         bool touching = CharacterSearch.Overlaps(view, player);
@@ -207,7 +204,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         Vector2 position = view.transform.position;
         Vector2 destination = position + remainingPath.AnchorOffset - pathAnchorOffset;
         pathAnchorOffset = remainingPath.AnchorOffset;
-        float budget = pathSpeed * timers.DeltaTime;
+        float budget = pathSpeed * Time.deltaTime;
         float end = remainingPath.Length * pathPasses;
         while (budget > 0f && !pathFinished)
         {
@@ -221,7 +218,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
             pathFinished = pathTravelled >= end;
         }
         Vector2 delta = destination - position;
-        view.Move(delta, delta.magnitude / timers.DeltaTime, delta.magnitude);
+        view.Move(delta, delta.magnitude / Time.deltaTime, delta.magnitude);
     }
 
     /// <summary>Bù dịch camera cuối frame cho con tách nhóm; bỏ bù khi đang knockback.</summary>
@@ -239,7 +236,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
 
     #region Separation Queries
 
-    // Chia pha quét theo timer của cá thể; giữa hai lượt dùng lại hướng đã tính.
+    // Chia pha quét bằng bộ đếm riêng của cá thể; giữa hai lượt dùng lại hướng đã tính.
     private void UpdateSeparation(CharacterView view)
     {
         if (separationStrength <= 0f || !scanReady)
@@ -341,58 +338,48 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         {
             away = Vector2.right;
         }
-        EnsureTimers(view);
         knockbackDirection = away.normalized;
-        previousRecoilRemaining = activeKnockbackDuration;
-        timers.Restart(recoilTimer, activeKnockbackDuration);
+        recoilRemaining = activeKnockbackDuration;
         separationDirection = Vector2.zero;
     }
 
     private bool ApplyKnockback(CharacterView view)
     {
-        float remaining = timers.GetRemaining(recoilTimer);
-        float stepTime = Mathf.Max(0f, previousRecoilRemaining - remaining);
-        previousRecoilRemaining = remaining;
-        if (remaining <= 0f && stepTime <= 0f)
+        if (recoilRemaining <= 0f)
         {
             return false;
         }
-        // Lượt vừa Restart chờ bước TimerJob đầu tiên; không di chuyển trước khi thời gian đó được tiêu thụ.
-        // * MovementManager tích phân theo deltaTime cả frame; tỷ lệ giữ bước cuối đúng quãng lùi cấu hình.
-        float speed = (activeKnockbackDistance / activeKnockbackDuration) * (stepTime / timers.DeltaTime);
+        float stepTime = Mathf.Min(Time.deltaTime, recoilRemaining);
+        recoilRemaining = Mathf.Max(0f, recoilRemaining - stepTime);
+        // Bước cuối chỉ dùng phần duration còn lại, tránh lùi quá quãng đường cấu hình.
+        float speed = (activeKnockbackDistance / activeKnockbackDuration) * (stepTime / Time.deltaTime);
         CharacterView player = players.CurrentPlayer;
         float facing = player != null ? player.transform.position.x - view.transform.position.x : -knockbackDirection.x;
         view.Move(knockbackDirection, speed, facingDirection: facing);
         return true;
     }
 
-    private void EnsureTimers(CharacterView view)
+    // Mỗi controller giữ pha quét riêng; frame dài chỉ quét hàng xóm một lần.
+    private void AdvanceScanClock(CharacterView view, float deltaTime)
     {
-        if (timers != null || disposed)
+        if (!timingInitialized)
         {
+            timingInitialized = true;
+            scanRemaining = scanInterval * (unchecked((uint)view.GetInstanceID()) % 16u) / 16f;
             return;
         }
-        timers = view.Timers;
-        if (separationStrength > 0f)
-        {
-            float firstDelay = scanInterval * (unchecked((uint)view.GetInstanceID()) % 16u) / 16f;
-            scanTimer = timers.RegisterPeriodic(scanInterval, this, firstDelay);
-        }
-        recoilTimer = timers.Register(0f, this);
-    }
-
-    public void OnTimer(TimerHandle handle, TimerResult result)
-    {
-        if (!disposed && scanTimer.Equals(handle) && result.DueTickCount > 0)
+        if (separationStrength <= 0f) return;
+        scanRemaining -= deltaTime;
+        if (scanRemaining <= 0f)
         {
             scanReady = true;
+            scanRemaining += (Mathf.Floor(-scanRemaining / scanInterval) + 1f) * scanInterval;
         }
     }
 
     public override void SetPaused(bool paused)
     {
-        timers?.SetPaused(scanTimer, paused);
-        timers?.SetPaused(recoilTimer, paused);
+        this.paused = paused;
     }
 
     public override void Dispose()
@@ -408,8 +395,7 @@ public sealed class EnemyController : CharacterControllerBase, ITimerListener
         pendingPatternContact = null;
         remainingPath = null;
         base.Dispose();
-        timers?.Cancel(scanTimer);
-        timers?.Cancel(recoilTimer);
+        scanRemaining = recoilRemaining = 0f;
         System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);
         neighborBuffer = System.Array.Empty<CharacterTarget>();
     }

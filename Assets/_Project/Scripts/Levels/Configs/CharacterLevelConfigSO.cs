@@ -7,8 +7,11 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 {
     #region Character Growth Settings
 
+    [Tooltip("CharacterType nhận bộ tăng trưởng này; phải khớp template trong Character Database.")]
     [SerializeField] private CharacterType characterType;  // * Type nhân vật nhận config này; service ghép với type trên CharacterDataSO khi init.
+    [Tooltip("Trần cấp nhân vật. Cấp 1 dùng chỉ số gốc; tổng bonus ở cấp L = Bonus Per Level × (L - 1), giới hạn ở trần.")]
     [SerializeField, Min(1)] private int maxLevel = 10;  // * Level tối đa; level 1 dùng chỉ số gốc, chưa nhận bonus.
+    [Tooltip("Bonus cộng thẳng cho mỗi cấp sau cấp 1. Tỷ lệ là điểm phần trăm: 5 = cộng 5 điểm %, không phải nhân 1.05.")]
     [SerializeField] private StatBonus bonusPerLevel;   // * Một bộ bonus cố định, cộng lại mỗi cấp tăng thêm.
 
     public int MaxLevel => maxLevel;             // * Mốc giới hạn cấp rõ ràng, không suy ra từ vị trí trong danh sách.
@@ -19,7 +22,9 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #region Upgrade Resource Cost
 
+    [Tooltip("Chi phí nâng vĩnh viễn từ cấp 1 lên 2; không phải EXP trong trận.")]
     [SerializeField, Min(1)] private int initialUpgradeCost = 100;           // * Tài nguyên cần để nâng từ level 1 lên 2; không phải EXP trong trận.
+    [Tooltip("Chi phí từ cấp L lên L+1 = làm tròn lên(Initial Cost × hệ số^(L - 1)). 1.2 tăng khoảng 20% mỗi cấp; tối thiểu 1.")]
     [SerializeField, Min(1f)] private double upgradeCostMultiplier = 1.2d;  // * Mỗi cấp nhân chi phí với hệ số này; 1 = không tăng, 1.2 = tăng khoảng 20%.
 
     public int InitialUpgradeCost => initialUpgradeCost;              // * Chi phí lần nâng cấp đầu tiên.

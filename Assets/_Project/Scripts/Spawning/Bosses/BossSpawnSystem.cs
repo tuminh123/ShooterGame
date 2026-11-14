@@ -5,6 +5,9 @@ using UnityEngine;
 /// <summary>Lên lịch nhiều Elite và tối đa một Boss từ dữ liệu Stage.</summary>
 public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpdateStage
 {
+    public event Action<StageSpawnWarning, float> SpawnScheduled;
+    // Stage cung cấp mốc hoàn tất wave nếu xác định được; không thay thế điều kiện summon thực tế.
+    public float? ScheduledWaveCompletion { private get; set; }
     private sealed class EliteRun
     {
         public BossSpawnDataSO.Entry entry;
@@ -19,6 +22,7 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
     private BossAppearanceCondition condition;
     private Vector2 arenaSize;
     private bool allWavesSpawned, finalWaveCleared, bossSpawned;
+    private bool bossSchedulePublished;
 
     public bool DeploymentComplete
     {
@@ -53,8 +57,21 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
         condition = config.bossAppearanceCondition;
         foreach (BossSpawnDataSO.Entry entry in config.entries)
         {
-            if (entry.type == SpecialEnemyType.Elite) elites.Add(new EliteRun { entry = entry });
-            else { boss = entry; arenaSize = config.arenaSize; }
+            if (entry.type == SpecialEnemyType.Elite)
+            {
+                elites.Add(new EliteRun { entry = entry });
+                SpawnScheduled?.Invoke(StageSpawnWarning.Elite, entry.eliteStageTime);
+            }
+            else
+            {
+                boss = entry;
+                arenaSize = config.arenaSize;
+                if (condition == BossAppearanceCondition.AfterAllWavesSpawned && ScheduledWaveCompletion.HasValue)
+                {
+                    bossSchedulePublished = true;
+                    SpawnScheduled?.Invoke(StageSpawnWarning.Boss, ScheduledWaveCompletion.Value);
+                }
+            }
         }
     }
 
@@ -77,6 +94,12 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
         if (boss == null || bossSpawned) return;
         bool ready = condition == BossAppearanceCondition.AfterAllWavesSpawned ? allWavesSpawned : finalWaveCleared;
         if (!ready) return;
+        if (!bossSchedulePublished)
+        {
+            // Điều kiện dọn quái không có mốc dự đoán chính xác: báo ngay khi điều kiện đạt.
+            bossSchedulePublished = true;
+            SpawnScheduled?.Invoke(StageSpawnWarning.Boss, stageTime);
+        }
         roster.Add(summon.Summon(boss.character, boss.enemyLevel, arenaSize));
         bossSpawned = true;
     }
@@ -91,6 +114,8 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
             elites.Clear();
             boss = null;
             allWavesSpawned = finalWaveCleared = bossSpawned = false;
+            bossSchedulePublished = false;
+            ScheduledWaveCompletion = null;
         }
     }
 }

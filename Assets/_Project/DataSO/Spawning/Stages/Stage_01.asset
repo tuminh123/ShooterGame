@@ -19,6 +19,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ab8b7fb8877c4f01a5f20d14548da409, type: 2}
   - {fileID: 11400000, guid: 3798fc0cb6922909ff4025da5eac617d, type: 2}
   - {fileID: 11400000, guid: c30b96de806f4c9496b3a965b4826088, type: 2}
+  - {fileID: 11400000, guid: 92dd6091af5a9db4cb11cead53ea0315, type: 2}
+  - {fileID: 11400000, guid: 169b8ff1c953ff2479554057ec61d17a, type: 2}
+  - {fileID: 11400000, guid: f0b886941b8c25144a6431980f5388bf, type: 2}
+  - {fileID: 11400000, guid: c4390487ace1d4c45a914a1a861037d4, type: 2}
+  - {fileID: 11400000, guid: 16bc7ace193e7a5448efc16ba62a8646, type: 2}
+  - {fileID: 11400000, guid: 8d3bbff89e4f4eb4299861238addd311, type: 2}
+  - {fileID: 11400000, guid: 5caa3d9a139b99d4689c02d477fca773, type: 2}
+  - {fileID: 11400000, guid: 2445de4ca16a27946864dc25f914e668, type: 2}
+  - {fileID: 11400000, guid: 45c64fe1b2457b646b3396af23a6585f, type: 2}
+  - {fileID: 11400000, guid: e841fb297d463274fb3a06e978bcf4d6, type: 2}
   firstClearStageRewards:
   - type: 0
     amount: 100

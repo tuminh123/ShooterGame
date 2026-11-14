@@ -5,16 +5,21 @@ using UnityEngine;
 [Serializable]
 public struct CharacterVisualSettings
 {
+    [Tooltip("Prefab ngoại hình con của nhân vật; không phải vỏ CharacterView. Bao gồm sprite/animation của mọi bộ phận.")]
     public GameObject Prefab;
     [Tooltip("Nhân với scale gốc của visual prefab; không tự đổi hitbox.")]
     public Vector3 Scale;
+    [Tooltip("Offset cộng vào vị trí local gốc của visual prefab, theo đơn vị local; không tự dịch hitbox hoặc thanh máu.")]
     public Vector3 Offset;
+    [Tooltip("Hình chữ nhật va chạm local của vỏ nhân vật, độc lập kích thước sprite và visual scale.")]
     public HitboxData Hitbox;
     [Tooltip("Kích thước thanh máu theo đơn vị UI trước khi đổi sang world space.")]
     public Vector2 HealthBarSize;
     [Tooltip("Vị trí thanh máu theo local của vỏ nhân vật.")]
     public Vector3 HealthBarOffset;
+    [Tooltip("Hệ số đổi bố cục thanh máu từ đơn vị UI sang world; phải dương. Tăng làm cả thanh lớn hơn.")]
     [Min(0.0001f)] public float HealthBarScale;
+    [Tooltip("Độ dày viền giáp theo đơn vị UI trước khi scale; tối thiểu 0.5.")]
     [Min(0.5f)] public float ShieldThickness;
 
     public static CharacterVisualSettings Default => new CharacterVisualSettings

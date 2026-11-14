@@ -9,7 +9,7 @@ before the initial player spawn. No loading scene or scene persistence is added.
 
 The profile prepares shared character/bullet/effect/pickup shells, visual prefabs
 from CharacterDatabase and CombatAssets, CharacterRuntimeData, the registered
-slow/periodic-damage effect runtimes, and timer/movement/projectile/spatial buffers.
+slow/periodic-damage effect runtimes, and movement/projectile/spatial buffers. Cooldown and effect duration live directly on their managed runtimes; no timer buffer is allocated.
 Additional Prefabs can include future VFX and world objects. Counts for a shared
 prefab are added together. Zero disables preparation for that category.
 

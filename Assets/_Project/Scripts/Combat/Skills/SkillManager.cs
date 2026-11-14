@@ -10,7 +10,6 @@ public sealed class SkillManager : ITickable, IDisposable
 
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
     private readonly LevelManager levels; // Nhận reset trận; không tự quyết định luồng game.
-    private readonly ITimeSource timeSource; // Dùng scaled time để tôn trọng pause.
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
@@ -20,10 +19,10 @@ public sealed class SkillManager : ITickable, IDisposable
 
     #region Initialization And Lookup
 
-    // Singleton scene do Zenject tạo; không tạo runtime trước khi owner có dữ liệu spawn.
-    public SkillManager(LevelManager levels, ITimeSource timeSource, SkillFactory factory)
+    // Zenject tạo singleton; đăng ký đồng hồ chung nhưng chưa chạy trước frame đầu.
+    public SkillManager(LevelManager levels, SkillFactory factory)
     {
-        this.levels = levels; this.timeSource = timeSource; this.factory = factory;
+        this.levels = levels; this.factory = factory;
         levels.RunReset += OnRunReset;
     }
 
@@ -78,8 +77,8 @@ public sealed class SkillManager : ITickable, IDisposable
 
     #region Scheduling And Owner Lifecycle
 
-    // Zenject chỉ tick skill gameplay; CharacterView tick skill nhân vật.
-    public void Tick() => Tick(timeSource.DeltaTime);
+    // Zenject điều phối skill gameplay; CharacterManager gọi skill riêng của nhân vật.
+    public void Tick() => Tick(Time.deltaTime);
     // Dùng cho test/manual simulation, cùng logic scheduler production.
     // Callback có thể despawn/reset/spawn; chỉ duyệt số phần tử có sẵn ở đầu frame.
     public void Tick(float deltaTime)
@@ -92,7 +91,7 @@ public sealed class SkillManager : ITickable, IDisposable
         try
         {
             for (int i = 0; i < count; i++)
-                try { skills[i].Tick(); } catch (Exception exception) { Debug.LogException(exception); }
+                try { skills[i].Tick(deltaTime); } catch (Exception exception) { Debug.LogException(exception); }
         }
         finally { ticking = false; RemoveInactive(); }
     }
@@ -138,7 +137,8 @@ public sealed class SkillManager : ITickable, IDisposable
     public void Dispose()
     {
         if (disposed) return;
-        disposed = true; levels.RunReset -= OnRunReset; ClearRunSkills();
+        disposed = true;
+        levels.RunReset -= OnRunReset; ClearRunSkills();
     }
 
     #endregion

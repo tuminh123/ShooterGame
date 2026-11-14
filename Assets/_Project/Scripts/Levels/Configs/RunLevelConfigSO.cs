@@ -7,7 +7,9 @@ public sealed class RunLevelConfigSO : ScriptableObject
 {
     #region Run Growth Settings
 
+    [Tooltip("Trần cấp trong một lượt chơi. Bắt đầu cấp 1; trần 20 cho tối đa 19 lần lên cấp.")]
     [SerializeField, Min(1)] private int maxLevel = 20;  // * Trần level trong trận, chỉnh qua Inspector; bắt đầu level 1 nên trần 20 cho tối đa 19 lần lên cấp.
+    [Tooltip("Bonus cộng cố định mỗi lần lên cấp trong trận; để 0 nếu chỉ muốn nhận thưởng từ bảng chọn skill. Không bao gồm bonus skill được chọn.")]
     [SerializeField] private StatBonus bonusPerLevel;   // * Mỗi lần lên cấp nhận đúng bộ bonus này; để 0 nếu chỉ thưởng qua lựa chọn nâng cấp.
 
     public int MaxLevel => maxLevel;                  // * Tới cấp này thì RunLevelProgress bỏ EXP dư.
@@ -17,7 +19,9 @@ public sealed class RunLevelConfigSO : ScriptableObject
 
     #region Experience Formula
 
+    [Tooltip("EXP cần riêng cho lần từ cấp 1 lên 2; tối thiểu 1.")]
     [SerializeField, Min(1)] private int initialExperience = 10;        // * EXP cần từ level 1 lên 2.
+    [Tooltip("EXP yêu cầu từ cấp L lên L+1 = Initial Experience + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng EXP.")]
     [SerializeField, Min(0)] private int experienceIncreasePerLevel = 5;  // * EXP yêu cầu tăng thêm mỗi cấp; 0 nghĩa là chi phí EXP không đổi.
 
     public int InitialExperience => initialExperience;                    // * Hệ số A của công thức A + B × (level - 1).

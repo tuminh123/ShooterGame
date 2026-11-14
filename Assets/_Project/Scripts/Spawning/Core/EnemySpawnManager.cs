@@ -6,8 +6,38 @@ using Zenject;
 
 /// <summary>Tạo và thu hồi enemy/boss chung; không quyết định lịch hay quota.</summary>
 [DefaultExecutionOrder(10000)]
-public sealed class EnemySpawnManager : MonoBehaviour
+public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 200);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    private void OnEnable() => activationFrame = Time.frameCount;
+
+    #endregion
     #region Cấu hình và dependency
 
     [Header("References")]
@@ -136,9 +166,13 @@ public sealed class EnemySpawnManager : MonoBehaviour
     /// <summary>Trả về true khi giá trị dương và hữu hạn.</summary>
     private static bool Positive(float value) => value > 0f && !float.IsInfinity(value);
     /// <summary>Phát callback cuối frame để các hệ thống bù chuyển động camera/player.</summary>
-    private void LateUpdate() => SpawnLateUpdate?.Invoke();
+    public void LateTick()
+    {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
+        SpawnLateUpdate?.Invoke();
+    }
     /// <summary>Gỡ toàn bộ listener khi component bị hủy.</summary>
-    private void OnDestroy() => SpawnLateUpdate = null;
+    private void OnDestroy() { StopFrameUpdates(); SpawnLateUpdate = null; }
 
     /// <summary>Ghi các điểm viền chữ nhật vào danh sách đích, không lặp các góc.</summary>
     public void GetSpawnPoints(List<Vector2> destination)

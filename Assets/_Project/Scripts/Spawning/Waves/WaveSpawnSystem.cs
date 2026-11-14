@@ -8,6 +8,8 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
     /// <summary>Phát khi toàn bộ chuỗi Wave đã spawn hoặc Wave cuối đã sạch quái.</summary>
     public event Action AllWavesSpawned;
     public event Action FinalWaveCleared;
+    // Chỉ công bố lịch gameplay; UI tự chọn thời điểm cảnh báo, không dời lịch spawn.
+    public event Action<StageSpawnWarning, float> SpawnScheduled;
     private bool allWavesSpawnedRaised, finalWaveClearedRaised;
     #region Trạng thái các chuỗi
 
@@ -67,10 +69,40 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
             snapshots[i] = new WaveConfigSO.Wave
             {
                 spawnCount = wave.spawnCount, spawnInterval = wave.spawnInterval,
+                spawnMode = wave.spawnMode,
                 delayAfterSpawn = wave.delayAfterSpawn, enemies = (CharacterDataSO[])wave.enemies.Clone()
             };
         }
         runs.Add(new Run { waves = snapshots, condition = config.AdvanceCondition, roster = new StageSpawnRoster(spawner) });
+        // Chuỗi theo giờ biết trước mọi mốc. Chuỗi chờ dọn quái chỉ biết chắc wave đầu.
+        float startsAt = 0f;
+        for (int i = 0; i < snapshots.Length; i++)
+        {
+            var wave = snapshots[i];
+            if (wave.spawnMode == WaveSpawnMode.Simultaneous)
+                SpawnScheduled?.Invoke(StageSpawnWarning.SimultaneousWave, startsAt);
+            if (config.AdvanceCondition != WaveAdvanceCondition.AfterDuration) break;
+            startsAt += SpawnSpan(wave) + wave.delayAfterSpawn;
+        }
+    }
+
+    // Thời gian sinh con cuối; wave đồng thời sinh toàn bộ tại đầu wave.
+    private static float SpawnSpan(WaveConfigSO.Wave wave)
+        => wave.spawnMode == WaveSpawnMode.Sequential ? (wave.spawnCount - 1) * wave.spawnInterval : 0f;
+
+    /// <summary>Trả mốc sinh xong cả chuỗi nếu lịch không phụ thuộc thời điểm quái chết.</summary>
+    public static float? GetScheduledCompletion(WaveConfigSO config)
+    {
+        if (config.Count == 0 || (config.Count > 1 && config.AdvanceCondition != WaveAdvanceCondition.AfterDuration))
+            return null;
+        float time = 0f;
+        for (int i = 0; i < config.Count; i++)
+        {
+            var wave = config.GetWave(i);
+            time += SpawnSpan(wave);
+            if (i < config.Count - 1) time += wave.delayAfterSpawn;
+        }
+        return time;
     }
 
     #endregion
@@ -95,7 +127,7 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
                     run.roster.Add(enemy);
                     run.spawned++;
                     run.nextWaveAt = run.nextSpawnAt + wave.delayAfterSpawn;
-                    run.nextSpawnAt += wave.spawnInterval;
+                    if (wave.spawnMode == WaveSpawnMode.Sequential) run.nextSpawnAt += wave.spawnInterval;
                     if (run.spawned == wave.spawnCount && run.index == run.waves.Length - 1)
                         run.finished = true;
                     continue;
@@ -108,6 +140,9 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
                 run.spawned = 0;
                 run.nextSpawnAt = run.condition == WaveAdvanceCondition.AfterDuration
                     ? run.nextWaveAt : stageTime;
+                if (run.condition == WaveAdvanceCondition.AfterEnemiesCleared &&
+                    run.waves[run.index].spawnMode == WaveSpawnMode.Simultaneous)
+                    SpawnScheduled?.Invoke(StageSpawnWarning.SimultaneousWave, stageTime);
             }
             if (run.index == run.waves.Length - 1 && run.roster.AliveCount > 0) finalAlive = true;
         }

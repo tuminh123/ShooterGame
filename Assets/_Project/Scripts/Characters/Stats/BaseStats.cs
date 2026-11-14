@@ -8,13 +8,21 @@ public struct BaseStats
 {
     #region Stat Values
 
+    [Tooltip("Máu tối đa gốc; tối thiểu 1. Máu hiện tại được lưu riêng ở runtime.")]
     [Min(1f)] public float maxHealth; // Max HP; current thuộc CharacterRuntimeData.
+    [Tooltip("Sát thương gốc trước hệ số skill và chí mạng; tối thiểu 0.")]
     [Min(0f)] public float damage; // Sát thương đầu ra trước critical.
+    [Tooltip("Lượng giáp có thể hấp thụ sát thương và bị tiêu hao; không phải % giảm sát thương.")]
     [Min(0f)] public float defense; // Max giáp hấp thụ, không phải giảm damage theo %.
+    [Tooltip("Tốc độ di chuyển theo world unit/giây, trước các bonus và hiệu ứng.")]
     [Min(0f)] public float moveSpeed; // Tốc độ sau buff/debuff.
+    [Tooltip("Tỷ lệ chí mạng theo thang 100 = 100%. Phần vượt 100 được runtime xử lý theo luật chí mạng.")]
     [Min(0f)] public float critChance; // Tỷ lệ crit, có luật chuyển phần vượt 100 sang crit damage.
+    [Tooltip("Phần sát thương cộng thêm khi chí mạng theo thang 100: 50 = thêm 50%, tổng 150% khi chưa có điều chỉnh khác.")]
     [Min(0f)] public float critDamageMultiplier; // Phần damage cộng thêm khi crit.
+    [Tooltip("Chỉ số kháng xác suất hiệu ứng theo thang phần trăm; không phải né sát thương đòn đánh.")]
     [FormerlySerializedAs("dodge"), Min(0f)] public float effectResistance; // Kháng xác suất effect.
+    [Tooltip("Chỉ số tăng xác suất áp dụng hiệu ứng theo thang phần trăm; không phải độ chính xác của đạn.")]
     [FormerlySerializedAs("accuracy"), Min(0f)] public float effectHit; // Chính xác effect.
 
     public static BaseStats Default => new BaseStats

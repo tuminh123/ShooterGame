@@ -1,17 +1,26 @@
 using System;
+using UnityEngine;
 using UnityEngine.Serialization;
 
 // Additive values only. Percentage bonuses are percentage points (5 = +5%).
 [Serializable]
 public struct StatBonus
 {
+    [Tooltip("Lượng HP tối đa cộng thêm; 10 = thêm 10 HP. Có thể âm để giảm chỉ số.")]
     public float maxHealth;
+    [Tooltip("Sát thương cộng thẳng vào chỉ số Damage; không phải hệ số nhân.")]
     public float damage;
+    [Tooltip("Lượng giáp hấp thụ cộng thêm; không phải % giảm sát thương.")]
     public float defense;
+    [Tooltip("Tốc độ cộng thêm theo world unit/giây; 0.5 = tăng 0.5 đơn vị/giây.")]
     public float moveSpeed;
+    [Tooltip("Điểm phần trăm chí mạng cộng thêm: 5 = cộng 5 điểm %, không nhân tỷ lệ hiện có.")]
     public float critChance;
+    [Tooltip("Điểm phần trăm sát thương chí mạng cộng thêm: 20 = cộng thêm 20 điểm % vào phần damage tăng thêm.")]
     public float critDamageMultiplier;
+    [Tooltip("Điểm phần trăm kháng hiệu ứng cộng thêm; không ảnh hưởng né sát thương trực tiếp.")]
     [FormerlySerializedAs("dodge")] public float effectResistance;
+    [Tooltip("Điểm phần trăm chính xác hiệu ứng cộng thêm; không ảnh hưởng hitbox hay đường bay đạn.")]
     [FormerlySerializedAs("accuracy")] public float effectHit;
 
     public void Validate()

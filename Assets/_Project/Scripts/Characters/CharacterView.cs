@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using Zenject;
-using PrimeTween;
 
 // * Vỏ Unity dùng chung cho mọi nhân vật; không quyết định input hay AI.
 // * Một vỏ được pool tái sử dụng cho nhiều cá thể, mỗi lượt được gắn runtime/controller mới trước khi bật.
@@ -38,7 +37,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     private ICharacterFeedbackSource feedbackSource;
     private Color[] originalSpriteColors;
     private readonly bool[] statusColors = new bool[4];
-    private Tween hitFlash;
+    private float hitFlashRemaining; // Mỗi lượt spawn giữ thời hạn nháy riêng, không cần lịch callback.
     private bool flashing;
     private bool resultPresentation;
     private bool deathPresentation;
@@ -52,7 +51,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
     public SpatialHandle SpatialHandle { get; private set; }
     public ICharacterSearch Search { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
-    public ITimerManager Timers { get; private set; }
     // Trình diễn/spatial vẫn hoạt động khi enemy choáng hoặc tuần tra; chỉ khóa quyền thực thi skill.
     public bool CanUseSkills => !(controller is EnemyController enemy) || enemy.CanAttack;
     public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
@@ -84,7 +82,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
 
     [Inject]
     public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
-        ISpatialManager spatial, ICharacterSearch search, ITimerManager timers,
+        ISpatialManager spatial, ICharacterSearch search,
         CharacterRuntimePool runtimePool, SkillManager skillManager, SkillFactory skillFactory)
     {
         this.movement = movement;
@@ -95,7 +93,6 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         this.runtimePool = runtimePool;
         this.spatial = spatial;
         Search = search;
-        Timers = timers;
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
@@ -167,12 +164,18 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         ApplySpriteColors();
     }
 
-    private void Update()
+    // CharacterManager gọi một lần mỗi frame; không còn Update riêng trên từng vỏ pool.
+    internal void TickFrame(float deltaTime)
     {
         if (RuntimeData == null || resultPresentation)
             return;
         if (!isActiveAndEnabled)
             return;
+        if (flashing && deltaTime > 0f)
+        {
+            hitFlashRemaining = Mathf.Max(0f, hitFlashRemaining - deltaTime);
+            if (hitFlashRemaining <= 0f) StopHitFlash();
+        }
         // * Unity gọi Update trên vỏ; phần quyết định hướng chạy thuộc class hành vi thuần.
         ICharacterController behavior = controller;
         CharacterRuntimeData identity = RuntimeData;
@@ -181,7 +184,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         try
         {
             if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation && ReferenceEquals(controller, behavior))
-                Skills?.Tick(Time.deltaTime);
+                Skills?.Tick(deltaTime);
         }
         finally
         {
@@ -330,16 +333,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         {
             case CharacterFeedbackKind.Hit:
                 if (!active || !isActiveAndEnabled) return;
-                hitFlash.Stop();
+                hitFlashRemaining = hitFlashDuration;
                 flashing = true;
-                CharacterRuntimeData identity = RuntimeData;
-                ulong generation = identity.Generation;
-                hitFlash = Tween.Delay(this, hitFlashDuration, view =>
-                {
-                    if (!ReferenceEquals(view.RuntimeData, identity) || identity.Generation != generation) return;
-                    view.flashing = false;
-                    view.ApplySpriteColors();
-                });
                 break;
             case CharacterFeedbackKind.Poison:
             case CharacterFeedbackKind.Burn:
@@ -383,7 +378,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
 
     private void StopHitFlash()
     {
-        hitFlash.Stop();
+        hitFlashRemaining = 0f;
         flashing = false;
         ApplySpriteColors();
     }

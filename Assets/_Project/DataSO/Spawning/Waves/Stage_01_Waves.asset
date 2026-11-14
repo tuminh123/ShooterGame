@@ -14,8 +14,69 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   advanceCondition: 0
   waves:
-  - delayAfterSpawn: 20
+  - delayAfterSpawn: 10
     spawnCount: 50
+    spawnMode: 0
     spawnInterval: 0.5
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 16
+    spawnMode: 0
+    spawnInterval: 0.475
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 18
+    spawnMode: 1
+    spawnInterval: 0.45
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 20
+    spawnMode: 0
+    spawnInterval: 0.425
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 22
+    spawnMode: 0
+    spawnInterval: 0.4
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 24
+    spawnMode: 1
+    spawnInterval: 0.375
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 26
+    spawnMode: 0
+    spawnInterval: 0.35
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 28
+    spawnMode: 0
+    spawnInterval: 0.325
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 30
+    spawnMode: 1
+    spawnInterval: 0.3
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 32
+    spawnMode: 0
+    spawnInterval: 0.275
+    enemies:
+    - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}
+  - delayAfterSpawn: 10
+    spawnCount: 34
+    spawnMode: 0
+    spawnInterval: 0.25
     enemies:
     - {fileID: 11400000, guid: 1361c1daa06f41a49b58627448fb1800, type: 2}

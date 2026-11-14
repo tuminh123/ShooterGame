@@ -8,7 +8,8 @@ public sealed class StageManager : ITickable, IDisposable
 {
     #region Dependency, registry và trạng thái
 
-    private readonly StageDataSO data;
+    private StageDataSO data;
+    private readonly Dictionary<string, StageDataSO> stages;
     private readonly DiContainer container;
     private readonly EnemySpawnManager spawner;
     private readonly PlayerManager players;
@@ -25,21 +26,26 @@ public sealed class StageManager : ITickable, IDisposable
     private float stageTime;
 
     public StageDataSO CurrentStage => data;
+    public StageDatabaseSO Database { get; }
     public bool ResultGranted => resultGranted;
     /// <summary>Thời gian gameplay từ đầu lượt; dừng tăng khi pause hoặc kết thúc.</summary>
     public float StageTime => stageTime;
     public event Action Cleared;
     public event Action<Exception> Failed;
+    public event Action<StageSpawnWarning, float> SpawnScheduled;
+    public event Action WarningsCleared;
 
     #endregion
 
     #region Khởi tạo và định tuyến hệ thống
 
     /// <summary>Tạo registry từ danh sách DataSO và đăng ký callback cuối frame.</summary>
-    public StageManager(StageDataSO data, EnemySpawnManager spawner, GroundChunkManager ground,
+    public StageManager(StageDatabaseSO database, EnemySpawnManager spawner, GroundChunkManager ground,
         PlayerManager players, CurrencyService currencies, StageProgressService progress, DiContainer container)
     {
-        this.data = data;
+        Database = database != null ? database : throw new ArgumentNullException(nameof(database));
+        stages = database.CreateLookup();
+        data = database.DefaultStage;
         this.ground = ground;
         this.currencies = currencies;
         this.progress = progress;
@@ -47,11 +53,21 @@ public sealed class StageManager : ITickable, IDisposable
         this.spawner = spawner;
         this.players = players;
 
-        data.Validate();
+        BuildSystems();
+        spawner.SpawnLateUpdate += LateTickSystems;
+    }
+
+    /// <summary>Chỉ tạo hệ thống của màn đang chọn, không chạy đồng thời các màn trong database.</summary>
+    private void BuildSystems()
+    {
         try
         {
             // Construct one system per Type using each DataSO's explicit factory. No reflection/Activator or type switch.
             foreach (var spawnData in data.SpawnData) Register(spawnData);
+            if (systems.TryGetValue(typeof(WaveSpawnSystem), out var warningWaves))
+                ((WaveSpawnSystem)warningWaves).SpawnScheduled += ForwardSpawnSchedule;
+            if (systems.TryGetValue(typeof(BossSpawnSystem), out var warningBosses))
+                ((BossSpawnSystem)warningBosses).SpawnScheduled += ForwardSpawnSchedule;
             if (systems.TryGetValue(typeof(WaveSpawnSystem), out var waveSystem) &&
                 systems.TryGetValue(typeof(BossSpawnSystem), out var bossSystem))
             {
@@ -63,11 +79,9 @@ public sealed class StageManager : ITickable, IDisposable
         }
         catch
         {
-            foreach (var system in systemOrder)
-                try { system.Stop(); } catch (Exception cleanup) { Debug.LogException(cleanup); }
+            try { ReleaseSystems(); } catch (Exception cleanup) { Debug.LogException(cleanup); }
             throw;
         }
-        spawner.SpawnLateUpdate += LateTickSystems;
     }
 
     /// <summary>Tạo một instance cho mỗi SystemType; từ chối factory trả sai loại.</summary>
@@ -99,6 +113,43 @@ public sealed class StageManager : ITickable, IDisposable
     #endregion
 
     #region Chuẩn bị lượt chơi
+
+    // Công bố lịch Boss chờ sinh xong wave nếu mọi chuỗi đều có thời điểm xác định.
+    private void PrepareSpawnSchedule()
+    {
+        if (!systems.TryGetValue(typeof(BossSpawnSystem), out var system)) return;
+        float latest = 0f;
+        bool found = false;
+        foreach (var spawnData in data.SpawnData)
+        {
+            if (!(spawnData is WaveConfigSO waves)) continue;
+            found = true;
+            float? time = WaveSpawnSystem.GetScheduledCompletion(waves);
+            if (!time.HasValue) { ((BossSpawnSystem)system).ScheduledWaveCompletion = null; return; }
+            latest = Mathf.Max(latest, time.Value);
+        }
+        ((BossSpawnSystem)system).ScheduledWaveCompletion = found ? (float?)latest : null;
+    }
+
+    // Chỉ chuyển tiếp loại sự kiện và mốc giờ gameplay; không chứa cấu hình thời gian của UI.
+    private void ForwardSpawnSchedule(StageSpawnWarning kind, float spawnAt) => SpawnScheduled?.Invoke(kind, spawnAt);
+
+    /// <summary>Chọn màn bằng ID ổn định trước StartRun; dọn registry và kết quả của màn cũ.</summary>
+    public void SelectStage(string stageId)
+    {
+        EnsureNotDisposed();
+        if (running)
+            throw new InvalidOperationException("Dừng lượt hiện tại trước khi chọn Stage khác.");
+        if (string.IsNullOrWhiteSpace(stageId) || !stages.TryGetValue(stageId, out var next))
+            throw new ArgumentException("StageId không có trong Stage Database: " + stageId, nameof(stageId));
+        next.Validate();
+        ReleaseSystems();
+        data = next;
+        BuildSystems();
+        stageTime = 0f;
+        clearRequested = resultGranted = false;
+        resultRewards.Clear();
+    }
 
     /// <summary>Kiểm tra từng hệ thống và tính thử thưởng để phát hiện cấu hình lỗi.</summary>
     public void Validate()
@@ -145,6 +196,7 @@ public sealed class StageManager : ITickable, IDisposable
         {
             // Start only after GameManager has spawned the player, so Area uses the actual player center.
             started = true;
+            PrepareSpawnSchedule();
             foreach (var spawnData in data.SpawnData)
             {
                 GetSystem(spawnData).Execute(spawnData);
@@ -251,6 +303,7 @@ public sealed class StageManager : ITickable, IDisposable
     {
         running = false;
         started = false;
+        WarningsCleared?.Invoke();
         List<Exception> failures = null;
         foreach (var system in systemOrder)
         {
@@ -270,12 +323,13 @@ public sealed class StageManager : ITickable, IDisposable
         if (disposed) throw new ObjectDisposedException(nameof(StageManager));
     }
 
-    /// <summary>Gỡ callback, dọn hệ thống và xóa registry cùng listener kết quả.</summary>
-    public void Dispose()
+    /// <summary>Gỡ liên kết Wave/Boss, thu hồi entity và xóa registry trước khi đổi màn hoặc dispose.</summary>
+    private void ReleaseSystems()
     {
-        if (disposed) return;
-        disposed = true;
-        spawner.SpawnLateUpdate -= LateTickSystems;
+        if (systems.TryGetValue(typeof(WaveSpawnSystem), out var warningWaves))
+            ((WaveSpawnSystem)warningWaves).SpawnScheduled -= ForwardSpawnSchedule;
+        if (systems.TryGetValue(typeof(BossSpawnSystem), out var warningBosses))
+            ((BossSpawnSystem)warningBosses).SpawnScheduled -= ForwardSpawnSchedule;
         if (systems.TryGetValue(typeof(WaveSpawnSystem), out var waveSystem) &&
             systems.TryGetValue(typeof(BossSpawnSystem), out var bossSystem))
         {
@@ -292,9 +346,17 @@ public sealed class StageManager : ITickable, IDisposable
             updates.Clear();
             lateUpdates.Clear();
             statuses.Clear();
-            Cleared = null;
-            Failed = null;
         }
+    }
+
+    /// <summary>Gỡ callback scene và giải phóng hệ thống của màn đang chọn.</summary>
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        spawner.SpawnLateUpdate -= LateTickSystems;
+        try { ReleaseSystems(); }
+        finally { Cleared = null; Failed = null; SpawnScheduled = null; WarningsCleared = null; }
     }
     #endregion
 }

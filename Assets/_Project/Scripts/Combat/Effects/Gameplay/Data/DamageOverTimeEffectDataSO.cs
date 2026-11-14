@@ -7,7 +7,9 @@ public sealed class DamageOverTimeEffectDataSO : StatusEffectDataSO
 {
     #region Legacy Periodic Damage Configuration
 
+    [Tooltip("Khoảng cách giữa hai nhịp sát thương của cấu hình cũ, tính bằng giây gameplay; phải lớn hơn 0.")]
     [SerializeField, Min(0.01f)] private float tickInterval = 1f; // Số giây giữa hai nhịp của cấu hình cũ.
+    [Tooltip("Hệ số sát thương mỗi nhịp của asset cũ: 0.2 tương ứng hệ số 20%. Không phải lượng damage cố định của DamageOverTimeEffect mới.")]
     [SerializeField, Min(0f)] private float damageMultiplierPerTick = 0.2f; // Hệ số damage cũ; khác damagePerTick cố định của cấu hình mới.
     public float TickInterval => tickInterval;
     public float DamageMultiplierPerTick => damageMultiplierPerTick;

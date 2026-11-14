@@ -6,8 +6,6 @@ using UnityEngine;
 [CustomEditor(typeof(SkillDataSO), true)]
 public sealed class CharacterSkillEditor : Editor
 {
-    private static GUIStyle sectionHeaderStyle;
-
     #region Inspector
 
     // Chia dữ liệu skill thành các vùng rõ ràng trong Inspector.
@@ -41,30 +39,10 @@ public sealed class CharacterSkillEditor : Editor
     // Khung riêng có tiêu đề lớn, mô tả ngắn và nội dung.
     private static void DrawSection(string title, string description, Action drawContent)
     {
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        EditorGUILayout.LabelField(title, SectionHeaderStyle, GUILayout.Height(24f));
-        EditorGUILayout.LabelField(description, EditorStyles.wordWrappedMiniLabel);
-        EditorGUILayout.Space(4f);
-        drawContent();
-        EditorGUILayout.EndVertical();
-        EditorGUILayout.Space(5f);
-    }
-
-    // Kiểu tiêu đề dùng chung cho các vùng trong Inspector.
-    private static GUIStyle SectionHeaderStyle
-    {
-        get
-        {
-            if (sectionHeaderStyle == null)
-            {
-                sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
-                {
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold
-                };
-            }
-            return sectionHeaderStyle;
-        }
+        var tone = title.StartsWith("BOSS") ? DataInspectorTone.Visual :
+            title.StartsWith("LEVEL") ? DataInspectorTone.Stats :
+            title.StartsWith("BEHAVIOUR") ? DataInspectorTone.Advanced : DataInspectorTone.Info;
+        DataInspectorGUI.DrawSection(title, description, drawContent, tone);
     }
 
     // Mỗi phần tử là cấu hình đầy đủ một cấp; số phần tử chính là MaxLevel.

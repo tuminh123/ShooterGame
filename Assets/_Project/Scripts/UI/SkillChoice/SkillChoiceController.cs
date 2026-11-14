@@ -4,8 +4,36 @@ using UnityEngine;
 using Zenject;
 
 // Điều khiển riêng luồng chọn skill; gắn trên root LevelUpUI là cha của LevelUpPanel, vẫn hoạt động khi panel con tắt.
-public sealed class SkillChoiceController : UIPanelController
+public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 700);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    #endregion
     #region Panel Reference
 
     [SerializeField] private SkillChoiceUI levelUpPanel; // View độc lập hiển thị ba lựa chọn và phát sự kiện click.
@@ -56,7 +84,11 @@ public sealed class SkillChoiceController : UIPanelController
     }
 
     // Đăng ký lại khi Canvas được bật; chờ Construct nếu Zenject chưa inject.
-    private void OnEnable() { if (levels != null) Subscribe(); }
+    private void OnEnable()
+    {
+        activationFrame = Time.frameCount;
+        if (levels != null) Subscribe();
+    }
 
     // Theo dõi level, Player và thao tác panel đúng một lần; đồng bộ owner ban đầu.
     private void Subscribe()
@@ -120,8 +152,9 @@ public sealed class SkillChoiceController : UIPanelController
     }
 
     // Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng giữ lượt để retry.
-    private void LateUpdate()
+    public void LateTick()
     {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (!refreshPending) return;
         if (slowMotionLease != null)
         {
@@ -279,6 +312,8 @@ public sealed class SkillChoiceController : UIPanelController
     #region Cleanup
 
     // Gỡ toàn bộ subscription, reference owner và token pause khi root controller hoặc Canvas ngừng hoạt động.
+    private void OnDestroy() { StopFrameUpdates(); OnDisable(); }
+
     private void OnDisable()
     {
         if (subscribed)

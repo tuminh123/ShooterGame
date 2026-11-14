@@ -40,7 +40,7 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | Màn chơi | StageManager, StageDataSO | Chọn map, điều phối wave/boss, xác nhận clear và cấp thưởng kết quả một lần. |
 | Loot/lượt chơi | LootManager, PickupView, RunSessionManager | Vật phẩm rơi, nhận EXP/vàng, đồng hồ và số enemy bị hạ. |
 | UI | UIManager, RunUI, CharacterUI, PauseUI | Trạm UI, HUD trận, máu/giáp theo nhân vật và pause. |
-| Job System | MovementManager, TimerManager, SpatialManager | Buffer dùng lại, cập nhật movement/timer và truy vấn không gian. |
+| Job System | MovementManager, SpatialManager | Buffer dùng lại, cập nhật movement và truy vấn không gian. |
 | World | GroundChunkManager | Nền/chunk theo vị trí player. |
 
 Boss thuộc phe Enemy; `IsBoss` đánh dấu loại nhân vật để hiển thị thanh máu.
@@ -121,6 +121,6 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 | [DataSO](../../Assets/_Project/DataSO/README.md) | Cấu hình level, save và trang bị. |
 | [Character stats](../../Assets/_Project/DataSO/Documentation/CharacterStats.md) | Chỉ số và công thức bonus. |
 | [Combat and skills](../../Assets/_Project/DataSO/Documentation/CombatAndSkills.md) | Tài liệu combat/skill bổ sung. |
-| [Job System](../../Assets/_Project/Scripts/Core/JobSystem/README.md) | Movement, timer, spatial và batch truy vấn. |
+| [Job System](../../Assets/_Project/Scripts/Core/JobSystem/README.md) | Movement, spatial và batch truy vấn; Zenject điều phối Tick/LateTick. |
 | [Character blueprint](Character-EventDriven-OOP.md) | Tham khảo thiết kế ban đầu, không phải mô tả đầy đủ code hiện tại. |
 | [Character demo](Character-Architecture-Demo.md) | Demo/blueprint nhân vật, có phần chưa triển khai. |

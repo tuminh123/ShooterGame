@@ -31,7 +31,10 @@ public sealed class MovementManager : ILateTickable, IDisposable
     private readonly ISpatialManager spatial; // Báo snapshot không gian cần cập nhật sau khi đổi vị trí.
 
     // Dùng cùng dữ liệu không gian của scene, không tự tạo manager tìm kiếm khác.
-    public MovementManager(ISpatialManager spatial) => this.spatial = spatial;
+    public MovementManager(ISpatialManager spatial)
+    {
+        this.spatial = spatial;
+    }
 
     #endregion
 
@@ -153,14 +156,14 @@ public sealed class MovementManager : ILateTickable, IDisposable
 
     #region Movement Simulation
 
-    // * Zenject gọi mỗi LateUpdate sau khi các đối tượng đã cập nhật hướng trong Update.
+    // Zenject gọi đầu pha cuối frame, sau khi gameplay đã chốt hướng di chuyển.
     public void LateTick()
     {
         Simulate(Time.deltaTime);
     }
 
     // * Chạy một bước cho cả nhóm; có thể gọi thủ công để kiểm tra với deltaTime cố định.
-    // ! Khi dùng Zenject thì không gọi thêm mỗi frame, tránh di chuyển hai lần.
+    // Không gọi thêm nếu đã được Zenject tick, tránh áp dụng chuyển động hai lần.
     public void Simulate(float deltaTime)
     {
         if (disposed)

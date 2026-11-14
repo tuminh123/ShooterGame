@@ -7,8 +7,8 @@
 - `LootPickup.prefab` is a common pooled SpriteRenderer shell. `PickupView` stores reward type and amount; the loot manager assigns its sprite before activation.
 - `LootManager.LateTick` runs after MovementManager, checks distance to the live Player, removes the pickup and returns its shell before granting its reward. There are no pickup colliders, per-pickup Update methods or automatic expiration. No attraction movement is implemented: walk within `pickupRadius` (default 0.25 world units) to collect.
 - Experience goes through `LevelManager.AddRunExperience`, preserving the existing progression rules. Gold is sent to `RunSessionManager.AddGold`; it counts only collected rewards in this run and is not written to the permanent player save. LootManager has no UI references, gold balance or clock.
-- `Core/Run/RunSessionManager` owns gold and the gameplay clock independently of the loot system. It uses the shared TimerJob with a one-second periodic timer and stops advancing while paused or the Player is dead/inactive. The first tick occurs one gameplay second after initialization/reset. Other reward sources can also call AddGold.
-- `LevelManager.StartNewRun()` tells LootManager to clear remaining pickups and RunSessionManager to reset gold and the clock; the existing level service resets EXP. Scene disposal cancels the session timer, removes subscriptions and returns remaining pickups before PoolManager disposal.
+- `Core/Run/RunSessionManager` owns gold and the gameplay clock independently of the loot system. Zenject calls its ITickable.Tick; a double accumulator preserves fractional gameplay seconds and publishes TimeChanged only when the whole-second value changes. It stops advancing while paused or the Player is dead/inactive. Other reward sources can also call AddGold.
+- `LevelManager.StartNewRun()` tells LootManager to clear remaining pickups and RunSessionManager to reset gold and the clock; the existing level service resets EXP. Scene disposal removes subscriptions and returns remaining pickups before PoolManager disposal.
 
 ## Configuration
 

@@ -14,10 +14,13 @@ public sealed class MapDatabaseSO : ScriptableObject
     private sealed class MapEntry
     {
         // ! Key phân biệt chữ hoa/thường; dùng cùng một cách viết trong Level Data.
+        [Tooltip("Khóa map phân biệt hoa/thường; phải khớp Map Key trong StageDataSO. Không để trống hoặc trùng.")]
         public string key;
+        [Tooltip("Sprite nền được gán cho các chunk của map. Kích thước lưới vẫn do GroundChunkManager quyết định.")]
         public Sprite sprite;  // * Ảnh nền được gán lên SpriteRenderer của chunk.
     }
 
+    [Tooltip("Danh mục key → sprite nền. Mỗi key chỉ xuất hiện một lần và phải có sprite.")]
     [SerializeField] private List<MapEntry> maps = new List<MapEntry>();  // * Thêm mục và kéo sprite vào đây để đăng ký map mới.
 
     #endregion

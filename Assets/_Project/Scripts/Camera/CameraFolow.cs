@@ -2,8 +2,36 @@ using UnityEngine;
 using Zenject;
 
 // * Camera bám theo mục tiêu với độ trễ mượt; cập nhật sau bước di chuyển thông thường.
-public class CameraFolow : MonoBehaviour
+public class CameraFolow : MonoBehaviour, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 100);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    #endregion
 
     #region Follow Settings & State
 
@@ -34,6 +62,7 @@ public class CameraFolow : MonoBehaviour
     // * Đăng ký khi camera bật và đọc trạng thái hiện tại, tránh bỏ lỡ sự kiện đã phát.
     private void OnEnable()
     {
+        activationFrame = Time.frameCount;
         if (playerManager == null)
             return;
         playerManager.PlayerChanged -= OnPlayerChanged;
@@ -57,17 +86,20 @@ public class CameraFolow : MonoBehaviour
 
     #endregion
 
+    private void OnDestroy() { StopFrameUpdates(); OnDisable(); }
+
     #region Camera Movement
 
     // * Chạy sau Update: tính vị trí mục tiêu cộng offset rồi làm mượt vị trí camera.
-    private void LateUpdate()
+    public void LateTick()
     {
-        if (target == null)
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
+        if (target == null || Time.deltaTime <= 0f)
             return;
 
         Vector3 desiredPosition = target.position + offset;  // * Vị trí camera mong muốn trong không gian thế giới.
         transform.position = Vector3.SmoothDamp(
-            transform.position, desiredPosition, ref velocity, followSmoothTime);
+            transform.position, desiredPosition, ref velocity, followSmoothTime, Mathf.Infinity, Time.deltaTime);
     }
 
     #endregion

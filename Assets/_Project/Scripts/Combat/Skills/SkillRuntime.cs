@@ -6,26 +6,23 @@ public sealed class SkillRuntime : IDisposable
 {
     #region Behaviour Scheduling
 
-    // Timer chỉ thuộc runtime; config và hành vi trên SO không giữ timer.
-    private sealed class Behaviour : IDisposable, ITimerListener
+    // Cooldown thuộc runtime từng hành vi; SO chỉ giữ cấu hình, không giữ thời gian đang chạy.
+    private sealed class Behaviour : IDisposable
     {
         internal readonly ISkill Action; // Bản sao riêng, không chạy template.
         private readonly SkillRuntime runtime;
-        private readonly ITimerManager timers; // TimerManager của scene.
-        private TimerHandle timer; // Cooldown đang chạy, được giữ khi đổi data.
+        private float remaining; // Giữ cooldown đang chạy khi thay dữ liệu cấp.
         private float cooldown; // Nhịp mới áp dụng cho lần cast thành công tiếp theo.
         private bool disposed; // Chặn tick và dispose lặp.
         private bool paused; // Ngừng cả tick liên tục lẫn cast.
-        internal float Remaining => timers.GetRemaining(timer);
+        internal float Remaining => remaining;
 
-        // Giao ownership action ngay khi timer đăng ký thành công.
-        internal Behaviour(ISkill action, ITimerManager timers, bool paused, SkillRuntime runtime)
+        // Mỗi hành vi có bộ đếm riêng và sẵn sàng cast ở lần tick đầu.
+        internal Behaviour(ISkill action, bool paused, SkillRuntime runtime)
         {
             Action = action;
             this.runtime = runtime;
-            this.timers = timers;
             this.paused = paused;
-            timer = timers.Register(0f, this, paused: paused);
         }
 
         // Đổi config không khởi động lại cooldown đang chạy.
@@ -36,34 +33,30 @@ public sealed class SkillRuntime : IDisposable
         }
 
         // Hành vi liên tục vẫn cập nhật trong lúc chờ lượt cast tiếp theo.
-        internal void Tick()
+        internal void Tick(float deltaTime)
         {
             if (disposed || paused) return;
-            Action.Tick(timers.DeltaTime);
+            remaining = Math.Max(0f, remaining - deltaTime);
+            Action.Tick(deltaTime);
             if (disposed || Remaining > 0f || !Action.TryExecute() || disposed) return;
-            timers.Restart(timer, cooldown);
+            remaining = cooldown;
             runtime.NotifyVisualAction(Action.Type);
         }
 
-        // Đồng bộ timer và visual/state của hành vi.
+        // Pause giữ nguyên cooldown và đồng bộ visual/state của hành vi.
         internal void SetPaused(bool value)
         {
             if (disposed) return;
             paused = value;
-            timers.SetPaused(timer, value);
             Action.SetPaused(value);
         }
 
-        // Timer không tự thực thi; CharacterSkills hoặc SkillManager gọi Tick trên main thread.
-        public void OnTimer(TimerHandle handle, TimerResult result) { }
-
-        // Dọn action kể cả khi timer cancellation lỗi.
+        // Không còn callback thời gian bên ngoài; dispose chấm dứt hành vi ngay.
         public void Dispose()
         {
             if (disposed) return;
             disposed = true;
-            try { timers.Cancel(timer); }
-            finally { Action.Dispose(); }
+            Action.Dispose();
         }
     }
 
@@ -91,7 +84,7 @@ public sealed class SkillRuntime : IDisposable
     {
         get
         {
-            float remaining = float.MaxValue; // Giá trị tổng quan cho debug, không gộp timer.
+            float remaining = float.MaxValue; // Giá trị tổng quan cho debug, không gộp cooldown giữa các hành vi.
             foreach (Behaviour behaviour in behaviours) remaining = Math.Min(remaining, behaviour.Remaining);
             return remaining == float.MaxValue ? 0f : remaining;
         }
@@ -149,7 +142,7 @@ public sealed class SkillRuntime : IDisposable
             if (behaviour == null)
             {
                 ISkill action = factory.CreateBehaviour(Definition, item.Type, context);
-                try { behaviour = new Behaviour(action, owner.Timers, paused, this); }
+                try { behaviour = new Behaviour(action, paused, this); }
                 catch { action.Dispose(); throw; }
                 behaviours.Add(behaviour); // Nhận ownership trước callback ApplyData để reset/dispose có thể dọn ngay.
             }
@@ -219,19 +212,21 @@ public sealed class SkillRuntime : IDisposable
     }
 
     // Chủ sở hữu runtime điều phối tick; callback đổi cấp sẽ kết thúc vòng duyệt cũ.
-    internal void Tick()
+    internal void Tick(float deltaTime)
     {
+        ValidateDeltaTime(deltaTime);
+        if (deltaTime <= 0f) return;
         if (!IsActive) return;
         if (!context.IsValid || owner == null || !ReferenceEquals(owner.RuntimeData, identity) ||
             identity.Generation != generation || !identity.IsAlive)
         { Dispose(); return; }
-        // Choáng/tuần tra chỉ pause hành vi và timer; không Dispose như khi chết hoặc pool đổi danh tính.
+        // Choáng/tuần tra giữ nguyên cooldown; chỉ Dispose khi chết hoặc pool đổi danh tính.
         SetPaused(!owner.isActiveAndEnabled || !owner.CanUseSkills);
         if (paused) return;
         int currentRevision = revision;
         try
         {
-            for (int i = 0; i < behaviours.Count && IsActive && revision == currentRevision; i++) behaviours[i].Tick();
+            for (int i = 0; i < behaviours.Count && IsActive && revision == currentRevision; i++) behaviours[i].Tick(deltaTime);
         }
         catch (Exception execution)
         {
@@ -247,10 +242,10 @@ public sealed class SkillRuntime : IDisposable
     // Owner chết hoặc trả pool thì dừng ngay, không đợi tick tiếp theo.
     private void OnOwnerEnded(CharacterView character) => Dispose();
 
-    // Disable phải pause timer/visual ngay.
+    // Disable phải pause hành vi/visual ngay.
     private void OnOwnerDeactivated() => SetPaused(true);
 
-    // Không reset timer khi đổi pause; hành vi mở thêm cũng nhận cùng trạng thái này.
+    // Không reset cooldown khi đổi pause; hành vi mở thêm nhận cùng trạng thái này.
     internal void SetPaused(bool value)
     {
         if (!IsActive || paused == value) return;

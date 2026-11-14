@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>Tạo các slot trên viền hình rỗng, không tạo điểm trong ruột.</summary>
+/// <summary>Dựng viền rỗng cho hình học Formation; không quyết định cách spawn hoặc vị trí Player.</summary>
 public static class EnemyAreaBuilder
 {
     #region Sinh viền hình rỗng
@@ -38,6 +38,15 @@ public static class EnemyAreaBuilder
         for (int i = 0; i < vertices.Length; i++)
         {
             vertices[i] = Transform(vertices[i], shape);
+        }
+        // Count hình học luôn là số cạnh × 2^(Level-1): mỗi cạnh chia đều, giữ đủ các đỉnh.
+        if (count % vertices.Length == 0)
+        {
+            int perEdge = count / vertices.Length;
+            for (int edge = 0; edge < vertices.Length; edge++)
+                for (int i = 0; i < perEdge; i++)
+                    result[edge * perEdge + i] = Vector2.Lerp(vertices[edge], vertices[(edge + 1) % vertices.Length], i / (float)perEdge);
+            return result;
         }
         for (int i = 0; i < vertices.Length; i++) perimeter += Vector2.Distance(vertices[i], vertices[(i + 1) % vertices.Length]);
         for (int i = 0; i < count; i++)

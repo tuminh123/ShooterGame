@@ -1,10 +1,42 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Zenject;
 
 // Theo dõi nhân vật đang sống và phát animation ăn mừng khi trận thua.
-public sealed class CharacterManager : IDisposable
+public sealed class CharacterManager : IDisposable, ITickable
 {
+    #region Frame Scheduling
+
+    private readonly List<(CharacterView View, CharacterRuntimeData Runtime, ulong Generation)> tickSnapshot =
+        new List<(CharacterView, CharacterRuntimeData, ulong)>(128);
+
+    // Dùng registry sẵn có; snapshot giữ đúng lượt spawn khi callback sinh/thu hồi nhân vật.
+    public void Tick()
+    {
+        if (disposed) return;
+        tickSnapshot.Clear();
+        foreach (var view in characters.Keys)
+            if (view != null && view.RuntimeData != null)
+                tickSnapshot.Add((view, view.RuntimeData, view.RuntimeData.Generation));
+        try
+        {
+            foreach (var entry in tickSnapshot)
+            {
+                if (disposed) break;
+                if (entry.View == null || !characters.ContainsKey(entry.View) ||
+                    !ReferenceEquals(entry.View.RuntimeData, entry.Runtime) || entry.Runtime.Generation != entry.Generation) continue;
+                try { entry.View.TickFrame(Time.deltaTime); }
+                catch (Exception exception) { Debug.LogException(exception, entry.View); }
+            }
+        }
+        finally { tickSnapshot.Clear(); }
+    }
+
+    #endregion
+
+    #region Character Registry & Events
+
     private readonly Dictionary<CharacterView, CharacterDataSO> characters = new Dictionary<CharacterView, CharacterDataSO>();
     private bool disposed;
     private int celebrationVersion;
@@ -15,7 +47,14 @@ public sealed class CharacterManager : IDisposable
     public event Action<CharacterView> CharacterDied;
     public event Action EnemyCelebrationsCompleted;
 
-    public CharacterManager() => GameUIEventBus.StateChanged += OnGameStateChanged;
+    public CharacterManager()
+    {
+        GameUIEventBus.StateChanged += OnGameStateChanged;
+    }
+
+    #endregion
+
+    #region Result Presentation
 
     // Khi thua, giữ quái còn sống và yêu cầu visual phát animation Win.
     private void OnGameStateChanged(GameState previous, GameState current)
@@ -56,6 +95,10 @@ public sealed class CharacterManager : IDisposable
         }
     }
 
+    #endregion
+
+    #region Registration & Cleanup
+
     public void Register(CharacterView character, CharacterDataSO definition)
     {
         if (disposed) throw new ObjectDisposedException(nameof(CharacterManager));
@@ -88,4 +131,5 @@ public sealed class CharacterManager : IDisposable
         foreach (CharacterView character in new List<CharacterView>(characters.Keys)) Unregister(character);
         CharacterAdded = null; CharacterRemoved = null; CharacterDied = null; EnemyCelebrationsCompleted = null;
     }
+    #endregion
 }

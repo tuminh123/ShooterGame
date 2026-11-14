@@ -69,7 +69,7 @@ MonoBehaviour:
     - rid: 1006
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 3
+        cooldown: 1.5
         range: 2
         shooter:
           rid: 1003

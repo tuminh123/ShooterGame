@@ -2,6 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>Cách phân bố slot hình học, độc lập với cách spawn theo Path hoặc Area.</summary>
+public enum FormationFillMode
+{
+    [InspectorName("Đặc")] Solid = 0,
+    [InspectorName("Rỗng")] Hollow = 1
+}
+
 /// <summary>Các cách nhân đối xứng điểm Custom quanh trục hoặc tâm.</summary>
 public enum FormationSymmetry
 {
@@ -22,7 +29,10 @@ public sealed class EnemyFormationSO : ScriptableObject
     [Tooltip("Hình chuẩn luôn đối xứng; Custom cho phép tự đặt điểm và chọn đối xứng tự động.")]
     [SerializeField] private FormationType shape = FormationType.FilledSquare;
 
-    [Tooltip("Cấp 1 là hình nhỏ nhất. Tăng cấp thêm hàng/lớp và số enemy; không tăng kích thước ngoài. Dùng Size để giãn hình.")]
+    [Tooltip("Đặc dùng toàn bộ hình. Rỗng chỉ đặt quái trên một viền kín; không phụ thuộc cách spawn.")]
+    [SerializeField] private FormationFillMode fillMode;
+
+    [Tooltip("Đặc: tăng hàng/lớp như cũ. Rỗng: Level 1 tự lấy số điểm tối thiểu của hình, mỗi cấp sau gấp đôi mật độ trên cùng một viền. Size không đổi.")]
     [Range(1, 16)] [SerializeField] private int level = 1;
 
     [Tooltip("Chiều rộng/cao world unit của hình chuẩn. Tăng Size chỉ giãn điểm, không tăng số enemy. Custom dùng Custom Scale.")]
@@ -45,6 +55,25 @@ public sealed class EnemyFormationSO : ScriptableObject
     #region Dữ liệu chỉ đọc
 
     public FormationType Shape => shape;
+    public FormationFillMode FillMode => fillMode;
+    public int HollowSlotCount => checked(MinimumHollowSlots(shape) * (1 << (level - 1)));
+    public static bool SupportsHollow(FormationType value)
+        => value == FormationType.FilledSquare || value == FormationType.FilledCircle || value == FormationType.Triangle ||
+            value == FormationType.Diamond || value == FormationType.Hexagon;
+
+    // Hình tự quyết định số điểm tối thiểu, không có quota gốc phải nhập bằng tay.
+    private static int MinimumHollowSlots(FormationType value)
+    {
+        switch (value)
+        {
+            case FormationType.FilledSquare:
+            case FormationType.Diamond: return 4;
+            case FormationType.FilledCircle:
+            case FormationType.Triangle: return 3;
+            case FormationType.Hexagon: return 6;
+            default: throw new InvalidOperationException("Hình này không hỗ trợ viền Rỗng.");
+        }
+    }
     public int Level => level;
     public Vector2 Size => size;
     public float Rotation => rotation;
@@ -61,9 +90,17 @@ public sealed class EnemyFormationSO : ScriptableObject
     /// <summary>Kiểm tra hình, Level, kích thước và tọa độ Custom hữu hạn.</summary>
     public void Validate()
     {
-        if (!Enum.IsDefined(typeof(FormationType), shape) || level < 1 || level > 16)
+        if (!Enum.IsDefined(typeof(FormationType), shape) || !Enum.IsDefined(typeof(FormationFillMode), fillMode) || level < 1 || level > 16)
         {
             throw new InvalidOperationException("Formation cần hình hợp lệ và cấp từ 1 đến 16.");
+        }
+
+        if (fillMode == FormationFillMode.Hollow)
+        {
+            if (!SupportsHollow(shape))
+                throw new InvalidOperationException("Mode Rỗng chỉ nhận hình khép kín: tròn, vuông, tam giác, thoi hoặc lục giác.");
+            if (HollowSlotCount > 4096)
+                throw new InvalidOperationException("Số slot Rỗng vượt 4096; giảm Level của hình.");
         }
 
         if (!Finite(size.x) || !Finite(size.y) || size.x <= 0f || size.y <= 0f || !Finite(rotation))

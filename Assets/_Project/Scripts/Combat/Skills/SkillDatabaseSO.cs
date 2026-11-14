@@ -11,7 +11,9 @@ public sealed class SkillDatabaseSO : ScriptableObject
     [Serializable]
     public sealed class Entry
     {
+        [Tooltip("Asset skill nguồn Gameplay. Không đưa skill Character/Equipment vào catalog này; không để trùng asset.")]
         [SerializeField] private SkillDataSO skill; // Template dùng chung; database không tạo hoặc giữ runtime.
+        [Tooltip("Bật để skill được đưa vào pool lựa chọn khi lên cấp; tắt để giữ trong catalog nhưng không được roll từ bảng thưởng.")]
         [SerializeField] private bool availableInRunChoices; // Bật/tắt một skill gameplay trong bảng thưởng.
 
         public SkillDataSO Skill => skill;
@@ -22,6 +24,7 @@ public sealed class SkillDatabaseSO : ScriptableObject
 
     #region Catalog Storage
 
+    [Tooltip("Catalog skill gameplay dùng chung. Mỗi asset khai báo một lần; cờ Available In Run Choices quyết định quyền xuất hiện khi roll.")]
     [SerializeField] private List<Entry> skills = new List<Entry>(); // Catalog gameplay, mỗi asset xuất hiện đúng một lần.
     public IReadOnlyList<Entry> Skills => skills.AsReadOnly();
 

@@ -21,7 +21,6 @@ public sealed class ProjectileManager : ITickable, IDisposable
 
     private readonly MovementManager movementManager; // Kiểm tra đăng ký còn thuộc lượt spawn hiện tại.
     private readonly ISpatialManager spatial;
-    private readonly ITimeSource timeSource;
     private NativeArray<SpatialQuery> queries;
     private NativeArray<SpatialHit> results;
     private readonly List<Registration> activeProjectiles = new List<Registration>(128); // Đạn đang sống.
@@ -31,11 +30,10 @@ public sealed class ProjectileManager : ITickable, IDisposable
     private readonly Plane[] cameraPlanes = new Plane[6]; // Tái sử dụng sáu mặt giới hạn camera, không tạo mảng mỗi frame.
     private bool disposed; // Ngăn cập nhật sau khi scene giải phóng manager.
 
-    public ProjectileManager(MovementManager movementManager, ISpatialManager spatial, ITimeSource timeSource)
+    public ProjectileManager(MovementManager movementManager, ISpatialManager spatial)
     {
         this.movementManager = movementManager ?? throw new ArgumentNullException(nameof(movementManager));
         this.spatial = spatial;
-        this.timeSource = timeSource;
         queries = new NativeArray<SpatialQuery>(128, Allocator.Persistent);
         results = new NativeArray<SpatialHit>(128, Allocator.Persistent);
         Camera.onPreCull += DespawnOutsideCamera;
@@ -65,7 +63,7 @@ public sealed class ProjectileManager : ITickable, IDisposable
 
     public void Tick()
     {
-        float deltaTime = timeSource.DeltaTime;
+        float deltaTime = Time.deltaTime;
         if (disposed || deltaTime <= 0f) return;
 
         // Đạn tạo trong callback sẽ được xử lý từ lượt kế tiếp, không chen vào bản đang duyệt.
@@ -80,6 +78,7 @@ public sealed class ProjectileManager : ITickable, IDisposable
                 registration.Projectile == null || !registration.Projectile.isActiveAndEnabled) continue;
             try
             {
+                if (!registration.Projectile.AdvanceLifetime(deltaTime)) continue;
                 if (registration.Projectile.PrepareQuery(deltaTime, out SpatialQuery query)) queries[index] = query;
             }
             catch (Exception exception)
@@ -121,7 +120,7 @@ public sealed class ProjectileManager : ITickable, IDisposable
     private void DespawnOutsideCamera(Camera renderingCamera)
     {
         // Chỉ camera gameplay có tag MainCamera; camera Scene view không được thu hồi đạn.
-        if (disposed || activeProjectiles.Count == 0 || timeSource.DeltaTime <= 0f ||
+        if (disposed || activeProjectiles.Count == 0 || Time.deltaTime <= 0f ||
             renderingCamera.cameraType != CameraType.Game || renderingCamera != Camera.main) return;
 
         GeometryUtility.CalculateFrustumPlanes(renderingCamera, cameraPlanes);

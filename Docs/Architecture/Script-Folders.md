@@ -33,7 +33,6 @@ Scripts/
 │   ├── Run/                      RunSessionManager giữ vàng và thời gian của lượt chơi
 │   └── JobSystem/
 │       ├── Movement/             Cập nhật di chuyển bằng job
-│       ├── Timer/                Bộ đếm thời gian, job, handle và interface
 │       └── Spatial/              Hitbox, grid, truy vấn, strategy và job không gian
 ├── Levels/
 │   ├── Configs/                  Công thức level và database
@@ -55,7 +54,7 @@ Scripts/
 - Ẩn/hiện enemy theo camera: `Characters/Enemies/EnemyVisualManager.cs`. Enemy bắt đầu ẩn visual; trước khi MainCamera render, manager kiểm tra bounds sprite và chỉ bật visual con khi giao khung hình. AI, movement, hitbox và gameplay effect vẫn hoạt động ngoài camera. Bounds được tính từ local bounds và Transform để vẫn theo đúng vị trí khi visual đang tắt. Animation được reset khi visual hiện lại. Player không bị áp dụng quy tắc này.
 - Kiểm tra hình học và chạy job tìm kiếm: `Core/JobSystem/Spatial`.
 - Data và thực thi bắn, kiểu bắn, vòng đời đạn: `Combat/ShootingSkill`.
-- Quản lý skill và cooldown: `Combat/Skills`; phép tính thời gian dùng chung nằm trong `Core/JobSystem/Timer`.
+- Quản lý skill và cooldown: `Combat/Skills`; mỗi runtime hành vi giữ cooldown riêng. Duration/nhịp effect thuộc `EffectManager` và `EffectRuntime`.
 - Slow, cháy, độc và vòng đời hiệu ứng: `Combat/Effects/Gameplay`.
 - Hiển thị VFX: `Combat/Effects/Visuals`; tài nguyên prefab vẫn nằm trong `CombatAssetsSO`.
 - HP/giáp dưới chân: `UI/Character/CharacterUI.cs` nằm trên vỏ nhân vật, điều khiển Canvas World Space con từ `Prefabs/UI/CharacterVitals.prefab` cho Player/boss. Vị trí/scale chỉnh tay trên prefab. Prefab asset DynamicUI đã xóa; nhóm DynamicUI độc lập trong scene và UIManager vẫn được giữ để hiển thị EXP/vàng/thời gian/level.

@@ -14,7 +14,6 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     private readonly PlayerManager players;
     private readonly LevelManager levels;
     private readonly PoolManager pools;
-    private readonly ITimeSource timeSource; // Chỉ đọc trạng thái pause khi kiểm tra nhặt.
     private readonly RunSessionManager session; // Nhận thưởng vàng, không giao dữ liệu trực tiếp cho UI.
     private readonly CurrencyService currencies; // Ví vĩnh viễn: vàng được lưu ngay khi nhặt.
     private readonly List<PickupView> pickups = new List<PickupView>(128); // Vật phẩm còn trên mặt đất, tái sử dụng qua pool.
@@ -22,7 +21,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     private bool disposed;
 
     public LootManager(LootDatabaseSO database, CharacterManager characters, PlayerManager players,
-        LevelManager levels, PoolManager pools, ITimeSource timeSource, RunSessionManager session, CurrencyService currencies)
+        LevelManager levels, PoolManager pools, RunSessionManager session, CurrencyService currencies)
     {
         this.database = database != null ? database : throw new ArgumentNullException(nameof(database));
         drops = database.CreateLookup();
@@ -30,7 +29,6 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
         this.players = players;
         this.levels = levels;
         this.pools = pools;
-        this.timeSource = timeSource;
         this.session = session;
         this.currencies = currencies;
     }
@@ -77,7 +75,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     public void LateTick()
     {
         CharacterView player = players.CurrentPlayer;
-        if (disposed || timeSource.DeltaTime <= 0f || player == null || !player.isActiveAndEnabled ||
+        if (disposed || Time.deltaTime <= 0f || player == null || !player.isActiveAndEnabled ||
             player.RuntimeData == null || !player.RuntimeData.IsAlive) return;
         Vector2 position = player.transform.position;
         float radiusSquared = database.PickupRadius * database.PickupRadius;

@@ -13,18 +13,26 @@ public sealed class StageDataSO : ScriptableObject
     [Serializable]
     public sealed class CurrencyReward
     {
+        [Tooltip("Loại tiền được cộng khi hoàn tất kết quả tương ứng.")]
         public CurrencyType type;
+        [Tooltip("Số tiền thưởng, phải từ 0 trở lên. Các dòng cùng loại tiền được cộng lại.")]
         public long amount;
     }
 
+    [Tooltip("ID ổn định dùng lưu tiến trình vượt màn và thưởng lần đầu; không đổi sau khi đã phát hành save.")]
     [SerializeField] private string stageId;
+    [Tooltip("Tên màn hiển thị cho người chơi; độc lập Stage ID.")]
     [SerializeField] private string displayName;
+    [Tooltip("Khóa map trong MapDatabaseSO, phân biệt hoa/thường; phải có sprite nền tương ứng.")]
     [SerializeField] private string mapKey = GameConstants.MapKeys.Desert;
     [Tooltip("Danh sách trực tiếp các DataSO triển khai IStageSpawnData: Waves, Pattern, Boss hoặc loại mới.")]
     [SerializeField] private List<ScriptableObject> spawnData = new List<ScriptableObject>();
     [FormerlySerializedAs("clearRewards")]
+    [Tooltip("Thưởng bổ sung khi thắng màn lần đầu. Được cộng với Victory Rewards; các lần thắng sau không nhận lại.")]
     [SerializeField] private CurrencyReward[] firstClearStageRewards = Array.Empty<CurrencyReward>();
+    [Tooltip("Thưởng mỗi lần thắng màn; cộng thêm thưởng lần đầu nếu màn chưa từng được vượt.")]
     [SerializeField] private CurrencyReward[] victoryRewards = Array.Empty<CurrencyReward>();
+    [Tooltip("Thưởng khi thua màn; không nhận thưởng lần đầu hoặc thưởng thắng.")]
     [SerializeField] private CurrencyReward[] defeatRewards = Array.Empty<CurrencyReward>();
 
     #endregion

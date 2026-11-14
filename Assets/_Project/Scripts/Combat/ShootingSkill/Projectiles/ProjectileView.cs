@@ -2,14 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-public sealed class ProjectileView : MonoBehaviour, ITimerListener
+public sealed class ProjectileView : MonoBehaviour
 {
     private MovementManager movementManager; // Đăng ký và thực hiện di chuyển Transform.
     private ProjectileManager projectileManager; // Gọi Tick chung, thay Update trên từng viên.
     private EffectManager effectManager; // Nhận yêu cầu áp dụng effect; đạn không quản lý runtime.
-    private ITimerManager timers;
     private ISpatialSearchFactory searchFactory; // Tạo query; SpatialManager sẽ chọn strategy và xử lý theo nhóm.
-    private TimerHandle lifetimeTimer;
     private IReadOnlyList<IGameplayEffect> effects; // Các cấu hình được truyền vào khi spawn.
     private float effectHit; // Chính xác hiệu ứng của nguồn lúc bắn.
     private MovementHandle movementHandle; // Đăng ký di chuyển của lượt spawn hiện tại.
@@ -25,7 +23,7 @@ public sealed class ProjectileView : MonoBehaviour, ITimerListener
     private float hitRadius; // Bán kính kiểm tra trúng quái.
     private Vector2 hitOffset; // Offset theo hướng bay, không phụ thuộc scale hình ảnh.
     private Vector3 HitboxCenter => transform.position + transform.rotation * (Vector3)hitOffset;
-    private float lifetime; // Cấu hình tuổi thọ; TimerJob giữ và cập nhật thời gian còn lại.
+    private float lifetime; // Thời gian sống còn lại; ProjectileManager cập nhật cùng vòng duyệt đạn.
     private EffectType impactEffect; // ID visual trúng đòn từ catalog; không phải gameplay effect.
     private bool isFlying; // Chặn cập nhật hoặc gây sát thương lặp sau khi trúng.
 
@@ -49,12 +47,11 @@ public sealed class ProjectileView : MonoBehaviour, ITimerListener
 
     [Inject]
     public void Construct(MovementManager movementManager, ProjectileManager projectileManager,
-        EffectManager effectManager, ITimerManager timers, ISpatialSearchFactory searchFactory, PoolManager pools)
+        EffectManager effectManager, ISpatialSearchFactory searchFactory, PoolManager pools)
     {
         this.movementManager = movementManager;
         this.projectileManager = projectileManager;
         this.effectManager = effectManager;
-        this.timers = timers;
         this.searchFactory = searchFactory;
         this.pools = pools;
     }
@@ -92,7 +89,6 @@ public sealed class ProjectileView : MonoBehaviour, ITimerListener
     {
         if (!isFlying) return;
         movementHandle = movementManager.Register(transform);
-        lifetimeTimer = timers.Register(lifetime, this);
         projectileManager.Register(this, movementHandle);
     }
 
@@ -121,9 +117,13 @@ public sealed class ProjectileView : MonoBehaviour, ITimerListener
         else movementManager.SetMovement(movementHandle, flightDirection, movementSpeed);
     }
 
-    public void OnTimer(TimerHandle handle, TimerResult result)
+    internal bool AdvanceLifetime(float deltaTime)
     {
-        if (isFlying && lifetimeTimer.Equals(handle) && result.Completed) Release();
+        if (!isFlying) return false;
+        lifetime = Mathf.Max(0f, lifetime - deltaTime);
+        if (lifetime > 0f) return true;
+        Release();
+        return false;
     }
 
     private void ApplyHitAndRelease(CharacterTarget hitTarget, Vector2 hitPosition)
@@ -179,8 +179,6 @@ public sealed class ProjectileView : MonoBehaviour, ITimerListener
     {
         projectileManager?.Unregister(movementHandle);
         movementManager?.Unregister(movementHandle);
-        timers?.Cancel(lifetimeTimer);
-        lifetimeTimer = default;
         movementHandle = default;
         isFlying = false;
         spawner = null;

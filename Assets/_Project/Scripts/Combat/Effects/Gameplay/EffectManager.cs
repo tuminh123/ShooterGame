@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Zenject;
 
 // Nhận yêu cầu từ đạn/vùng skill; quản lý áp dụng, thời gian hiệu lực và thu hồi runtime.
-public sealed class EffectManager : IDisposable
+public sealed class EffectManager : ITickable, IDisposable
 {
     #region Dependencies And Runtime State
 
     private readonly EffectRuntimePool pool; // Thuê/trả class runtime; không quản lý prefab VFX.
-    private readonly ITimerManager timers; // Sở hữu thời gian còn lại và nhịp tick, callback chạy trên main thread.
+    private readonly List<(EffectRuntime Runtime, ulong Version)> tickSnapshot = new List<(EffectRuntime, ulong)>(64);
     private readonly List<EffectRuntime> activeEffects = new List<EffectRuntime>(64); // Các effect còn hiệu lực; thêm khi Apply, gỡ khi kết thúc.
     private readonly Dictionary<(CharacterRuntimeData, IGameplayEffect), EffectRuntime> lookup =
         new Dictionary<(CharacterRuntimeData, IGameplayEffect), EffectRuntime>(); // Chỉ tra effect có thời hạn theo cùng instance cấu hình và mục tiêu.
@@ -23,11 +24,10 @@ public sealed class EffectManager : IDisposable
 
     #region Initialization
 
-    // Zenject cung cấp pool runtime và đồng hồ chung của scene.
-    public EffectManager(EffectRuntimePool pool, ITimerManager timers)
+    // Zenject cấp pool và gọi Tick; mỗi runtime tự giữ duration và pha tác động riêng.
+    public EffectManager(EffectRuntimePool pool)
     {
         this.pool = pool;
-        this.timers = timers;
         GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
@@ -103,7 +103,7 @@ public sealed class EffectManager : IDisposable
         if (!maintained && lookup.TryGetValue((character.RuntimeData, configuration), out EffectRuntime active))
         {
             // Kéo dài thời gian tồn tại nhưng giữ nhịp; bắn liên tục không trì hoãn độc/cháy mãi.
-            timers.Restart(active.Timer, configuration.Duration);
+            active.Remaining = configuration.Duration;
             return true;
         }
 
@@ -126,10 +126,8 @@ public sealed class EffectManager : IDisposable
             }
             created.TargetIndex = group.Count;
             group.Add(created);
-            // Slow duy trì không cần timer. Effect duy trì có tick dùng lịch vô hạn đến khi skill gỡ.
-            if (!maintained || configuration.TickInterval > 0f)
-                created.Timer = timers.Register(maintained ? float.PositiveInfinity : configuration.Duration,
-                    created, configuration.TickInterval);
+            created.Remaining = maintained ? double.PositiveInfinity : configuration.Duration;
+            created.TickElapsed = 0d;
             created.Apply();
             // Apply có thể kích hoạt callback thu hồi mục tiêu hoặc kết thúc trận.
             if (disposed || !target.TryGetCharacter(out _)) Deactivate(created);
@@ -170,50 +168,71 @@ public sealed class EffectManager : IDisposable
         finally { EndOperation(); }
     }
 
-    // Tắt/bật tạm thời chỉ dừng/tiếp tục timer, giữ nguyên thời gian còn lại và nhịp tick.
-    // Slow duy trì không có timer; skill vùng chịu trách nhiệm gỡ slow khi chính skill bị pause.
+    // Tắt/bật tạm thời giữ nguyên duration và pha tick; skill vùng tự gỡ slow khi skill bị pause.
     internal void SetPaused(CharacterView owner, CharacterRuntimeData identity, bool paused)
     {
         if (targetEffects.TryGetValue(identity, out List<EffectRuntime> group))
-            foreach (EffectRuntime runtime in group) timers.SetPaused(runtime.Timer, paused);
+            foreach (EffectRuntime runtime in group) runtime.Paused = paused;
     }
 
     #endregion
 
-    #region Timer Dispatch
+    #region Duration & Periodic Updates
 
-    // ITimerManager gọi trên main thread. Kiểm tra đúng lượt spawn trước khi gây tác động định kỳ.
-    internal void HandleTimer(EffectRuntime runtime, TimerResult result)
+    public void Tick() => Simulate(Time.deltaTime);
+
+    // Snapshot theo phiên runtime; effect sinh trong callback chỉ bắt đầu ở bước kế tiếp.
+    public void Simulate(float deltaTime)
     {
+        SkillRuntime.ValidateDeltaTime(deltaTime);
+        if (disposed || deltaTime <= 0f) return;
+        if (operationDepth != 0) throw new InvalidOperationException("Cannot recursively update effects.");
+        tickSnapshot.Clear();
+        foreach (var runtime in activeEffects) tickSnapshot.Add((runtime, runtime.Version));
         operationDepth++;
         try
         {
-            if (!runtime.IsActive) return;
-            if (runtime.Owner == null || !ReferenceEquals(runtime.Owner.RuntimeData, runtime.Identity) ||
-                runtime.Identity.Generation != runtime.Generation || !runtime.Identity.IsAlive)
-            { Deactivate(runtime); return; }
-            runtime.Tick(result.DueTickCount);
-            // Callback damage có thể vừa làm mới effect; không gỡ theo Completed của lịch cũ.
-            if (runtime.IsActive && result.Completed && timers.GetRemaining(runtime.Timer) <= 0f) Deactivate(runtime);
+            foreach (var entry in tickSnapshot)
+            {
+                if (disposed) break;
+                if (!entry.Runtime.IsActive || entry.Runtime.Version != entry.Version) continue;
+                try { Advance(entry.Runtime, deltaTime); }
+                catch (Exception exception) { Deactivate(entry.Runtime); Debug.LogException(exception); }
+            }
         }
-        catch
+        finally { tickSnapshot.Clear(); EndOperation(); }
+    }
+
+    private void Advance(EffectRuntime runtime, float deltaTime)
+    {
+        if (runtime.Owner == null || !ReferenceEquals(runtime.Owner.RuntimeData, runtime.Identity) ||
+            runtime.Identity.Generation != runtime.Generation || !runtime.Identity.IsAlive)
+        { Deactivate(runtime); return; }
+        if (runtime.Paused) return;
+        double activeTime = Math.Min(deltaTime, runtime.Remaining);
+        runtime.Remaining = Math.Max(0d, runtime.Remaining - activeTime);
+        double interval = runtime.Configuration.TickInterval;
+        int ticks = 0;
+        if (interval > 0d)
         {
-            Deactivate(runtime);
-            throw;
+            runtime.TickElapsed += activeTime;
+            ticks = (int)Math.Min(int.MaxValue, Math.Floor((runtime.TickElapsed + 0.0000001d) / interval));
+            runtime.TickElapsed = Math.Max(0d, runtime.TickElapsed - ticks * interval);
         }
-        finally { EndOperation(); }
+        if (ticks > 0) runtime.Tick(ticks);
+        // Damage callback có thể gia hạn effect; chỉ gỡ nếu thời hạn hiện tại vẫn đã hết.
+        if (runtime.IsActive && !runtime.IsMaintained && runtime.Remaining <= 0d) Deactivate(runtime);
     }
 
     #endregion
 
     #region Deactivation And Deferred Pool Returns
 
-    // Loại khỏi timer và các bảng tra ngay; hành vi Remove/Reset được hoãn đến EndOperation.
+    // Loại khỏi danh sách hoạt động ngay; Remove/Reset được hoãn đến EndOperation.
     private void Deactivate(EffectRuntime runtime)
     {
         if (!runtime.IsActive) return;
         runtime.IsActive = false;
-        timers.Cancel(runtime.Timer);
         if (!runtime.IsMaintained) lookup.Remove((runtime.Identity, runtime.Configuration));
         // Đổi chỗ phần tử cuối để gỡ O(1); cập nhật index của runtime được chuyển vào chỗ trống.
         List<EffectRuntime> group = targetEffects[runtime.Identity];

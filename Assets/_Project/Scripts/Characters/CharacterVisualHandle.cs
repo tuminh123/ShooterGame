@@ -2,8 +2,38 @@ using System;
 using UnityEngine;
 
 // Một đầu mối quay mặt và animation trên prefab ngoại hình. Không gây damage hoặc điều khiển movement.
-public sealed class CharacterVisualHandle : MonoBehaviour
+public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
 {
+    #region Zenject Tick Registration
+
+    private Zenject.LazyInject<Zenject.TickableManager> tickables;
+    private bool registeredForTicks;
+    private int activationFrame = -1;
+
+    [Zenject.Inject]
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+
+    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
+    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
+    private void StartFrameUpdates()
+    {
+        if (registeredForTicks || tickables == null) return;
+        tickables.Value.AddLate(this, 400);
+        registeredForTicks = true;
+    }
+
+    private void StopFrameUpdates()
+    {
+        if (!registeredForTicks) return;
+        tickables.Value.RemoveLate(this);
+        registeredForTicks = false;
+    }
+
+    private void Start() => StartFrameUpdates();
+
+    #endregion
+
+    #region Configuration & Playback State
     [Header("References")]
     [SerializeField] private Transform facingRoot;
     [SerializeField] private Animator animator;
@@ -28,6 +58,10 @@ public sealed class CharacterVisualHandle : MonoBehaviour
     private float originalAnimatorSpeed;
     private AnimatorUpdateMode originalUpdateMode;
     private Action terminalCompleted;
+
+    #endregion
+
+    #region Binding & Animation Playback
 
     private void Awake() => CacheConfiguration();
 
@@ -156,6 +190,7 @@ public sealed class CharacterVisualHandle : MonoBehaviour
 
     private void OnEnable()
     {
+        activationFrame = Time.frameCount;
         if (source == null) return;
         OnFacingChanged(source.FacingRight);
         ApplyPendingPlayback();
@@ -194,8 +229,9 @@ public sealed class CharacterVisualHandle : MonoBehaviour
         animator.Play(hash, 0, 0f);
     }
 
-    private void LateUpdate()
+    public void LateTick()
     {
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (source == null || !animator.isActiveAndEnabled ||
             (!IsResultState(currentState) && Time.deltaTime <= 0f)) return;
         ApplyPendingPlayback();
@@ -241,5 +277,6 @@ public sealed class CharacterVisualHandle : MonoBehaviour
         return true;
     }
 
-    private void OnDestroy() => Unbind();
+    private void OnDestroy() { StopFrameUpdates(); Unbind(); }
+    #endregion
 }

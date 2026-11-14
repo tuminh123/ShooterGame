@@ -10,7 +10,7 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     /// <summary>Snapshot một lượt Pattern: nhóm, quái, cấp, quota và lịch sinh.</summary>
     private sealed class Run
     {
-        public EnemyPatternSO config;
+        public EnemyPatternSO.RuntimeData config;
         public EnemyFormationRuntime group;
         public CharacterDataSO[] enemies;
         public int level, spawned, total;
@@ -60,16 +60,17 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     /// <summary>Đăng ký Pattern chờ mốc delay tính từ đầu Stage.</summary>
     public void Execute(IStageSpawnData data)
     {
-        var config = data as EnemyPatternSO ?? throw new ArgumentException("FormationSpawnSystem requires EnemyPatternSO.");
+        var source = data as EnemyPatternSO ?? throw new ArgumentException("FormationSpawnSystem requires EnemyPatternSO.");
+        var config = source.CreateRuntimeData();
         runs.Add(new Run
         {
             config = config,
-            enemies = (CharacterDataSO[])config.enemies.Clone(),
-            level = config.enemyLevel,
+            enemies = config.Enemies,
+            level = config.EnemyLevel,
             total = config.Count,
-            interval = config.spawnInterval,
-            startsAt = config.delay,
-            nextSpawn = config.delay + config.spawnInterval
+            interval = config.SpawnInterval,
+            startsAt = config.Delay,
+            nextSpawn = config.Delay + config.SpawnInterval
         });
     }
 
@@ -78,13 +79,12 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     {
         var config = run.config;
         var camera = spawner.FormationCamera;
-        var route = config.type == EnemyPatternType.Area ? null : new EnemyPathRoute(
-            EnemyPathBuilder.Build(config.path, camera.transform.position), camera.transform);
+        var route = config.CreateRoute(camera != null ? camera.transform : null);
         run.group = new EnemyFormationRuntime(config, route,
                 () => players.CurrentPlayer != null ? (Vector2)players.CurrentPlayer.transform.position : Vector2.zero,
                 spawner.Despawn);
         roster.Add(run.group);
-        if (config.type == EnemyPatternType.SequentialPath) SpawnMember(run);
+        if (config.Type == EnemyPatternType.SequentialPath) SpawnMember(run);
         else while (run.spawned < run.total) SpawnMember(run);
     }
 

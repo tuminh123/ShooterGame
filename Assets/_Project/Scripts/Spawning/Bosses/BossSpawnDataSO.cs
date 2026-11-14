@@ -12,16 +12,23 @@ public sealed class BossSpawnDataSO : ScriptableObject, IStageSpawnData
     [Serializable]
     public sealed class Entry
     {
+        [Tooltip("Elite sinh theo Elite Stage Time; Boss sinh theo điều kiện wave. Toàn Stage chỉ được có một entry Boss.")]
         public SpecialEnemyType type;
+        [Tooltip("Template phe Enemy có visual. Boss cần Is Boss bật; Elite dùng Enemy thường và tối đa một skill.")]
         public CharacterDataSO character;
+        [Tooltip("Cấp nhân vật khi spawn, từ 1 trở lên; bonus được lấy từ Character Level Config.")]
         [Min(1)] public int enemyLevel = 1;
+        [Tooltip("Mốc sinh Elite tính từ đầu Stage, bằng giây gameplay. 0 = sinh ngay; chỉ dùng khi Type là Elite.")]
         [Min(0f)] public float eliteStageTime;
+        [Tooltip("Hệ số kích thước Elite so với Enemy thường; 1 = giữ nguyên, 1.5 = lớn hơn 50%. Chỉ dùng cho Elite.")]
         [Min(1f)] public float eliteScale = 1.5f;
+        [Tooltip("Hệ số máu tối đa của Elite sau khi áp dụng cấp. 2 = gấp đôi HP; chỉ dùng cho Elite.")]
         [Min(1f)] public float eliteHealthMultiplier = 2f;
     }
 
     [Tooltip("Nhiều Elite được phép; tối đa một entry Boss trong một Stage.")]
     public List<Entry> entries = new List<Entry>();
+    [Tooltip("AfterAllWavesSpawned: khi mọi chuỗi wave sinh xong. AfterFinalWaveCleared: chờ dọn sạch quái wave; mọi bộ Boss trong Stage phải cùng điều kiện.")]
     public BossAppearanceCondition bossAppearanceCondition;
     [Tooltip("Kích thước vùng chiến đấu quanh player khi Boss xuất hiện.")]
     public Vector2 arenaSize = new Vector2(12f, 8f);
