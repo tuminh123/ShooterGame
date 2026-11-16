@@ -28,7 +28,7 @@ Các hệ thống dùng chung EnemySpawnManager để tạo/thu hồi nhân vậ
   bỏ context và mọi xử lý wave cụ thể; giữ điều phối vòng đời/kết quả/thưởng.
 - Assets/_Project/Scripts/Spawning/Core/IStageSpawnData.cs:
   factory nhận DiContainer hiện có để tạo hệ thống bằng constructor injection.
-- Assets/_Project/Scripts/Spawning/Core/IStageSpawnSystem.cs:
+- Assets/_Project/Scripts/Interfaces/Spawning/Core/IStageSpawnSystem.cs:
   bỏ Initialize(context); giữ Validate/Execute/Tick/LateTick/Stop và trạng thái.
 - Assets/_Project/Scripts/Spawning/Waves/WaveSpawnSystem.cs:
   tự quản lý toàn bộ chuỗi wave, quota, nhịp và điều kiện chuyển của quái thường.

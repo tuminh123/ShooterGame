@@ -7,8 +7,7 @@ using Zenject;
 public sealed class ResetSaveButton : MonoBehaviour
 {
     #region Dependencies And State
-
-    private SaveManager saves;
+    private ISaveReset saves;
     private Button button;
     private bool reloading;
 
@@ -17,7 +16,7 @@ public sealed class ResetSaveButton : MonoBehaviour
     #region Injection And Initialization
 
     [Inject]
-    public void Construct(SaveManager saves) => this.saves = saves;
+    public void Construct(ISaveService saveService)=> this.saves = saveService.GetSaveReset();
 
     private void Awake()
     {

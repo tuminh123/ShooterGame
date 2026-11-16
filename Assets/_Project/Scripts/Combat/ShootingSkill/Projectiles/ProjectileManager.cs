@@ -4,8 +4,8 @@ using Unity.Collections;
 using UnityEngine;
 using Zenject;
 
-// Một vòng cập nhật chung cho đạn; MovementManager vẫn là nơi duy nhất đổi vị trí.
-public sealed class ProjectileManager : ITickable, IDisposable
+// Một vòng cập nhật chung cho đạn; IMovementRegistration vẫn là nơi duy nhất đổi vị trí.
+public sealed class ProjectileManager : ITickable, IDisposable, IProjectileSystem, IProjectileRegistration, IProjectileCleanup, IProjectileCapacity
 {
     private readonly struct Registration
     {
@@ -18,9 +18,9 @@ public sealed class ProjectileManager : ITickable, IDisposable
             Handle = handle;
         }
     }
-
-    private readonly MovementManager movementManager; // Kiểm tra đăng ký còn thuộc lượt spawn hiện tại.
-    private readonly ISpatialManager spatial;
+    private readonly IMovementRegistration movementManager; // Kiểm tra đăng ký còn thuộc lượt spawn hiện tại.
+    private readonly ISpatialResolution spatialResolution;
+    private readonly ISpatialQuery spatialSpatialQuery;
     private NativeArray<SpatialQuery> queries;
     private NativeArray<SpatialHit> results;
     private readonly List<Registration> activeProjectiles = new List<Registration>(128); // Đạn đang sống.
@@ -30,24 +30,25 @@ public sealed class ProjectileManager : ITickable, IDisposable
     private readonly Plane[] cameraPlanes = new Plane[6]; // Tái sử dụng sáu mặt giới hạn camera, không tạo mảng mỗi frame.
     private bool disposed; // Ngăn cập nhật sau khi scene giải phóng manager.
 
-    public ProjectileManager(MovementManager movementManager, ISpatialManager spatial)
+    public ProjectileManager(IMovementSystem movementSystem, ISpatialManager spatialManager)
     {
-        this.movementManager = movementManager ?? throw new ArgumentNullException(nameof(movementManager));
-        this.spatial = spatial;
+        this.movementManager = movementSystem.GetRegistration() ?? throw new ArgumentNullException(nameof(movementSystem));
+        this.spatialResolution = spatialManager.GetResolution();
+        this.spatialSpatialQuery = spatialManager.GetQueries();
         queries = new NativeArray<SpatialQuery>(128, Allocator.Persistent);
         results = new NativeArray<SpatialHit>(128, Allocator.Persistent);
         Camera.onPreCull += DespawnOutsideCamera;
         GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
-    internal void Register(ProjectileView projectile, MovementHandle handle)
+    public void Register(ProjectileView projectile, MovementHandle handle)
     {
         if (disposed) throw new ObjectDisposedException(nameof(ProjectileManager));
         indices.Add(handle.Id, activeProjectiles.Count);
         activeProjectiles.Add(new Registration(projectile, handle));
     }
 
-    internal void Unregister(MovementHandle handle)
+    public void Unregister(MovementHandle handle)
     {
         if (!ReferenceEquals(handle.Owner, movementManager) || !indices.TryGetValue(handle.Id, out int index)) return;
         indices.Remove(handle.Id);
@@ -88,7 +89,7 @@ public sealed class ProjectileManager : ITickable, IDisposable
                 if (movementManager.IsRegistered(registration.Handle)) registration.Projectile.Release();
             }
         }
-        spatial.ExecuteQueries(queries, results, tickSnapshot.Count);
+        spatialSpatialQuery.ExecuteQueries(queries, results, tickSnapshot.Count);
         for (int index = 0; index < tickSnapshot.Count; index++)
         {
             Registration registration = tickSnapshot[index];
@@ -98,10 +99,10 @@ public sealed class ProjectileManager : ITickable, IDisposable
             {
                 SpatialHit hit = results[index];
                 // Đạn trước có thể vừa giết mục tiêu chung. Quét lại đường này để không xuyên mục tiêu phía sau.
-                if (!spatial.TryResolve(hit, out CharacterTarget target) && hit.Found != 0)
+                if (!spatialResolution.TryResolve(hit, out CharacterTarget target) && hit.Found != 0)
                 {
-                    hit = spatial.Query(queries[index]); // Giữ cả vị trí trúng mới để VFX không dùng kết quả cũ.
-                    spatial.TryResolve(hit, out target);
+                    hit = spatialSpatialQuery.Query(queries[index]); // Giữ cả vị trí trúng mới để VFX không dùng kết quả cũ.
+                    spatialResolution.TryResolve(hit, out target);
                 }
                 registration.Projectile.CompleteQuery(target, new Vector2(hit.Position.x, hit.Position.y));
             }
@@ -197,4 +198,15 @@ public sealed class ProjectileManager : ITickable, IDisposable
         queries.Dispose();
         results.Dispose();
     }
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IProjectileRegistration GetProjectileRegistration() => this;
+
+    public IProjectileCleanup GetProjectileCleanup() => this;
+
+    public IProjectileCapacity GetProjectileCapacity() => this;
+
+    #endregion
 }

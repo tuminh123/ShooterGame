@@ -4,7 +4,7 @@ using Zenject;
 
 
 // * Quản lý nền lặp bằng một lưới chunk quanh người chơi; dùng Lean Pool tái sử dụng các mảnh nền.
-public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
+public class GroundChunkManager : MonoBehaviour, Zenject.ITickable, IWorldMapService, IWorldMap
 {
     #region Zenject Tick Registration
 
@@ -13,7 +13,7 @@ public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
     private int activationFrame = -1;
 
     [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
 
     // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
     // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
@@ -36,8 +36,8 @@ public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
     #region Player Dependencies & Startup State
 
     private Transform player;              // * Tâm lưới được đồng bộ từ PlayerManager.
-    private PlayerManager playerManager;   // * Nguồn player và sự kiện thay nhân vật.
-    private PoolManager poolManager;       // * Spawn/thu hồi chunk và gom các pool vào holder.
+    private IPlayerReader playerManager;   // * Nguồn player và sự kiện thay nhân vật.
+    private IGameObjectPool poolManager;       // * Spawn/thu hồi chunk và gom các pool vào holder.
     private bool started;                  // * Cho phép dựng lưới sau khi Start chuẩn bị mẫu nền.
 
     #endregion
@@ -90,12 +90,12 @@ public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
 
     // * Nhận dependency, không phụ thuộc thứ tự Start giữa player và manager nền.
     [Inject]
-    public void Construct(PlayerManager players, PoolManager pools)
+    public void Construct(IPlayerSystem playerSystem, IPoolSystem poolSystem)
     {
         if (playerManager != null)
             playerManager.PlayerChanged -= OnPlayerChanged;
-        playerManager = players;
-        poolManager = pools;
+        playerManager = playerSystem.GetPlayerReader();
+        poolManager = poolSystem.GetGameObjectPool();
         if (isActiveAndEnabled)
             OnEnable();
     }
@@ -147,7 +147,7 @@ public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
         StartFrameUpdates();
         if (groundChunkPrefab == null || poolManager == null)
         {
-            Debug.LogError("GroundChunkManager needs a Ground template and Zenject injection.", this);
+            Debug.LogError("IWorldMapService needs a Ground template and Zenject injection.", this);
             enabled = false;
             return;
         }
@@ -311,6 +311,13 @@ public class GroundChunkManager : MonoBehaviour, Zenject.ITickable
 
         activeChunks.Clear();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IWorldMap GetWorldMap() => this;
 
     #endregion
 

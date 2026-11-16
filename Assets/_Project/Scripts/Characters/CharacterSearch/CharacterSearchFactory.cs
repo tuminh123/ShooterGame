@@ -11,16 +11,16 @@ public sealed class CharacterSearchFactory : ICharacterSearchFactory
     private readonly Dictionary<CharacterSearchType, IMultipleCharacterSearch> multipleSearches; // Các cách trả nhiều mục tiêu.
 
     // Mỗi strategy được tạo một lần; tất cả truy cập Spatial qua interface.
-    public CharacterSearchFactory(ISpatialManager spatial, ISpatialSearchFactory queries)
+    public CharacterSearchFactory(ISpatialManager spatialManager, ISpatialSearchFactory spatialSearchFactory)
     {
         singleSearches = new Dictionary<CharacterSearchType, ISingleCharacterSearch>
         {
-            { CharacterSearchType.Nearest, new FindNearestSearch(spatial, queries) },
-            { CharacterSearchType.FirstOnPath, new FindFirstOnPathSearch(spatial, queries) }
+            { CharacterSearchType.Nearest, new FindNearestSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) },
+            { CharacterSearchType.FirstOnPath, new FindFirstOnPathSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) }
         };
         multipleSearches = new Dictionary<CharacterSearchType, IMultipleCharacterSearch>
         {
-            { CharacterSearchType.AllInCircle, new FindAllInCircleSearch(spatial, queries) }
+            { CharacterSearchType.AllInCircle, new FindAllInCircleSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) }
         };
     }
 

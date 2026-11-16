@@ -6,7 +6,14 @@ using Unity.Mathematics;
 using UnityEngine;
 
 // Sở hữu đăng ký, snapshot hình học và grid. Chỉ bảng tra main thread giữ tham chiếu Unity.
-public sealed class SpatialManager : ISpatialManager, IDisposable
+public sealed class SpatialManager :
+    ISpatialManager,
+    IDisposable,
+    ISpatialRegistration,
+    ISpatialInvalidation,
+    ISpatialResolution,
+    ISpatialQuery,
+    ISpatialCapacity
 {
     #region Registration Data
 
@@ -23,8 +30,8 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
     #endregion
 
     #region Registry & Native Buffers
-
-    private readonly ISpatialSearchFactory searchFactory; // Chọn strategy; manager không giữ thuật toán tìm cụ thể.
+    private readonly ISpatialStrategyProvider strategyProvider; // Chọn strategy; manager không giữ thuật toán tìm cụ thể.
+    private readonly ISpatialQueryValidator queryValidator;
     private readonly HashSet<SpatialQueryType> batchTypes = new HashSet<SpatialQueryType>(); // Các loại xuất hiện trong batch, tái sử dụng qua mỗi lượt.
     private const float CellSize = 1f; // World unit; ô nhỏ giảm ứng viên nhưng tăng số ô phải duyệt.
     private Registration[] registrations = new Registration[128]; // Bảng tra main thread; 128 là ban đầu, đầy sẽ tăng dung lượng.
@@ -46,9 +53,10 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
     #region Initialization
 
     // Tạo buffer persistent; các truy vấn sau dùng lại thay vì cấp phát mỗi frame.
-    public SpatialManager(ISpatialSearchFactory searchFactory)
+    public SpatialManager(ISpatialSearchFactory spatialSearchFactory)
     {
-        this.searchFactory = searchFactory;
+        this.strategyProvider = spatialSearchFactory.GetStrategyProvider();
+        this.queryValidator = spatialSearchFactory.GetQueryValidator();
         entities = new NativeArray<SpatialEntity>(128, Allocator.Persistent);
         grid = new NativeMultiHashMap<int2, int>(128, Allocator.Persistent);
         allHits = new NativeList<SpatialHit>(128, Allocator.Persistent);
@@ -150,7 +158,7 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
         try
         {
             foreach (SpatialQueryType type in batchTypes)
-                pendingJob = searchFactory.Get(type).Schedule(context, pendingJob);
+                pendingJob = strategyProvider.Get(type).Schedule(context, pendingJob);
         }
         finally { pendingJob.Complete(); } // Callback/resize chỉ được diễn ra sau khi mọi strategy hoàn tất.
     }
@@ -178,8 +186,8 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
     // Chặn dùng nhầm query nhiều hit với layout một hit/query, không phụ thuộc loại thuật toán cụ thể.
     private ISpatialSearchStrategy SelectStrategy(SpatialQuery query, bool returnsMany)
     {
-        searchFactory.Validate(query);
-        ISpatialSearchStrategy strategy = searchFactory.Get(query.Type);
+        queryValidator.Validate(query);
+        ISpatialSearchStrategy strategy = strategyProvider.Get(query.Type);
         if (strategy.ReturnsMany != returnsMany)
             throw new ArgumentException("Use FindAll for multiple-result strategies and Query/ExecuteQueries for single-result strategies.");
         return strategy;
@@ -271,6 +279,21 @@ public sealed class SpatialManager : ISpatialManager, IDisposable
         Array.Clear(registrations, 0, registrations.Length);
         freeSlots.Clear();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ISpatialRegistration GetRegistration() => this;
+
+    public ISpatialInvalidation GetInvalidation() => this;
+
+    public ISpatialResolution GetResolution() => this;
+
+    public ISpatialQuery GetQueries() => this;
+
+    public ISpatialCapacity GetCapacity() => this;
 
     #endregion
 }

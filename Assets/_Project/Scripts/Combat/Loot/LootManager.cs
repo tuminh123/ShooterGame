@@ -10,27 +10,35 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
 
     private readonly LootDatabaseSO database; // Cấu hình prefab và bán kính nhặt từ asset chung.
     private readonly Dictionary<PickupType, LootDatabaseSO.LootEntry> drops; // Tra cấu hình từng loại, không giữ trạng thái trên asset.
-    private readonly CharacterManager characters;
-    private readonly PlayerManager players;
-    private readonly LevelManager levels;
-    private readonly PoolManager pools;
-    private readonly RunSessionManager session; // Nhận thưởng vàng, không giao dữ liệu trực tiếp cho UI.
-    private readonly CurrencyService currencies; // Ví vĩnh viễn: vàng được lưu ngay khi nhặt.
+    private readonly ICharacterDeathEvents characters;
+    private readonly IPlayerReader players;
+    private readonly IRunProgress levelsRunProgress;
+    private readonly IRunProgressCommands runProgressCommands;
+    private readonly IGameObjectPool pools;
+    private readonly IRunGoldRecorder session; // Nhận thưởng vàng, không giao dữ liệu trực tiếp cho UI.
+    private readonly ICurrencyWallet currencies; // Ví vĩnh viễn: vàng được lưu ngay khi nhặt.
     private readonly List<PickupView> pickups = new List<PickupView>(128); // Vật phẩm còn trên mặt đất, tái sử dụng qua pool.
     private int runVersion; // Dừng lượt nhặt cũ nếu callback nhận EXP vừa reset trận.
     private bool disposed;
 
-    public LootManager(LootDatabaseSO database, CharacterManager characters, PlayerManager players,
-        LevelManager levels, PoolManager pools, RunSessionManager session, CurrencyService currencies)
+    public LootManager(
+        LootDatabaseSO database,
+        ICharacterSystem characterSystem,
+        IPlayerSystem playerSystem,
+        ILevelService levelService,
+        IPoolSystem poolSystem,
+        IRunSession runSession,
+        ICurrencyService currencyService)
     {
         this.database = database != null ? database : throw new ArgumentNullException(nameof(database));
         drops = database.CreateLookup();
-        this.characters = characters;
-        this.players = players;
-        this.levels = levels;
-        this.pools = pools;
-        this.session = session;
-        this.currencies = currencies;
+        this.characters = characterSystem.GetCharacterDeathEvents();
+        this.players = playerSystem.GetPlayerReader();
+        this.levelsRunProgress = levelService.GetRunProgress();
+        this.runProgressCommands = levelService.GetRunProgressCommands();
+        this.pools = poolSystem.GetGameObjectPool();
+        this.session = runSession.GetRunGoldRecorder();
+        this.currencies = currencyService.GetWallet();
     }
 
     #endregion
@@ -40,7 +48,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     public void Initialize()
     {
         characters.CharacterDied += DropEnemyLoot;
-        levels.RunReset += ResetRun;
+        levelsRunProgress.RunReset += ResetRun;
     }
 
     // CharacterDied chỉ phát khi chết thật; despawn hoặc tắt enemy không tạo phần thưởng.
@@ -92,7 +100,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
             pickups.RemoveAt(last);
             if (pickup != null) pools.Despawn(pickup.gameObject);
             if (amount <= 0) continue;
-            if (type == PickupType.Experience) levels.AddRunExperience(amount);
+            if (type == PickupType.Experience) runProgressCommands.AddRunExperience(amount);
             else if (type == PickupType.Gold)
             {
                 // Add đã cập nhật ví và thử lưu. IO lỗi giữ snapshot để retry, không cộng thưởng lần nữa.
@@ -126,7 +134,7 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
         if (disposed) return;
         disposed = true;
         characters.CharacterDied -= DropEnemyLoot;
-        levels.RunReset -= ResetRun;
+        levelsRunProgress.RunReset -= ResetRun;
         ClearPickups();
     }
 

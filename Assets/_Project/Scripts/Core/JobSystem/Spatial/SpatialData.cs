@@ -6,11 +6,11 @@ using Unity.Mathematics;
 // Không giữ CharacterView trong dữ liệu job. Owner chỉ tồn tại trong handle dùng trên main thread.
 public readonly struct SpatialHandle : IEquatable<SpatialHandle>
 {
-    internal readonly ISpatialManager Owner; // Manager sở hữu đăng ký.
+    internal readonly ISpatialResolution Owner; // Manager sở hữu đăng ký.
     internal readonly int Index; // Ô trong bảng tra nhân vật.
     internal readonly uint Version; // Phiên bản để không nhận nhầm lượt đăng ký mới.
     // Manager cấp handle sau khi đăng ký nhân vật.
-    internal SpatialHandle(ISpatialManager owner, int index, uint version)
+    internal SpatialHandle(ISpatialResolution owner, int index, uint version)
     { Owner = owner; Index = index; Version = version; }
     // Cùng index nhưng khác manager/phiên bản vẫn là đăng ký khác.
     public bool Equals(SpatialHandle other)

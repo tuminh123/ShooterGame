@@ -10,11 +10,11 @@ using Zenject;
 // * Mã đăng ký di chuyển; mặc định là không hợp lệ, không dùng chỉ số mảng làm danh tính.
 public readonly struct MovementHandle
 {
-    internal readonly MovementManager Owner;  // * Manager sở hữu handle; tránh dùng nhầm handle giữa hai scene/container.
+    internal readonly IMovementRegistration Owner;  // * Manager sở hữu handle; tránh dùng nhầm handle giữa hai scene/container.
     internal readonly long Id;                // * Mã tăng dần, không tái sử dụng khi pool trả lại cùng một GameObject.
 
     // * Chỉ manager tạo handle khi đăng ký thành công.
-    internal MovementHandle(MovementManager owner, long id)
+    internal MovementHandle(IMovementRegistration owner, long id)
     {
         Owner = owner;
         Id = id;
@@ -24,16 +24,22 @@ public readonly struct MovementHandle
 // * Dịch vụ class thuần cho chuyển động XY của enemy, đạn, boss và các Transform khác.
 // * Zenject gọi LateTick sau Update; đối tượng tự quyết định hướng và gửi bằng SetMovement.
 // ! API chỉ gọi từ main thread; di chuyển trực tiếp Transform, không giải quyết va chạm vật lý.
-public sealed class MovementManager : ILateTickable, IDisposable
+public sealed class MovementManager :
+    ILateTickable,
+    IDisposable,
+    IMovementSystem,
+    IMovementRegistration,
+    IMovementCommand,
+    IMovementArena,
+    IMovementCapacity
 {
     #region Dependencies
-
-    private readonly ISpatialManager spatial; // Báo snapshot không gian cần cập nhật sau khi đổi vị trí.
+    private readonly ISpatialInvalidation spatialSpatialInvalidation; // Báo snapshot không gian cần cập nhật sau khi đổi vị trí.
 
     // Dùng cùng dữ liệu không gian của scene, không tự tạo manager tìm kiếm khác.
-    public MovementManager(ISpatialManager spatial)
+    public MovementManager(ISpatialManager spatialManager)
     {
-        this.spatial = spatial;
+        this.spatialSpatialInvalidation = spatialManager.GetInvalidation();
     }
 
     #endregion
@@ -210,7 +216,7 @@ public sealed class MovementManager : ILateTickable, IDisposable
             entries[i].Target.position = new Vector3(position.x, position.y, position.z);
         }
         // Snapshot không gian phải lấy vị trí mới nếu có truy vấn sau LateTick trong cùng frame.
-        spatial.Invalidate();
+        spatialSpatialInvalidation.Invalidate();
     }
 
     #endregion
@@ -273,6 +279,19 @@ public sealed class MovementManager : ILateTickable, IDisposable
         targets.Clear();
         disposed = true;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IMovementRegistration GetRegistration() => this;
+
+    public IMovementCommand GetCommands() => this;
+
+    public IMovementArena GetArena() => this;
+
+    public IMovementCapacity GetCapacity() => this;
 
     #endregion
 

@@ -5,7 +5,7 @@ using UnityEngine;
 using Zenject;
 
 // Che UI trước khi đổi lượt; giữ pause đến khi màn mới đã hiện hoàn toàn.
-public sealed class ScreenTransitionController : MonoBehaviour
+public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitionService, IScreenTransition
 {
     #region Presentation Settings
 
@@ -19,9 +19,9 @@ public sealed class ScreenTransitionController : MonoBehaviour
     #endregion
 
     #region Dependencies And Playback State
-
-    private GameManager game;
-    private GameplayPauseService pauses;
+    private IGameStateReader gameState;
+    private IRunCommands runCommands;
+    private IGameplayPause pauses;
     private IDisposable pauseLease;
     private Func<bool> pendingCommand;
     private Tween fade;
@@ -29,10 +29,11 @@ public sealed class ScreenTransitionController : MonoBehaviour
     public bool IsTransitioning => pauseLease != null;
 
     [Inject]
-    public void Construct(GameManager game, GameplayPauseService pauses)
+    public void Construct(IGameFlow gameFlow, IGameplayPauseService gameplayPauseService)
     {
-        this.game = game;
-        this.pauses = pauses;
+        this.gameState = gameFlow.GetGameStateReader();
+        this.runCommands = gameFlow.GetRunCommands();
+        this.pauses = gameplayPauseService.GetGameplayPause();
         ResetPresentation();
     }
 
@@ -40,9 +41,9 @@ public sealed class ScreenTransitionController : MonoBehaviour
 
     #region Navigation Commands
 
-    public bool StartRun() => game != null && game.State == GameState.Home && Begin(game.StartRun);
-    public bool RestartRun() => game != null && game.State == GameState.Playing && Begin(game.RestartRun);
-    public bool ReturnHome() => game != null && game.State == GameState.Playing && Begin(game.ReturnHome);
+    public bool StartRun() => gameState != null && gameState.State == GameState.Home && Begin(runCommands.StartRun);
+    public bool RestartRun() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.RestartRun);
+    public bool ReturnHome() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.ReturnHome);
 
     // Overlay chặn raycast ngay khi nhận lệnh; token riêng không làm mất pause của popup/Home.
     private bool Begin(Func<bool> command)
@@ -109,6 +110,13 @@ public sealed class ScreenTransitionController : MonoBehaviour
 
     private void OnDisable() => ResetPresentation();
     private void OnDestroy() => ResetPresentation();
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IScreenTransition GetScreenTransition() => this;
 
     #endregion
 }

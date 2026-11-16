@@ -49,7 +49,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
     [SerializeField] private RectTransform ownedSlotsRoot; // Group_SkillFrmae02 dùng GridLayoutGroup gốc, ban đầu không có slot con.
     [SerializeField] private OwnedSkillSlot ownedSlotTemplate; // Prefab asset có script riêng; pool tạo instance khi có skill đầu tiên.
     private readonly List<OwnedSkillSlot> ownedSlots = new List<OwnedSkillSlot>(); // Chỉ giữ instance đang dùng; phần rảnh thuộc PoolManager.
-    private PoolManager pools; // Dùng pool chung của dự án, không tự tạo pool hoặc prewarm slot.
+    private IGameObjectPool pools; // Dùng pool chung của dự án, không tự tạo pool hoặc prewarm slot.
 
     #endregion
 
@@ -75,9 +75,9 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     // Inject pool cả khi panel đang tắt; không spawn slot trong bước khởi tạo.
     [Zenject.Inject]
-    public void Construct(PoolManager pools)
+    public void Construct(IPoolSystem poolSystem)
     {
-        this.pools = pools;
+        this.pools = poolSystem.GetGameObjectPool();
     }
 
 
@@ -159,7 +159,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
         while (ownedSlots.Count > skills.Count) ReleaseLastOwnedSlot();
         if (skills.Count == 0) return;
         if (ownedSlotsRoot == null || ownedSlotTemplate == null || pools == null)
-            throw new InvalidOperationException("Assign owned slot prefab, group and inject PoolManager in SkillChoiceUI.");
+            throw new InvalidOperationException("Assign owned slot prefab, group and inject IGameObjectPool in SkillChoiceUI.");
         while (ownedSlots.Count < skills.Count)
         {
             GameObject clone = pools.Spawn(ownedSlotTemplate.gameObject, Vector3.zero, Quaternion.identity,

@@ -5,18 +5,29 @@ using UnityEngine;
 /// <summary>Lên lịch nhiều Elite và tối đa một Boss từ dữ liệu Stage.</summary>
 public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpdateStage
 {
+
+    #region Dependencies And State
     public event Action<StageSpawnWarning, float> SpawnScheduled;
     // Stage cung cấp mốc hoàn tất wave nếu xác định được; không thay thế điều kiện summon thực tế.
     public float? ScheduledWaveCompletion { private get; set; }
+
+    #endregion
+
+    #region Supporting Types
     private sealed class EliteRun
     {
         public BossSpawnDataSO.Entry entry;
         public bool spawned;
     }
 
-    private readonly EnemySpawnManager spawner;
+    #endregion
+
+    #region Dependencies And State
+    private readonly IEnemySpawnValidation spawnValidation;
+    private readonly IEnemySpawn spawnerEnemySpawn;
+    private readonly IEnemySpawnGeometry spawnGeometry;
     private readonly StageSpawnRoster roster;
-    private readonly BossHandleSummon summon;
+    private readonly IBossSummon summon;
     private readonly List<EliteRun> elites = new List<EliteRun>();
     private BossSpawnDataSO.Entry boss;
     private BossAppearanceCondition condition;
@@ -34,21 +45,35 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
     }
     public int AliveCount => roster.AliveCount;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Nhận spawner và dịch vụ summon đấu trường.</summary>
-    public BossSpawnSystem(EnemySpawnManager spawner, BossHandleSummon summon)
+    public BossSpawnSystem(IEnemySpawnService enemySpawnService, IBossSummonService bossSummonService)
     {
-        this.spawner = spawner;
-        this.summon = summon;
-        roster = new StageSpawnRoster(spawner);
+        this.spawnValidation = enemySpawnService.GetEnemySpawnValidation();
+        this.spawnerEnemySpawn = enemySpawnService.GetEnemySpawn();
+        this.spawnGeometry = enemySpawnService.GetEnemySpawnGeometry();
+        this.summon = bossSummonService.GetBossSummon();
+        roster = new StageSpawnRoster(enemySpawnService.GetEnemyDespawn());
     }
+
+    #endregion
+
+    #region Validation
 
     /// <summary>Kiểm tra entry Elite/Boss và nhân vật tương ứng.</summary>
     public void Validate(IStageSpawnData data)
     {
         var config = data as BossSpawnDataSO ?? throw new ArgumentException("BossSpawnSystem requires BossSpawnDataSO.");
         config.Validate();
-        foreach (BossSpawnDataSO.Entry entry in config.entries) spawner.ValidateCharacter(entry.character);
+        foreach (BossSpawnDataSO.Entry entry in config.entries) spawnValidation.ValidateCharacter(entry.character);
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     /// <summary>Đăng ký các Elite theo StageTime và ghi nhận cấu hình điều kiện Boss.</summary>
     public void Execute(IStageSpawnData data)
@@ -86,8 +111,8 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
         foreach (EliteRun elite in elites)
         {
             if (elite.spawned || stageTime < elite.entry.eliteStageTime) continue;
-            var view = spawner.SpawnElite(elite.entry.character, elite.entry.enemyLevel,
-                spawner.ChoosePerimeterPoint(), elite.entry.eliteScale, elite.entry.eliteHealthMultiplier);
+            var view = spawnerEnemySpawn.SpawnElite(elite.entry.character, elite.entry.enemyLevel,
+                spawnGeometry.ChoosePerimeterPoint(), elite.entry.eliteScale, elite.entry.eliteHealthMultiplier);
             roster.Add(view);
             elite.spawned = true;
         }
@@ -104,6 +129,10 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
         bossSpawned = true;
     }
 
+    #endregion
+
+    #region Cleanup
+
     /// <summary>Dọn lượt đặc biệt và gỡ ranh giới đấu trường.</summary>
     public void Stop()
     {
@@ -118,4 +147,6 @@ public sealed class BossSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
             ScheduledWaveCompletion = null;
         }
     }
+
+    #endregion
 }

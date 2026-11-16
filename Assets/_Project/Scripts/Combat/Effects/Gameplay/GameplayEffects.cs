@@ -2,22 +2,10 @@ using System;
 using UnityEngine;
 
 // Cấu hình chọn trong skill; không giữ mục tiêu hay trạng thái của effect đang chạy.
-public interface IGameplayEffect
-{
-    #region Configuration Contract
 
-    float Duration { get; } // Giây tồn tại cho Apply có thời hạn; ApplyMaintained không tự hết hạn theo giá trị này.
-    float ApplicationChance { get; } // Xác suất cơ bản 0..100, vẫn dùng khi tắt UseEffectStats.
-    bool UseEffectStats { get; } // Có điều chỉnh xác suất theo effectHit của nguồn và kháng của mục tiêu.
-    float TickInterval { get; } // 0 nếu không tick; >0 là số giây giữa hai nhịp.
-    void Validate(); // Kiểm tra dữ liệu trước khi manager thuê runtime và tạo timer.
-    EffectRuntime RentRuntime(EffectRuntimePool pool); // Thuê đúng loại và chép thông số; chưa Apply vào mục tiêu.
-
-    #endregion
-}
 
 [Serializable]
-public abstract class GameplayEffectData : IGameplayEffect
+public abstract class GameplayEffectData : IGameplayEffect, IGameplayEffectSettings, IGameplayEffectValidation, IGameplayEffectFactory
 {
     #region Shared Configuration
 
@@ -55,7 +43,18 @@ public abstract class GameplayEffectData : IGameplayEffect
             throw new InvalidOperationException("Invalid gameplay effect duration or chance.");
     }
 
-    public abstract EffectRuntime RentRuntime(EffectRuntimePool pool);
+    public abstract EffectRuntime RentRuntime(IEffectRuntimeLease pool);
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IGameplayEffectSettings GetSettings() => this;
+
+    public IGameplayEffectValidation GetValidation() => this;
+
+    public IGameplayEffectFactory GetRuntimeFactory() => this;
 
     #endregion
 }
@@ -89,7 +88,7 @@ public sealed class SlowEffect : GameplayEffectData
     }
 
     // Cùng cấu hình có thể tạo nhiều runtime cho các mục tiêu/nguồn aura khác nhau.
-    public override EffectRuntime RentRuntime(EffectRuntimePool pool)
+    public override EffectRuntime RentRuntime(IEffectRuntimeLease pool)
     {
         SlowEffectRuntime runtime = pool.Rent<SlowEffectRuntime>();
         runtime.SlowFraction = slowFraction;
@@ -123,7 +122,7 @@ public abstract class DamageOverTimeEffect : GameplayEffectData
     }
 
     // Runtime chụp damage; manager đọc TickInterval từ cấu hình để đăng ký nhịp riêng.
-    public override EffectRuntime RentRuntime(EffectRuntimePool pool)
+    public override EffectRuntime RentRuntime(IEffectRuntimeLease pool)
     {
         DamageOverTimeEffectRuntime runtime = pool.Rent<DamageOverTimeEffectRuntime>();
         runtime.DamagePerTick = damagePerTick;

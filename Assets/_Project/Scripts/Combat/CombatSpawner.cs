@@ -5,6 +5,8 @@ using UnityEngine;
 // Thông số của một viên đạn; AI/nút bấm cũng có thể tạo trực tiếp mà không cần skill.
 public readonly struct ProjectileSpawnData
 {
+
+    #region Dependencies And State
     public BulletType BulletType { get; } // Chọn hình ảnh trong catalog.
     public DamageInfo Damage { get; } // Sát thương và phe nguồn.
     public float Speed { get; } // World unit/giây.
@@ -13,9 +15,18 @@ public readonly struct ProjectileSpawnData
     public IReadOnlyList<IGameplayEffect> Effects { get; } // Cấu hình dùng chung, không chứa trạng thái runtime.
     public float EffectHit { get; } // Chính xác hiệu ứng của nguồn, chốt tại thời điểm bắn.
 
-    public ProjectileSpawnData(BulletType bulletType, DamageInfo damage, float speed,
-        float lifetime, IProjectileMove movement,
-        IReadOnlyList<IGameplayEffect> effects = null, float effectHit = 0f)
+    #endregion
+
+    #region Initialization
+
+    public ProjectileSpawnData(
+        BulletType bulletType,
+        DamageInfo damage,
+        float speed,
+        float lifetime,
+        IProjectileMove movement,
+        IReadOnlyList<IGameplayEffect> effects = null,
+        float effectHit = 0f)
     {
         BulletType = bulletType;
         Damage = damage;
@@ -25,6 +36,10 @@ public readonly struct ProjectileSpawnData
         Effects = effects ?? Array.Empty<IGameplayEffect>();
         EffectHit = effectHit;
     }
+
+    #endregion
+
+    #region Validation
 
     public void Validate()
     {
@@ -38,33 +53,58 @@ public readonly struct ProjectileSpawnData
         {
             IGameplayEffect effect = Effects[index];
             if (effect == null) throw new ArgumentException("Projectile effects cannot contain null entries.");
-            effect.Validate();
+            effect.GetValidation().Validate();
         }
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     // Chặn dữ liệu không hợp lệ từ các bên tạo đạn trực tiếp.
     private static bool IsPositiveFiniteNumber(float value)
         => value > 0f && !float.IsInfinity(value);
+
+    #endregion
 }
 
-public sealed class CombatSpawner : IDisposable
+public sealed class CombatSpawner :
+    IDisposable,
+    ICombatSpawnSystem,
+    IProjectileSpawner,
+    IEffectVisualSpawner,
+    ICombatObjectRelease,
+    IEffectVisualCleanup
 {
-    private readonly PoolManager poolManager;
+
+    #region Dependencies And State
+    private readonly IGameObjectPool poolManager;
     private readonly CombatAssetsSO combatAssets;
     private readonly HashSet<EffectView> activeEffects = new HashSet<EffectView>();
     private bool disposed;
 
-    public CombatSpawner(PoolManager poolManager, CombatAssetsSO combatAssets)
+    #endregion
+
+    #region Initialization
+
+    public CombatSpawner(IPoolSystem poolSystem, CombatAssetsSO combatAssets)
     {
-        this.poolManager = poolManager ?? throw new ArgumentNullException(nameof(poolManager));
+        this.poolManager = poolSystem.GetGameObjectPool() ?? throw new ArgumentNullException(nameof(poolSystem));
         this.combatAssets = combatAssets != null ? combatAssets : throw new ArgumentNullException(nameof(combatAssets));
         combatAssets.Validate();
         GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
+    #endregion
+
+    #region Creation
+
     // Chỉ tạo một viên và gắn thông số; không xử lý số viên hay kiểu phát đạn.
-    public bool SpawnBullet(ProjectileSpawnData projectileData, Vector2 spawnPosition,
-        Vector2 shootingDirection, CharacterTarget target = default)
+    public bool SpawnBullet(
+        ProjectileSpawnData projectileData,
+        Vector2 spawnPosition,
+        Vector2 shootingDirection,
+        CharacterTarget target = default)
     {
         projectileData.Validate();
         if (!IsFiniteNumber(shootingDirection.x) || !IsFiniteNumber(shootingDirection.y) || shootingDirection.sqrMagnitude < 0.000001f)
@@ -94,6 +134,10 @@ public sealed class CombatSpawner : IDisposable
             });
     }
 
+    #endregion
+
+    #region Cleanup
+
     // Thu hồi các VFX một lần đang chạy khi trận kết thúc.
     public void ClearEffects()
     {
@@ -102,11 +146,19 @@ public sealed class CombatSpawner : IDisposable
         activeEffects.Clear();
     }
 
+    #endregion
+
+    #region Runtime Operations
+
     private void OnGameStateChanged(GameState previous, GameState current)
     {
         if (current == GameState.EndingWin || current == GameState.EndingLose)
             ClearEffects();
     }
+
+    #endregion
+
+    #region Cleanup
 
     // Dọn visual con trước khi pool tắt/reparent vỏ; đạn vẫn dùng cùng API thu hồi.
     public void Release(GameObject instance)
@@ -124,8 +176,16 @@ public sealed class CombatSpawner : IDisposable
         finally { poolManager.Despawn(instance); }
     }
 
+    #endregion
+
+    #region Runtime Operations
+
     // Chặn NaN/vô cực trước khi dùng hướng bắn để di chuyển hoặc quét hitbox.
     private static bool IsFiniteNumber(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+    #endregion
+
+    #region Cleanup
 
     public void Dispose()
     {
@@ -134,4 +194,19 @@ public sealed class CombatSpawner : IDisposable
         GameUIEventBus.StateChanged -= OnGameStateChanged;
         ClearEffects();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IProjectileSpawner GetProjectileSpawner() => this;
+
+    public IEffectVisualSpawner GetEffectVisualSpawner() => this;
+
+    public ICombatObjectRelease GetCombatObjectRelease() => this;
+
+    public IEffectVisualCleanup GetEffectVisualCleanup() => this;
+
+    #endregion
 }

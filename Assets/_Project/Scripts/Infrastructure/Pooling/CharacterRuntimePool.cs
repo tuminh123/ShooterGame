@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 
 // Runtime mutable được cấp theo lease; object giữ lại dictionary để dùng lại giữa các lượt spawn.
-public sealed class CharacterRuntimePool : IDisposable
+public sealed class CharacterRuntimePool : IDisposable, ICharacterRuntimePool, ICharacterRuntimeLease, ICharacterRuntimeCapacity
 {
+
+    #region Dependencies And State
     private readonly Stack<CharacterRuntimeData> available = new Stack<CharacterRuntimeData>();
     private readonly HashSet<CharacterRuntimeData> owned = new HashSet<CharacterRuntimeData>();
     private readonly HashSet<CharacterRuntimeData> leased = new HashSet<CharacterRuntimeData>();
@@ -12,6 +14,10 @@ public sealed class CharacterRuntimePool : IDisposable
     public int AvailableCount => available.Count;
     public int ActiveCount => leased.Count;
     public int CreatedCount => owned.Count;
+
+    #endregion
+
+    #region Creation
 
     public void Prewarm(int count)
     {
@@ -37,7 +43,11 @@ public sealed class CharacterRuntimePool : IDisposable
         return runtime;
     }
 
-    internal bool TryReturn(CharacterRuntimeData runtime, ulong generation)
+    #endregion
+
+    #region Cleanup
+
+    public bool TryReturn(CharacterRuntimeData runtime, ulong generation)
     {
         // Chấp nhận cả runtime được caller tự new: factory không nhận quyền sở hữu object bên ngoài.
         if (disposed || runtime == null || runtime.Generation != generation || !leased.Remove(runtime)) return false;
@@ -55,4 +65,15 @@ public sealed class CharacterRuntimePool : IDisposable
         leased.Clear();
         owned.Clear();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICharacterRuntimeLease GetCharacterRuntimeLease() => this;
+
+    public ICharacterRuntimeCapacity GetCharacterRuntimeCapacity() => this;
+
+    #endregion
 }

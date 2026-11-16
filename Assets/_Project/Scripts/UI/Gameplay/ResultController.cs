@@ -7,6 +7,8 @@ using Zenject;
 // Chung cho thắng/thua; UIManager chọn lúc hiện, tween hiện có quản lý hiệu ứng scale.
 public sealed class ResultController : UIPanelController
 {
+
+    #region Supporting Types
     [Serializable]
     private sealed class ResultPanel
     {
@@ -30,23 +32,40 @@ public sealed class ResultController : UIPanelController
         }
     }
 
+    #endregion
+
+    #region Dependencies And State
+
     [SerializeField] private ResultPanel victory = new ResultPanel();
     [SerializeField] private ResultPanel defeat = new ResultPanel();
-    private GameManager game;
-    private RunSessionManager session;
-    private StageManager stage;
+    private IGameStateReader gameState;
+    private IRunCommands runCommands;
+    private IRunStatistics session;
+    private IStageResults stage;
     private ResultPanel activePanel;
     private int presentationVersion;
 
+    #endregion
+
+    #region Initialization
+
     [Inject]
-    public void Construct(GameManager game, RunSessionManager session, StageManager stage)
+    public void Construct(
+        IGameFlow gameFlow,
+        IRunSession runSession,
+        IStageService stageService)
     {
-        this.game = game;
-        this.session = session;
-        this.stage = stage;
+        this.gameState = gameFlow.GetGameStateReader();
+        this.runCommands = gameFlow.GetRunCommands();
+        this.session = runSession.GetRunStatistics();
+        this.stage = stageService.GetStageResults();
         victory.Validate();
         defeat.Validate();
     }
+
+    #endregion
+
+    #region Unity Lifecycle
 
     private void OnEnable()
     {
@@ -54,12 +73,16 @@ public sealed class ResultController : UIPanelController
         defeat.continueButton.onClick.AddListener(RestartRun);
     }
 
+    #endregion
+
+    #region Runtime Operations
+
     public override void SetVisible(bool visible)
     {
         ResultPanel next = null;
-        if (visible && game != null)
+        if (visible && gameState != null)
         {
-            switch (game.State)
+            switch (gameState.State)
             {
                 case GameState.Won: next = victory; break;
                 case GameState.Lost: next = defeat; break;
@@ -90,14 +113,18 @@ public sealed class ResultController : UIPanelController
     private void RestartRun()
     {
         ResultPanel panel = activePanel;
-        if (panel == null || !panel.continueButton.interactable || game == null ||
-            (game.State != GameState.Won && game.State != GameState.Lost)) return;
+        if (panel == null || !panel.continueButton.interactable || gameState == null ||
+            (gameState.State != GameState.Won && gameState.State != GameState.Lost)) return;
         panel.continueButton.interactable = false;
         // StartRun tự dọn/reset trận, spawn Player và đưa UI về Playing.
-        if (!game.StartRun() && activePanel == panel &&
-            (game.State == GameState.Won || game.State == GameState.Lost))
+        if (!runCommands.StartRun() && activePanel == panel &&
+            (gameState.State == GameState.Won || gameState.State == GameState.Lost))
             panel.continueButton.interactable = true;
     }
+
+    #endregion
+
+    #region Unity Lifecycle
 
     private void OnDisable()
     {
@@ -105,4 +132,6 @@ public sealed class ResultController : UIPanelController
         defeat.continueButton.onClick.RemoveListener(RestartRun);
         SetVisible(false);
     }
+
+    #endregion
 }

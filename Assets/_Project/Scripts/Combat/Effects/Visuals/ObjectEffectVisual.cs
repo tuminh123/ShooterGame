@@ -12,7 +12,7 @@ public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual, ITickable
     private int activationFrame = -1;
 
     [Inject]
-    public void ConstructTickables(LazyInject<TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(LazyInject<TickableManager> tickables)=> this.tickables = tickables;
 
     private void Start()
     {

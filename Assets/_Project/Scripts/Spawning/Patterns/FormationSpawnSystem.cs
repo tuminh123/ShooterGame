@@ -16,10 +16,12 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
         public int level, spawned, total;
         public float interval, startsAt, nextSpawn;
     }
-
-    private readonly EnemySpawnManager spawner;
-    private readonly PlayerManager players;
-    private readonly ISpatialManager spatial;
+    private readonly IEnemySpawnValidation spawnValidation;
+    private readonly IEnemySpawn spawnerEnemySpawn;
+    private readonly IEnemyDespawn spawnerEnemyDespawn;
+    private readonly IEnemySpawnGeometry spawnGeometry;
+    private readonly IPlayerReader players;
+    private readonly ISpatialInvalidation spatialSpatialInvalidation;
     private readonly StageSpawnRoster roster;
     private readonly List<Run> runs = new List<Run>();
     #endregion
@@ -34,13 +36,19 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
         get { foreach (var run in runs) if (run.spawned < run.total) return false; return true; }
     }
 
-    /// <summary>Nhận spawner, player và spatial trực tiếp qua constructor.</summary>
-    public FormationSpawnSystem(EnemySpawnManager spawner, PlayerManager players, ISpatialManager spatial)
+    /// <summary>Nhận spawner, player và spatialSpatialInvalidation trực tiếp qua constructor.</summary>
+    public FormationSpawnSystem(
+        IEnemySpawnService enemySpawnService,
+        IPlayerSystem playerSystem,
+        ISpatialManager spatialManager)
     {
-        this.spawner = spawner;
-        this.players = players;
-        this.spatial = spatial;
-        roster = new StageSpawnRoster(spawner);
+        this.spawnValidation = enemySpawnService.GetEnemySpawnValidation();
+        this.spawnerEnemySpawn = enemySpawnService.GetEnemySpawn();
+        this.spawnerEnemyDespawn = enemySpawnService.GetEnemyDespawn();
+        this.spawnGeometry = enemySpawnService.GetEnemySpawnGeometry();
+        this.players = playerSystem.GetPlayerReader();
+        this.spatialSpatialInvalidation = spatialManager.GetInvalidation();
+        roster = new StageSpawnRoster(enemySpawnService.GetEnemyDespawn());
     }
 
     #endregion
@@ -52,8 +60,8 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     {
         var config = data as EnemyPatternSO ?? throw new ArgumentException("FormationSpawnSystem requires EnemyPatternSO.");
         config.Validate();
-        foreach (var enemy in config.enemies) spawner.ValidateCharacter(enemy);
-        if (config.type != EnemyPatternType.Area && spawner.FormationCamera == null)
+        foreach (var enemy in config.enemies) spawnValidation.ValidateCharacter(enemy);
+        if (config.type != EnemyPatternType.Area && spawnGeometry.FormationCamera == null)
             throw new InvalidOperationException("Formation/SequentialPath cần Formation Camera hoặc Main Camera.");
     }
 
@@ -78,11 +86,11 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     private void StartRun(Run run)
     {
         var config = run.config;
-        var camera = spawner.FormationCamera;
+        var camera = spawnGeometry.FormationCamera;
         var route = config.CreateRoute(camera != null ? camera.transform : null);
         run.group = new EnemyFormationRuntime(config, route,
                 () => players.CurrentPlayer != null ? (Vector2)players.CurrentPlayer.transform.position : Vector2.zero,
-                spawner.Despawn);
+                spawnerEnemyDespawn.Despawn);
         roster.Add(run.group);
         if (config.Type == EnemyPatternType.SequentialPath) SpawnMember(run);
         else while (run.spawned < run.total) SpawnMember(run);
@@ -91,11 +99,11 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
     /// <summary>Tạo thành viên theo chỉ số, gắn vào nhóm và Seal khi đủ quota.</summary>
     private void SpawnMember(Run run)
     {
-        var controller = spawner.CreateController();
-        var enemy = spawner.Spawn(run.enemies[UnityEngine.Random.Range(0, run.enemies.Length)],
+        var controller = spawnerEnemySpawn.CreateController();
+        var enemy = spawnerEnemySpawn.Spawn(run.enemies[UnityEngine.Random.Range(0, run.enemies.Length)],
             run.level, run.group.GetSpawnPosition(run.spawned), controller);
         try { run.group.Add(enemy, controller, run.spawned); }
-        catch { spawner.Despawn(enemy); throw; }
+        catch { spawnerEnemyDespawn.Despawn(enemy); throw; }
         run.spawned++;
         if (run.spawned == run.total) run.group.Seal();
     }
@@ -128,12 +136,12 @@ public sealed class FormationSpawnSystem : IStageSpawnSystem, IStageSpawnStatus,
         }
     }
 
-    /// <summary>Bù dịch chuyển camera/player và báo spatial khi vị trí nhóm thay đổi.</summary>
+    /// <summary>Bù dịch chuyển camera/player và báo spatialSpatialInvalidation khi vị trí nhóm thay đổi.</summary>
     public void LateTick()
     {
         bool moved = false;
         foreach (var run in runs) if (run.group != null) moved |= run.group.ApplyCameraMotion();
-        if (moved) spatial.Invalidate();
+        if (moved) spatialSpatialInvalidation.Invalidate();
     }
 
     #endregion

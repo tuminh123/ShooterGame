@@ -14,18 +14,21 @@ public sealed class HomeController : UIPanelController
     [SerializeField] private SinglePanelPopupTween playTween;
     [Tooltip("Số vàng trong ví người chơi; đọc CurrencyService, không dùng thống kê riêng của lượt chơi.")]
     [SerializeField] private TMP_Text goldText;
-    private GameManager game;
-    private CurrencyService currencies;
-    private ScreenTransitionController transition;
+    private IGameStateReader game;
+    private ICurrencyReader currencies;
+    private IScreenTransition transition;
     private bool starting;
 
     [Inject]
-    public void Construct(GameManager game, ScreenTransitionController transition, CurrencyService currencies)
+    public void Construct(
+        IGameFlow gameFlow,
+        IScreenTransitionService screenTransitionService,
+        ICurrencyService currencyService)
     {
         UnsubscribeWallet();
-        this.game = game;
-        this.transition = transition;
-        this.currencies = currencies;
+        this.game = gameFlow.GetGameStateReader();
+        this.transition = screenTransitionService.GetScreenTransition();
+        this.currencies = currencyService.GetReader();
         if (isActiveAndEnabled) SubscribeWallet();
     }
 

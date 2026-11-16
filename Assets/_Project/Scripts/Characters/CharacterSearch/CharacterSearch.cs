@@ -2,13 +2,12 @@ using System;
 using UnityEngine;
 
 // Facade gameplay: chỉ chọn cách tìm qua factory; strategy giữ logic truy vấn và chuyển kết quả.
-public sealed class CharacterSearch : ICharacterSearch
+public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch, ICharacterRegionSearch, ICharacterTargetSearch
 {
     #region Dependencies
-
     private readonly ICharacterSearchFactory searchFactory; // Chọn strategy qua interface, không giữ SpatialManager.
 
-    public CharacterSearch(ICharacterSearchFactory searchFactory) => this.searchFactory = searchFactory;
+    public CharacterSearch(ICharacterSearchFactory searchFactory)=> this.searchFactory = searchFactory;
 
     #endregion
 
@@ -35,8 +34,11 @@ public sealed class CharacterSearch : ICharacterSearch
     #region Strategy Dispatch
 
     // Điểm vào chung cho mọi strategy trả một mục tiêu.
-    public bool TryFind(CharacterSearchType type, CharacterSearchRequest request,
-        out CharacterTarget target, out Vector2 hitPosition)
+    public bool TryFind(
+        CharacterSearchType type,
+        CharacterSearchRequest request,
+        out CharacterTarget target,
+        out Vector2 hitPosition)
         => searchFactory.GetSingle(type).TryFind(request, out target, out hitPosition);
 
     // Caller giữ buffer qua nhiều lượt; giá trị trả về là số phần tử hợp lệ trong mảng.
@@ -59,8 +61,12 @@ public sealed class CharacterSearch : ICharacterSearch
     }
 
     // Ghi mọi mục tiêu vào mảng của caller, không dùng ArrayPool hoặc wrapper kết quả.
-    public int FindAll(Vector2 center, float radius, CharacterTeam targetTeam,
-        ref CharacterTarget[] results, CharacterView exclude = null)
+    public int FindAll(
+        Vector2 center,
+        float radius,
+        CharacterTeam targetTeam,
+        ref CharacterTarget[] results,
+        CharacterView exclude = null)
     {
         var request = new CharacterSearchRequest(center, center, radius, targetTeam, exclude);
         int count = FindAll(CharacterSearchType.AllInCircle, request, ref results);
@@ -69,8 +75,13 @@ public sealed class CharacterSearch : ICharacterSearch
     }
 
     // Quét đường bay và trả tâm đạn tại điểm trúng đầu tiên.
-    public CharacterTarget FindFirstOnPath(Vector2 origin, float radius, Vector2 direction,
-        float distance, CharacterTeam targetTeam, out Vector2 hitPosition)
+    public CharacterTarget FindFirstOnPath(
+        Vector2 origin,
+        float radius,
+        Vector2 direction,
+        float distance,
+        CharacterTeam targetTeam,
+        out Vector2 hitPosition)
     {
         if (float.IsNaN(distance) || float.IsInfinity(distance) || distance < 0f)
             throw new ArgumentOutOfRangeException(nameof(distance));
@@ -126,6 +137,17 @@ public sealed class CharacterSearch : ICharacterSearch
             previous = next;
         }
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICharacterSearchDispatch GetCharacterSearchDispatch() => this;
+
+    public ICharacterRegionSearch GetCharacterRegionSearch() => this;
+
+    public ICharacterTargetSearch GetCharacterTargetSearch() => this;
 
     #endregion
 }

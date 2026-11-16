@@ -11,8 +11,8 @@ public sealed class RunUI : MonoBehaviour
     [SerializeField] private TextView timeText;
     [SerializeField] private TextView levelText;
     [SerializeField] private TextView defeatedText;
-    private LevelManager levels;
-    private RunSessionManager session;
+    private IRunProgress levels;
+    private IRunStatistics session;
     private bool subscribed;
 
     #endregion
@@ -20,10 +20,10 @@ public sealed class RunUI : MonoBehaviour
     #region Injection And Subscription
 
     [Inject]
-    public void Construct(LevelManager levels, RunSessionManager session)
+    public void Construct(ILevelService levelService, IRunSession runSession)
     {
-        this.levels = levels;
-        this.session = session;
+        this.levels = levelService.GetRunProgress();
+        this.session = runSession.GetRunStatistics();
         if (isActiveAndEnabled) Subscribe();
     }
 

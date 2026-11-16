@@ -4,7 +4,7 @@ using UnityEngine;
 using Zenject;
 
 // * Class thuần quản lý Player; GameManager gọi SpawnPlayer/RemovePlayer theo luồng trận, Zenject quản lý Dispose.
-public sealed class PlayerManager : IInitializable, IDisposable
+public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, IPlayerReader, IPlayerSelection, IPlayerLifecycle
 {
 
     #region Player Configuration & Dependencies
@@ -21,14 +21,17 @@ public sealed class PlayerManager : IInitializable, IDisposable
             DefaultType = defaultType;
         }
     }
-
-    private readonly CharacterFactory factory; // * Lấy cùng prefab vỏ với Enemy, gắn dữ liệu/hành vi trước khi bật.
+    private readonly ICharacterSpawn characterSpawn; // * Lấy cùng prefab vỏ với Enemy, gắn dữ liệu/hành vi trước khi bật.
+    private readonly ICharacterDespawn characterDespawn;
     private readonly VirtualJoystick joystick; // * Truyền cho PlayerController thuần; manager không đọc input.
     private readonly Settings settings; // * Loại Player mặc định khi hồ sơ chưa chọn nhân vật.
-    private readonly SaveManager saves; // Chỉ đọc/ghi lựa chọn nhân vật qua key riêng.
+    private readonly ISaveReader saveReader; // Chỉ đọc/ghi lựa chọn nhân vật qua key riêng.
+    private readonly ISaveWriter saveWriter;
     private PlayerSelectionSaveData selection;
-    private readonly LevelManager levels; // * Tính bonus Player và thông báo khi level thay đổi.
-    private readonly PlayerEquipmentService equipment;  // * Cung cấp bonus và thông báo khi trang bị thay đổi.
+    private readonly ICharacterLevelCatalog levelCatalog; // * Tính bonus Player và thông báo khi level thay đổi.
+    private readonly IPermanentLevelReader permanentLevels;
+    private readonly IRunProgress levelsRunProgress;
+    private readonly IEquipmentReader equipment;  // * Cung cấp bonus và thông báo khi trang bị thay đổi.
     private bool disposed;                   // * Chặn tạo player sau khi dịch vụ kết thúc.
 
     #endregion
@@ -48,8 +51,8 @@ public sealed class PlayerManager : IInitializable, IDisposable
 
     public void Initialize()
     {
-        if (!saves.IsLoaded || selection != null) return;
-        selection = saves.Load(GameConstants.SaveKeys.PlayerSelection, new PlayerSelectionSaveData(), ValidateSelectionData);
+        if (!saveReader.IsLoaded || selection != null) return;
+        selection = saveReader.Load(GameConstants.SaveKeys.PlayerSelection, new PlayerSelectionSaveData(), ValidateSelectionData);
     }
 
     internal static void ValidateSelectionData(PlayerSelectionSaveData value)
@@ -62,33 +65,42 @@ public sealed class PlayerManager : IInitializable, IDisposable
     public bool SelectCharacter(CharacterType type)
     {
         EnsureSelectionLoaded();
-        if (type == CharacterType.None || levels.GetCharacter(type).Team != CharacterTeam.Player)
+        if (type == CharacterType.None || levelCatalog.GetCharacter(type).Team != CharacterTeam.Player)
             throw new ArgumentOutOfRangeException(nameof(type));
         selection.selectedCharacterType = type;
-        return saves.Save(GameConstants.SaveKeys.PlayerSelection, selection.Clone());
+        return saveWriter.Save(GameConstants.SaveKeys.PlayerSelection, selection.Clone());
     }
 
     private void EnsureSelectionLoaded()
     {
         if (disposed) throw new ObjectDisposedException(nameof(PlayerManager));
-        if (selection == null || !saves.IsLoaded) throw new InvalidOperationException("Player selection has not loaded.");
+        if (selection == null || !saveReader.IsLoaded) throw new InvalidOperationException("Player selection has not loaded.");
     }
 
     #region Service Initialization
 
     // * Nhận dependency từ Zenject; constructor chưa tạo nhân vật.
-    public PlayerManager(CharacterFactory factory, VirtualJoystick joystick,
-        Settings settings, SaveManager saves, LevelManager levels, PlayerEquipmentService equipment)
+    public PlayerManager(
+        ICharacterFactory characterFactory,
+        VirtualJoystick joystick,
+        Settings settings,
+        ISaveService saveService,
+        ILevelService levelService,
+        IEquipmentService equipmentService)
     {
-        this.factory = factory;
+        this.characterSpawn = characterFactory.GetCharacterSpawn();
+        this.characterDespawn = characterFactory.GetCharacterDespawn();
         this.joystick = joystick;
         this.settings = settings;
-        this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
-        this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
-        this.equipment = equipment ?? throw new ArgumentNullException(nameof(equipment));
-        this.levels.CharacterLevelChanged += OnCharacterLevelChanged;
-        this.levels.RunLevelChanged += OnRunLevelChanged;
-        this.levels.RunReset += RefreshRuntime;
+        this.saveReader = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveWriter = saveService.GetSaveWriter() ?? throw new ArgumentNullException(nameof(saveService));
+        this.levelCatalog = levelService.GetCharacterLevelCatalog() ?? throw new ArgumentNullException(nameof(levelService));
+        this.permanentLevels = levelService.GetPermanentLevelReader() ?? throw new ArgumentNullException(nameof(levelService));
+        this.levelsRunProgress = levelService.GetRunProgress() ?? throw new ArgumentNullException(nameof(levelService));
+        this.equipment = equipmentService.GetEquipmentReader() ?? throw new ArgumentNullException(nameof(equipmentService));
+        this.permanentLevels.CharacterLevelChanged += OnCharacterLevelChanged;
+        this.levelsRunProgress.RunLevelChanged += OnRunLevelChanged;
+        this.levelsRunProgress.RunReset += RefreshRuntime;
         this.equipment.EquipmentChanged += RefreshRuntime;
     }
 
@@ -106,11 +118,11 @@ public sealed class PlayerManager : IInitializable, IDisposable
         CharacterType type = SelectedCharacterType;
         if (type == CharacterType.None)
             type = settings.DefaultType;
-        CharacterDataSO template = levels.GetCharacter(type);
+        CharacterDataSO template = levelCatalog.GetCharacter(type);
         if (template.Team != CharacterTeam.Player)
             throw new InvalidOperationException($"Selected character {type} must belong to the Player team.");
-        StatBonus bonus = levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus;
-        CurrentPlayer = factory.Spawn(template, bonus, new PlayerController(joystick), Vector3.zero);
+        StatBonus bonus = permanentLevels.GetPermanentBonus(type) + levelsRunProgress.RunBonus + equipment.TotalBonus;
+        CurrentPlayer = characterSpawn.Spawn(template, bonus, new PlayerController(joystick), Vector3.zero);
         if (CurrentPlayer == null)
             throw new InvalidOperationException("Could not spawn the Player shell.");
         CurrentPlayer.Released += OnPlayerReleased;
@@ -127,7 +139,7 @@ public sealed class PlayerManager : IInitializable, IDisposable
         DetachPlayer(previous);
         CurrentPlayer = null;
         PlayerChanged?.Invoke(null);
-        factory.Despawn(previous);
+        characterDespawn.Despawn(previous);
     }
 
     // * Đồng bộ trạng thái nếu có hệ thống khác Destroy player trực tiếp.
@@ -166,7 +178,7 @@ public sealed class PlayerManager : IInitializable, IDisposable
         if (disposed || runtime == null)
             return;
         CharacterType type = runtime.CharacterType;
-        runtime.SetExternalBonus(levels.GetPermanentBonus(type) + levels.RunBonus + equipment.TotalBonus);
+        runtime.SetExternalBonus(permanentLevels.GetPermanentBonus(type) + levelsRunProgress.RunBonus + equipment.TotalBonus);
     }
 
     #endregion
@@ -179,14 +191,25 @@ public sealed class PlayerManager : IInitializable, IDisposable
         if (disposed)
             return;
         disposed = true;
-        levels.CharacterLevelChanged -= OnCharacterLevelChanged;
-        levels.RunLevelChanged -= OnRunLevelChanged;
-        levels.RunReset -= RefreshRuntime;
+        permanentLevels.CharacterLevelChanged -= OnCharacterLevelChanged;
+        levelsRunProgress.RunLevelChanged -= OnRunLevelChanged;
+        levelsRunProgress.RunReset -= RefreshRuntime;
         equipment.EquipmentChanged -= RefreshRuntime;
         RemovePlayer();
         PlayerChanged = null;
         selection = null;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IPlayerReader GetPlayerReader() => this;
+
+    public IPlayerSelection GetPlayerSelection() => this;
+
+    public IPlayerLifecycle GetPlayerLifecycle() => this;
 
     #endregion
 

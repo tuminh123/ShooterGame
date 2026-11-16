@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using Zenject;
 
 /// <summary>Lưu tiến trình thắng lần đầu và kết hợp giao dịch thưởng.</summary>
-public sealed class StageProgressService : IInitializable
+public sealed class StageProgressService : IInitializable, IStageProgress, IStageProgressReader, IStageVictoryRewards
 {
     #region Dependency và dữ liệu lưu
-
-    private readonly SaveManager saves;
-    private readonly CurrencyService currencies;
+    private readonly ISaveReader saves;
+    private readonly IStageRewardTransaction currencies;
     private StageProgressSaveData data;
 
     #endregion
@@ -16,10 +15,10 @@ public sealed class StageProgressService : IInitializable
     #region Khởi tạo và nạp save
 
     /// <summary>Nhận dịch vụ save và tiền tệ; từ chối dependency null.</summary>
-    public StageProgressService(SaveManager saves, CurrencyService currencies)
+    public StageProgressService(ISaveService saveService, ICurrencyService currencyService)
     {
-        this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
-        this.currencies = currencies ?? throw new ArgumentNullException(nameof(currencies));
+        this.saves = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
+        this.currencies = currencyService.GetStageRewardTransaction() ?? throw new ArgumentNullException(nameof(currencyService));
     }
 
     /// <summary>Nạp cờ thắng lần đầu một lần sau khi SaveManager đã sẵn sàng.</summary>
@@ -55,7 +54,7 @@ public sealed class StageProgressService : IInitializable
     }
 
     /// <summary>Cộng thưởng cùng snapshot tiến trình; false nghĩa là snapshot đang chờ ghi lại.</summary>
-    internal bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards)
+    public bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards)
     {
         EnsureAvailable();
         ValidateStageId(stageId);
@@ -83,5 +82,14 @@ public sealed class StageProgressService : IInitializable
         if (data == null || !saves.IsLoaded)
             throw new InvalidOperationException("Stage progress has not loaded.");
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IStageProgressReader GetStageProgressReader() => this;
+
+    public IStageVictoryRewards GetStageVictoryRewards() => this;
     #endregion
 }

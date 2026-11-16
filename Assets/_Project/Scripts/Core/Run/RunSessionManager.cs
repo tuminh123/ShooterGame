@@ -3,13 +3,12 @@ using Zenject;
 using UnityEngine;
 
 // Trạng thái của lượt chơi: giữ vàng và đồng hồ; không biết UI hay cách tạo/nhặt vật phẩm.
-public sealed class RunSessionManager : IInitializable, ITickable, IDisposable
+public sealed class RunSessionManager : IInitializable, ITickable, IDisposable, IRunSession, IRunStatistics, IRunGoldRecorder
 {
     #region Dependencies & State
-
-    private readonly PlayerManager players; // Chỉ cộng thời gian khi Player đang sống và hoạt động.
-    private readonly LevelManager levels; // Nhận thông báo reset lượt chơi từ đầu mối hiện có.
-    private readonly CharacterManager characters;
+    private readonly IPlayerReader players; // Chỉ cộng thời gian khi Player đang sống và hoạt động.
+    private readonly IRunProgress levels; // Nhận thông báo reset lượt chơi từ đầu mối hiện có.
+    private readonly ICharacterDeathEvents characters;
     private double elapsed; // Giữ phần giây lẻ, chỉ phát TimeChanged khi số giây nguyên đổi.
     private bool disposed;
 
@@ -20,9 +19,15 @@ public sealed class RunSessionManager : IInitializable, ITickable, IDisposable
     public event Action<int> TimeChanged;
     public event Action<int> EnemiesDefeatedChanged;
 
-    public RunSessionManager(PlayerManager players, LevelManager levels,
-        CharacterManager characters)
-    { this.players = players; this.levels = levels; this.characters = characters; }
+    public RunSessionManager(
+        IPlayerSystem playerSystem,
+        ILevelService levelService,
+        ICharacterSystem characterSystem)
+    {
+        this.players = playerSystem.GetPlayerReader();
+        this.levels = levelService.GetRunProgress();
+        this.characters = characterSystem.GetCharacterDeathEvents();
+    }
 
     #endregion
 
@@ -88,6 +93,15 @@ public sealed class RunSessionManager : IInitializable, ITickable, IDisposable
         TimeChanged = null;
         EnemiesDefeatedChanged = null;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IRunStatistics GetRunStatistics() => this;
+
+    public IRunGoldRecorder GetRunGoldRecorder() => this;
 
     #endregion
 }

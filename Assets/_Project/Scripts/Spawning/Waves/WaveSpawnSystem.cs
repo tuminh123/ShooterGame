@@ -23,8 +23,10 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
         public float nextSpawnAt, nextWaveAt;
         public bool finished;
     }
-
-    private readonly EnemySpawnManager spawner;
+    private readonly IEnemyDespawn spawnerDespawn;
+    private readonly IEnemySpawnValidation spawnValidation;
+    private readonly IEnemySpawn spawnerEnemySpawn;
+    private readonly IEnemySpawnGeometry spawnGeometry;
     private readonly List<Run> runs = new List<Run>();
 
     #endregion
@@ -32,7 +34,13 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
     #region Dependency và thống kê
 
     /// <summary>Nhận spawner chung; các chuỗi sẽ giữ roster riêng khi bắt đầu.</summary>
-    public WaveSpawnSystem(EnemySpawnManager spawner) { this.spawner = spawner; }
+    public WaveSpawnSystem(IEnemySpawnService enemySpawnService)
+    {
+        this.spawnerDespawn = enemySpawnService.GetEnemyDespawn();
+        this.spawnValidation = enemySpawnService.GetEnemySpawnValidation();
+        this.spawnerEnemySpawn = enemySpawnService.GetEnemySpawn();
+        this.spawnGeometry = enemySpawnService.GetEnemySpawnGeometry();
+    }
     /// <summary>True khi mọi chuỗi đã sinh đủ quái của wave cuối.</summary>
     public bool DeploymentComplete
     {
@@ -53,9 +61,9 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
     {
         var config = data as WaveConfigSO ?? throw new ArgumentException("WaveSpawnSystem requires WaveConfigSO.");
         config.Validate();
-        spawner.ValidatePerimeter();
+        spawnValidation.ValidatePerimeter();
         for (int i = 0; i < config.Count; i++)
-            foreach (var enemy in config.GetWave(i).enemies) spawner.ValidateCharacter(enemy);
+            foreach (var enemy in config.GetWave(i).enemies) spawnValidation.ValidateCharacter(enemy);
     }
 
     /// <summary>Chụp cấu hình toàn bộ chuỗi rồi tạo một lượt chạy có tiến trình độc lập.</summary>
@@ -73,7 +81,7 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
                 delayAfterSpawn = wave.delayAfterSpawn, enemies = (CharacterDataSO[])wave.enemies.Clone()
             };
         }
-        runs.Add(new Run { waves = snapshots, condition = config.AdvanceCondition, roster = new StageSpawnRoster(spawner) });
+        runs.Add(new Run { waves = snapshots, condition = config.AdvanceCondition, roster = new StageSpawnRoster(spawnerDespawn) });
         // Chuỗi theo giờ biết trước mọi mốc. Chuỗi chờ dọn quái chỉ biết chắc wave đầu.
         float startsAt = 0f;
         for (int i = 0; i < snapshots.Length; i++)
@@ -122,8 +130,8 @@ public sealed class WaveSpawnSystem : IStageSpawnSystem, IStageSpawnStatus, IUpd
                 if (run.spawned < wave.spawnCount)
                 {
                     if (stageTime < run.nextSpawnAt) break;
-                    var enemy = spawner.Spawn(wave.enemies[UnityEngine.Random.Range(0, wave.enemies.Length)],
-                        run.index + 1, spawner.ChoosePerimeterPoint());
+                    var enemy = spawnerEnemySpawn.Spawn(wave.enemies[UnityEngine.Random.Range(0, wave.enemies.Length)],
+                        run.index + 1, spawnGeometry.ChoosePerimeterPoint());
                     run.roster.Add(enemy);
                     run.spawned++;
                     run.nextWaveAt = run.nextSpawnAt + wave.delayAfterSpawn;

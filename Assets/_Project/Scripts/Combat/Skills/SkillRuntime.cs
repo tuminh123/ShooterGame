@@ -18,8 +18,11 @@ public sealed class SkillRuntime : IDisposable
         internal float Remaining => remaining;
 
         // Mỗi hành vi có bộ đếm riêng và sẵn sàng cast ở lần tick đầu.
-        internal Behaviour(ISkill action, bool paused, SkillRuntime runtime)
-        {
+        internal Behaviour(
+        ISkill action,
+        bool paused,
+        SkillRuntime runtime)
+    {
             Action = action;
             this.runtime = runtime;
             this.paused = paused;
@@ -28,7 +31,7 @@ public sealed class SkillRuntime : IDisposable
         // Đổi config không khởi động lại cooldown đang chạy.
         internal void ApplyData(SkillBehaviourData data)
         {
-            Action.ApplyData(data);
+            Action.GetConfiguration().ApplyData(data);
             cooldown = data.Cooldown;
         }
 
@@ -37,10 +40,10 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed || paused) return;
             remaining = Math.Max(0f, remaining - deltaTime);
-            Action.Tick(deltaTime);
-            if (disposed || Remaining > 0f || !Action.TryExecute() || disposed) return;
+            Action.GetExecution().Tick(deltaTime);
+            if (disposed || Remaining > 0f || !Action.GetExecution().TryExecute() || disposed) return;
             remaining = cooldown;
-            runtime.NotifyVisualAction(Action.Type);
+            runtime.NotifyVisualAction(Action.GetConfiguration().Type);
         }
 
         // Pause giữ nguyên cooldown và đồng bộ visual/state của hành vi.
@@ -48,7 +51,7 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed) return;
             paused = value;
-            Action.SetPaused(value);
+            Action.GetLifecycle().SetPaused(value);
         }
 
         // Không còn callback thời gian bên ngoài; dispose chấm dứt hành vi ngay.
@@ -56,7 +59,7 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed) return;
             disposed = true;
-            Action.Dispose();
+            Action.GetLifecycle().Dispose();
         }
     }
 
@@ -69,7 +72,7 @@ public sealed class SkillRuntime : IDisposable
     private readonly CharacterView owner; // Owner của toàn bộ hành vi.
     private readonly CharacterRuntimeData identity; // Không dùng runtime cũ trên spawn mới.
     private readonly ulong generation; // Phân biệt lượt pool tái sử dụng cùng runtime data.
-    private readonly SkillFactory factory; // Tạo hành vi mới khi cấp mới mở thêm loại.
+    private readonly ISkillBehaviourFactory factory; // Tạo hành vi mới khi cấp mới mở thêm loại.
     private bool changingLevel; // Chặn nâng cấp lồng nhau từ callback.
     private bool paused; // Trạng thái truyền cho hành vi mở mới.
     private int revision; // Thay đổi danh sách giữa callback sẽ kết thúc vòng tick cũ.
@@ -95,7 +98,7 @@ public sealed class SkillRuntime : IDisposable
     #region Initialization
 
     // Runtime đăng ký owner trước khi ApplyData có thể phát callback stats.
-    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, SkillFactory factory)
+    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, ISkillBehaviourFactory factory)
     {
         Definition = definition;
         this.context = context;
@@ -124,7 +127,7 @@ public sealed class SkillRuntime : IDisposable
     // Tìm theo enum loại; một skill có tối đa một hành vi của mỗi loại.
     private Behaviour FindBehaviour(SkillBehaviourType type)
     {
-        foreach (Behaviour behaviour in behaviours) if (behaviour.Action.Type == type) return behaviour;
+        foreach (Behaviour behaviour in behaviours) if (behaviour.Action.GetConfiguration().Type == type) return behaviour;
         return null;
     }
 
@@ -143,7 +146,7 @@ public sealed class SkillRuntime : IDisposable
             {
                 ISkill action = factory.CreateBehaviour(Definition, item.Type, context);
                 try { behaviour = new Behaviour(action, paused, this); }
-                catch { action.Dispose(); throw; }
+                catch { action.GetLifecycle().Dispose(); throw; }
                 behaviours.Add(behaviour); // Nhận ownership trước callback ApplyData để reset/dispose có thể dọn ngay.
             }
             behaviour.ApplyData(item);
@@ -153,7 +156,7 @@ public sealed class SkillRuntime : IDisposable
         foreach (Behaviour behaviour in behaviours.ToArray())
         {
             if (!IsActive) return;
-            if (required.Contains(behaviour.Action.Type)) continue;
+            if (required.Contains(behaviour.Action.GetConfiguration().Type)) continue;
             behaviours.Remove(behaviour);
             behaviour.Dispose();
         }

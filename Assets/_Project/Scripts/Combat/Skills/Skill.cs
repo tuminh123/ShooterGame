@@ -2,12 +2,12 @@ using System;
 
 // Các hàm mặc định cho hành vi; interface ISkill vẫn là hợp đồng thực thi.
 [Serializable]
-public abstract class Skill : ISkill
+public abstract class Skill : ISkill, ISkillConfiguration, ISkillExecution, ISkillLifecycle
 {
     #region Runtime Context
 
     [NonSerialized] protected CharacterSkills Owner; // Context của đúng lượt spawn, không ghi vào asset.
-    [NonSerialized] protected SkillFactory Services; // Dịch vụ scene dùng chung, không sở hữu vòng đời của chúng.
+    [NonSerialized] protected ISkillServices Services; // Dịch vụ scene dùng chung, không sở hữu vòng đời của chúng.
     public abstract SkillBehaviourType Type { get; }
 
     #endregion
@@ -15,7 +15,7 @@ public abstract class Skill : ISkill
     #region Initialization
 
     // Factory chỉ clone mẫu; dữ liệu theo cấp được áp dụng sau khi runtime đã nhận ownership.
-    internal Skill CreateRuntime(CharacterSkills owner, SkillFactory services)
+    internal Skill CreateRuntime(CharacterSkills owner, ISkillServices services)
     {
         var runtime = (Skill)MemberwiseClone();
         runtime.Owner = owner;
@@ -45,6 +45,17 @@ public abstract class Skill : ISkill
 
     // Hành vi sở hữu timer phụ, visual hoặc token stats phải thu hồi tại đây.
     public virtual void Dispose() { }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ISkillConfiguration GetConfiguration() => this;
+
+    public ISkillExecution GetExecution() => this;
+
+    public ISkillLifecycle GetLifecycle() => this;
 
     #endregion
 }

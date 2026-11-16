@@ -33,8 +33,8 @@ public sealed class ShootingSkill : Skill
         var next = configuration as ShootingData ?? throw new ArgumentException("ShootingSkill requires ShootingData.");
         next.Validate();
         if (data == null || !SameShooter(data.shooter, next.shooter))
-            liveShooter = Services.Shooters.CreateRuntime(next.shooter);
-        movement = Services.Moves.Create(next.projectileMove);
+            liveShooter = Services.GetShooting().Shooters.GetFactory().CreateRuntime(next.shooter);
+        movement = Services.GetShooting().Moves.Create(next.projectileMove);
         effectSnapshot = next.effects.ToArray();
         data = next;
     }
@@ -56,7 +56,7 @@ public sealed class ShootingSkill : Skill
         Vector2 direction = data.defaultDirection.normalized;
         if (data.requiresTarget || movement is HomingProjectileMove)
         {
-            selected = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.range,
+            selected = Owner.Owner.TargetSearch.FindNearest(Owner.Owner.HitPosition, data.range,
                 CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
             if (selected.TryGetCharacter(out CharacterView target))
             {
@@ -81,12 +81,12 @@ public sealed class ShootingSkill : Skill
         for (int i = 0; i < shot.projectileCount; i++)
         {
             if (!Owner.CanRun) break;
-            Vector2 direction = Services.Shooters.ShootingHandle(shooter, aim.normalized, i, shot.projectileCount);
+            Vector2 direction = Services.GetShooting().Shooters.GetDirectionProvider().ShootingHandle(shooter, aim.normalized, i, shot.projectileCount);
             var projectile = new ProjectileSpawnData(shot.bulletType, CharacterRuntimeData.CreateDamage(stats, team),
                 shot.speed, shot.lifetime, move, effects, stats.effectHit);
-            if (Services.Spawner.SpawnBullet(projectile, position, direction, target)) spawned++;
+            if (Services.GetShooting().Spawner.SpawnBullet(projectile, position, direction, target)) spawned++;
         }
-        if (spawned > 0) shooter.OnShotCompleted();
+        if (spawned > 0) shooter.GetExecution().OnShotCompleted();
         return spawned;
     }
 

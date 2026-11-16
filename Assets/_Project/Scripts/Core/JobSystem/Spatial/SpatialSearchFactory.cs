@@ -5,7 +5,7 @@ using UnityEngine;
 
 // Tạo dữ liệu query cho CharacterSearch/đạn và chọn strategy cho SpatialManager.
 // Strategy được tạo một lần, không giữ snapshot hay trạng thái của từng lượt tìm.
-public sealed class SpatialSearchFactory : ISpatialSearchFactory
+public sealed class SpatialSearchFactory : ISpatialSearchFactory, ISpatialQueryBuilder, ISpatialStrategyProvider, ISpatialQueryValidator
 {
     #region Strategy Registry
 
@@ -70,6 +70,17 @@ public sealed class SpatialSearchFactory : ISpatialSearchFactory
             (query.TargetTeam != (int)CharacterTeam.Player && query.TargetTeam != (int)CharacterTeam.Enemy))
             throw new ArgumentException("Spatial queries require finite geometry, a nonnegative radius and a valid team.");
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ISpatialQueryBuilder GetQueryBuilder() => this;
+
+    public ISpatialStrategyProvider GetStrategyProvider() => this;
+
+    public ISpatialQueryValidator GetQueryValidator() => this;
 
     #endregion
 }

@@ -5,18 +5,24 @@ using Zenject;
 // Vỏ VFX chỉ sở hữu visual và pooling; visual quyết định khi nào phát xong.
 public sealed class EffectView : MonoBehaviour
 {
-    private PoolManager pools;
-    private CombatSpawner spawner;
+
+    #region Dependencies And State
+    private IGameObjectPool pools;
+    private ICombatObjectRelease spawner;
     private GameObject visualObject;
     private IEffectVisual visual;
     private Action completed;
     private int playbackVersion;
 
+    #endregion
+
+    #region Initialization
+
     [Inject]
-    public void Construct(PoolManager pools) => this.pools = pools;
+    public void Construct(IPoolSystem poolSystem)=> this.pools = poolSystem.GetGameObjectPool();
 
     // Chuẩn bị khi vỏ còn tắt, chỉ phát sau khi cả nhánh được bật.
-    internal void Initialize(CombatSpawner spawner, GameObject visualPrefab)
+    internal void Initialize(ICombatObjectRelease spawner, GameObject visualPrefab)
     {
         Clear();
         this.spawner = spawner;
@@ -32,6 +38,10 @@ public sealed class EffectView : MonoBehaviour
         }
         catch { Clear(); throw; }
     }
+
+    #endregion
+
+    #region Unity Lifecycle
 
     private void OnEnable()
     {
@@ -51,12 +61,20 @@ public sealed class EffectView : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Runtime Operations
+
     private void Unsubscribe()
     {
         playbackVersion++;
         if (visual != null && completed != null) visual.Completed -= completed;
         completed = null;
     }
+
+    #endregion
+
+    #region Cleanup
 
     // Gỡ callback trước StopAndReset/Despawn để không trả cùng object hai lần.
     internal void Clear()
@@ -71,6 +89,10 @@ public sealed class EffectView : MonoBehaviour
         try { previousVisual?.StopAndReset(); }
         finally { pools.Despawn(previousObject); }
     }
+
+    #endregion
+
+    #region Unity Lifecycle
 
     // Không reparent/trả con về pool trong callback tắt hierarchy.
     private void OnDisable()
@@ -87,4 +109,6 @@ public sealed class EffectView : MonoBehaviour
         visualObject = null;
         visual = null;
     }
+
+    #endregion
 }

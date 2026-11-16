@@ -1,7 +1,10 @@
 using UnityEngine;
 
 // * Hành vi riêng của quái: tự tìm hướng đến Player hiện tại, hoàn toàn không đọc joystick.
-public sealed class EnemyController : CharacterControllerBase
+public sealed class EnemyController : CharacterControllerBase, ICharacterActionPermission, ICharacterContactCompletion
+#if UNITY_EDITOR
+    , ICharacterSeparationGizmos
+#endif
 {
     #region Separation Configuration
 
@@ -26,9 +29,8 @@ public sealed class EnemyController : CharacterControllerBase
     #endregion
 
     #region Dependencies & Per-Spawn State
-
-    private readonly PlayerManager players; // * Tra mục tiêu hiện tại để không giữ Transform Player cũ sau khi đổi nhân vật.
-    private readonly CharacterFactory characters; // * Thu hồi visual trước vỏ qua một đầu mối, không gọi pool trực tiếp cho nhân vật.
+    private readonly IPlayerReader players; // * Tra mục tiêu hiện tại để không giữ Transform Player cũ sau khi đổi nhân vật.
+    private readonly ICharacterDespawn characters; // * Thu hồi visual trước vỏ qua một đầu mối, không gọi pool trực tiếp cho nhân vật.
     private readonly float separationRadius; // * Giá trị cấu hình chốt khi tạo controller, không sửa template hoặc dùng chung trạng thái cá thể.
     private readonly float separationOffsetY; // * Offset tâm quét, không bị scale hoặc flip của visual ảnh hưởng.
     private readonly float separationStrength; // * Trọng số tách đã chốt cho cá thể; bằng 0 sẽ bỏ qua truy vấn hàng xóm.
@@ -59,8 +61,11 @@ public sealed class EnemyController : CharacterControllerBase
     private float activeKnockbackDuration;
     private Vector2 knockbackDirection; // * Hướng lùi chốt lúc trúng, không đổi theo Player trong lúc lùi.
 
-    public EnemyController(PlayerManager players, CharacterFactory characters,
-        SeparationSettings separation = null, RecoilSettings recoil = null)
+    public EnemyController(
+        IPlayerReader players,
+        ICharacterDespawn characters,
+        SeparationSettings separation = null,
+        RecoilSettings recoil = null)
     {
         this.players = players;
         this.characters = characters;
@@ -160,7 +165,7 @@ public sealed class EnemyController : CharacterControllerBase
     }
 
     /// <summary>Chốt tiếp xúc sau skill; chỉ con va chạm bị tách và nhận knockback.</summary>
-    internal void CompletePatternContact(CharacterView view, CharacterRuntimeData identity, ulong generation)
+    public void CompletePatternContact(CharacterView view, CharacterRuntimeData identity, ulong generation)
     {
         EnemyFormationRuntime group = pendingPatternContact;
         pendingPatternContact = null;
@@ -253,7 +258,7 @@ public sealed class EnemyController : CharacterControllerBase
     private Vector2 CalculateSeparation(CharacterView view)
     {
         Vector2 position = GetSeparationCenter(view.transform.position);
-        int neighborCount = view.Search.FindAll(position, separationRadius, CharacterTeam.Enemy, ref neighborBuffer, view);
+        int neighborCount = view.RegionSearch.FindAll(position, separationRadius, CharacterTeam.Enemy, ref neighborBuffer, view);
         float radiusSquared = separationRadius * separationRadius;
         Vector2 direction = Vector2.zero;
         try

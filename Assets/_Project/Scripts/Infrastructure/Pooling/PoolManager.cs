@@ -17,7 +17,7 @@ public enum PoolGroup
 
 // * Class thuần bọc LeanPool để gom Hierarchy và inject bản sao mới trước OnEnable.
 // ! API gọi từ main thread; pool tự tạo dùng OnEnable/OnDisable thay cho thông báo IPoolable.
-public sealed class PoolManager : IDisposable
+public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPoolPreparation, IPoolHierarchy
 {
 
     #region Pool State & Holders
@@ -38,8 +38,7 @@ public sealed class PoolManager : IDisposable
     #region Initialization & Holder Access
 
     // * Nhận container; chỉ tạo holder khi có lần sử dụng đầu tiên.
-    public PoolManager(DiContainer container)
-    {
+    public PoolManager(DiContainer container)    {
         this.container = container;
     }
 
@@ -111,8 +110,13 @@ public sealed class PoolManager : IDisposable
     }
 
     // * Spawn theo world-space; parent tùy chọn cho object có nhánh riêng như chunk.
-    public GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation,
-        PoolGroup group = PoolGroup.Other, Transform parent = null, Action<GameObject> beforeActivate = null)
+    public GameObject Spawn(
+        GameObject prefab,
+        Vector3 position,
+        Quaternion rotation,
+        PoolGroup group = PoolGroup.Other,
+        Transform parent = null,
+        Action<GameObject> beforeActivate = null)
     {
         if (prefab == null)
             throw new ArgumentNullException(nameof(prefab));
@@ -240,6 +244,17 @@ public sealed class PoolManager : IDisposable
         else
             UnityEngine.Object.DestroyImmediate(root.gameObject);
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IGameObjectPool GetGameObjectPool() => this;
+
+    public IPoolPreparation GetPoolPreparation() => this;
+
+    public IPoolHierarchy GetPoolHierarchy() => this;
 
     #endregion
 

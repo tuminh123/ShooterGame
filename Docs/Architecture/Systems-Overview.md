@@ -5,6 +5,9 @@ Ngày ghi nhận theo code hiện tại: 2026-11-09.
 Tài liệu này là điểm bắt đầu để tìm code và tài liệu chi tiết. Một số tài liệu
 thiết kế cũ mô tả blueprint hoặc phiên bản trước; không mặc định mọi nội dung trong đó đã được triển khai.
 
+Xem [Service contracts và Zenject](../../Assets/_Project/Scripts/Interfaces/README.md) để tra các hợp đồng nhỏ,
+interface tổng hợp và cách đăng ký service/component trong phiên bản hiện tại.
+
 ## Ranh giới dữ liệu và hành vi
 
 ```text

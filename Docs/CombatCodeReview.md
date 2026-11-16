@@ -1564,7 +1564,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver
 
 ### ICharacterController.cs
 
-Nguồn: [Assets/_Project/Scripts/Characters/Controllers/ICharacterController.cs](../Assets/_Project/Scripts/Characters/Controllers/ICharacterController.cs)
+Nguồn: [Assets/_Project/Scripts/Interfaces/Characters/Controllers/ICharacterController.cs](../Assets/_Project/Scripts/Interfaces/Characters/Controllers/ICharacterController.cs)
 
 Phần thay đổi so với HEAD:
 

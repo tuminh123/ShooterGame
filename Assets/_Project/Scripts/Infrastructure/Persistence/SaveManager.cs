@@ -4,8 +4,10 @@ using UnityEngine;
 using Zenject;
 
 // Chỉ đọc/ghi theo key; service sở hữu dữ liệu và quy tắc nghiệp vụ.
-public sealed class SaveManager : IInitializable, IDisposable
+public sealed class SaveManager : IInitializable, IDisposable, ISaveService, ISaveReader, ISaveWriter, ISaveFlush, ISaveReset, ISaveLoadFailure
 {
+
+    #region Supporting Types
     public sealed class Settings
     {
         public readonly string FileName;
@@ -27,9 +29,14 @@ public sealed class SaveManager : IInitializable, IDisposable
     {
         public string Key { get; }
         private readonly T snapshot;
-        public PendingWrite(string key, T snapshot) { Key = key; this.snapshot = snapshot; }
+        public PendingWrite(string key, T snapshot) { Key = key;
+        this.snapshot = snapshot; }
         public void Write(ES3File file) => file.Save(Key, snapshot);
     }
+
+    #endregion
+
+    #region Dependencies And State
 
     private readonly ES3Settings storage;
     private readonly Dictionary<string, IPendingWrite> pending = new Dictionary<string, IPendingWrite>(StringComparer.Ordinal);
@@ -38,8 +45,11 @@ public sealed class SaveManager : IInitializable, IDisposable
     public bool IsDirty => pending.Count > 0;
     public Exception LastError { get; private set; }
 
-    public SaveManager(Settings settings)
-    {
+    #endregion
+
+    #region Initialization
+
+    public SaveManager(Settings settings)    {
         if (settings == null) throw new ArgumentNullException(nameof(settings));
         storage = new ES3Settings(settings.FileName, ES3.Location.File, ES3.Directory.PersistentDataPath);
     }
@@ -56,6 +66,10 @@ public sealed class SaveManager : IInitializable, IDisposable
         }
         catch (Exception exception) { BlockLoading(exception); }
     }
+
+    #endregion
+
+    #region Read Access
 
     public bool HasKey(string key)
     {
@@ -79,6 +93,10 @@ public sealed class SaveManager : IInitializable, IDisposable
         }
         catch (Exception exception) { BlockLoading(exception); throw; }
     }
+
+    #endregion
+
+    #region Persistence
 
     // Caller truyền snapshot độc lập; lỗi ghi giữ bản mới nhất theo key để retry.
     public bool Save<T>(string key, T snapshot)
@@ -139,6 +157,10 @@ public sealed class SaveManager : IInitializable, IDisposable
         return TryWritePending();
     }
 
+    #endregion
+
+    #region Cleanup
+
     // ResetSaveButton reload scene sau khi xóa, các service mới sẽ đọc mặc định.
     public bool ResetData()
     {
@@ -151,7 +173,11 @@ public sealed class SaveManager : IInitializable, IDisposable
         return true;
     }
 
-    internal void BlockLoading(Exception exception)
+    #endregion
+
+    #region Validation
+
+    public void BlockLoading(Exception exception)
     {
         IsLoaded = false;
         LastError = exception;
@@ -174,6 +200,10 @@ public sealed class SaveManager : IInitializable, IDisposable
         if (disposed) throw new ObjectDisposedException(nameof(SaveManager));
     }
 
+    #endregion
+
+    #region Cleanup
+
     public void Dispose()
     {
         if (disposed) return;
@@ -181,4 +211,21 @@ public sealed class SaveManager : IInitializable, IDisposable
         pending.Clear();
         disposed = true;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ISaveReader GetSaveReader() => this;
+
+    public ISaveWriter GetSaveWriter() => this;
+
+    public ISaveFlush GetSaveFlush() => this;
+
+    public ISaveReset GetSaveReset() => this;
+
+    public ISaveLoadFailure GetSaveLoadFailure() => this;
+
+    #endregion
 }

@@ -4,18 +4,19 @@ using UnityEngine;
 using Zenject;
 
 /// <summary>Điều phối các hệ thống spawn qua interface và quyết định kết quả màn.</summary>
-public sealed class StageManager : ITickable, IDisposable
+public sealed class StageManager : ITickable, IDisposable, IStageService, IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule
 {
     #region Dependency, registry và trạng thái
 
     private StageDataSO data;
     private readonly Dictionary<string, StageDataSO> stages;
     private readonly DiContainer container;
-    private readonly EnemySpawnManager spawner;
-    private readonly PlayerManager players;
-    private readonly GroundChunkManager ground;
-    private readonly CurrencyService currencies;
-    private readonly StageProgressService progress;
+    private readonly IEnemySpawnLateEvents spawner;
+    private readonly IPlayerReader players;
+    private readonly IWorldMap ground;
+    private readonly ICurrencyWallet currencies;
+    private readonly IStageProgressReader stageProgress;
+    private readonly IStageVictoryRewards victoryRewards;
     private readonly Dictionary<Type, IStageSpawnSystem> systems = new Dictionary<Type, IStageSpawnSystem>();
     private readonly List<IStageSpawnSystem> systemOrder = new List<IStageSpawnSystem>();
     private readonly List<IUpdateStage> updates = new List<IUpdateStage>();
@@ -40,21 +41,28 @@ public sealed class StageManager : ITickable, IDisposable
     #region Khởi tạo và định tuyến hệ thống
 
     /// <summary>Tạo registry từ danh sách DataSO và đăng ký callback cuối frame.</summary>
-    public StageManager(StageDatabaseSO database, EnemySpawnManager spawner, GroundChunkManager ground,
-        PlayerManager players, CurrencyService currencies, StageProgressService progress, DiContainer container)
+    public StageManager(
+        StageDatabaseSO database,
+        IEnemySpawnService enemySpawnService,
+        IWorldMapService worldMapService,
+        IPlayerSystem playerSystem,
+        ICurrencyService currencyService,
+        IStageProgress stageProgressFacade,
+        DiContainer container)
     {
         Database = database != null ? database : throw new ArgumentNullException(nameof(database));
         stages = database.CreateLookup();
         data = database.DefaultStage;
-        this.ground = ground;
-        this.currencies = currencies;
-        this.progress = progress;
+        this.ground = worldMapService.GetWorldMap();
+        this.currencies = currencyService.GetWallet();
+        this.stageProgress = stageProgressFacade.GetStageProgressReader();
+        this.victoryRewards = stageProgressFacade.GetStageVictoryRewards();
         this.container = container;
-        this.spawner = spawner;
-        this.players = players;
+        this.spawner = enemySpawnService.GetEnemySpawnLateEvents();
+        this.players = playerSystem.GetPlayerReader();
 
         BuildSystems();
-        spawner.SpawnLateUpdate += LateTickSystems;
+        enemySpawnService.GetEnemySpawnLateEvents().SpawnLateUpdate += LateTickSystems;
     }
 
     /// <summary>Chỉ tạo hệ thống của màn đang chọn, không chạy đồng thời các màn trong database.</summary>
@@ -255,7 +263,7 @@ public sealed class StageManager : ITickable, IDisposable
         // IO failures retain the combined snapshot; never apply the reward twice.
         if (won)
         {
-            progress.GrantVictoryRewards(data.StageId, rewards);
+            victoryRewards.GrantVictoryRewards(data.StageId, rewards);
         }
         else
         {
@@ -276,7 +284,7 @@ public sealed class StageManager : ITickable, IDisposable
     private Dictionary<CurrencyType, long> BuildRewards(bool won)
     {
         var rewards = new Dictionary<CurrencyType, long>();
-        if (won && !progress.HasFirstClearedStage(data.StageId))
+        if (won && !stageProgress.HasFirstClearedStage(data.StageId))
         {
             AddRewards(rewards, data.FirstClearStageRewards);
         }
@@ -358,5 +366,18 @@ public sealed class StageManager : ITickable, IDisposable
         try { ReleaseSystems(); }
         finally { Cleared = null; Failed = null; SpawnScheduled = null; WarningsCleared = null; }
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IStageSelection GetStageSelection() => this;
+
+    public IStageRunLifecycle GetStageRunLifecycle() => this;
+
+    public IStageResults GetStageResults() => this;
+
+    public IStageSchedule GetStageSchedule() => this;
     #endregion
 }

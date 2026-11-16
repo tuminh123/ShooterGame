@@ -18,12 +18,7 @@ public struct SpatialSearchContext
 }
 
 // Chỉ được gọi trên main thread. Strategy tạo job thuần số, không chạy interface bên trong Burst.
-public interface ISpatialSearchStrategy
-{
-    bool ReturnsMany { get; } // Phân biệt buffer một hit/query và buffer nhiều hit.
-    void Run(SpatialSearchContext context); // Trả kết quả ngay, không tạo worker job cho truy vấn nhỏ.
-    JobHandle Schedule(SpatialSearchContext context, JobHandle dependency); // Chạy nhóm và nối dependency để manager Complete.
-}
+
 
 #endregion
 

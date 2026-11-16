@@ -37,8 +37,7 @@ public sealed class GameplayController : UIPanelController, ILateTickable
     #endregion
 
     #region Injection & Frame Registration
-
-    private StageManager stage;
+    private IStageSchedule stage;
     private LazyInject<TickableManager> tickables;
     private bool registeredForTicks, gameplayVisible, subscribed, warningActive;
     private StageSpawnWarning currentWarning;
@@ -53,10 +52,10 @@ public sealed class GameplayController : UIPanelController, ILateTickable
     private readonly List<ScheduledWarning> pendingWarnings = new List<ScheduledWarning>();
 
     [Inject]
-    public void Construct(StageManager stage, LazyInject<TickableManager> tickables)
+    public void Construct(IStageService stageService, LazyInject<TickableManager> tickables)
     {
         Unsubscribe();
-        this.stage = stage;
+        this.stage = stageService.GetStageSchedule();
         this.tickables = tickables;
         ClearWarnings();
         if (isActiveAndEnabled) Subscribe();

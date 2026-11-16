@@ -40,7 +40,7 @@ public sealed class ShootingData : SkillBehaviourData
             !Finite(defaultDirection.y) || defaultDirection.sqrMagnitude < 0.000001f ||
             !Positive(speed) || !Positive(lifetime))
             throw new InvalidOperationException("Invalid shooting data.");
-        shooter.Validate();
+        shooter.GetDefinition().Validate();
         ShootBehaviorFactory.ValidateSupported(shooter);
         ProjectileMoveFactory.ValidateSupported(projectileMove);
         ValidateEffects(effects);

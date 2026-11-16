@@ -5,6 +5,8 @@ using UnityEngine;
 // Sở hữu skill Character/Equipment của một lượt spawn, độc lập với skill gameplay.
 public sealed class CharacterSkills : IDisposable
 {
+
+    #region Dependencies And State
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>();
     private readonly ulong generation;
     private bool disposed, ticking;
@@ -14,8 +16,12 @@ public sealed class CharacterSkills : IDisposable
     // Khóa hành động tạm thời không làm IsValid mất hiệu lực: skill phải còn để tiếp tục sau choáng.
     internal bool CanRun => IsValid && Owner.isActiveAndEnabled && Owner.CanUseSkills;
 
+    #endregion
+
+    #region Initialization
+
     // CharacterView tạo context khi vỏ còn tắt; mọi runtime ban đầu thuộc context này.
-    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillFactory factory)
+    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, ISkillRuntimeFactory factory)
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Identity = owner.RuntimeData ?? throw new ArgumentException("Initialize character data before skills.");
@@ -41,6 +47,10 @@ public sealed class CharacterSkills : IDisposable
         }
         catch { Dispose(); throw; }
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     public bool TryGetRuntime(SkillDataSO definition, out SkillRuntime runtime)
     {
@@ -71,6 +81,10 @@ public sealed class CharacterSkills : IDisposable
             if (skill.IsActive) skill.SetPaused(paused);
     }
 
+    #endregion
+
+    #region Cleanup
+
     // Death/despawn/destroy dọn cooldown, visual và modifier của toàn bộ skill nhân vật.
     public void Dispose()
     {
@@ -82,4 +96,6 @@ public sealed class CharacterSkills : IDisposable
         skills.Clear();
         if (failures.Count > 0) throw new AggregateException("Character skill cleanup failed.", failures);
     }
+
+    #endregion
 }

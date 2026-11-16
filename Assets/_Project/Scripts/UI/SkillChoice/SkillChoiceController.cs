@@ -13,7 +13,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private int activationFrame = -1;
 
     [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
 
     // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
     // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
@@ -50,10 +50,11 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private readonly List<SkillRuntime> ownedSkills = new List<SkillRuntime>(); // Chỉ skill gameplay; skill nhân vật thuộc CharacterSkills.
     private readonly HashSet<SkillDataSO> failedSkills = new HashSet<SkillDataSO>(); // Skill lỗi bị chặn tới khi reset trận, đổi Player hoặc gọi retry.
     private IReadOnlyList<SkillDataSO> catalog; // Snapshot skill được phép thưởng từ database được Zenject inject.
-    private LevelManager levels; // Nguồn sự kiện tăng cấp và reset tiến trình trận.
-    private SkillManager skills; // Đầu mối nhận/nâng runtime; UI không trực tiếp sửa behavior.
-    private PlayerManager players; // Nguồn Player hiện tại và thông báo đổi nhân vật.
-    private GameplayPauseService pauses; // Dịch vụ pause nhiều nguồn; đóng modal không gỡ pause thủ công.
+    private IRunProgress levels; // Nguồn sự kiện tăng cấp và reset tiến trình trận.
+    private ISkillGrant skillGrant;
+    private IOwnedSkillReader skills; // Đầu mối nhận/nâng runtime; UI không trực tiếp sửa behavior.
+    private IPlayerReader players; // Nguồn Player hiện tại và thông báo đổi nhân vật.
+    private IGameplayPause pauses; // Dịch vụ pause nhiều nguồn; đóng modal không gỡ pause thủ công.
     private CharacterView owner; // Player nhận thưởng; đổi owner phải bỏ queue của owner cũ.
     private IDisposable pauseLease; // Token pause của bảng lên cấp; trả khi đóng hoặc ẩn bảng.
     private IDisposable slowMotionLease;
@@ -72,10 +73,18 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     // Nhận dependency từ Zenject, kiểm tra reference scene và khởi tạo subscription kể cả khi panel đang tắt.
     [Inject]
-    public void Construct(LevelManager levels, SkillManager skills, PlayerManager players,
-        GameplayPauseService pauses, SkillDatabaseSO database)
+    public void Construct(
+        ILevelService levelService,
+        ISkillSystem skillSystem,
+        IPlayerSystem playerSystem,
+        IGameplayPauseService gameplayPauseService,
+        SkillDatabaseSO database)
     {
-        this.levels = levels; this.skills = skills; this.players = players; this.pauses = pauses;
+        this.levels = levelService.GetRunProgress();
+        this.skills = skillSystem.GetReader();
+        this.skillGrant = skillSystem.GetGrant();
+        this.players = playerSystem.GetPlayerReader();
+        this.pauses = gameplayPauseService.GetGameplayPause();
         catalog = database.CreateRunChoiceCatalog();
         if (levelUpPanel == null)
             throw new InvalidOperationException("Assign LevelUpPanel in SkillChoiceController.");
@@ -204,7 +213,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         SkillChoiceOffer offer = offers[index]; // Chụp offer vì callback có thể đóng panel và xóa list.
         try
         {
-            if (offer.TryApply(skills, owner) && revision == version)
+            if (offer.TryApply(skillGrant, skills, owner) && revision == version)
             {
                 progress.Consume();
                 RefreshOwnedSlots();

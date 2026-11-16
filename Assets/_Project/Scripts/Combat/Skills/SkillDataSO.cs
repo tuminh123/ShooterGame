@@ -50,7 +50,7 @@ public sealed class SkillDataSO : ScriptableObject
     // Một loại hành vi có tối đa một mẫu trong definition; enum được khai báo cố định trong class.
     internal ISkill GetBehaviour(SkillBehaviourType type)
     {
-        foreach (ISkill behaviour in behaviours) if (behaviour.Type == type) return behaviour;
+        foreach (ISkill behaviour in behaviours) if (behaviour.GetConfiguration().Type == type) return behaviour;
         throw new InvalidOperationException($"No {type} behaviour in {name}.");
     }
 
@@ -73,7 +73,7 @@ public sealed class SkillDataSO : ScriptableObject
             throw new InvalidOperationException($"Invalid skill definition: {name}.");
         var templates = new HashSet<SkillBehaviourType>();
         foreach (ISkill behaviour in behaviours)
-            if (!(behaviour is Skill) || !Enum.IsDefined(typeof(SkillBehaviourType), behaviour.Type) || !templates.Add(behaviour.Type))
+            if (!(behaviour is Skill) || !Enum.IsDefined(typeof(SkillBehaviourType), behaviour.GetConfiguration().Type) || !templates.Add(behaviour.GetConfiguration().Type))
                 throw new InvalidOperationException($"Missing/duplicate behaviour in {name}.");
         foreach (SkillLevelData entry in levels)
         {

@@ -6,15 +6,14 @@ using UnityEngine;
 public sealed class EnemyVisualManager : IDisposable
 {
     #region Dependencies & Buffers
-
-    private readonly CharacterManager characters; // Nguồn nhân vật hiện có trong scene.
+    private readonly ICharacterRegistry characters; // Nguồn nhân vật hiện có trong scene.
     private readonly Plane[] cameraPlanes = new Plane[6]; // Buffer giới hạn camera, dùng lại mỗi frame.
     private readonly List<CharacterTarget> snapshot = new List<CharacterTarget>(128); // Chốt đúng lượt spawn khi bật/tắt visual gây callback.
     private bool disposed; // Ngăn callback camera sau khi scene được dọn.
 
-    public EnemyVisualManager(CharacterManager characters)
+    public EnemyVisualManager(ICharacterSystem characterSystem)
     {
-        this.characters = characters;
+        this.characters = characterSystem.GetCharacterRegistry();
         Camera.onPreCull += UpdateVisibility;
     }
 

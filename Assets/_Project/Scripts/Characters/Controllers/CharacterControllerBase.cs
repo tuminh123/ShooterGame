@@ -2,7 +2,14 @@ using System;
 using UnityEngine;
 
 // Shared combat and innate-skill activation. Derived controllers specialize movement and death.
-public abstract class CharacterControllerBase : ICharacterController, ICharacterFeedbackSource
+public abstract class CharacterControllerBase :
+    ICharacterController,
+    ICharacterFeedbackSource,
+    ICharacterControl,
+    ICharacterDamageReceiver,
+    ICharacterDamageDealer,
+    ICharacterVitals,
+    IDisposable
 {
     #region Runtime Identity And Lifecycle
 
@@ -161,5 +168,20 @@ public abstract class CharacterControllerBase : ICharacterController, ICharacter
         if (identity == null) { identity = runtime; generation = runtime.Generation; }
         return ReferenceEquals(identity, runtime) && runtime.Generation == generation;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICharacterControl GetControl() => this;
+
+    public ICharacterDamageReceiver GetDamageReceiver() => this;
+
+    public ICharacterDamageDealer GetDamageDealer() => this;
+
+    public ICharacterVitals GetVitals() => this;
+
+    public IDisposable GetLifetime() => this;
     #endregion
 }

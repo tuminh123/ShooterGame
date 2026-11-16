@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Zenject;
 
 // Tra pool theo loại runtime; cấu hình effect tự chọn runtime, manager không switch theo loại effect.
-public sealed class EffectRuntimePool
+public sealed class EffectRuntimePool : IEffectRuntimePool, IEffectRuntimeLease, IEffectRuntimeCapacity
 {
     #region Pool Registry
 
@@ -14,9 +14,7 @@ public sealed class EffectRuntimePool
     #region Initialization
 
     // Burn/Poison dùng chung pool DamageOverTimeEffectRuntime vì cùng kiểu hành vi runtime.
-    public EffectRuntimePool(ClassPool<SlowEffectRuntime> slowPool,
-        ClassPool<DamageOverTimeEffectRuntime> periodicDamagePool)
-    {
+    public EffectRuntimePool(ClassPool<SlowEffectRuntime> slowPool,        ClassPool<DamageOverTimeEffectRuntime> periodicDamagePool)    {
         pools = new Dictionary<Type, IMemoryPool>
         {
             { typeof(SlowEffectRuntime), slowPool },
@@ -51,11 +49,20 @@ public sealed class EffectRuntimePool
     #region Return And Reset
 
     // Manager phải gọi Remove trước. Reset xóa context rồi trả đúng pool theo kiểu runtime thực tế.
-    internal void Return(EffectRuntime runtime)
+    public void Return(EffectRuntime runtime)
     {
         runtime.Reset();
         pools[runtime.GetType()].Despawn(runtime);
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IEffectRuntimeLease GetEffectRuntimeLease() => this;
+
+    public IEffectRuntimeCapacity GetEffectRuntimeCapacity() => this;
 
     #endregion
 }

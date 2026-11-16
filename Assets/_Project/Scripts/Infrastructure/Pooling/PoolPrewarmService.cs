@@ -5,7 +5,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 // Loading chuẩn bị pool theo batch; chỉ mở Home khi mọi GameObject và buffer đã sẵn sàng.
-public sealed class PoolPrewarmService
+public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoolPrewarmProgress
 {
     #region Dependencies And Progress
 
@@ -14,12 +14,12 @@ public sealed class PoolPrewarmService
     private readonly CharacterDatabaseSO characters;
     private readonly CombatAssetsSO combat;
     private readonly LootDatabaseSO loot;
-    private readonly PoolManager objects;
-    private readonly CharacterRuntimePool characterRuntimes;
-    private readonly EffectRuntimePool effectRuntimes;
-    private readonly MovementManager movement;
-    private readonly ProjectileManager projectiles;
-    private readonly ISpatialManager spatial;
+    private readonly IPoolPreparation objects;
+    private readonly ICharacterRuntimeCapacity characterRuntimes;
+    private readonly IEffectRuntimeCapacity effectRuntimes;
+    private readonly IMovementCapacity movement;
+    private readonly IProjectileCapacity projectiles;
+    private readonly ISpatialCapacity spatialCapacity;
 
     public bool IsReady { get; private set; }
     public int PreparedObjectCount { get; private set; }
@@ -30,22 +30,30 @@ public sealed class PoolPrewarmService
 
     #region Injection
 
-    public PoolPrewarmService(PoolPrewarmSettingsSO settings, CharacterView characterPrefab,
-        CharacterDatabaseSO characters, CombatAssetsSO combat, LootDatabaseSO loot, PoolManager objects,
-        CharacterRuntimePool characterRuntimes, EffectRuntimePool effectRuntimes,
-        MovementManager movement, ProjectileManager projectiles, ISpatialManager spatial)
+    public PoolPrewarmService(
+        PoolPrewarmSettingsSO settings,
+        CharacterView characterPrefab,
+        CharacterDatabaseSO characters,
+        CombatAssetsSO combat,
+        LootDatabaseSO loot,
+        IPoolSystem poolSystem,
+        ICharacterRuntimePool characterRuntimePool,
+        IEffectRuntimePool effectRuntimePool,
+        IMovementSystem movementSystem,
+        IProjectileSystem projectileSystem,
+        ISpatialManager spatialManager)
     {
         this.settings = settings;
         this.characterPrefab = characterPrefab;
         this.characters = characters;
         this.combat = combat;
         this.loot = loot;
-        this.objects = objects;
-        this.characterRuntimes = characterRuntimes;
-        this.effectRuntimes = effectRuntimes;
-        this.movement = movement;
-        this.projectiles = projectiles;
-        this.spatial = spatial;
+        this.objects = poolSystem.GetPoolPreparation();
+        this.characterRuntimes = characterRuntimePool.GetCharacterRuntimeCapacity();
+        this.effectRuntimes = effectRuntimePool.GetEffectRuntimeCapacity();
+        this.movement = movementSystem.GetCapacity();
+        this.projectiles = projectileSystem.GetProjectileCapacity();
+        this.spatialCapacity = spatialManager.GetCapacity();
     }
 
     #endregion
@@ -87,7 +95,7 @@ public sealed class PoolPrewarmService
         // Tạo sẵn cả vùng nhớ job: chỉ prewarm GameObject sẽ vẫn bị resize buffer trong trận đầu.
         movement.PrewarmCapacity(checked(settings.characterShells + settings.bullets + settings.pickups));
         projectiles.PrewarmCapacity(settings.bullets);
-        if (spatial is SpatialManager spatialManager) spatialManager.PrewarmCapacity(settings.characterShells);
+        spatialCapacity.PrewarmCapacity(settings.characterShells);
 
         PreparedObjectCount = 0;
         foreach (KeyValuePair<GameObject, int> entry in plan)
@@ -116,6 +124,15 @@ public sealed class PoolPrewarmService
         plan.TryGetValue(prefab, out int previous);
         plan[prefab] = checked(previous + count);
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IPoolPrewarm GetPoolPrewarm() => this;
+
+    public IPoolPrewarmProgress GetPoolPrewarmProgress() => this;
 
     #endregion
 }

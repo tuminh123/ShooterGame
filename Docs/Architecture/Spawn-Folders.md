@@ -41,7 +41,7 @@ Bosses rỗng khi chưa có asset boss spawn.
 | Assets/_Project/Scripts/Core/Stages/StageManager.cs | Assets/_Project/Scripts/Spawning/Stages/StageManager.cs |
 | Assets/_Project/Scripts/Core/Stages/StageProgressService.cs | Assets/_Project/Scripts/Spawning/Stages/StageProgressService.cs |
 | Assets/_Project/Scripts/Core/Stages/Spawning/IStageSpawnData.cs | Assets/_Project/Scripts/Spawning/Core/IStageSpawnData.cs |
-| Assets/_Project/Scripts/Core/Stages/Spawning/IStageSpawnSystem.cs | Assets/_Project/Scripts/Spawning/Core/IStageSpawnSystem.cs |
+| Assets/_Project/Scripts/Core/Stages/Spawning/IStageSpawnSystem.cs | Assets/_Project/Scripts/Interfaces/Spawning/Core/IStageSpawnSystem.cs |
 | Assets/_Project/Scripts/Core/Stages/Spawning/StageSpawnRoster.cs | Assets/_Project/Scripts/Spawning/Core/StageSpawnRoster.cs |
 | Assets/_Project/Scripts/Characters/Enemies/EnemySpawnManager.cs | Assets/_Project/Scripts/Spawning/Core/EnemySpawnManager.cs |
 | Assets/_Project/Scripts/Characters/Enemies/WaveConfigSO.cs | Assets/_Project/Scripts/Spawning/Waves/WaveConfigSO.cs |

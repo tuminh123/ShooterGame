@@ -4,7 +4,7 @@ using UnityEngine;
 using Zenject;
 
 // Theo dõi nhân vật đang sống và phát animation ăn mừng khi trận thua.
-public sealed class CharacterManager : IDisposable, ITickable
+public sealed class CharacterManager : IDisposable, ITickable, ICharacterSystem, ICharacterRegistration, ICharacterRegistry, ICharacterDeathEvents
 {
     #region Frame Scheduling
 
@@ -47,8 +47,7 @@ public sealed class CharacterManager : IDisposable, ITickable
     public event Action<CharacterView> CharacterDied;
     public event Action EnemyCelebrationsCompleted;
 
-    public CharacterManager()
-    {
+    public CharacterManager()    {
         GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
@@ -131,5 +130,16 @@ public sealed class CharacterManager : IDisposable, ITickable
         foreach (CharacterView character in new List<CharacterView>(characters.Keys)) Unregister(character);
         CharacterAdded = null; CharacterRemoved = null; CharacterDied = null; EnemyCelebrationsCompleted = null;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICharacterRegistration GetCharacterRegistration() => this;
+
+    public ICharacterRegistry GetCharacterRegistry() => this;
+
+    public ICharacterDeathEvents GetCharacterDeathEvents() => this;
     #endregion
 }

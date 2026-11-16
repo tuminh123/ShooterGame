@@ -26,7 +26,7 @@ public abstract class EffectRuntime
     protected CharacterTeam SourceTeam; // Chốt phe nguồn lúc áp dụng; runtime không cần giữ người bắn.
     internal double Remaining, TickElapsed; // Thời hạn và pha tick riêng của lượt effect này.
     internal bool Paused;
-    internal EffectManager Manager; // Bên duy nhất cập nhật và trả runtime về pool.
+    internal IEffectHandleControl Manager; // Bên duy nhất cập nhật và trả runtime về pool.
     internal int ActiveIndex; // Cho phép manager gỡ O(1) bằng đổi chỗ phần tử cuối.
     internal int TargetIndex; // Chỉ số trong nhóm effect của đúng cá thể.
     internal bool IsActive; // False ngay khi bị gỡ, dù Remove/Reset có thể đang chờ callback kết thúc.

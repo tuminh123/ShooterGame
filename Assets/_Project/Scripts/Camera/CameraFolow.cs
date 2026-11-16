@@ -11,7 +11,7 @@ public class CameraFolow : MonoBehaviour, Zenject.ILateTickable
     private int activationFrame = -1;
 
     [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
 
     // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
     // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
@@ -35,8 +35,8 @@ public class CameraFolow : MonoBehaviour, Zenject.ILateTickable
 
     #region Follow Settings & State
 
-    private Transform target;              // * Nhân vật hiện tại do PlayerManager cung cấp.
-    private PlayerManager playerManager;   // * Nguồn sự kiện tạo/gỡ hoặc thay nhân vật.
+    private Transform target;              // * Nhân vật hiện tại do IPlayerReader cung cấp.
+    private IPlayerReader playerManager;   // * Nguồn sự kiện tạo/gỡ hoặc thay nhân vật.
     // * Khoảng lệch so với mục tiêu, tính bằng world unit; Z = -10 đặt camera trước mặt phẳng 2D.
     [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f);
     // * Thời gian làm mượt gần đúng, tính bằng giây; nhỏ hơn giúp camera bám sát hơn.
@@ -50,11 +50,11 @@ public class CameraFolow : MonoBehaviour, Zenject.ILateTickable
 
     // * SceneContext inject; nhận player hiện tại dù manager tạo trước hay sau camera.
     [Inject]
-    public void Construct(PlayerManager manager)
+    public void Construct(IPlayerSystem playerSystem)
     {
         if (playerManager != null)
             playerManager.PlayerChanged -= OnPlayerChanged;
-        playerManager = manager;
+        playerManager = playerSystem.GetPlayerReader();
         if (isActiveAndEnabled)
             OnEnable();
     }

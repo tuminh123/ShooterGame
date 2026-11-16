@@ -4,9 +4,20 @@ using UnityEngine;
 using Zenject;
 
 // Sở hữu số dư vĩnh viễn và lưu snapshot vào key currencies trong save người chơi.
-public sealed class CurrencyService : IInitializable, IDisposable
+public sealed class CurrencyService :
+    IInitializable,
+    IDisposable,
+    ICurrencyService,
+    ICurrencyReader,
+    ICurrencyWallet,
+    ICurrencyPersistence,
+    IStageRewardTransaction
 {
-    private readonly SaveManager saves;
+
+    #region Dependencies And State
+    private readonly ISaveReader saveReader;
+    private readonly ISaveWriter saveWriter;
+    private readonly ISaveFlush saveFlush;
     private CurrencySaveData data;
     private readonly Dictionary<CurrencyType, CurrencySaveData.Balance> balances = new Dictionary<CurrencyType, CurrencySaveData.Balance>();
     private bool changing;
@@ -15,15 +26,27 @@ public sealed class CurrencyService : IInitializable, IDisposable
     public event Action<CurrencyType, long> BalanceChanged;
     public event Action<CurrencyType, Exception> SaveFailed;
 
-    public CurrencyService(SaveManager saves)
-        => this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
+    #endregion
+
+    #region Initialization
+
+    public CurrencyService(ISaveService saveService)
+    {
+        this.saveReader = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveWriter = saveService.GetSaveWriter() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveFlush = saveService.GetSaveFlush() ?? throw new ArgumentNullException(nameof(saveService));
+    }
 
     public void Initialize()
     {
-        if (!saves.IsLoaded || data != null) return;
-        data = saves.Load(GameConstants.SaveKeys.Currencies, new CurrencySaveData(), ValidateData);
+        if (!saveReader.IsLoaded || data != null) return;
+        data = saveReader.Load(GameConstants.SaveKeys.Currencies, new CurrencySaveData(), ValidateData);
         foreach (CurrencySaveData.Balance entry in data.currencies) balances.Add(entry.type, entry);
     }
+
+    #endregion
+
+    #region Validation
 
     internal static void ValidateData(CurrencySaveData value)
     {
@@ -33,6 +56,10 @@ public sealed class CurrencyService : IInitializable, IDisposable
             if (entry == null || !Enum.IsDefined(typeof(CurrencyType), entry.type) || entry.balance < 0 || !unique.Add(entry.type))
                 throw new InvalidOperationException("Currency types must be defined and unique with non-negative balances.");
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     public long GetBalance(CurrencyType type)
     {
@@ -52,7 +79,7 @@ public sealed class CurrencyService : IInitializable, IDisposable
     // Cấp nhiều loại tiền: kiểm tra toàn bộ trước khi sửa RAM, ghi chung một snapshot ví.
     public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts) => AddBatch(amounts, null);
 
-    internal bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts, StageProgressSaveData stageProgress)
+    public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts, StageProgressSaveData stageProgress)
     {
         EnsureCanChange(0);
         if (amounts == null) throw new ArgumentNullException(nameof(amounts));
@@ -78,13 +105,13 @@ public sealed class CurrencyService : IInitializable, IDisposable
                 entry.balance = target.Value;
             }
             bool saved = stageProgress != null
-                ? saves.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(),
+                ? saveWriter.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(),
                     GameConstants.SaveKeys.StageProgress, stageProgress.Clone())
-                : targets.Count > 0 ? Save() : saves.SaveIfDirty();
+                : targets.Count > 0 ? Save() : saveFlush.SaveIfDirty();
             foreach (KeyValuePair<CurrencyType, long> target in targets)
             {
                 NotifyBalance(target.Key, target.Value);
-                if (!saved) NotifyFailure(target.Key, saves.LastError);
+                if (!saved) NotifyFailure(target.Key, saveReader.LastError);
             }
             return saved;
         }
@@ -119,20 +146,28 @@ public sealed class CurrencyService : IInitializable, IDisposable
                 }
                 entry.balance = balance;
             }
-            bool saved = changed ? Save() : saves.SaveIfDirty();
+            bool saved = changed ? Save() : saveFlush.SaveIfDirty();
             if (changed) NotifyBalance(type, balance);
-            if (!saved) NotifyFailure(type, saves.LastError);
+            if (!saved) NotifyFailure(type, saveReader.LastError);
             return saved;
         }
         finally { changing = false; }
     }
 
+    #endregion
+
+    #region Persistence
+
     public bool Save()
     {
         EnsureAvailable();
         ValidateData(data);
-        return saves.Save(GameConstants.SaveKeys.Currencies, data.Clone());
+        return saveWriter.Save(GameConstants.SaveKeys.Currencies, data.Clone());
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     // Lỗi trình bày UI không được làm caller tưởng thao tác cộng/trừ tiền chưa thực hiện.
     private void NotifyBalance(CurrencyType type, long balance)
@@ -151,6 +186,10 @@ public sealed class CurrencyService : IInitializable, IDisposable
             catch (Exception exception) { Debug.LogException(exception); }
     }
 
+    #endregion
+
+    #region Validation
+
     private void EnsureCanChange(long amount)
     {
         EnsureAvailable();
@@ -161,8 +200,12 @@ public sealed class CurrencyService : IInitializable, IDisposable
     private void EnsureAvailable()
     {
         if (disposed) throw new ObjectDisposedException(nameof(CurrencyService));
-        if (data == null || !saves.IsLoaded) throw new InvalidOperationException("Currency data has not loaded.");
+        if (data == null || !saveReader.IsLoaded) throw new InvalidOperationException("Currency data has not loaded.");
     }
+
+    #endregion
+
+    #region Cleanup
 
     public void Dispose()
     {
@@ -172,4 +215,19 @@ public sealed class CurrencyService : IInitializable, IDisposable
         balances.Clear();
         data = null;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICurrencyReader GetReader() => this;
+
+    public ICurrencyWallet GetWallet() => this;
+
+    public ICurrencyPersistence GetPersistence() => this;
+
+    public IStageRewardTransaction GetStageRewardTransaction() => this;
+
+    #endregion
 }

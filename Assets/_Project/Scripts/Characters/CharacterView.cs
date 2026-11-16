@@ -9,20 +9,20 @@ using Zenject;
 public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVisualEventSource
 {
     #region Dependencies & Spawn State
-
-    private MovementManager movement; // * Dịch vụ áp dụng chuyển động, nhận lệnh từ hành vi hiện tại qua Move.
-    private PoolManager pools; // * Pool của vỏ và visual; visual được thu hồi riêng khi tháo vỏ.
+    private IMovementRegistration movementRegistration; // * Dịch vụ áp dụng chuyển động, nhận lệnh từ hành vi hiện tại qua Move.
+    private IMovementCommand movementCommand;
+    private IGameObjectPool pools; // * Pool của vỏ và visual; visual được thu hồi riêng khi tháo vỏ.
     private MovementHandle movementHandle; // * Đăng ký của lần hoạt động hiện tại; vô hiệu ngay khi tắt vỏ.
     private ICharacterController controller; // * Hành vi được gắn lúc spawn, không serialize vào prefab.
     private GameObject visual; // * Bản sao visual con, lấy từ prefab được khai báo trong CharacterDataSO.
     private SpriteRenderer[] sprites; // Cache màu và bounds; quay mặt/animation thuộc CharacterVisualHandle.
     private CharacterVisualHandle visualHandle;
     private HitboxData hitbox; // Cấu hình local; không cần Collider2D trên vỏ nhân vật.
-    private ISpatialManager spatial;
-    private EffectManager effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
-    private SkillManager skillManager; // Chỉ quản lý skill nhận thêm trong gameplay.
-    private SkillFactory skillFactory; // CharacterSkills tự tạo và sở hữu skill ban đầu.
-    private CharacterRuntimePool runtimePool;
+    private ISpatialRegistration spatial;
+    private IEffectOwnerLifecycle effectManager; // Quản lý gameplay effect tập trung, không quản lý prefab VFX.
+    private ISkillOwnerLifecycle skillManager; // Chỉ quản lý skill nhận thêm trong gameplay.
+    private ISkillRuntimeFactory skillFactory; // CharacterSkills tự tạo và sở hữu skill ban đầu.
+    private ICharacterRuntimeLease runtimePool;
 
     #endregion
 
@@ -50,9 +50,10 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     public CharacterRuntimeData RuntimeData { get; private set; } // * Dữ liệu cá thể đang sử dụng vỏ; null khi đã thu hồi.
     public IReadOnlyList<SpriteRenderer> Sprites => sprites;
     public SpatialHandle SpatialHandle { get; private set; }
-    public ICharacterSearch Search { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
+    public ICharacterTargetSearch TargetSearch { get; private set; }
+    public ICharacterRegionSearch RegionSearch { get; private set; } // Chỉ cần hợp đồng tìm kiếm, không giữ implementation/factory cụ thể.
     // Trình diễn/spatial vẫn hoạt động khi enemy choáng hoặc tuần tra; chỉ khóa quyền thực thi skill.
-    public bool CanUseSkills => !(controller is EnemyController enemy) || enemy.CanAttack;
+    public bool CanUseSkills => !(controller is ICharacterActionPermission permission) || permission.CanAttack;
     public bool IsBoss { get; private set; } // Metadata của lượt spawn; UI và các hệ thống khác có thể đọc.
     public bool IsElite { get; internal set; }
     public bool IsVisualVisible => visual != null && visual.activeSelf;
@@ -81,22 +82,33 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     #region Injection & Spawn Initialization
 
     [Inject]
-    public void Construct(MovementManager movement, PoolManager pools, EffectManager effectManager,
-        ISpatialManager spatial, ICharacterSearch search,
-        CharacterRuntimePool runtimePool, SkillManager skillManager, SkillFactory skillFactory)
+    public void Construct(
+        IMovementSystem movementSystem,
+        IPoolSystem poolSystem,
+        IEffectSystem effectSystem,
+        ISpatialManager spatialManager,
+        ICharacterSearch characterSearch,
+        ICharacterRuntimePool characterRuntimePool,
+        ISkillSystem skillSystem,
+        ISkillFactory skillFactoryFacade)
     {
-        this.movement = movement;
-        this.pools = pools;
-        this.effectManager = effectManager;
-        this.skillManager = skillManager;
-        this.skillFactory = skillFactory;
-        this.runtimePool = runtimePool;
-        this.spatial = spatial;
-        Search = search;
+        this.movementRegistration = movementSystem.GetRegistration();
+        this.movementCommand = movementSystem.GetCommands();
+        this.pools = poolSystem.GetGameObjectPool();
+        this.effectManager = effectSystem.GetEffectOwnerLifecycle();
+        this.skillManager = skillSystem.GetOwnerLifecycle();
+        this.skillFactory = skillFactoryFacade.GetRuntimeFactory();
+        this.runtimePool = characterRuntimePool.GetCharacterRuntimeLease();
+        this.spatial = spatialManager.GetRegistration();
+        TargetSearch = characterSearch.GetCharacterTargetSearch();
+        RegionSearch = characterSearch.GetCharacterRegionSearch();
     }
 
     // * Factory gọi khi vỏ còn nằm dưới nhánh Preparing đang tắt; OnEnable chưa được phép chạy hành vi.
-    public void Initialize(CharacterDataSO template, CharacterRuntimeData runtime, ICharacterController behavior)
+    public void Initialize(
+        CharacterDataSO template,
+        CharacterRuntimeData runtime,
+        ICharacterController behavior)
     {
         if (gameObject.activeInHierarchy || RuntimeData != null)
             throw new InvalidOperationException("Initialize a released, inactive character shell.");
@@ -155,12 +167,12 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         if (RuntimeData == null)
             return;
         if (!RuntimeData.IsAlive) return; // Bật lại xác đang phát ani chết không đăng ký lại movement/hitbox/AI.
-        movementHandle = movement.Register(transform);
+        movementHandle = movementRegistration.Register(transform);
         SpatialHandle = spatial.Register(this);
         Skills?.SetPaused(false);
         skillManager.SetOwnerPaused(this, false);
         effectManager.SetPaused(this, RuntimeData, false);
-        controller?.SetPaused(false);
+        controller?.GetControl().SetPaused(false);
         ApplySpriteColors();
     }
 
@@ -180,7 +192,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         ICharacterController behavior = controller;
         CharacterRuntimeData identity = RuntimeData;
         ulong generation = identity.Generation;
-        behavior.Tick(this, identity);
+        behavior.GetControl().Tick(this, identity);
         try
         {
             if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation && ReferenceEquals(controller, behavior))
@@ -188,7 +200,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         }
         finally
         {
-            if (behavior is EnemyController enemy) enemy.CompletePatternContact(this, identity, generation);
+            if (behavior is ICharacterContactCompletion contact) contact.CompletePatternContact(this, identity, generation);
         }
     }
 
@@ -239,7 +251,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     {
         if (resultPresentation) return;
         FaceDirection(facingDirection ?? direction.x);
-        movement?.SetMovement(movementHandle, direction, speed, maxDistance);
+        movementCommand?.SetMovement(movementHandle, direction, speed, maxDistance);
         if (!IsVisualAlive) return;
         CharacterVisualState next = speed > 0.0001f && direction.sqrMagnitude > 0.000001f && maxDistance > 0.0001f
             ? CharacterVisualState.Move : CharacterVisualState.Idle;
@@ -292,8 +304,8 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
                     hitbox.Size.x * Mathf.Abs(transform.lossyScale.x), hitbox.Size.y * Mathf.Abs(transform.lossyScale.y), 0f));
         }
         if (isActiveAndEnabled && RuntimeData != null && RuntimeData.IsAlive &&
-            controller is EnemyController enemy)
-            enemy.DrawSeparationGizmo(transform.position);
+            controller is ICharacterSeparationGizmos gizmos)
+            gizmos.DrawSeparationGizmo(transform.position);
     }
     #endregion
     #endif
@@ -304,14 +316,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
     public DamageResult ReceiveDamage(DamageInfo damage)
     {
         if (resultPresentation) return default;
-        return controller != null ? controller.ReceiveDamage(this, RuntimeData, damage) : default;
+        return controller != null ? controller.GetDamageReceiver().ReceiveDamage(this, RuntimeData, damage) : default;
     }
 
-    public void ChangeHealth(float amount) { if (!resultPresentation) controller?.ChangeHealth(this, RuntimeData, amount); }
-    public void GrantShield(float amount) { if (!resultPresentation) controller?.GrantShield(this, RuntimeData, amount); }
+    public void ChangeHealth(float amount) { if (!resultPresentation) controller?.GetVitals().ChangeHealth(this, RuntimeData, amount); }
+    public void GrantShield(float amount) { if (!resultPresentation) controller?.GetVitals().GrantShield(this, RuntimeData, amount); }
 
     public DamageResult DealDamage(CharacterTarget target, float multiplier = 1f)
-        => !resultPresentation && controller != null ? controller.DealDamage(this, RuntimeData, target, multiplier) : default;
+        => !resultPresentation && controller != null ? controller.GetDamageDealer().DealDamage(this, RuntimeData, target, multiplier) : default;
 
     internal void NotifyDamageReceived(DamageInfo damage, DamageResult result)
     {
@@ -320,7 +332,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         DamageReceived?.Invoke(damage, result);
     }
 
-    // EffectManager chỉ chuyển thông báo; controller quyết định trạng thái và phát sự kiện cho view.
+    // IEffectOwnerLifecycle chỉ chuyển thông báo; controller quyết định trạng thái và phát sự kiện cho view.
     internal void NotifyEffectFeedback(CharacterRuntimeData runtime, ulong generation,
         CharacterFeedbackKind kind, bool active)
     {
@@ -445,7 +457,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
                             if (ReferenceEquals(RuntimeData, identity) && identity.Generation == generation)
                             {
                                 ClearFeedback();
-                                controller?.Dispose();
+                                controller?.GetLifetime().Dispose();
                             }
                         }
                     }
@@ -477,14 +489,14 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         StopSpatial();
         Skills?.SetPaused(true);
         skillManager?.SetOwnerPaused(this, true);
-        controller?.SetPaused(true);
+        controller?.GetControl().SetPaused(true);
         if (RuntimeData != null) effectManager?.SetPaused(this, RuntimeData, true);
         Deactivated?.Invoke();
     }
 
     private void StopMovement()
     {
-        movement?.Unregister(movementHandle);
+        movementRegistration?.Unregister(movementHandle);
         movementHandle = default;
     }
 
@@ -493,7 +505,7 @@ public sealed class CharacterView : MonoBehaviour, IDamageReceiver, ICharacterVi
         ClearFeedback();
         ICharacterController previous = controller;
         controller = null;
-        try { previous?.Dispose(); }
+        try { previous?.GetLifetime().Dispose(); }
         catch (Exception exception) { Debug.LogException(exception, this); }
     }
 

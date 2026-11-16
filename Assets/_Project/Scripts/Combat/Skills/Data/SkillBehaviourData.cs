@@ -24,7 +24,7 @@ public abstract class SkillBehaviourData
         foreach (IGameplayEffect effect in effects)
         {
             if (effect == null) throw new InvalidOperationException("Missing effect.");
-            effect.Validate();
+            effect.GetValidation().Validate();
         }
     }
 }

@@ -2,23 +2,38 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>Dọn quái thường, khóa đấu trường và đưa Elite sống vào trận Boss.</summary>
-public sealed class BossHandleSummon
+public sealed class BossHandleSummon : IBossSummonService, IBossSummon
 {
-    private readonly CharacterManager characters;
-    private readonly PlayerManager players;
-    private readonly EnemySpawnManager spawner;
-    private readonly MovementManager movement;
+
+    #region Dependencies And State
+    private readonly ICharacterRegistry characters;
+    private readonly IPlayerReader players;
+    private readonly IEnemySpawn spawnerEnemySpawn;
+    private readonly IEnemyDespawn spawnerEnemyDespawn;
+    private readonly IMovementArena movement;
     private GameObject arenaVisual;
     private Material arenaMaterial;
 
-    public BossHandleSummon(CharacterManager characters, PlayerManager players,
-        EnemySpawnManager spawner, MovementManager movement)
+    #endregion
+
+    #region Initialization
+
+    public BossHandleSummon(
+        ICharacterSystem characterSystem,
+        IPlayerSystem playerSystem,
+        IEnemySpawnService enemySpawnService,
+        IMovementSystem movementSystem)
     {
-        this.characters = characters;
-        this.players = players;
-        this.spawner = spawner;
-        this.movement = movement;
+        this.characters = characterSystem.GetCharacterRegistry();
+        this.players = playerSystem.GetPlayerReader();
+        this.spawnerEnemySpawn = enemySpawnService.GetEnemySpawn();
+        this.spawnerEnemyDespawn = enemySpawnService.GetEnemyDespawn();
+        this.movement = movementSystem.GetArena();
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     /// <summary>Dọn enemy thường, giữ Elite, mở ranh giới và tạo Boss trong vùng.</summary>
     public CharacterView Summon(CharacterDataSO data, int level, Vector2 arenaSize)
@@ -36,15 +51,19 @@ public sealed class BossHandleSummon
         {
             if (enemy == null || enemy.RuntimeData == null || enemy.RuntimeData.Team != CharacterTeam.Enemy || enemy.IsElite)
                 continue;
-            spawner.Despawn(enemy);
+            spawnerEnemyDespawn.Despawn(enemy);
         }
         ClampIntoArena(player.transform, bounds);
         foreach (CharacterView enemy in currentCharacters)
             if (enemy != null && enemy.IsElite && enemy.RuntimeData != null) ClampIntoArena(enemy.transform, bounds);
 
         Vector2 bossPosition = center + Vector2.up * (arenaSize.y * 0.3f);
-        return spawner.Spawn(data, level, bossPosition);
+        return spawnerEnemySpawn.Spawn(data, level, bossPosition);
     }
+
+    #endregion
+
+    #region Cleanup
 
     /// <summary>Gỡ ranh giới giữa lượt chơi.</summary>
     public void Clear()
@@ -55,6 +74,10 @@ public sealed class BossHandleSummon
         arenaVisual = null;
         arenaMaterial = null;
     }
+
+    #endregion
+
+    #region Creation
 
     /// <summary>Vẽ viền đấu trường quanh vị trí player lúc Boss xuất hiện.</summary>
     private void CreateArenaOutline(Vector2 center, Vector2 size)
@@ -80,6 +103,10 @@ public sealed class BossHandleSummon
         line.SetPosition(4, center + new Vector2(-half.x, -half.y));
     }
 
+    #endregion
+
+    #region Runtime Operations
+
     /// <summary>Kẹp vị trí nhân vật vào bên trong đấu trường.</summary>
     private static void ClampIntoArena(Transform target, Bounds bounds)
     {
@@ -88,4 +115,13 @@ public sealed class BossHandleSummon
         point.y = Mathf.Clamp(point.y, bounds.min.y, bounds.max.y);
         target.position = point;
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IBossSummon GetBossSummon() => this;
+
+    #endregion
 }

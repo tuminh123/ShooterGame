@@ -6,7 +6,15 @@ using Zenject;
 
 /// <summary>Tạo và thu hồi enemy/boss chung; không quyết định lịch hay quota.</summary>
 [DefaultExecutionOrder(10000)]
-public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
+public sealed class EnemySpawnManager :
+    MonoBehaviour,
+    Zenject.ILateTickable,
+    IEnemySpawnService,
+    IEnemySpawnValidation,
+    IEnemySpawn,
+    IEnemyDespawn,
+    IEnemySpawnGeometry,
+    IEnemySpawnLateEvents
 {
     #region Zenject Tick Registration
 
@@ -15,7 +23,7 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
     private int activationFrame = -1;
 
     [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
 
     // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
     // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
@@ -56,8 +64,9 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
 
     private readonly List<Vector2> spawnPoints = new List<Vector2>();
     private Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs;
-    private CharacterFactory factory;
-    private PlayerManager players;
+    private ICharacterSpawn characterSpawn;
+    private ICharacterDespawn characterDespawn;
+    private IPlayerReader players;
 
     #endregion
 
@@ -76,10 +85,14 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
 
     /// <summary>Nhận factory, player và lập bảng cấu hình cấp theo loại nhân vật.</summary>
     [Inject]
-    public void Construct(CharacterFactory factory, PlayerManager players, LevelDatabaseSO levelDatabase)
+    public void Construct(
+        ICharacterFactory characterFactory,
+        IPlayerSystem playerSystem,
+        LevelDatabaseSO levelDatabase)
     {
-        this.factory = factory;
-        this.players = players;
+        this.characterSpawn = characterFactory.GetCharacterSpawn();
+        this.characterDespawn = characterFactory.GetCharacterDespawn();
+        this.players = playerSystem.GetPlayerReader();
         levelConfigs = levelDatabase.CreateTypeLookup();
     }
 
@@ -107,10 +120,14 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
     #region Tạo và thu hồi nhân vật
 
     /// <summary>Tạo AI mặc định với cấu hình tách đàn và phản lực hiện tại.</summary>
-    public EnemyController CreateController() => new EnemyController(players, factory, separation, recoil);
+    public EnemyController CreateController() => new EnemyController(players, characterDespawn, separation, recoil);
 
     /// <summary>Tính bonus theo cấp rồi tạo nhân vật; dọn controller nếu tạo thất bại.</summary>
-    public CharacterView Spawn(CharacterDataSO data, int level, Vector2 point, ICharacterController controller = null)
+    public CharacterView Spawn(
+        CharacterDataSO data,
+        int level,
+        Vector2 point,
+        ICharacterController controller = null)
     {
         ValidateCharacter(data);
         if (level < 1 || float.IsNaN(point.x) || float.IsInfinity(point.x) || float.IsNaN(point.y) || float.IsInfinity(point.y) ||
@@ -122,10 +139,10 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
         {
             StatBonus bonus = levelConfigs[data.CharacterType].GetTotalBonus(level);
             // CharacterFactory applies data.IsBoss and boss presentation. Both roles retain the existing shared AI.
-            return factory.Spawn(data, bonus, behavior, new Vector3(point.x, point.y, spawnZ))
+            return characterSpawn.Spawn(data, bonus, behavior, new Vector3(point.x, point.y, spawnZ))
                 ?? throw new InvalidOperationException("Không thể tạo enemy/boss: " + data.name);
         }
-        catch { behavior.Dispose(); throw; }
+        catch { behavior.GetLifetime().Dispose(); throw; }
     }
 
     /// <summary>Sinh Elite bằng AI thường rồi áp dụng tăng HP và scale riêng cho lượt này.</summary>
@@ -148,7 +165,7 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
     }
 
     /// <summary>Trả nhân vật về pool qua factory, không phát sự kiện chết.</summary>
-    public void Despawn(CharacterView character) => factory.Despawn(character);
+    public void Despawn(CharacterView character) => characterDespawn.Despawn(character);
 
     #endregion
 
@@ -220,6 +237,21 @@ public sealed class EnemySpawnManager : MonoBehaviour, Zenject.ILateTickable
             Gizmos.DrawSphere(new Vector3(point.x, point.y, spawnZ), 0.08f);
         }
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IEnemySpawnValidation GetEnemySpawnValidation() => this;
+
+    public IEnemySpawn GetEnemySpawn() => this;
+
+    public IEnemyDespawn GetEnemyDespawn() => this;
+
+    public IEnemySpawnGeometry GetEnemySpawnGeometry() => this;
+
+    public IEnemySpawnLateEvents GetEnemySpawnLateEvents() => this;
 
     #endregion
 }

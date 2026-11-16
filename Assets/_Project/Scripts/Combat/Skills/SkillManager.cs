@@ -4,13 +4,13 @@ using UnityEngine;
 using Zenject;
 
 // Chỉ sở hữu skill nhận trong gameplay; skill nhân vật thuộc CharacterSkills.
-public sealed class SkillManager : ITickable, IDisposable
+public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillOwnerLifecycle, ISkillGrant, IOwnedSkillReader, IRunSkillCleanup
 {
     #region Services And Runtime Collection
 
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
-    private readonly LevelManager levels; // Nhận reset trận; không tự quyết định luồng game.
-    private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
+    private readonly IRunProgress levels; // Nhận reset trận; không tự quyết định luồng game.
+    private readonly ISkillRuntimeFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
     public int RunCount { get { int count = 0; foreach (SkillRuntime skill in skills) if (skill.IsActive) count++; return count; } }
@@ -20,10 +20,11 @@ public sealed class SkillManager : ITickable, IDisposable
     #region Initialization And Lookup
 
     // Zenject tạo singleton; đăng ký đồng hồ chung nhưng chưa chạy trước frame đầu.
-    public SkillManager(LevelManager levels, SkillFactory factory)
+    public SkillManager(ILevelService levelService, ISkillFactory skillFactory)
     {
-        this.levels = levels; this.factory = factory;
-        levels.RunReset += OnRunReset;
+        this.levels = levelService.GetRunProgress();
+        this.factory = skillFactory.GetRuntimeFactory();
+        levelService.GetRunProgress().RunReset += OnRunReset;
     }
 
     // UI chỉ đọc skill gameplay của đúng owner.
@@ -97,13 +98,13 @@ public sealed class SkillManager : ITickable, IDisposable
     }
 
     // Owner tạm tắt: pause mọi hành vi và timer ngay, không chờ tới frame tick tiếp theo.
-    internal void SetOwnerPaused(CharacterView owner, bool paused)
+    public void SetOwnerPaused(CharacterView owner, bool paused)
     {
         foreach (SkillRuntime skill in skills.ToArray()) if (skill.IsActive && skill.BelongsTo(owner)) skill.SetPaused(paused);
     }
 
     // Thu hồi toàn bộ skill của một lượt spawn; không ảnh hưởng skill của owner khác.
-    internal void RemoveOwner(CharacterView owner)
+    public void RemoveOwner(CharacterView owner)
     {
         var failures = new List<Exception>(); // Một hành vi cleanup lỗi không được giữ các skill còn lại của owner.
         foreach (SkillRuntime skill in skills.ToArray()) if (skill.BelongsTo(owner))
@@ -140,6 +141,19 @@ public sealed class SkillManager : ITickable, IDisposable
         disposed = true;
         levels.RunReset -= OnRunReset; ClearRunSkills();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ISkillOwnerLifecycle GetOwnerLifecycle() => this;
+
+    public ISkillGrant GetGrant() => this;
+
+    public IOwnedSkillReader GetReader() => this;
+
+    public IRunSkillCleanup GetRunCleanup() => this;
 
     #endregion
 }

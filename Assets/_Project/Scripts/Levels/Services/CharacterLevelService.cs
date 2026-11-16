@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using Zenject;
 
 // * Xử lý level vĩnh viễn theo nhân vật; LevelManager dùng service này để tính thưởng và tăng cấp.
-public sealed class CharacterLevelService : IInitializable, IDisposable
+public sealed class CharacterLevelService :
+    IInitializable,
+    IDisposable,
+    ICharacterLevelService,
+    ICharacterCatalog,
+    ICharacterLevelReader,
+    ICharacterLevelCommands
 {
     #region Dependencies & Character Lookups
-
-    private readonly SaveManager saveManager; // Chỉ đọc/ghi payload; service sở hữu tiến trình level.
+    private readonly ISaveReader saveReader; // Chỉ đọc/ghi payload; service sở hữu tiến trình level.
+    private readonly ISaveWriter saveWriter;
     private CharacterLevelsSaveData progress;
     private readonly Dictionary<CharacterType, CharacterLevelsSaveData.Entry> progressLookup = new Dictionary<CharacterType, CharacterLevelsSaveData.Entry>();
     private readonly Dictionary<CharacterType, CharacterDataSO> characters;                // * Tra template theo type, trung bình O(1).
@@ -19,8 +25,8 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
 
     public void Initialize()
     {
-        if (!saveManager.IsLoaded || progress != null) return;
-        progress = saveManager.Load(GameConstants.SaveKeys.CharacterLevels, new CharacterLevelsSaveData(), ValidateData);
+        if (!saveReader.IsLoaded || progress != null) return;
+        progress = saveReader.Load(GameConstants.SaveKeys.CharacterLevels, new CharacterLevelsSaveData(), ValidateData);
         foreach (CharacterLevelsSaveData.Entry entry in progress.characters) progressLookup.Add(entry.characterType, entry);
     }
 
@@ -36,7 +42,7 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
 
     private int ReadLevel(CharacterType type)
     {
-        if (progress == null || !saveManager.IsLoaded) throw new InvalidOperationException("Character level data has not loaded.");
+        if (progress == null || !saveReader.IsLoaded) throw new InvalidOperationException("Character level data has not loaded.");
         return progressLookup.TryGetValue(type, out CharacterLevelsSaveData.Entry entry) ? entry.permanentLevel : 1;
     }
 
@@ -50,9 +56,13 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
     #region Service Initialization
 
     // * Chỉ dựng cache và kiểm tra cấu hình; không đọc hồ sơ trước khi SaveManager.Initialize chạy.
-    public CharacterLevelService(SaveManager saveManager, CharacterDatabaseSO characterDatabase, LevelDatabaseSO levelDatabase)
+    public CharacterLevelService(
+        ISaveService saveService,
+        CharacterDatabaseSO characterDatabase,
+        LevelDatabaseSO levelDatabase)
     {
-        this.saveManager = saveManager ?? throw new ArgumentNullException(nameof(saveManager));
+        this.saveReader = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveWriter = saveService.GetSaveWriter() ?? throw new ArgumentNullException(nameof(saveService));
         if (characterDatabase == null)
             throw new ArgumentNullException(nameof(characterDatabase));
         if (levelDatabase == null)
@@ -127,7 +137,7 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
         EnsureAvailable();
         if (progress == null) throw new InvalidOperationException("Character level data has not loaded.");
         ValidateData(progress);
-        return saveManager.Save(GameConstants.SaveKeys.CharacterLevels, progress.Clone());
+        return saveWriter.Save(GameConstants.SaveKeys.CharacterLevels, progress.Clone());
     }
 
     // * Tăng một cấp rồi gọi save; true nghĩa là level đã tăng, saved cho biết đã ghi file thành công hay chưa.
@@ -156,7 +166,7 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
             }
             entry.permanentLevel = newLevel;
             saved = SaveProgress();
-            Exception saveError = saveManager.LastError;
+            Exception saveError = saveReader.LastError;
             LevelChanged?.Invoke(characterType, previousLevel, newLevel);
             if (!saved)
                 SaveFailed?.Invoke(characterType, newLevel, saveError);
@@ -192,6 +202,17 @@ public sealed class CharacterLevelService : IInitializable, IDisposable
         if (disposed)
             throw new ObjectDisposedException(nameof(CharacterLevelService));
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public ICharacterCatalog GetCharacterCatalog() => this;
+
+    public ICharacterLevelReader GetCharacterLevelReader() => this;
+
+    public ICharacterLevelCommands GetCharacterLevelCommands() => this;
 
     #endregion
 }

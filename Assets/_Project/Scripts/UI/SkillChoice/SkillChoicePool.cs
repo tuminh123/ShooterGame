@@ -19,10 +19,10 @@ public readonly struct SkillChoiceOffer
     #region Validation And Application
 
     // Chỉ áp dụng nếu runtime vẫn ở đúng cấp lúc roll; offer cũ không được tiêu phần thưởng.
-    public bool TryApply(SkillManager manager, CharacterView owner)
+    public bool TryApply(ISkillGrant manager, IOwnedSkillReader reader, CharacterView owner)
     {
         if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return false;
-        int current = manager.TryGetRuntime(Definition, owner, out SkillRuntime runtime) ? runtime.RunLevel : 0;
+        int current = reader.TryGetRuntime(Definition, owner, out SkillRuntime runtime) ? runtime.RunLevel : 0;
         // Asset/runtime có thể đổi qua Editor hoặc callback khi bảng đang mở. Không tiêu lượt theo offer cũ.
         return current == CurrentLevel && OfferedLevel == current + 1 && OfferedLevel <= MaxLevel &&
             manager.GrantOrUpgrade(Definition, owner);
@@ -47,8 +47,13 @@ public sealed class SkillChoicePool
     #region Offer Generation
 
     // Roll không lặp trong một bảng; bỏ skill max và các asset bị controller chặn sau exception.
-    public void Build(IReadOnlyList<SkillDataSO> catalog, SkillManager manager, CharacterView owner,
-        List<SkillChoiceOffer> result, int count = 3, ISet<SkillDataSO> excluded = null,
+    public void Build(
+        IReadOnlyList<SkillDataSO> catalog,
+        IOwnedSkillReader manager,
+        CharacterView owner,
+        List<SkillChoiceOffer> result,
+        int count = 3,
+        ISet<SkillDataSO> excluded = null,
         IReadOnlyList<SkillChoiceOffer> previousOffers = null)
     {
         previous.Clear();

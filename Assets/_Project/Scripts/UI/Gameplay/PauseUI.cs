@@ -17,9 +17,9 @@ public sealed class PauseUI : MonoBehaviour
     [SerializeField] private Button homeButton;
     [Tooltip("Hiệu ứng popup dùng unscaled time, vẫn chạy khi gameplay đang pause.")]
     [SerializeField] private PopupTweenBase popupTween;
-    private GameplayPauseService pauses;
-    private GameManager game;
-    private ScreenTransitionController transition;
+    private IGameplayPause pauses;
+    private IGameStateReader game;
+    private IScreenTransition transition;
     private System.IDisposable pauseLease;
     private bool closing;
 
@@ -28,11 +28,14 @@ public sealed class PauseUI : MonoBehaviour
     #region Injection And Lifecycle
 
     [Inject]
-    public void Construct(GameplayPauseService pauses, GameManager game, ScreenTransitionController transition)
+    public void Construct(
+        IGameplayPauseService gameplayPauseService,
+        IGameFlow gameFlow,
+        IScreenTransitionService screenTransitionService)
     {
-        this.pauses = pauses;
-        this.game = game;
-        this.transition = transition;
+        this.pauses = gameplayPauseService.GetGameplayPause();
+        this.game = gameFlow.GetGameStateReader();
+        this.transition = screenTransitionService.GetScreenTransition();
         Resume();
     }
 

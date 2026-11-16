@@ -4,11 +4,17 @@ using UnityEngine;
 using Zenject;
 
 // Nhận yêu cầu từ đạn/vùng skill; quản lý áp dụng, thời gian hiệu lực và thu hồi runtime.
-public sealed class EffectManager : ITickable, IDisposable
+public sealed class EffectManager :
+    ITickable,
+    IDisposable,
+    IEffectSystem,
+    IEffectApplication,
+    IEffectHandleControl,
+    IEffectOwnerLifecycle,
+    IEffectCleanup
 {
     #region Dependencies And Runtime State
-
-    private readonly EffectRuntimePool pool; // Thuê/trả class runtime; không quản lý prefab VFX.
+    private readonly IEffectRuntimeLease poolEffectRuntimeLease; // Thuê/trả class runtime; không quản lý prefab VFX.
     private readonly List<(EffectRuntime Runtime, ulong Version)> tickSnapshot = new List<(EffectRuntime, ulong)>(64);
     private readonly List<EffectRuntime> activeEffects = new List<EffectRuntime>(64); // Các effect còn hiệu lực; thêm khi Apply, gỡ khi kết thúc.
     private readonly Dictionary<(CharacterRuntimeData, IGameplayEffect), EffectRuntime> lookup =
@@ -16,18 +22,18 @@ public sealed class EffectManager : ITickable, IDisposable
     private readonly Dictionary<CharacterRuntimeData, List<EffectRuntime>> targetEffects =
         new Dictionary<CharacterRuntimeData, List<EffectRuntime>>(); // Pause/clear chỉ duyệt các effect thuộc mục tiêu đó.
     private readonly Stack<List<EffectRuntime>> freeTargetLists = new Stack<List<EffectRuntime>>(); // Tái sử dụng list sau khi mục tiêu hết effect.
-    private readonly List<EffectRuntime> pendingReturns = new List<EffectRuntime>(16); // Effect đã ngừng hoạt động, chờ callback kết thúc mới Remove/Reset/trả pool.
-    private int operationDepth; // Hoãn trả pool khi Apply/Tick còn đang chạy qua callback damage hoặc stats.
+    private readonly List<EffectRuntime> pendingReturns = new List<EffectRuntime>(16); // Effect đã ngừng hoạt động, chờ callback kết thúc mới Remove/Reset/trả poolEffectRuntimeLease.
+    private int operationDepth; // Hoãn trả poolEffectRuntimeLease khi Apply/Tick còn đang chạy qua callback damage hoặc stats.
     private bool disposed; // Chặn yêu cầu mới ngay khi bắt đầu dọn manager.
 
     #endregion
 
     #region Initialization
 
-    // Zenject cấp pool và gọi Tick; mỗi runtime tự giữ duration và pha tác động riêng.
-    public EffectManager(EffectRuntimePool pool)
+    // Zenject cấp poolEffectRuntimeLease và gọi Tick; mỗi runtime tự giữ duration và pha tác động riêng.
+    public EffectManager(IEffectRuntimePool effectRuntimePool)
     {
-        this.pool = pool;
+        this.poolEffectRuntimeLease = effectRuntimePool.GetEffectRuntimeLease();
         GameUIEventBus.StateChanged += OnGameStateChanged;
     }
 
@@ -37,20 +43,26 @@ public sealed class EffectManager : ITickable, IDisposable
 
     // Effect có thời hạn: cùng instance cấu hình trên cùng mục tiêu sẽ gia hạn, không thêm stack mới.
     // Trả false nếu mục tiêu không hợp lệ, cùng phe, roll thất bại hoặc effect bị dọn ngay trong Apply.
-    public bool Apply(IGameplayEffect configuration, CharacterTarget target,
-        CharacterTeam sourceTeam, float effectHit = 0f)
+    public bool Apply(
+        IGameplayEffect configuration,
+        CharacterTarget target,
+        CharacterTeam sourceTeam,
+        float effectHit = 0f)
         => ApplyInternal(configuration, target, sourceTeam, effectHit, false, out _);
 
     // Skill giữ handle và gỡ khi ra vùng. Mỗi lần gọi tạo runtime riêng, không tự hết hạn theo Duration.
     // Vẫn kiểm tra chance/kháng theo cấu hình; nếu không áp dụng được thì trả handle mặc định.
-    public EffectHandle ApplyMaintained(IGameplayEffect configuration, CharacterTarget target,
-        CharacterTeam sourceTeam, float effectHit = 0f)
+    public EffectHandle ApplyMaintained(
+        IGameplayEffect configuration,
+        CharacterTarget target,
+        CharacterTeam sourceTeam,
+        float effectHit = 0f)
     {
         ApplyInternal(configuration, target, sourceTeam, effectHit, true, out EffectHandle handle);
         return handle;
     }
 
-    // Kiểm tra cả manager sở hữu và phiên bản thuê; handle cũ không trỏ sang lượt dùng mới của pool.
+    // Kiểm tra cả manager sở hữu và phiên bản thuê; handle cũ không trỏ sang lượt dùng mới của poolEffectRuntimeLease.
     public bool IsActive(EffectHandle handle)
         => handle.Runtime != null && ReferenceEquals(handle.Runtime.Manager, this) &&
             handle.Runtime.Version == handle.Version && handle.Runtime.IsActive;
@@ -82,8 +94,13 @@ public sealed class EffectManager : ITickable, IDisposable
     #region Validation And Runtime Creation
 
     // Hai API dùng chung kiểm tra và đăng ký runtime; maintained chỉ thay luật gia hạn/thời hạn.
-    private bool ApplyInternal(IGameplayEffect configuration, CharacterTarget target,
-        CharacterTeam sourceTeam, float effectHit, bool maintained, out EffectHandle handle)
+    private bool ApplyInternal(
+        IGameplayEffect configuration,
+        CharacterTarget target,
+        CharacterTeam sourceTeam,
+        float effectHit,
+        bool maintained,
+        out EffectHandle handle)
     {
         handle = default;
         if (disposed || !target.TryGetCharacter(out CharacterView character) ||
@@ -92,18 +109,18 @@ public sealed class EffectManager : ITickable, IDisposable
         if (configuration == null) throw new ArgumentNullException(nameof(configuration));
         if (float.IsNaN(effectHit) || float.IsInfinity(effectHit))
             throw new ArgumentOutOfRangeException(nameof(effectHit));
-        configuration.Validate();
+        configuration.GetValidation().Validate();
 
         // Tắt UseEffectStats chỉ bỏ effectHit/kháng; ApplicationChance vẫn được dùng để roll.
-        float chance = configuration.UseEffectStats
-            ? ApplicationChance(configuration.ApplicationChance, effectHit, character.RuntimeData.FinalStats.effectResistance)
-            : configuration.ApplicationChance;
+        float chance = configuration.GetSettings().UseEffectStats
+            ? ApplicationChance(configuration.GetSettings().ApplicationChance, effectHit, character.RuntimeData.FinalStats.effectResistance)
+            : configuration.GetSettings().ApplicationChance;
         if (chance <= 0f || (chance < 100f && UnityEngine.Random.value * 100f >= chance)) return false;
 
         if (!maintained && lookup.TryGetValue((character.RuntimeData, configuration), out EffectRuntime active))
         {
             // Kéo dài thời gian tồn tại nhưng giữ nhịp; bắn liên tục không trì hoãn độc/cháy mãi.
-            active.Remaining = configuration.Duration;
+            active.Remaining = configuration.GetSettings().Duration;
             return true;
         }
 
@@ -111,7 +128,7 @@ public sealed class EffectManager : ITickable, IDisposable
         EffectRuntime created = null;
         try
         {
-            created = configuration.RentRuntime(pool);
+            created = configuration.GetRuntimeFactory().RentRuntime(poolEffectRuntimeLease);
             created.Initialize(configuration, character, sourceTeam);
             created.Manager = this;
             created.IsMaintained = maintained;
@@ -126,7 +143,7 @@ public sealed class EffectManager : ITickable, IDisposable
             }
             created.TargetIndex = group.Count;
             group.Add(created);
-            created.Remaining = maintained ? double.PositiveInfinity : configuration.Duration;
+            created.Remaining = maintained ? double.PositiveInfinity : configuration.GetSettings().Duration;
             created.TickElapsed = 0d;
             created.Apply();
             // Apply có thể kích hoạt callback thu hồi mục tiêu hoặc kết thúc trận.
@@ -157,7 +174,7 @@ public sealed class EffectManager : ITickable, IDisposable
     #region Target Lifecycle
 
     // CharacterView gọi khi chết/thu hồi. Chỉ duyệt nhóm của mục tiêu, không quét mọi effect trong scene.
-    internal void ClearTarget(CharacterView owner, CharacterRuntimeData identity)
+    public void ClearTarget(CharacterView owner, CharacterRuntimeData identity)
     {
         operationDepth++;
         try
@@ -169,7 +186,7 @@ public sealed class EffectManager : ITickable, IDisposable
     }
 
     // Tắt/bật tạm thời giữ nguyên duration và pha tick; skill vùng tự gỡ slow khi skill bị pause.
-    internal void SetPaused(CharacterView owner, CharacterRuntimeData identity, bool paused)
+    public void SetPaused(CharacterView owner, CharacterRuntimeData identity, bool paused)
     {
         if (targetEffects.TryGetValue(identity, out List<EffectRuntime> group))
             foreach (EffectRuntime runtime in group) runtime.Paused = paused;
@@ -211,7 +228,7 @@ public sealed class EffectManager : ITickable, IDisposable
         if (runtime.Paused) return;
         double activeTime = Math.Min(deltaTime, runtime.Remaining);
         runtime.Remaining = Math.Max(0d, runtime.Remaining - activeTime);
-        double interval = runtime.Configuration.TickInterval;
+        double interval = runtime.Configuration.GetSettings().TickInterval;
         int ticks = 0;
         if (interval > 0d)
         {
@@ -281,7 +298,7 @@ public sealed class EffectManager : ITickable, IDisposable
         runtime.Owner.NotifyEffectFeedback(runtime.Identity, runtime.Generation, kind, active);
     }
 
-    // Chỉ thao tác ngoài cùng được trả pool, tránh callback lồng nhau tái sử dụng runtime còn đang chạy.
+    // Chỉ thao tác ngoài cùng được trả poolEffectRuntimeLease, tránh callback lồng nhau tái sử dụng runtime còn đang chạy.
     private void EndOperation()
     {
         if (--operationDepth != 0) return;
@@ -295,7 +312,7 @@ public sealed class EffectManager : ITickable, IDisposable
                 pendingReturns.RemoveAt(last);
                 try { runtime.Remove(); }
                 catch (Exception exception) { Debug.LogException(exception); }
-                finally { pool.Return(runtime); }
+                finally { poolEffectRuntimeLease.Return(runtime); }
             }
         }
         finally { operationDepth--; }
@@ -316,7 +333,7 @@ public sealed class EffectManager : ITickable, IDisposable
         finally { EndOperation(); }
     }
 
-    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về pool.
+    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về poolEffectRuntimeLease.
     public void Dispose()
     {
         if (disposed) return;
@@ -324,6 +341,19 @@ public sealed class EffectManager : ITickable, IDisposable
         GameUIEventBus.StateChanged -= OnGameStateChanged;
         DeactivateAll();
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IEffectApplication GetEffectApplication() => this;
+
+    public IEffectHandleControl GetEffectHandleControl() => this;
+
+    public IEffectOwnerLifecycle GetEffectOwnerLifecycle() => this;
+
+    public IEffectCleanup GetEffectCleanup() => this;
 
     #endregion
 }

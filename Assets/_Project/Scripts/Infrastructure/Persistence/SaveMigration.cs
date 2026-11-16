@@ -6,17 +6,30 @@ using Zenject;
 // Chỉ lớp migration biết bố cục save cũ và các section mới; SaveManager chỉ biết đọc/ghi theo key.
 public sealed class SaveMigration : IInitializable
 {
-    private readonly SaveManager saves;
-    public SaveMigration(SaveManager saves) => this.saves = saves;
+
+    #region Dependencies And State
+    private readonly ISaveReader saveReader;
+    private readonly ISaveWriter saveWriter;
+    private readonly ISaveLoadFailure saveLoadFailure;
+
+    #endregion
+
+    #region Initialization
+    public SaveMigration(ISaveService saveService)
+    {
+        this.saveReader = saveService.GetSaveReader();
+        this.saveWriter = saveService.GetSaveWriter();
+        this.saveLoadFailure = saveService.GetSaveLoadFailure();
+    }
 
     public void Initialize()
     {
-        if (!saves.IsLoaded) return;
+        if (!saveReader.IsLoaded) return;
         try
         {
-            if (saves.HasKey(GameConstants.SaveKeys.Format))
+            if (saveReader.HasKey(GameConstants.SaveKeys.Format))
             {
-                saves.Load(GameConstants.SaveKeys.Format, new SaveFormatData(), ValidateFormat);
+                saveReader.Load(GameConstants.SaveKeys.Format, new SaveFormatData(), ValidateFormat);
                 return;
             }
 
@@ -24,9 +37,9 @@ public sealed class SaveMigration : IInitializable
             var levels = new CharacterLevelsSaveData();
             var equipment = new EquipmentSaveData();
             var currencies = new CurrencySaveData();
-            if (saves.HasKey(GameConstants.SaveKeys.PlayerData))
+            if (saveReader.HasKey(GameConstants.SaveKeys.PlayerData))
             {
-                PlayerSaveData legacy = saves.Load<PlayerSaveData>(GameConstants.SaveKeys.PlayerData, null, ValidateLegacy);
+                PlayerSaveData legacy = saveReader.Load<PlayerSaveData>(GameConstants.SaveKeys.PlayerData, null, ValidateLegacy);
                 selection.selectedCharacterType = legacy.selectedCharacterType;
                 foreach (PlayerSaveData.CharacterProgress entry in legacy.characters)
                     levels.characters.Add(new CharacterLevelsSaveData.Entry { characterType = entry.characterType, permanentLevel = entry.permanentLevel });
@@ -52,14 +65,22 @@ public sealed class SaveMigration : IInitializable
             Write(GameConstants.SaveKeys.Format, new SaveFormatData());
             // Giữ player_data cũ trong cùng file để phục hồi; khi có marker schema 4 thì không đọc lại.
         }
-        catch (Exception exception) { saves.BlockLoading(exception); }
+        catch (Exception exception) { saveLoadFailure.BlockLoading(exception); }
     }
+
+    #endregion
+
+    #region Persistence
 
     private void Write<T>(string key, T value)
     {
-        if (!saves.Save(key, value))
-            throw new IOException("Could not finish save migration for key: " + key, saves.LastError);
+        if (!saveWriter.Save(key, value))
+            throw new IOException("Could not finish save migration for key: " + key, saveReader.LastError);
     }
+
+    #endregion
+
+    #region Validation
 
     private static void ValidateFormat(SaveFormatData data)
     {
@@ -80,4 +101,6 @@ public sealed class SaveMigration : IInitializable
                 if (entry == null) throw new InvalidOperationException("Null legacy currency balance.");
         }
     }
+
+    #endregion
 }

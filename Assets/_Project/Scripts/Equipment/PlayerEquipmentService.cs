@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using Zenject;
 
 // * Loadout chung của người chơi; chưa quản lý inventory, slot, mở khóa hoặc nâng cấp vật phẩm.
-public sealed class PlayerEquipmentService : IInitializable, IDisposable
+public sealed class PlayerEquipmentService : IInitializable, IDisposable, IEquipmentService, IEquipmentReader, IEquipmentCommands
 {
-    private readonly SaveManager saves;
+
+    #region Dependencies And State
+    private readonly ISaveReader saveReader;
+    private readonly ISaveWriter saveWriter;
+    private readonly ISaveFlush saveFlush;
     private readonly Dictionary<string, StatBonus> bonuses;
     private EquipmentSaveData data;
     private bool disposed;
@@ -13,9 +17,15 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
 
     public event Action EquipmentChanged;
 
-    public PlayerEquipmentService(SaveManager saves, EquipmentDatabaseSO database)
+    #endregion
+
+    #region Initialization
+
+    public PlayerEquipmentService(ISaveService saveService, EquipmentDatabaseSO database)
     {
-        this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
+        this.saveReader = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveWriter = saveService.GetSaveWriter() ?? throw new ArgumentNullException(nameof(saveService));
+        this.saveFlush = saveService.GetSaveFlush() ?? throw new ArgumentNullException(nameof(saveService));
         if (database == null)
             throw new ArgumentNullException(nameof(database));
         bonuses = database.CreateBonusLookup();
@@ -23,9 +33,13 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
 
     public void Initialize()
     {
-        if (!saves.IsLoaded || data != null) return;
-        data = saves.Load(GameConstants.SaveKeys.Equipment, new EquipmentSaveData(), ValidateData);
+        if (!saveReader.IsLoaded || data != null) return;
+        data = saveReader.Load(GameConstants.SaveKeys.Equipment, new EquipmentSaveData(), ValidateData);
     }
+
+    #endregion
+
+    #region Validation
 
     internal static void ValidateData(EquipmentSaveData value)
     {
@@ -35,6 +49,10 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
             if (string.IsNullOrWhiteSpace(id) || !unique.Add(id))
                 throw new InvalidOperationException("Equipment IDs must be non-empty and unique.");
     }
+
+    #endregion
+
+    #region Dependencies And State
 
     public IReadOnlyList<string> EquippedItemIds
     {
@@ -52,6 +70,10 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
             return total;
         }
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     // * Thay toàn bộ loadout, kiểm tra trước khi sửa RAM. false nghĩa là IO lỗi; không cần mặc lại.
     public bool SetEquippedItems(IEnumerable<string> itemIds)
@@ -76,7 +98,7 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
         {
             bool changed = ids.Count != data.equippedItemIds.Count || !unique.SetEquals(data.equippedItemIds);
             if (changed) data.equippedItemIds = ids;
-            bool saved = changed ? SaveEquipment() : saves.SaveIfDirty();
+            bool saved = changed ? SaveEquipment() : saveFlush.SaveIfDirty();
             if (changed)
                 EquipmentChanged?.Invoke();
             return saved;
@@ -87,12 +109,20 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
         }
     }
 
+    #endregion
+
+    #region Persistence
+
     public bool SaveEquipment()
     {
         EnsureAvailable();
         ValidateData(data);
-        return saves.Save(GameConstants.SaveKeys.Equipment, data.Clone());
+        return saveWriter.Save(GameConstants.SaveKeys.Equipment, data.Clone());
     }
+
+    #endregion
+
+    #region Runtime Operations
 
     private StatBonus GetBonus(string id)
     {
@@ -100,6 +130,10 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
             throw new KeyNotFoundException($"Unknown equipment ID: {id}. Check EquipmentDatabase.");
         return bonus;
     }
+
+    #endregion
+
+    #region Cleanup
 
     public void Dispose()
     {
@@ -111,10 +145,25 @@ public sealed class PlayerEquipmentService : IInitializable, IDisposable
         data = null;
     }
 
+    #endregion
+
+    #region Validation
+
     private void EnsureAvailable()
     {
         if (disposed)
             throw new ObjectDisposedException(nameof(PlayerEquipmentService));
-        if (data == null || !saves.IsLoaded) throw new InvalidOperationException("Equipment data has not loaded.");
+        if (data == null || !saveReader.IsLoaded) throw new InvalidOperationException("Equipment data has not loaded.");
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IEquipmentReader GetEquipmentReader() => this;
+
+    public IEquipmentCommands GetEquipmentCommands() => this;
+
+    #endregion
 }

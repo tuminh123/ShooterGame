@@ -12,7 +12,7 @@ internal sealed class StageSpawnRoster
         private readonly CharacterView view;
         private readonly CharacterRuntimeData identity;
         private readonly ulong generation;
-        private readonly EnemySpawnManager spawner;
+        private readonly IEnemyDespawn spawner;
         private bool released;
         /// <summary>Chỉ hợp lệ khi vỏ vẫn chứa đúng runtime và generation đã ghi.</summary>
         private bool Current => view != null && identity != null &&
@@ -22,7 +22,7 @@ internal sealed class StageSpawnRoster
         public bool IsReleased => released || !Current;
 
         /// <summary>Ghi nhận đúng lượt spawn hiện tại của nhân vật.</summary>
-        internal CharacterEntity(CharacterView view, EnemySpawnManager spawner)
+        internal CharacterEntity(CharacterView view, IEnemyDespawn spawner)
         {
             this.view = view;
             this.spawner = spawner;
@@ -40,14 +40,14 @@ internal sealed class StageSpawnRoster
     }
 
     private readonly List<IStageSpawnEntity> entities = new List<IStageSpawnEntity>();
-    private readonly EnemySpawnManager spawner;
+    private readonly IEnemyDespawn spawner;
 
     #endregion
 
     #region Khởi tạo và thống kê
 
     /// <summary>Nhận spawner dùng để thu hồi các nhân vật được theo dõi.</summary>
-    internal StageSpawnRoster(EnemySpawnManager spawner) { this.spawner = spawner; }
+    internal StageSpawnRoster(IEnemyDespawn spawner) { this.spawner = spawner; }
 
     /// <summary>Cộng số quái sống của các thực thể và bỏ thực thể đã thu hồi.</summary>
     internal int AliveCount

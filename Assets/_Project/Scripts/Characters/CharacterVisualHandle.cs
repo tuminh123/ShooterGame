@@ -11,7 +11,7 @@ public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
     private int activationFrame = -1;
 
     [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables) => this.tickables = tickables;
+    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
 
     // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
     // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.

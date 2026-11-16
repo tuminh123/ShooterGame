@@ -1,7 +1,7 @@
 using System;
 
 // * Xử lý level/EXP của người chơi trong trận, do LevelManager điều phối; không ghi tiến trình này vào save lâu dài.
-public sealed class RunLevelService : IDisposable
+public sealed class RunLevelService : IDisposable, IRunLevelService, IRunLevelReader, IRunLevelCommands
 {
     #region Shared Configuration & Run State
 
@@ -39,8 +39,7 @@ public sealed class RunLevelService : IDisposable
     #region Service Initialization
 
     // * Chuẩn bị tiến trình level 1; không phát event trong constructor trước khi bên nghe đăng ký.
-    public RunLevelService(LevelDatabaseSO database)
-    {
+    public RunLevelService(LevelDatabaseSO database)    {
         if (database == null || database.RunLevelConfig == null)
             throw new ArgumentException("Assign the shared run level config in LevelDatabaseSO.", nameof(database));
         config = database.RunLevelConfig;
@@ -118,6 +117,15 @@ public sealed class RunLevelService : IDisposable
         if (disposed)
             throw new ObjectDisposedException(nameof(RunLevelService));
     }
+
+    #endregion
+
+    #region Facade Access
+
+    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
+    public IRunLevelReader GetRunLevelReader() => this;
+
+    public IRunLevelCommands GetRunLevelCommands() => this;
 
     #endregion
 }
