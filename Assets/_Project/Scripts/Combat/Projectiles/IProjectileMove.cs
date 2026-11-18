@@ -6,7 +6,7 @@ using UnityEngine;
 /// <remarks>
 /// Được chọn trong <see cref="ShootingData"/> bằng <c>[SerializeReference]</c>. Các quỹ đạo hiện có
 /// không có trạng thái, nên mọi viên đạn dùng chung instance trong asset.
-/// Quỹ đạo chỉ trả về hướng; MovementManager áp dụng tốc độ và đổi vị trí.
+/// Quỹ đạo chỉ trả về hướng; MovementSystem áp dụng tốc độ và đổi vị trí.
 /// </remarks>
 public interface IProjectileMove
 {

@@ -55,16 +55,15 @@ public sealed class StageManager : ITickable, ILateTickable, IDisposable, IStage
         ICharacterRegistry characterRegistry,
         IMovementArena movementArena,
         ISpatialInvalidation spatialInvalidation,
-        ICurrencyService currencyService,
-        IStageProgress stageProgressFacade)
+        IWallet wallet, // Hai vai trò Progression đều do ProgressionManager implement (ProgressionContracts.cs).
+        IStageProgress stageProgress)
     {
         Database = database != null ? database : throw new ArgumentNullException(nameof(database));
         stages = database.CreateLookup();
         data = database.DefaultStage;
         this.ground = worldMap ?? throw new ArgumentNullException(nameof(worldMap));
         this.players = playerReader ?? throw new ArgumentNullException(nameof(playerReader));
-        rewards = new StageRewards(currencyService.GetWallet(), stageProgressFacade.GetStageProgressReader(),
-            stageProgressFacade.GetStageVictoryRewards());
+        rewards = new StageRewards(wallet, stageProgress);
         spawner = new EnemySpawner(spawnSettings, characterSpawn, characterDespawn, playerReader, levelDatabase);
 
         waves = new WaveSpawnSystem(spawner);

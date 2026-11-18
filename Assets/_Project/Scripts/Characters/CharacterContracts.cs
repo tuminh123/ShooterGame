@@ -10,7 +10,7 @@ using UnityEngine;
 
 #region Spawn And Despawn
 
-/// <summary>Tạo một nhân vật từ template. Dùng bởi spawn quái (EnemySpawner của miền Stage) và PlayerManager.</summary>
+/// <summary>Tạo một nhân vật từ template. Dùng bởi spawn quái (EnemySpawner của miền Stage) và PlayerSystem.</summary>
 public interface ICharacterSpawn
 {
     /// <summary>
@@ -28,7 +28,7 @@ public interface ICharacterDespawn
 
     /// <summary>
     /// Thu hồi mọi nhân vật đang tồn tại (Player, quái, boss, kể cả đang chạy animation chết). Dùng khi rời gameplay.
-    /// Không phát Died nên không rơi loot; Player nên được gỡ trước qua <see cref="IPlayerLifecycle"/> để PlayerManager đồng bộ.
+    /// Không phát Died nên không rơi loot; Player nên được gỡ trước qua <see cref="IPlayerLifecycle"/> để PlayerSystem đồng bộ.
     /// </summary>
     void DespawnAll();
 }
@@ -117,7 +117,7 @@ public interface ICharacterSearch
 
 #region Prewarm
 
-/// <summary>Tạo sẵn runtime nhân vật trong bước loading. Dùng bởi PoolPrewarmService.</summary>
+/// <summary>Tạo sẵn runtime nhân vật trong bước loading. Dùng bởi GamePrewarm (miền Game).</summary>
 public interface ICharacterCapacity
 {
     /// <summary>Bảo đảm có ít nhất <paramref name="count"/> runtime đang rảnh.</summary>

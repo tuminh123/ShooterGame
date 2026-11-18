@@ -38,9 +38,9 @@ public sealed class ResultController : UIPanelController
 
     [SerializeField] private ResultPanel victory = new ResultPanel();
     [SerializeField] private ResultPanel defeat = new ResultPanel();
-    private IGameStateReader gameState;
-    private IRunCommands runCommands;
-    private IRunStatistics session;
+    private IGameState gameState;
+    private IGameFlow runCommands;
+    private IRunReader run;
     private IStageResults stage;
     private ResultPanel activePanel;
     private int presentationVersion;
@@ -51,13 +51,14 @@ public sealed class ResultController : UIPanelController
 
     [Inject]
     public void Construct(
+        IGameState gameState,
         IGameFlow gameFlow,
-        IRunSession runSession,
+        IRunReader runReader,
         IStageResults stageResults)
     {
-        this.gameState = gameFlow.GetGameStateReader();
-        this.runCommands = gameFlow.GetRunCommands();
-        this.session = runSession.GetRunStatistics();
+        this.gameState = gameState;
+        this.runCommands = gameFlow;
+        this.run = runReader;
         this.stage = stageResults;
         victory.Validate();
         defeat.Validate();
@@ -98,7 +99,7 @@ public sealed class ResultController : UIPanelController
 
         activePanel = next;
         // Hiển thị tổng nhận của lượt; vàng nhặt và thưởng Stage đều đã được cộng vào ví riêng.
-        next.goldText.text = checked((long)session.Gold + stage.GetResultReward(CurrencyType.Gold)).ToString();
+        next.goldText.text = checked((long)run.Gold + stage.GetResultReward(CurrencyType.Gold)).ToString();
         next.diamondText.text = stage.GetResultReward(CurrencyType.Diamond).ToString();
         next.panel.transform.SetAsLastSibling();
         next.panel.SetActive(true);

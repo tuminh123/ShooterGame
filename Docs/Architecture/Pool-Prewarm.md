@@ -3,8 +3,11 @@
 `GameSceneInstaller.poolPrewarmSettings` points to
 `Assets/_Project/DataSO/Databases/PoolPrewarmSettings.asset`.
 
-Initialization order is SaveManager (-200), PoolPrewarmService (-150),
-PlayerManager (-100), then the run session (-50). A preparation failure throws
+Prewarm is owned by the Game domain: `GameManager` creates `GamePrewarm` and runs it in
+`GameManager.Initialize` (100), after SaveManager (-200), ProgressionManager (-160) and
+CharacterManager (-150). It lives in Game rather than Pool because the plan needs Character,
+Combat and Simulation capacities, which themselves depend on Pool. The Loading UI reads
+progress through `ILoadingProgress`. A preparation failure puts the game in Faulted
 before the initial player spawn. No loading scene or scene persistence is added.
 
 The profile prepares shared character/bullet/effect/pickup shells, visual prefabs
@@ -25,8 +28,8 @@ callbacks are cleaned. HP, shield, bonuses and Changed subscribers are reset.
 Generation is checked by cached targets, skill owners, effects, spatial entries
 and modifier leases so old references cannot act on a reused runtime.
 
-`PoolPrewarmService.Prewarm()` is idempotent after success and exposes IsReady and
-PreparedObjectCount. These are integration points for a later loading flow.
+`GamePrewarm.PrewarmAsync()` is idempotent after success and exposes IsReady and
+PreparedObjectCount (progress reaches the UI through `ILoadingProgress`). These are integration points for a later loading flow.
 Pools still grow when usage exceeds prepared counts; the profile is a starting
 budget, not a spawn cap or a zero-allocation guarantee. Controllers, skill
 behaviors/closures and some per-spawn collections are still initialized during

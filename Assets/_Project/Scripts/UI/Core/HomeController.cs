@@ -12,23 +12,23 @@ public sealed class HomeController : UIPanelController
     [SerializeField] private Button playButton;
     [Tooltip("Hiệu ứng nhún của nút Play; chạy xong mới bắt đầu trận, dùng unscaled time khi Home đang pause.")]
     [SerializeField] private SinglePanelPopupTween playTween;
-    [Tooltip("Số vàng trong ví người chơi; đọc CurrencyService, không dùng thống kê riêng của lượt chơi.")]
+    [Tooltip("Số vàng trong ví người chơi; đọc ví (IWallet của miền Progression), không dùng thống kê riêng của lượt chơi.")]
     [SerializeField] private TMP_Text goldText;
-    private IGameStateReader game;
-    private ICurrencyReader currencies;
+    private IGameState game;
+    private IWallet currencies;
     private IScreenTransition transition;
     private bool starting;
 
     [Inject]
     public void Construct(
-        IGameFlow gameFlow,
-        IScreenTransitionService screenTransitionService,
-        ICurrencyService currencyService)
+        IGameState gameState,
+        IScreenTransition screenTransition,
+        IWallet wallet)
     {
         UnsubscribeWallet();
-        this.game = gameFlow.GetGameStateReader();
-        this.transition = screenTransitionService.GetScreenTransition();
-        this.currencies = currencyService.GetReader();
+        this.game = gameState;
+        this.transition = screenTransition;
+        this.currencies = wallet;
         if (isActiveAndEnabled) SubscribeWallet();
     }
 
@@ -66,7 +66,7 @@ public sealed class HomeController : UIPanelController
 
     private void RefreshGold()
     {
-        // Scene inject trước CurrencyService.Initialize; chỉ đọc ví sau khi tới Home.
+        // Scene inject trước ProgressionManager.Initialize; chỉ đọc ví sau khi tới Home.
         if (currencies != null && game != null && game.State == GameState.Home)
             OnBalanceChanged(CurrencyType.Gold, currencies.GetBalance(CurrencyType.Gold));
     }

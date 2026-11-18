@@ -62,7 +62,7 @@ movement state. This also supports the pack's clips marked as looping.
 
 Death, Win and Lose reject further state/facing changes, play one cycle and hold
 their final pose. EnemyController still waits for Death before despawning.
-GameManager.WinRun/LoseRun pause gameplay immediately and enter EndingWin/EndingLose,
+GameManager's private FinishRun (Stage cleared → win, Player died → lose) pauses gameplay immediately and enter EndingWin/EndingLose,
 which have no result-panel route in UIManager. CharacterView.PlayResultAnimation
 locks Player movement/combat and forwards Win/Lose to CharacterVisualHandle.
 Only its completion callback enters Won/Lost and opens the existing ResultController.

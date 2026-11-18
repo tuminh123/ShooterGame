@@ -9,7 +9,7 @@ using Unity.Mathematics;
 /// </summary>
 public readonly struct SpatialHandle : IEquatable<SpatialHandle>
 {
-    internal readonly object Owner; // Token nhận diện SpatialManager đã cấp handle (so sánh bằng ReferenceEquals).
+    internal readonly object Owner; // Token nhận diện SpatialSystem đã cấp handle (so sánh bằng ReferenceEquals).
     internal readonly int Index; // Ô trong bảng tra nhân vật.
     internal readonly uint Version; // Phiên bản để không nhận nhầm lượt đăng ký mới.
     // Manager cấp handle sau khi đăng ký nhân vật.

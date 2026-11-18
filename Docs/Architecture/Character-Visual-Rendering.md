@@ -66,7 +66,7 @@ parameter, layer và các thao tác reset. Không tự tạo override controller
 - `CharacterView`: cấu hình visual, reset trạng thái hiển thị và chuyển tiếp vòng đời.
 - `CharacterUI`: áp dụng bố cục và cập nhật HP/giáp.
 - `CharacterVisualSettings`: dữ liệu theo loại nhân vật để runtime và công cụ Editor cùng sử dụng.
-- `PoolPrewarmService`: tạo sẵn đủ vỏ; chỉ chuẩn bị prefab visual riêng khi mode đó thực sự được dùng.
+- `GamePrewarm` (miền Game): tạo sẵn đủ vỏ; chỉ chuẩn bị prefab visual riêng khi mode đó thực sự được dùng.
 
 Controller gameplay và animation controller là hai khái niệm khác nhau:
 `PlayerController`/`EnemyController` xử lý hành vi; `RuntimeAnimatorController` là asset điều khiển Animator.

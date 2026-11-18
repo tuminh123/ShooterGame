@@ -9,7 +9,7 @@ public sealed class CharacterSearch : ICharacterSearch
 {
     #region Dependencies
 
-    private readonly CharacterSearchFactory searchFactory; // Chọn strategy; không giữ SpatialManager.
+    private readonly CharacterSearchFactory searchFactory; // Chọn strategy; không giữ SpatialSystem.
 
     public CharacterSearch(CharacterSearchFactory searchFactory)
         => this.searchFactory = searchFactory ?? throw new ArgumentNullException(nameof(searchFactory));

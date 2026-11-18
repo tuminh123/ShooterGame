@@ -24,7 +24,7 @@ public sealed class EnemyController : CharacterControllerBase
     public sealed class RecoilSettings
     {
         [Min(0f)] public float knockbackDistance = 0.35f; // * Chính Enemy lùi ra xa Player sau khi gây damage thành công.
-        [Min(0.01f)] public float knockbackDuration = 0.18f; // * Dịch chuyển bằng MovementManager, không dùng lực Rigidbody.
+        [Min(0.01f)] public float knockbackDuration = 0.18f; // * Dịch chuyển bằng MovementSystem, không dùng lực Rigidbody.
     }
 
     #endregion
@@ -141,7 +141,7 @@ public sealed class EnemyController : CharacterControllerBase
         // * Giữ độ lớn nhỏ hơn 1 khi hai hướng triệt tiêu một phần để quái có thể chậm lại trong đám đông.
         Vector2 direction = Vector2.ClampMagnitude(
             toPlayer.normalized + separationDirection * separationStrength, 1f);
-        // * MovementManager chuẩn hóa hướng: nhân tốc độ với độ lớn để giữ mức giảm tốc ở trên.
+        // * MovementSystem chuẩn hóa hướng: nhân tốc độ với độ lớn để giữ mức giảm tốc ở trên.
         // * Tổng tốc độ không vượt moveSpeed; giới hạn bước đi vẫn ngăn chạy vượt khoảng cách đến Player.
         // * Hướng nhìn vẫn theo Player, không bị lực tách làm flip ngược lúc quái phải lùi ra xa hàng xóm.
         view.Move(direction, runtime.FinalStats.moveSpeed * direction.magnitude, toPlayer.magnitude, toPlayer.x);

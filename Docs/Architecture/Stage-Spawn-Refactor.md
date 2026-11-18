@@ -1,4 +1,7 @@
-# Báo cáo cấu trúc spawn cuối cùng
+# [LỊCH SỬ] Báo cáo cấu trúc spawn cuối cùng
+
+> 📜 **TÀI LIỆU LỊCH SỬ — KHÔNG mô tả code hiện tại.** Chỉ giữ để tra lại quá trình refactor; tên class,
+> interface và đường dẫn bên dưới có thể đã đổi hoặc bị xóa. Kiến trúc hiện tại: [Refactor-Architecture](Refactor-Architecture.md), [Systems-Overview](Systems-Overview.md), [Script-Folders](Script-Folders.md).
 
 > **Tài liệu lịch sử.** Viết ở bước tách Stage khỏi spawn manager. Đường dẫn `Scripts/Spawning/...`
 > sau đó đã dời sang `Scripts/Stage/...`, và "registry `Dictionary<Type, IStageSpawnSystem>`"

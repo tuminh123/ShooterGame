@@ -6,7 +6,7 @@ using UnityEngine;
 /// Bộ skill vốn có (nguồn Character/Equipment) của một lượt spawn, và là context chung mà mọi skill
 /// của nhân vật đó (kể cả skill gameplay) dùng để biết chủ nhân còn hợp lệ hay không.
 /// </summary>
-/// <remarks>Tạo khi spawn, dispose khi chết hoặc despawn. Skill gameplay nhận trong trận do <see cref="SkillManager"/> giữ.</remarks>
+/// <remarks>Tạo khi spawn, dispose khi chết hoặc despawn. Skill gameplay nhận trong trận do <see cref="SkillSystem"/> giữ.</remarks>
 public sealed class CharacterSkills : IDisposable
 {
 

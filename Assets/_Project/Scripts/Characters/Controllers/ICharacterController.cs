@@ -59,7 +59,7 @@ public interface ICharacterController : IDisposable
     /// <summary>(loại, đang bật). View nghe để đổi màu; controller không biết màu cụ thể.</summary>
     event Action<CharacterFeedbackKind, bool> FeedbackChanged;
 
-    /// <summary>EffectManager báo một effect trạng thái bắt đầu hoặc kết thúc trên đúng lượt spawn.</summary>
+    /// <summary>EffectSystem báo một effect trạng thái bắt đầu hoặc kết thúc trên đúng lượt spawn.</summary>
     /// <param name="target">Lượt spawn mà effect đang tác động; bỏ qua nếu không còn đúng lượt spawn của controller.</param>
     void NotifyEffect(CharacterHandle target, CharacterFeedbackKind kind, bool active);
 

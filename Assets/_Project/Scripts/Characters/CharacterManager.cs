@@ -16,8 +16,8 @@ using Zenject;
 /// ├── CharacterSearchFactory → CharacterSearch   tìm mục tiêu (qua Simulation)
 /// ├── CharacterContext                      dịch vụ truyền vào mọi vỏ lúc spawn
 /// ├── CharacterFactory                      ghép template + runtime + controller + vỏ
-/// ├── PlayerManager                         Player hiện tại, bonus, nhân vật đang chọn
-/// └── EnemyVisualManager                    bật/tắt visual quái theo camera
+/// ├── PlayerSystem                         Player hiện tại, bonus, nhân vật đang chọn
+/// └── EnemyVisibility                    bật/tắt visual quái theo camera
 /// </code>
 /// Các system con được tạo bằng <c>new</c> ngay trong constructor, đọc từ trên xuống.
 /// Miền khác chỉ thấy các interface trong <c>CharacterContracts.cs</c>.
@@ -39,8 +39,8 @@ public sealed class CharacterManager :
     private readonly CharacterRuntimePool runtimes;
     private readonly CharacterRegistry registry;
     private readonly CharacterFactory factory;
-    private readonly PlayerManager players;
-    private readonly EnemyVisualManager enemyVisibility;
+    private readonly PlayerSystem players;
+    private readonly EnemyVisibility enemyVisibility;
     private bool disposed;
 
     #endregion
@@ -51,7 +51,7 @@ public sealed class CharacterManager :
     /// <param name="characterPrefab">Prefab vỏ dùng chung cho Player, quái và boss (installer truyền vào).</param>
     public CharacterManager(
         CharacterView characterPrefab,
-        IPoolSystem poolSystem,
+        IGameObjectPool pools,
         IMovementRegistration movementRegistration,
         IMovementCommand movementCommand,
         ISpatialRegistration spatialRegistration,
@@ -59,26 +59,25 @@ public sealed class CharacterManager :
         ISpatialQuery spatialQuery,
         ISpatialQueryBuilder queryBuilder,
         VirtualJoystick joystick,
-        PlayerManager.Settings playerSettings,
-        ISaveService saveService,
-        ILevelService levelService,
-        IEquipmentService equipmentService)
+        PlayerSystem.Settings playerSettings,
+        CharacterDatabaseSO characterDatabase,
+        ISaveStore saves,
+        IPermanentBonuses permanentBonuses)
     {
         try
         {
-            IGameObjectPool pools = poolSystem.GetGameObjectPool();
             runtimes = new CharacterRuntimePool();
             registry = new CharacterRegistry();
             var search = new CharacterSearch(new CharacterSearchFactory(spatialResolution, spatialQuery, queryBuilder));
             var context = new CharacterContext(movementRegistration, movementCommand, spatialRegistration,
                 pools, search, runtimes);
             factory = new CharacterFactory(characterPrefab, pools, registry, context);
-            players = new PlayerManager(factory, joystick, playerSettings, saveService, levelService, equipmentService);
-            enemyVisibility = new EnemyVisualManager(registry);
+            players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses);
+            enemyVisibility = new EnemyVisibility(registry);
         }
         catch
         {
-            // PlayerManager và EnemyVisualManager đăng ký event ngay khi được tạo; lỗi ở bước sau phải gỡ lại.
+            // PlayerSystem và EnemyVisibility đăng ký event ngay khi được tạo; lỗi ở bước sau phải gỡ lại.
             Dispose();
             throw;
         }
@@ -193,7 +192,7 @@ public sealed class CharacterManager :
     /// <summary>
     /// Thứ tự: hiển thị quái → factory → Player → registry → runtime pool.
     /// <list type="bullet">
-    /// <item>Gỡ callback camera trước khi nhân vật bị thu hồi (trước đây EnemyVisualManager dispose ở 225, trước factory 200).</item>
+    /// <item>Gỡ callback camera trước khi nhân vật bị thu hồi (trước đây EnemyVisibility dispose ở 225, trước factory 200).</item>
     /// <item>Factory thu hồi mọi nhân vật còn lại, kể cả Player; mỗi vỏ còn gọi Combat để dọn skill/effect (Combat dispose sau, ở 175).</item>
     /// <item>Player gỡ event level/trang bị; Player đã bị factory thu hồi nên RemovePlayer không làm gì thêm.</item>
     /// <item>Registry và runtime pool dọn sau cùng vì vỏ còn dùng chúng trong lúc bị thu hồi.</item>

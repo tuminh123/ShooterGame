@@ -181,7 +181,7 @@ public sealed class CharacterView : MonoBehaviour
             poisonColor, burnColor, slowColor), sprites, controller);
 
         // Skill vốn có không được tạo ở đây: Combat tạo khi nghe CharacterAdded, ngay trong lời gọi Spawn.
-        // Quái bắt đầu ẩn; EnemyVisualManager sẽ bật nếu visual giao khung hình trước khi render.
+        // Quái bắt đầu ẩn; EnemyVisibility sẽ bật nếu visual giao khung hình trước khi render.
         visual.SetActive(runtime.Team != CharacterTeam.Enemy);
     }
 
@@ -299,7 +299,7 @@ public sealed class CharacterView : MonoBehaviour
     }
 
     /// <summary>
-    /// EffectManager báo một effect trạng thái bắt đầu/kết thúc. Controller đếm và quyết định có đổi màu không,
+    /// EffectSystem báo một effect trạng thái bắt đầu/kết thúc. Controller đếm và quyết định có đổi màu không,
     /// rồi báo lại qua FeedbackChanged mà <see cref="CharacterFeedback"/> đang nghe.
     /// </summary>
     internal void NotifyEffectFeedback(CharacterHandle target, CharacterFeedbackKind kind, bool active)

@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-internal enum DataInspectorTone { Info, Stats, Visual, Spawn, Rewards, Advanced, Legacy }
+internal enum DataInspectorTone { Info, Stats, Visual, Spawn, Rewards, Advanced }
 
 // Các DataSO dùng chung bố cục với Skill: tiêu đề màu, mô tả ngắn và thuộc tính có tooltip.
 internal static class DataInspectorGUI
@@ -52,7 +52,6 @@ internal static class DataInspectorGUI
             case DataInspectorTone.Spawn: return new Color(0.94f, 0.58f, 0.22f);
             case DataInspectorTone.Rewards: return new Color(0.85f, 0.7f, 0.21f);
             case DataInspectorTone.Advanced: return new Color(0.23f, 0.73f, 0.74f);
-            case DataInspectorTone.Legacy: return new Color(0.68f, 0.57f, 0.46f);
             default: return new Color(0.3f, 0.62f, 0.9f);
         }
     }

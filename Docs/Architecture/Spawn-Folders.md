@@ -1,4 +1,7 @@
-# Bố trí thư mục hệ thống spawn
+# [LỊCH SỬ] Bố trí thư mục hệ thống spawn
+
+> 📜 **TÀI LIỆU LỊCH SỬ — KHÔNG mô tả code hiện tại.** Chỉ giữ để tra lại quá trình refactor; tên class,
+> interface và đường dẫn bên dưới có thể đã đổi hoặc bị xóa. Kiến trúc hiện tại: [Refactor-Architecture](Refactor-Architecture.md), [Systems-Overview](Systems-Overview.md), [Script-Folders](Script-Folders.md).
 
 > **Tài liệu lịch sử.** Đây là bước trung gian khi mọi thứ còn nằm trong `Scripts/Spawning/`.
 > Ở Task 3.5 miền này đã dời sang `Assets/_Project/Scripts/Stage/` và `Assets/_Project/Editor/Stage/`
@@ -34,7 +37,7 @@ Assets/_Project/
     Patterns/
 ```
 
-EnemyController và EnemyVisualManager vẫn ở Scripts/Characters/Enemies vì chúng
+EnemyController và EnemyVisibility vẫn ở Scripts/Characters/Enemies vì chúng
 xử lý hành vi/hiển thị nhân vật, không phải điều phối spawn. Không tạo thư mục data
 Bosses rỗng khi chưa có asset boss spawn.
 

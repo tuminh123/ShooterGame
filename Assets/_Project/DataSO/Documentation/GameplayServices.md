@@ -13,10 +13,10 @@ Thiết kế ưu tiên YAGNI/Simple → DRY → SOLID: tách dữ liệu, hành 
 | EnemyController | Class thuần tự đuổi Player hiện tại; chết hoặc chạm Player thì về pool. |
 | ICharacterController | Hợp đồng Tick/tiếp xúc để vỏ gọi hành vi hiện tại. |
 | CharacterFactory | Ghép runtime, controller và visual vào vỏ khi vỏ còn tắt. |
-| PlayerManager | Tạo/gỡ Player, áp dụng level/trang bị và phát PlayerChanged. |
-| EnemySpawnManager | Chọn wave, loại và vị trí spawn; tính bonus lúc spawn, theo dõi quái đang sống. |
+| PlayerSystem | Tạo/gỡ Player, áp dụng level/trang bị và phát PlayerChanged. |
+| StageManager → EnemySpawner + Wave/Formation/BossSpawnSystem | Chọn wave, loại và vị trí spawn; tính bonus lúc spawn, theo dõi quái đang sống. |
 
-Controller không chứa bản sao HP/chỉ số. Runtime được gắn với view trong một vòng đời; controller nhận runtime khi xử lý. Hai controller có hành vi di chuyển độc lập, cùng gửi lệnh qua MovementManager.
+Controller không chứa bản sao HP/chỉ số. Runtime được gắn với view trong một vòng đời; controller nhận runtime khi xử lý. Hai controller có hành vi di chuyển độc lập, cùng gửi lệnh qua MovementSystem.
 
 ## Prefab và cấu hình
 
@@ -25,7 +25,7 @@ Controller không chứa bản sao HP/chỉ số. Runtime được gắn với v
 - BlessedGladiator_Character.asset thuộc Player; ForagingMaggot_Character.asset thuộc Enemy.
 - Enemy mẫu có 20 HP, tốc độ 0.5; mỗi 50 giây cộng 5 HP cho cá thể mới của loại đó.
 - Default_Waves.asset giữ nhịp mẫu 0.5 giây/con, tối đa 20 quái; thêm wave/loại quái trong Inspector.
-- SampleScene đã gán Character Prefab ở GameSceneInstaller và Wave Config ở EnemySpawnManager.
+- SampleScene đã gán Character Prefab ở GameSceneInstaller và Stage Database (danh sách wave nằm trong StageDataSO) ở GameSceneInstaller.
 
 CharacterType là khóa theo loại; CharacterTeam là phe. Boss thuộc Enemy. Database chung chứa cả hai phe, nhưng chỉ Player cần cấu hình level vĩnh viễn. Camera và nền nghe PlayerChanged(CharacterView).
 
@@ -60,12 +60,12 @@ HP ban đầu = maxHealth sau bonus
 
 Spawn thêm cùng loại, hết quái sống, thu hồi vỏ và đổi wave không reset mốc. Quái đang sống giữ nguyên bonus đã nhận. Pause bằng timeScale = 0 dừng đồng hồ và không sinh thêm quái.
 
-Wave nối tiếp theo thời lượng, chọn ngẫu nhiên đều giữa các loại được cấu hình. Mỗi wave có nhịp và trần riêng; quái còn từ wave trước vẫn tính vào trần. Wave cuối tiếp tục chạy đến hết lượt. LevelManager.StartNewRun() reset wave/đồng hồ và thu hồi Enemy của lượt trước.
+Wave nối tiếp theo thời lượng, chọn ngẫu nhiên đều giữa các loại được cấu hình. Mỗi wave có nhịp và trần riêng; quái còn từ wave trước vẫn tính vào trần. Wave cuối tiếp tục chạy đến hết lượt. GameManager dọn trận (StageManager.StopRun thu hồi Enemy, RunManager.ResetRun reset đồng hồ/level/loot) trước lượt mới.
 
 ## Kiểm tra và giới hạn
 
 Editor/CharacterSystemTests.cs có kiểm tra HP độc lập, đồng hồ theo loại, bonus chốt khi spawn, chuyển wave, database Enemy không cần level vĩnh viễn và tái sử dụng vỏ giữa hai phe. Chạy Test Runner > EditMode; bài kiểm tra vỏ tự vào Play Mode để kiểm tra callback Unity thật.
 
-Enemy chạm Player vẫn chỉ về pool như trước; chưa có sát thương va chạm, combat, game over hoặc điều kiện thắng wave. Skill trên SO vẫn là mẫu, chưa được khởi tạo/activate trong runtime. MovementManager tính bằng Jobs nhưng áp dụng Transform trên main thread, không thay thế bộ giải va chạm vật lý.
+Enemy chạm Player vẫn chỉ về pool như trước; chưa có sát thương va chạm, combat, game over hoặc điều kiện thắng wave. Skill trên SO vẫn là mẫu, chưa được khởi tạo/activate trong runtime. MovementSystem tính bằng Jobs nhưng áp dụng Transform trên main thread, không thay thế bộ giải va chạm vật lý.
 
 Khi kết thúc scene, CharacterFactory thu hồi nhân vật theo thứ tự visual → vỏ trước, sau đó PoolManager giải phóng pool tổng quát; buffer movement được giải phóng sau cùng. Không thu hồi toàn cục các pool ngoài scene.

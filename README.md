@@ -28,6 +28,8 @@ Luồng hiện có gồm di chuyển Player/quái, pooling và prewarm trước 
 - [Tổng quan các hệ thống hiện tại](Docs/Architecture/Systems-Overview.md).
 - [Thiết kế visual cố định và prefab visual riêng](Docs/Architecture/Character-Visual-Rendering.md) — đề xuất, chưa chuyển code.
 - [Pool prewarm](Docs/Architecture/Pool-Prewarm.md).
+- [Kiến trúc và quy tắc](Docs/Architecture/Refactor-Architecture.md).
+- [Kiểm tra kiến trúc và binding](Docs/Tools/Verification.md).
 
 Xem `Assets/_Project/DataSO/README.md` để biết cách cấu hình dữ liệu gameplay.
 
@@ -35,6 +37,6 @@ Các thư viện và asset bên thứ ba tuân theo giấy phép của tác gi�
 
 Xem Docs/Architecture/Skill-Shooting-Pipeline.md để cấu hình skill, kiểu bắn, đạn và hiệu ứng.
 
-Skill cưa/vùng băng, cấp trong trận và bảng nâng cấp shooting được mô tả trong [Skill Run Progression](Docs/Architecture/Skill-Run-Progression.md). Trong Play Mode, chọn một asset skill rồi dùng menu `Shooter Game > Skills > Grant Or Upgrade Selected Skill` để kiểm tra nâng cấp.
+Skill cưa/vùng băng, cấp trong trận và bảng nâng cấp shooting được mô tả trong [Skill Run Progression](Docs/Architecture/Skill-Run-Progression.md). 
 
-Khi lên cấp, [Skill Choice UI](Docs/Architecture/Skill-Choice-UI.md) mở ba lựa chọn với tên, icon, mô tả và tối đa năm sao. Có thể thử bằng menu `Shooter Game > Skills > Grant One Run Level` trong Play Mode.
+Khi lên cấp, [Skill Choice UI](Docs/Architecture/Skill-Choice-UI.md) mở ba lựa chọn với tên, icon, mô tả và tối đa năm sao.

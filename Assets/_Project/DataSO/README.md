@@ -1,27 +1,26 @@
 # Hướng dẫn chung DataSO, level và save người chơi
 
-> Trạng thái hiện tại: kết nối equipment trong GameSceneInstaller và PlayerManager đã được bật. Runtime nhận bonus từ database và ID trang bị đã lưu; database mẫu hiện rỗng, chưa mặc trang bị thì bonus bằng 0.
+> Trạng thái hiện tại: kết nối equipment trong GameSceneInstaller và PlayerSystem đã được bật. Runtime nhận bonus từ database và ID trang bị đã lưu; database mẫu hiện rỗng, chưa mặc trang bị thì bonus bằng 0.
 
 ## 1. Phân chia dữ liệu
 
 | Loại | Script | Trách nhiệm |
 |---|---|---|
 | Template nhân vật | CharacterDataSO | Type làm khóa, tên hiển thị, chỉ số gốc và skill mẫu |
-| Level vĩnh viễn | PermanentLevelConfigSO | Bonus cố định mỗi cấp và công thức chi phí tài nguyên |
+| Level vĩnh viễn | CharacterLevelConfigSO | Bonus cố định mỗi cấp và công thức chi phí tài nguyên |
 | Level trong trận | RunLevelConfigSO | Công thức EXP tuyến tính và một bộ bonus cố định mỗi cấp |
 | Danh mục nhân vật | CharacterDatabaseSO | Tất cả template nhân vật, kiểm tra ID khi dựng dictionary |
 | Danh mục level | LevelDatabaseSO | Danh sách config vĩnh viễn có type và config trận dùng chung |
-| Đầu mối gameplay | LevelManager | Điều phối API và chuyển tiếp sự kiện từ cả hai service |
-| Level nhân vật | CharacterLevelService | Tra config, đọc level vĩnh viễn, tăng cấp và gọi save |
-| Level trận | RunLevelService | Nhận EXP, phát sự kiện tăng cấp/EXP và reset lượt chơi |
-| Trạng thái level trận | RunLevelProgress | Chi tiết tính tiến trình nội bộ do RunLevelService sở hữu |
+| Level nhân vật | CharacterLevels (miền Progression) | Tra config, đọc level vĩnh viễn, tăng cấp và gọi save |
+| Level trận | RunLevel (miền Run, do RunManager tạo) | Nhận EXP, phát LevelUp/ExperienceChanged, giữ nguồn bonus level trận trên Player |
+| Trạng thái level trận | RunLevelProgress | Chi tiết tính tiến trình nội bộ do RunLevel sở hữu |
 | Dữ liệu lưu lâu dài | PlayerSaveData | Nhân vật đang chọn và level vĩnh viễn của từng nhân vật |
 | IO hồ sơ | SaveManager | Đọc/ghi Easy Save 3 theo key, giữ snapshot chưa ghi được để retry |
 | Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
 | Danh mục trang bị | EquipmentDatabaseSO | Tra bonus cộng thẳng bằng ID vật phẩm |
-| Trang bị đang mặc | PlayerEquipmentService | Đọc/thay loadout đã lưu, tính tổng bonus và phát sự kiện |
+| Trang bị đang mặc | Loadout (miền Progression) | Đọc/thay loadout đã lưu, tính tổng bonus và phát sự kiện |
 
-PlayerManager tạo CharacterRuntimeData từ template, bonus level và loadout đã load. Player sử dụng runtime làm nguồn chỉ số. Trang bị hiện có danh mục ID/bonus và danh sách đang mặc chung cho người chơi; chưa có inventory, slot, mở khóa hoặc nâng cấp vật phẩm. Skin, tiền tệ và EXP vĩnh viễn chưa được thêm. Hai config không tự thực thi skill.
+PlayerSystem tạo CharacterRuntimeData từ template, bonus level và loadout đã load. Player sử dụng runtime làm nguồn chỉ số. Trang bị hiện có danh mục ID/bonus và danh sách đang mặc chung cho người chơi; chưa có inventory, slot, mở khóa hoặc nâng cấp vật phẩm. Skin, tiền tệ và EXP vĩnh viễn chưa được thêm. Hai config không tự thực thi skill.
 
 ## 2. CharacterType là khóa duy nhất
 
@@ -41,7 +40,7 @@ Khi thêm nhân vật mới:
 
 1. Thêm giá trị vào CharacterType với số mới chưa dùng. Không đổi số hoặc tái sử dụng số của nhân vật đã có save.
 2. Tạo CharacterDataSO, chọn type đó và nhập Display Name.
-3. Tạo PermanentLevelConfigSO cùng type, cấu hình bonus và chi phí.
+3. Tạo CharacterLevelConfigSO cùng type, cấu hình bonus và chi phí.
 4. Thêm template vào CharacterDatabaseSO và config vào LevelDatabaseSO.
 
 Không cần thêm string ID hoặc sửa thuật toán ghép. Enum chỉ khai báo loại nhân vật; vẫn cần tạo và đăng ký dữ liệu của nhân vật mới.
@@ -72,7 +71,7 @@ Khi có nhiều nguồn, cộng các StatBonus trước rồi ApplyTo một lầ
 
 ## 4. Level vĩnh viễn: bonus cố định, chi phí tăng theo công thức
 
-Mỗi nhân vật có thể có PermanentLevelConfigSO riêng. Một config chứa:
+Mỗi nhân vật có thể có CharacterLevelConfigSO riêng. Một config chứa:
 
 | Field trong Inspector | Ý nghĩa | Giá trị mẫu |
 |---|---|---:|
@@ -155,7 +154,7 @@ Quy tắc runtime:
 - EXP nhận âm bị từ chối; cấu hình yêu cầu A >= 1 và B >= 0.
 - Công thức dùng số nguyên; nếu yêu cầu EXP vượt int thì báo overflow.
 - Level/EXP trong trận không ghi vào PlayerSaveData.
-- Không sửa config giữa trận. RunLevelService sở hữu một RunLevelProgress của người chơi trong lượt hiện tại; gameplay gọi qua LevelManager, không tạo thêm tiến trình song song.
+- Không sửa config giữa trận. RunLevel sở hữu một RunLevelProgress của người chơi trong lượt hiện tại; miền khác chỉ đọc qua `IRunReader` của RunManager, không tạo thêm tiến trình song song.
 
 ## 6. PlayerSaveData lưu những gì
 
@@ -177,7 +176,7 @@ equippedItemIds là field tùy chọn bổ sung cho schema 2: file cũ thiếu f
 
 ## 7. SaveManager, Easy Save và Zenject
 
-SaveManager chỉ xử lý lưu trữ qua Load<T>(key, defaultData, validate), Save<T>(key, snapshot), SaveIfDirty và ResetData. CurrencyService, CharacterLevelService, PlayerEquipmentService và PlayerManager sở hữu dữ liệu, kiểm tra và quyết định thời điểm lưu. GameSceneInstaller khởi tạo SaveManager (-200), SaveMigration (-180), các service dữ liệu (-150), rồi mới chạy gameplay.
+SaveManager (miền Save) chỉ xử lý lưu trữ: `ISaveStore` (Load<T>(key, defaultData, validate), Save<T>, SaveBatch) và `ISaveMaintenance` (SaveIfDirty, ResetData). Wallet, CharacterLevels, Loadout, StageProgress (bên trong ProgressionManager) và PlayerSystem sở hữu dữ liệu và quyết định thời điểm lưu; mỗi section tự kiểm tra bằng `XxxSaveData.Validate`. Thứ tự khởi tạo: SaveManager (-200, mở file rồi chạy SaveMigration ngay bên trong) → ProgressionManager (-160) → CharacterManager (-150) → gameplay.
 
 Mặc định dùng chung file `PlayerSave.es3`, các key `player_selection`, `character_levels`, `equipment`, `currencies`, và marker `save_format` phiên bản 4. Hằng số ở GameConstants.SaveKeys. `player_data` chỉ còn phục vụ migration. Field Player Save File trên installer cho phép đổi tên file; tên khác không tự di chuyển save cũ.
 
@@ -189,106 +188,83 @@ Các service cập nhật RAM rồi gửi bản sao độc lập để lưu ngay
 
 Installer gọi SaveIfDirty khi pause, mất focus và thoát; Dispose cũng thử ghi phần pending. Không bảo đảm ghi được nếu ứng dụng bị kill/crash hoặc thiết bị còn lỗi IO. Chưa có backup/cloud hay nhiều profile.
 
-LootManager nhặt vàng → CurrencyService.Add(CurrencyType.Gold, amount) → lưu key currencies ngay. RunSessionManager.Gold chỉ thống kê vàng trong trận; kết thúc trận không cộng lại. Kim cương dùng CurrencyType.Diamond trong cùng ví.
+LootSystem nhặt vàng → RunManager gọi IWallet.Add(CurrencyType.Gold, amount) → lưu key currencies ngay. `IRunReader.Gold` (RunStatistics) chỉ thống kê vàng trong trận; kết thúc trận không cộng lại. Kim cương dùng CurrencyType.Diamond trong cùng ví.
 
 Service hiện có scope theo scene. Nếu sau này nhiều scene cùng cần một hồ sơ đang dùng, chuyển binding sang ProjectContext để có một instance chung; không bind lại đồng thời ở cả ProjectContext lẫn SceneContext.
 
-## 8. LevelManager và hai service
+## 8. Level vĩnh viễn (Progression) và level trận (Run)
 
 ```text
 Gameplay/UI
-    → LevelManager
-        → CharacterLevelService
+    → ProgressionManager (IWallet, IPermanentBonuses, IStageProgress)   dữ liệu giữa các lượt (GĐ 5)
+        → CharacterLevels
             → dictionary template/config
-            → SaveManager → Easy Save 3
-        → RunLevelService
+            → ISaveStore (SaveManager → Easy Save 3)
+        → Loadout, Wallet, StageProgress
+    → RunManager (IRunReader, IRunLifecycle)   level trong trận (miền Run, GĐ 4)
+        → RunLevel
             → RunLevelProgress
-            → RunLevelConfigSO chung
+            → RunLevelConfigSO chung (LevelDatabaseSO.RunLevelConfig)
 ```
 
-Gameplay inject LevelManager làm đầu mối cho cả hai loại level. Các sự kiện trên manager chuyển tiếp trực tiếp sự kiện service; manager không giữ thêm bản sao level hoặc đăng ký callback lặp.
+Miền khác chỉ thấy level vĩnh viễn qua `IPermanentBonuses.GetBonus(type)` (level vĩnh viễn + trang bị, dùng bởi PlayerSystem)
+và `BonusesChanged`. Các API dưới đây nằm trên `CharacterLevels` bên trong ProgressionManager; chưa có UI nâng cấp nên
+chưa có vai trò (interface) công khai — sẽ thêm vào `ProgressionContracts.cs` khi UI đó ra đời.
 
-### API level vĩnh viễn
+### API level vĩnh viễn (trên CharacterLevels)
 
-| API trên LevelManager | Tác dụng |
+| API | Tác dụng |
 |---|---|
-| GetCharacter(type) | Tra template theo type |
-| GetPermanentConfig(type) | Tra config vĩnh viễn |
-| GetPermanentLevel(type) | Đọc level do CharacterLevelService sở hữu |
-| GetPermanentBonus(type) | Tính tổng bonus vĩnh viễn |
+| GetConfig(type) | Tra config vĩnh viễn |
+| GetLevel(type) | Đọc level vĩnh viễn |
+| GetTotalBonus(type) | Tính tổng bonus vĩnh viễn |
 | TryGetUpgradeCost(type, out cost) | Giá lần nâng tiếp theo; false khi đạt trần |
-| TryIncreasePermanentLevel(type, out saved) | Tăng một cấp, thử ghi save và phát sự kiện |
-| SaveCharacterProgress() | Thử lưu lại hồ sơ, không tăng thêm cấp |
+| TryIncreaseLevel(type, out saved) | Tăng một cấp, thử ghi save và phát LevelChanged |
+| SaveProgress() | Thử lưu lại hồ sơ, không tăng thêm cấp |
 
-Chỉ gọi API đọc/thay đổi save sau SaveManager.Initialize thành công. Không đọc tiến trình trong constructor của class khác.
+Chỉ gọi API đọc/thay đổi save sau ProgressionManager.Initialize. Không đọc tiến trình trong constructor của class khác.
 
-TryIncreasePermanentLevel chưa tự kiểm tra sở hữu, mở khóa hoặc trừ tài nguyên. Bên gọi xử lý điều kiện/thanh toán bằng CurrencyService trước khi tăng cấp.
+TryIncreaseLevel chưa tự kiểm tra sở hữu, mở khóa hoặc trừ tài nguyên. Bên gọi xử lý điều kiện/thanh toán bằng Wallet trước khi tăng cấp.
 
-```csharp
-// levelManager được Zenject inject; ví dụ chỉ gọi sau khi save đã load thành công.
-if (levelManager.TryIncreasePermanentLevel(CharacterType.BlessedGladiator, out bool saved))
-{
-    // true: level đã tăng trong RAM, sự kiện CharacterLevelChanged đã được phát.
-    if (!saved)
-    {
-        // Không gọi tăng cấp lại! Xử lý lỗi và thử SaveCharacterProgress khi phù hợp.
-    }
-}
-// false: đã đạt trần, không tăng level và không phát sự kiện.
-```
+Nếu IO lỗi, level mới còn trong RAM và snapshot vẫn chờ ghi. CharacterLevels phát LevelChanged cho thay đổi thực tế, rồi SaveFailed để bên ngoài biết chưa ghi được file. Không rollback level một cách âm thầm.
 
-Nếu IO lỗi, level mới còn trong RAM và SaveManager vẫn dirty. Service phát CharacterLevelChanged cho thay đổi thực tế, rồi CharacterLevelSaveFailed để bên ngoài biết chưa ghi được file. Không rollback level một cách âm thầm.
+### API level trong trận (miền Run)
 
-### API level trong trận
-
-| API/property trên LevelManager | Tác dụng |
+| API trên RunManager | Tác dụng |
 |---|---|
-| StartNewRun() | Reset level 1, EXP 0 và thông báo lượt mới |
-| AddRunExperience(amount) | Nhận EXP; trả số cấp tăng |
-| RunLevel | Level hiện tại trong trận |
-| RunExperience | EXP dư |
-| RunExperienceToNextLevel | EXP cần riêng cho cấp hiện tại, 0 khi đạt trần |
-| IsRunMaxLevel | Đã đạt trần |
-| RunBonus | Tổng bonus cố định của các level trong trận |
+| `IRunLifecycle.ResetRun()` | GameManager gọi: dọn skill gameplay, loot, về level 1/EXP 0, đồng hồ và thống kê về 0, rồi phát RunReset |
+| `IRunReader.Level` | Level hiện tại trong trận |
+| `IRunReader.Experience` | EXP dư |
+| `IRunReader.ExperienceToNextLevel` | EXP cần riêng cho cấp hiện tại, 0 khi đạt trần |
 
-Constructor tạo trạng thái ban đầu level 1 nhưng không phát sự kiện. Bên điều phối lượt chơi gọi StartNewRun sau khi các hệ thống đã đăng ký nghe. Chưa tự gọi từ PlayerManager.
-
-```csharp
-levelManager.StartNewRun();
-int gainedLevels = levelManager.AddRunExperience(35);
-
-// Không cộng trực tiếp lên kết quả cũ khi tính lại chỉ số.
-CharacterDataSO template = levelManager.GetCharacter(CharacterType.BlessedGladiator);
-StatBonus total = levelManager.GetPermanentBonus(template.CharacterType)
-    + levelManager.RunBonus;
-BaseStats currentStats = total.ApplyTo(template.BaseStats);
-```
-
-Đây là ví dụ công thức. PlayerManager hiện tự tính cùng công thức này, cộng thêm bonus trang bị vào CharacterRuntimeData; mỗi nhân vật cập nhật cooldown skill vốn có qua CharacterSkills; SkillManager chỉ quản lý skill nhận trong trận.
+EXP chỉ vào qua loot (LootSystem → RunManager → RunLevel.AddExperience); không có API cộng EXP công khai cho miền khác.
+Bonus level trận (`RunLevelConfigSO.GetTotalBonus(level)`) là **một nguồn riêng** trong `StatSheet` của Player:
+RunLevel thêm nguồn này khi nhận `PlayerChanged` và cập nhật lease tại chỗ khi lên cấp/reset.
+PlayerSystem chỉ cộng level vĩnh viễn + trang bị. Tổng cuối vẫn do `StatCalculator` tính một chỗ.
 
 ### Sự kiện
 
-| Event trên LevelManager | Tham số |
-|---|---|
-| CharacterLevelChanged | characterType, level cũ, level mới |
-| CharacterLevelSaveFailed | characterType, level mới đã có trong RAM, exception IO |
-| RunLevelChanged | level cũ, level mới |
-| RunExperienceChanged | EXP dư, EXP cần cấp tiếp |
-| RunReset | Không tham số |
+| Event | Nguồn | Tham số |
+|---|---|---|
+| BonusesChanged | IPermanentBonuses | Không tham số (level vĩnh viễn của một nhân vật hoặc loadout vừa đổi) |
+| BalanceChanged | IWallet | loại tiền, số dư mới |
+| LevelUp | IRunReader | level cũ, level mới |
+| ExperienceChanged | IRunReader | EXP dư, EXP cần cấp tiếp |
+| RunReset | IRunReader | Không tham số |
 
-Một lần nhận EXP lên nhiều cấp phát một RunLevelChanged chứa khoảng level. Ví dụ từ 1 lên 3: sự kiện (1, 3), UI có thể mở 2 lượt chọn thưởng. Tính toán xong trước khi phát, nên đọc manager trong callback sẽ thấy trạng thái cuối.
+Một lần nhận EXP lên nhiều cấp phát một LevelUp chứa khoảng level. Ví dụ từ 1 lên 3: sự kiện (1, 3), UI có thể mở 2 lượt chọn thưởng. Tính toán và bonus được cập nhật trước khi phát, nên đọc RunManager trong callback sẽ thấy trạng thái cuối.
 
-Reset không phát sự kiện tăng cấp; phát RunReset và RunExperienceChanged. Nhận EXP khi đã đạt trần hoặc không thay đổi tiến trình không phát lại thông báo EXP.
+Reset không phát LevelUp; phát ExperienceChanged (cùng Gold/Time/EnemiesDefeated changed) rồi RunReset sau cùng. Nhận EXP khi đã đạt trần hoặc không thay đổi tiến trình không phát lại thông báo EXP.
 
-Bên nghe tự hủy đăng ký khi không dùng nữa. Không gọi tăng cấp/reset tiếp bên trong callback của chính chuỗi xử lý đó; service chặn thay đổi lồng nhau, có thể đưa yêu cầu sang lần xử lý sau.
+Bên nghe tự hủy đăng ký khi không dùng nữa. Không cộng EXP/reset tiếp bên trong callback của chính chuỗi xử lý đó; RunLevel và RunManager chặn thay đổi lồng nhau.
 
-Level trận phát sự kiện nhưng không gọi save lâu dài. Muốn tiếp tục một lượt đã thoát sẽ cần loại save lượt chơi riêng, chưa triển khai.
+Level trận không gọi save lâu dài. Muốn tiếp tục một lượt đã thoát sẽ cần loại save lượt chơi riêng, chưa triển khai.
 
 ### Save snapshot và dictionary
 
 Service giữ dữ liệu đang dùng và gửi Clone() vào SaveManager.Save; snapshot pending không thay đổi theo dữ liệu runtime.
 
-CharacterLevelService giữ dictionary CharacterType → tiến trình/template/config; CurrencyService giữ dictionary CurrencyType → số dư. SaveManager chỉ giữ dictionary key → snapshot còn lỗi ghi. Cache không được lưu lặp vào file.
+CharacterLevels giữ dictionary CharacterType → tiến trình/template/config; Wallet giữ dictionary CurrencyType → số dư. SaveManager chỉ giữ dictionary key → snapshot còn lỗi ghi. Cache không được lưu lặp vào file.
 
 ## 9. Thư mục và bộ dữ liệu mẫu
 
@@ -338,16 +314,16 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-CharacterDataSO stores one Skills list of SkillDataSO assets. Each CharacterView owns CharacterSkills and advances its innate cooldowns. The scene SkillManager independently schedules run instances supplied by a future external card/reward source. It does not receive a character or use player stats; that integration is deferred. SkillFactory creates fresh behaviors through an explicit switch; each behavior owns its gameplay logic. CharacterView initializes and disposes innate skills; CharacterControllerBase updates them; CharacterManager only tracks characters. Character cleanup never removes run skills. HolyBolt and enemy normal attack execute automatically. See Docs/Architecture/Skill-Shooting-Pipeline.md.
+CharacterDataSO stores one Skills list of SkillDataSO assets. Each CharacterView owns CharacterSkills and advances its innate cooldowns. The scene SkillSystem independently schedules run instances supplied by a future external card/reward source. It does not receive a character or use player stats; that integration is deferred. SkillFactory creates fresh behaviors through an explicit switch; each behavior owns its gameplay logic. CharacterView initializes and disposes innate skills; CharacterControllerBase updates them; CharacterManager only tracks characters. Character cleanup never removes run skills. HolyBolt and enemy normal attack execute automatically. See Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 
 Luồng khởi động hiện tại:
 
 ```text
-SaveManager.Initialize (-200) -> SaveMigration (-180)
-    -> các service dữ liệu Initialize (-150)
-    -> GameManager.Initialize (100) -> PlayerManager.SpawnPlayer
+SaveManager.Initialize (-200, mở file + SaveMigration)
+    -> ProgressionManager.Initialize (-160) -> CharacterManager.Initialize (-150)
+    -> GameManager.Initialize (100) -> PlayerSystem.SpawnPlayer
     -> lấy nhân vật được chọn và template
     -> đọc level vĩnh viễn, level trận và ID trang bị
     -> tạo CharacterRuntimeData riêng, đầy HP
@@ -355,19 +331,19 @@ SaveManager.Initialize (-200) -> SaveMigration (-180)
     -> PlayerChanged thông báo nhân vật đã sẵn sàng
 ```
 
-PlayerManager cộng bonus vĩnh viễn, bonus trong trận và trang bị trước khi truyền tổng vào CharacterRuntimeData. Runtime không giữ level hoặc phân loại nguồn bonus; CharacterLevelService và RunLevelService sở hữu tiến trình. Khi các nguồn đổi, runtime tính lại từ base và modifier đang có. Tăng maxHealth/defense không tự hồi HP/giáp; khi giới hạn giảm thì kẹp lượng hiện tại. Spawn mới đầy HP và giáp, bonus skill được áp dụng bởi scheduler sau khi đăng ký; defense mới chỉ cấp thêm lượng giáp mới tương ứng. Bật lại sau disable không hồi giáp. StartNewRun reset tiến trình, không tự hồi HP hoặc tạo lại nhân vật.
+PlayerSystem thêm một nguồn bonus (level vĩnh viễn + trang bị) và RunLevel thêm một nguồn riêng cho level trận vào `StatSheet` của Player. Runtime không giữ level; CharacterLevels và RunLevel sở hữu tiến trình. Khi các nguồn đổi, runtime tính lại từ base và modifier đang có. Tăng maxHealth/defense không tự hồi HP/giáp; khi giới hạn giảm thì kẹp lượng hiện tại. Spawn mới đầy HP và giáp, bonus skill được áp dụng bởi scheduler sau khi đăng ký; defense mới chỉ cấp thêm lượng giáp mới tương ứng. Bật lại sau disable không hồi giáp. ResetRun reset tiến trình, không tự hồi HP hoặc tạo lại nhân vật.
 
-Đọc runtime qua CharacterView.RuntimeData hoặc PlayerManager.RuntimeData. FinalStats và BaseStats trả bản sao struct. Gọi CharacterView.ReceiveDamage hoặc ChangeHealth (âm trừ HP trực tiếp, dương hồi HP); view chuyển tiếp tới CharacterControllerBase. Controller chung xử lý giáp hấp thụ trước HP, thông báo và chết; PlayerController/EnemyController kế thừa và định nghĩa hành vi chết riêng. Nghe Changed để cập nhật UI. Effect sở hữu thời hạn, danh sách slow và luật slow mạnh nhất; runtime chỉ nhận hệ số di chuyển đã tổng hợp.
+Đọc runtime qua CharacterView.RuntimeData hoặc PlayerSystem.RuntimeData. FinalStats và BaseStats trả bản sao struct. Gọi CharacterView.ReceiveDamage hoặc ChangeHealth (âm trừ HP trực tiếp, dương hồi HP); view chuyển tiếp tới CharacterControllerBase. Controller chung xử lý giáp hấp thụ trước HP, thông báo và chết; PlayerController/EnemyController kế thừa và định nghĩa hành vi chết riêng. Nghe Changed để cập nhật UI. Effect sở hữu thời hạn, danh sách slow và luật slow mạnh nhất; runtime chỉ nhận hệ số di chuyển đã tổng hợp.
 
-Thêm vật phẩm vào danh sách Items của EquipmentDatabase: ID ổn định, tên hiển thị và bonus. Inject PlayerEquipmentService vào bên quản lý trang bị rồi gọi SetEquippedItems với toàn bộ ID đang mặc; danh sách rỗng để tháo hết. Ví dụ, sau khi đã khai báo ID boots trong database:
+Thêm vật phẩm vào danh sách Items của EquipmentDatabase: ID ổn định, tên hiển thị và bonus. `Loadout.SetEquippedItems` (bên trong ProgressionManager; vai trò công khai sẽ thêm khi có UI trang bị) nhận toàn bộ ID đang mặc; danh sách rỗng để tháo hết. Ví dụ, sau khi đã khai báo ID boots trong database:
 
 ```csharp
-bool saved = equipmentService.SetEquippedItems(new[] { "boots" });
-// Runtime đã cập nhật dù saved=false. Khi IO lỗi, thử saveManager.Save() để lưu lại.
-equipmentService.SetEquippedItems(System.Array.Empty<string>());
+bool saved = loadout.SetEquippedItems(new[] { "boots" });
+// Runtime đã cập nhật dù saved=false. Khi IO lỗi, thử loadout.SaveEquipment() hoặc chờ ISaveMaintenance.SaveIfDirty.
+loadout.SetEquippedItems(System.Array.Empty<string>());
 ```
 
-Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. PlayerEquipmentService sở hữu danh sách, gửi snapshot vào key equipment ngay rồi phát EquipmentChanged để runtime tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
+Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. Loadout sở hữu danh sách, gửi snapshot vào key equipment ngay rồi phát EquipmentChanged; ProgressionManager chuyển thành BonusesChanged để PlayerSystem tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
 
 Skill, shooting, đạn và hiệu ứng đã được nối vào Character runtime. Enemy dùng chung vỏ/runtime và chết qua pipeline damage/despawn. Chưa nối EXP nhặt được, UI chọn thưởng, ví tài nguyên hoặc game over/chơi lại hoàn chỉnh. Các blueprint kiến trúc cũ cần được đối chiếu với mã hiện tại; tài liệu Skill-Shooting-Pipeline.md mô tả phần đã triển khai.
 

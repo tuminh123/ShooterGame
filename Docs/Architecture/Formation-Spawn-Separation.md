@@ -1,4 +1,7 @@
-# Hình học Formation và cách spawn
+# [LỊCH SỬ] Hình học Formation và cách spawn
+
+> 📜 **TÀI LIỆU LỊCH SỬ — KHÔNG mô tả code hiện tại.** Chỉ giữ để tra lại quá trình refactor; tên class,
+> interface và đường dẫn bên dưới có thể đã đổi hoặc bị xóa. Kiến trúc hiện tại: [Refactor-Architecture](Refactor-Architecture.md), [Systems-Overview](Systems-Overview.md), [Script-Folders](Script-Folders.md).
 
 ## Hai cấu hình độc lập
 
@@ -23,7 +26,7 @@ StageDataSO.spawnData
   -> FormationSpawnSystem : IStageSpawnSystem
   -> EnemyPatternSO.RuntimeData (snapshot)
   -> EnemyFormationRuntime
-  -> EnemyController / EnemySpawnManager / MovementManager
+  -> EnemyController / EnemySpawnManager / MovementSystem
 ```
 
 `IStageSpawnSystem` vẫn giữ `Validate`, `Execute`, `Stop`. Các interface

@@ -3,7 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// Điều khiển riêng luồng chọn skill; gắn trên root LevelUpUI là cha của LevelUpPanel, vẫn hoạt động khi panel con tắt.
+/// <summary>
+/// Trình bày bảng chọn skill khi lên cấp: slow motion, pause, mở/đóng panel và chuyển thao tác click cho miền Run.
+/// Gắn trên root LevelUpUI là cha của LevelUpPanel, vẫn hoạt động khi panel con tắt.
+/// </summary>
+/// <remarks>
+/// Đếm lượt chờ, roll lựa chọn, áp dụng skill và chặn skill lỗi thuộc <see cref="ISkillChoice"/> (miền Run, Giai đoạn 6);
+/// controller này chỉ quyết định <b>khi nào</b> và <b>cách</b> hiển thị.
+/// </remarks>
 public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTickable
 {
     #region Zenject Tick Registration
@@ -34,6 +41,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private void Start() => StartFrameUpdates();
 
     #endregion
+
     #region Panel Reference
 
     [SerializeField] private SkillChoiceUI levelUpPanel; // View độc lập hiển thị ba lựa chọn và phát sự kiện click.
@@ -42,31 +50,26 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     #endregion
 
-    #region Choice State And Dependencies
+    #region Presentation State And Dependencies
 
-    private readonly SkillChoicePool pool = new SkillChoicePool(); // Áp dụng luật roll cấp kế tiếp, loại skill max và skill đang bị chặn.
-    private readonly SkillChoiceProgress progress = new SkillChoiceProgress(); // Số lượt thưởng chưa dùng; chỉ tiêu sau khi nhận/nâng thành công.
-    private readonly List<SkillChoiceOffer> offers = new List<SkillChoiceOffer>(3); // Snapshot các lựa chọn đang hiển thị; không giữ qua lần roll mới.
+    private readonly List<SkillChoiceOffer> offers = new List<SkillChoiceOffer>(3); // Các lựa chọn đang hiển thị; roll lại ghi đè.
     private readonly List<SkillRuntime> ownedSkills = new List<SkillRuntime>(); // Chỉ skill gameplay; skill nhân vật thuộc CharacterSkills.
-    private readonly HashSet<SkillDataSO> failedSkills = new HashSet<SkillDataSO>(); // Skill lỗi bị chặn tới khi reset trận, đổi Player hoặc gọi retry.
-    private IReadOnlyList<SkillDataSO> catalog; // Snapshot skill được phép thưởng từ database được Zenject inject.
-    private IRunProgress levels; // Nguồn sự kiện tăng cấp và reset tiến trình trận.
-    private ISkillGrant skillGrant;
-    private IOwnedSkillReader skills; // Đầu mối nhận/nâng runtime; UI không trực tiếp sửa behavior.
-    private IPlayerReader players; // Nguồn Player hiện tại và thông báo đổi nhân vật.
-    private IGameplayPause pauses; // Dịch vụ pause nhiều nguồn; đóng modal không gỡ pause thủ công.
-    private IGameStateReader game; // Rời Playing (thắng/thua/về Home) thì hủy bảng thưởng còn đang chờ.
-    private CharacterView owner; // Player nhận thưởng; đổi owner phải bỏ queue của owner cũ.
+    private ISkillChoice choices; // Miền Run: lượt chờ, roll, áp dụng.
+    private IOwnedSkillReader skills; // Miền Combat: chỉ đọc để hiện các ô skill đang sở hữu.
+    private IGamePause pauses; // Pause nhiều nguồn; đóng modal không gỡ pause thủ công.
+    private IGameState game; // Rời Playing (thắng/thua/về Home) thì hủy bảng thưởng còn đang chờ.
     private IDisposable pauseLease; // Token pause của bảng lên cấp; trả khi đóng hoặc ẩn bảng.
     private IDisposable slowMotionLease;
     private float slowMotionUntil;
     private bool subscribed; // Chống đăng ký lặp event khi Construct và OnEnable cùng chạy.
-    private bool refreshPending; // Hoãn roll/render đến LateUpdate sau khi callback gameplay hoàn tất.
+    private bool refreshPending; // Hoãn roll/render đến LateTick sau khi callback gameplay hoàn tất.
     private bool selecting; // Chặn việc áp dụng lựa chọn lồng nhau trong callback.
     private bool rerollPending;
     private bool visible; // UIManager cấp quyền trình bày; controller không tự chuyển các UI khác.
-    private int version; // Phiên queue; reset/đổi Player vô hiệu hóa kết quả callback cũ.
-    public int PendingSkillChoices => progress.Pending; // Cho bên ngoài đọc số lượt thưởng đang chờ, không cho sửa trực tiếp.
+    private int version; // Tăng khi lượt chờ bị hủy: kết quả callback cũ không làm mới bảng của phiên mới.
+
+    /// <summary>Số lượt thưởng đang chờ (đọc từ miền Run).</summary>
+    public int PendingSkillChoices => choices != null ? choices.PendingChoices : 0;
 
     #endregion
 
@@ -74,22 +77,12 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     // Nhận dependency từ Zenject, kiểm tra reference scene và khởi tạo subscription kể cả khi panel đang tắt.
     [Inject]
-    public void Construct(
-        ILevelService levelService,
-        ISkillGrant skillGrant,
-        IOwnedSkillReader ownedSkills,
-        IPlayerReader playerReader,
-        IGameplayPauseService gameplayPauseService,
-        IGameFlow gameFlow,
-        SkillDatabaseSO database)
+    public void Construct(ISkillChoice skillChoice, IOwnedSkillReader ownedSkills, IGamePause gamePause, IGameState gameState)
     {
-        this.game = gameFlow.GetGameStateReader();
-        this.levels = levelService.GetRunProgress();
-        this.skills = ownedSkills; // Cả hai vai trò đều do CombatManager implement (CombatContracts.cs).
-        this.skillGrant = skillGrant;
-        this.players = playerReader;
-        this.pauses = gameplayPauseService.GetGameplayPause();
-        catalog = database.CreateRunChoiceCatalog();
+        choices = skillChoice;
+        skills = ownedSkills;
+        pauses = gamePause;
+        game = gameState;
         if (levelUpPanel == null)
             throw new InvalidOperationException("Assign LevelUpPanel in SkillChoiceController.");
         levelUpPanel.Hide();
@@ -100,63 +93,37 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private void OnEnable()
     {
         activationFrame = Time.frameCount;
-        if (levels != null) Subscribe();
+        if (choices != null) Subscribe();
     }
 
-    // Theo dõi level, Player và thao tác panel đúng một lần; đồng bộ owner ban đầu.
     private void Subscribe()
     {
         if (subscribed) return;
         subscribed = true;
-        levels.RunLevelChanged += OnRunLevelChanged;
+        choices.PendingChanged += OnPendingChanged;
+        choices.ChoicesCanceled += OnChoicesCanceled;
         game.StateChanged += OnGameStateChanged;
-        levels.RunReset += CancelChoices;
-        players.PlayerChanged += OnPlayerChanged;
         levelUpPanel.Selected += Choose;
         levelUpPanel.RerollRequested += Reroll;
         levelUpPanel.Hidden += OnPanelHidden;
-        OnPlayerChanged(players.CurrentPlayer);
     }
 
     #endregion
 
-    #region Player Lifecycle
-
-    // Hủy lượt thưởng của Player cũ rồi gắn sự kiện chết/release của Player mới.
-    private void OnPlayerChanged(CharacterView character)
-    {
-        DetachOwner(); CancelChoices(); owner = character;
-        if (owner != null) { owner.Died += OnOwnerEnded; owner.Released += OnOwnerEnded; }
-    }
-
-    // Gỡ listener khỏi owner cũ trước khi thay reference hoặc dọn manager.
-    private void DetachOwner()
-    {
-        if (owner != null) { owner.Died -= OnOwnerEnded; owner.Released -= OnOwnerEnded; }
-    }
-
-    // Player chết hoặc bị trả pool: hủy phần thưởng và đóng bảng để không áp dụng cho lượt spawn khác.
-    private void OnOwnerEnded(CharacterView character) => CancelChoices();
+    #region Run Events
 
     // Thắng/thua/về Home chấm dứt bảng thưởng của trận, kể cả khi Player chưa chết hoặc chưa bị thu hồi.
     private void OnGameStateChanged(GameState previous, GameState current)
     {
-        if (current != GameState.Playing) CancelChoices();
+        if (current != GameState.Playing) choices.CancelChoices();
     }
 
-    #endregion
-
-    #region Reward Queue And Presentation
-
     // Lượt lên cấp đầu tiên có một nhịp slow motion; các lượt đang xếp hàng không phát lại nhịp này.
-    private void OnRunLevelChanged(int previous, int current)
+    private void OnPendingChanged(int previous, int current)
     {
-        int previousPending = progress.Pending;
-        progress.AddLevels(previous, current);
+        if (current <= previous) return; // Giảm (chọn xong/pool cạn) đã được xử lý ở Choose/LateTick.
         refreshPending = true;
-        if (progress.Pending == 0) return;
-        if (previousPending == 0 && !visible && owner != null && owner.RuntimeData.IsAlive &&
-            slowMotionDuration > 0f && Time.timeScale > 0f)
+        if (previous == 0 && !visible && choices.CanChoose && slowMotionDuration > 0f && Time.timeScale > 0f)
         {
             slowMotionLease = pauses.AcquireSlowMotion(levelUpTimeScale);
             slowMotionUntil = Time.unscaledTime + slowMotionDuration;
@@ -164,7 +131,26 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         else if (slowMotionLease == null) RequestVisibility(true);
     }
 
-    // Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng giữ lượt để retry.
+    // Reset lượt, đổi Player, Player chết hoặc rời Playing: đóng bảng và bỏ mọi kết quả đang dở.
+    private void OnChoicesCanceled()
+    {
+        version++;
+        ReleaseSlowMotion(); // Không để sót slow motion khi trận kết thúc giữa nhịp chậm.
+        refreshPending = false;
+        rerollPending = false;
+        ownedSkills.Clear();
+        if (levelUpPanel != null)
+        {
+            levelUpPanel.ShowOwnedSkills(ownedSkills);
+            FinishPresentation();
+        }
+    }
+
+    #endregion
+
+    #region Presentation
+
+    // Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng miền Run giữ lượt để retry.
     public void LateTick()
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
@@ -175,58 +161,40 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
             ReleaseSlowMotion(); // Trả tốc độ nền trước khi token pause của popup được tạo.
         }
         refreshPending = false;
-        if (progress.Pending == 0 || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive)
-        { CancelChoices(); return; }
-        pool.Build(catalog, skills, owner, offers, excluded: failedSkills,
-            previousOffers: rerollPending ? offers : null);
+        if (!choices.CanChoose) { choices.CancelChoices(); return; }
+        choices.Roll(offers, rerollPending);
         rerollPending = false;
         if (offers.Count == 0)
         {
-            // Pool cạn vì skill lỗi: giữ queue để retry sau khi sửa cấu hình.
-            if (failedSkills.Count == 0) progress.Clear();
             FinishPresentation();
             return;
         }
         if (!visible) RequestVisibility(true);
         if (visible)
         {
-            levelUpPanel.Show(offers, progress.Pending);
+            levelUpPanel.Show(offers, choices.PendingChoices);
             RefreshOwnedSlots();
         }
     }
 
-    #endregion
-
-    #region Selection And Error Recovery
-
     // Roll miễn phí, không tiêu lượt thưởng và không nhả pause của popup.
     private void Reroll()
     {
-        if (!visible || selecting || refreshPending || progress.Pending == 0 || offers.Count == 0 ||
-            owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return;
+        if (!visible || selecting || refreshPending || offers.Count == 0 || !choices.CanChoose) return;
         rerollPending = true;
         refreshPending = true;
     }
 
-    // Chỉ tiêu một lượt sau khi gameplay thành công; exception giữ lượt và chặn ứng viên lỗi khỏi các lần roll sau.
+    // Miền Run chỉ tiêu lượt khi gameplay thành công; lỗi được Run log và chặn skill đó khỏi các lần roll sau.
     private void Choose(int index)
     {
         if (selecting || refreshPending || index < 0 || index >= offers.Count) return;
         selecting = true;
-        int revision = version; // Chụp phiên queue trước khi gameplay có thể phát callback reset.
+        int revision = version; // Chụp phiên trước khi gameplay có thể phát callback hủy.
         SkillChoiceOffer offer = offers[index]; // Chụp offer vì callback có thể đóng panel và xóa list.
         try
         {
-            if (offer.TryApply(skillGrant, skills, owner) && revision == version)
-            {
-                progress.Consume();
-                RefreshOwnedSlots();
-            }
-        }
-        catch (Exception exception)
-        {
-            if (revision == version) failedSkills.Add(offer.Definition);
-            Debug.LogException(exception, this);
+            if (choices.Choose(offer) && revision == version) RefreshOwnedSlots();
         }
         finally
         {
@@ -235,17 +203,13 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         }
     }
 
-    // Retry sau khi sửa dữ liệu; không cấp thêm hoặc xóa lượt đang chờ.
+    /// <summary>Retry sau khi sửa dữ liệu skill lỗi; không cấp thêm hoặc xóa lượt đang chờ.</summary>
     public void RetrySkillChoices()
     {
-        failedSkills.Clear();
-        refreshPending = progress.Pending > 0;
+        choices.RetryFailedChoices();
+        refreshPending = choices.PendingChoices > 0;
         if (refreshPending) RequestVisibility(true);
     }
-
-    #endregion
-
-    #region Panel Lifecycle And Pause
 
     // Slot là phần trình bày phụ: lỗi prefab/pool phải được ghi log nhưng không chặn mở bảng,
     // không làm mất lượt và không biến một skill vừa nhận thành ứng viên lỗi.
@@ -253,7 +217,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     {
         try
         {
-            skills.GetOwnedSkills(owner, ownedSkills);
+            skills.GetOwnedSkills(choices.ChoiceOwner, ownedSkills);
             levelUpPanel.ShowOwnedSkills(ownedSkills);
         }
         catch (Exception exception)
@@ -262,7 +226,11 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         }
     }
 
-    // Xử lý panel bị tắt từ ngoài: trả pause và bỏ offer cũ, không tự xóa lượt đang chờ.
+    #endregion
+
+    #region Panel Lifecycle And Pause
+
+    // Panel bị tắt từ ngoài: trả pause và bỏ offer cũ, không xóa lượt đang chờ.
     private void OnPanelHidden()
     {
         ReleasePause(); offers.Clear(); refreshPending = false; rerollPending = false;
@@ -280,7 +248,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         IDisposable previous = slowMotionLease; slowMotionLease = null; previous?.Dispose();
     }
 
-    // Ẩn view và dọn offer/pause; giữ nguyên queue để hỗ trợ ẩn UI hoặc phục hồi sau lỗi.
+    // Ẩn view và dọn offer/pause; giữ nguyên lượt chờ để hỗ trợ ẩn UI hoặc phục hồi sau lỗi.
     private void ClosePanel()
     {
         levelUpPanel.Hide(); offers.Clear(); rerollPending = false; ReleasePause();
@@ -293,27 +261,12 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         ClosePanel();
     }
 
-    // Hủy queue khi reset, đổi Player hoặc tắt manager; tăng phiên để callback cũ không tiêu lượt mới.
-    private void CancelChoices()
-    {
-        version++;
-        ReleaseSlowMotion(); // Reset, đổi Player hoặc kết thúc trận không để sót slow motion.
-        progress.Clear(); failedSkills.Clear(); refreshPending = false; rerollPending = false;
-        ownedSkills.Clear();
-        if (levelUpPanel != null) levelUpPanel.ShowOwnedSkills(ownedSkills);
-        if (levelUpPanel != null) FinishPresentation();
-    }
-
-    #endregion
-
-    #region Visibility Coordination
-
-    // Nhận yêu cầu hiển thị chung; controller tự giữ queue, trả pause khi ẩn và mở lại ở LateUpdate.
+    /// <summary>UIManager cấp/thu quyền hiển thị; còn lượt chờ thì giữ pause và roll ở LateTick.</summary>
     public override void SetVisible(bool value)
     {
         visible = value;
         if (!value) ClosePanel();
-        if (value && progress.Pending > 0)
+        if (value && choices != null && choices.PendingChoices > 0)
         {
             refreshPending = true;
             if (pauseLease == null) pauseLease = pauses.Acquire();
@@ -324,23 +277,25 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     #region Cleanup
 
-    // Gỡ toàn bộ subscription, reference owner và token pause khi root controller hoặc Canvas ngừng hoạt động.
+    // Gỡ toàn bộ subscription và token pause khi root controller hoặc Canvas ngừng hoạt động.
     private void OnDestroy() { StopFrameUpdates(); OnDisable(); }
 
+    // Canvas bị tắt giữa trận: hủy lượt chờ như trước đây (miền Run bỏ qua nếu scene đang dọn).
     private void OnDisable()
     {
         if (subscribed)
         {
-            levels.RunLevelChanged -= OnRunLevelChanged;
+            choices.PendingChanged -= OnPendingChanged;
+            choices.ChoicesCanceled -= OnChoicesCanceled;
             game.StateChanged -= OnGameStateChanged;
-            levels.RunReset -= CancelChoices;
-            players.PlayerChanged -= OnPlayerChanged;
             levelUpPanel.Selected -= Choose;
             levelUpPanel.RerollRequested -= Reroll;
             levelUpPanel.Hidden -= OnPanelHidden;
             subscribed = false;
         }
-        DetachOwner(); owner = null; CancelChoices();
+        choices?.CancelChoices();
+        OnChoicesCanceled();
     }
+
     #endregion
 }

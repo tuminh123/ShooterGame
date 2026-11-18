@@ -75,9 +75,9 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     // Inject pool cả khi panel đang tắt; không spawn slot trong bước khởi tạo.
     [Zenject.Inject]
-    public void Construct(IPoolSystem poolSystem)
+    public void Construct(IGameObjectPool pools)
     {
-        this.pools = poolSystem.GetGameObjectPool();
+        this.pools = pools;
     }
 
 

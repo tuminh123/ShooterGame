@@ -104,7 +104,6 @@ public abstract class ProjectDataSOEditor : Editor
         else if (target is EnemyFormationSO) DrawFormation();
         else if (target is EnemyPathSO) DrawPath();
         else if (target is BossSpawnDataSO) DrawSpecialSpawns();
-        else if (target is StatusEffectDataSO) DrawLegacyEffect();
     }
 
     #endregion
@@ -167,7 +166,7 @@ public abstract class ProjectDataSOEditor : Editor
 
     #endregion
 
-    #region Special Spawns & Legacy Effects
+    #region Special Spawns
 
     private void DrawSpecialSpawns()
     {
@@ -214,18 +213,6 @@ public abstract class ProjectDataSOEditor : Editor
             DataInspectorTone.Advanced, "bossAppearanceCondition", "arenaSize");
     }
 
-    private void DrawLegacyEffect()
-    {
-        EditorGUILayout.HelpBox("Asset hiệu ứng SO cũ được giữ để bảo toàn dữ liệu. Skill hiện tại dùng effect nhúng trong Behaviour Data; chỉnh asset này không tự đổi cấu hình effect nhúng.", MessageType.Info);
-        Section("LEGACY EFFECT SETTINGS", "Thời hạn theo giây gameplay; xác suất ở đây dùng thang 0..100, khác xác suất loot 0..1.",
-            DataInspectorTone.Legacy, "duration", "applicationChance", "useEffectStats");
-        if (target is SlowEffectDataSO)
-            Section("SLOW", "Tỷ lệ giảm tốc theo thang 0..1: 0.3 = giảm 30% tốc độ.", DataInspectorTone.Stats, "slowFraction");
-        if (target is DamageOverTimeEffectDataSO)
-            Section("PERIODIC DAMAGE", "Cấu hình cũ dùng hệ số sát thương mỗi nhịp, không phải damage cố định của effect nhúng mới.",
-                DataInspectorTone.Stats, "tickInterval", "damageMultiplierPerTick");
-    }
-
     #endregion
 
     #region Read-Only Configuration Checks
@@ -247,7 +234,6 @@ public abstract class ProjectDataSOEditor : Editor
         else if (data is EnemyFormationSO formation) formation.Validate();
         else if (data is EnemyPathSO path) path.Validate();
         else if (data is BossSpawnDataSO bosses) bosses.Validate();
-        else if (data is StatusEffectDataSO effect) effect.Validate();
         else if (data is MapDatabaseSO)
         {
             var maps = new SerializedObject(data).FindProperty("maps");
@@ -282,6 +268,5 @@ public abstract class ProjectDataSOEditor : Editor
 [CustomEditor(typeof(EnemyFormationSO)), CanEditMultipleObjects] public sealed class EnemyFormationInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EnemyPathSO)), CanEditMultipleObjects] public sealed class EnemyPathInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(BossSpawnDataSO)), CanEditMultipleObjects] public sealed class BossSpawnInspector : ProjectDataSOEditor { }
-[CustomEditor(typeof(StatusEffectDataSO), true), CanEditMultipleObjects] public sealed class StatusEffectInspector : ProjectDataSOEditor { }
 
 #endregion

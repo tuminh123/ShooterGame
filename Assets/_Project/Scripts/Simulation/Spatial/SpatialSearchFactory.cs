@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using UnityEngine;
 
 /// <summary>
-/// Tạo dữ liệu truy vấn không gian hợp lệ (cho tìm mục tiêu và đạn), và chọn strategy thực thi cho SpatialManager.
+/// Tạo dữ liệu truy vấn không gian hợp lệ (cho tìm mục tiêu và đạn), và chọn strategy thực thi cho SpatialSystem.
 /// </summary>
 /// <remarks>
 /// Strategy được tạo một lần và không giữ trạng thái của từng lượt tìm. Do <see cref="SimulationManager"/> tạo;

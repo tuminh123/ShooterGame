@@ -7,7 +7,7 @@ public readonly struct EffectHandle
     #region Runtime Identity
 
     internal readonly EffectRuntime Runtime; // Tham chiếu object trong pool, không sở hữu vòng đời của object.
-    internal readonly ulong Version; // Chụp phiên bản lúc tạo handle; so sánh qua EffectManager.IsActive.
+    internal readonly ulong Version; // Chụp phiên bản lúc tạo handle; so sánh qua EffectSystem.IsActive.
 
     // Handle mặc định không chứa runtime; dùng khi yêu cầu áp dụng effect thất bại.
     internal EffectHandle(EffectRuntime runtime)
@@ -18,7 +18,7 @@ public readonly struct EffectHandle
 
 /// <summary>
 /// Một effect đang chạy trên đúng một lượt spawn của mục tiêu. Class con chỉ thực hiện tác động
-/// (thêm modifier, gây sát thương định kỳ); thời hạn và quyền sở hữu do <see cref="EffectManager"/> quản lý.
+/// (thêm modifier, gây sát thương định kỳ); thời hạn và quyền sở hữu do <see cref="EffectSystem"/> quản lý.
 /// </summary>
 /// <remarks>Được pool tái sử dụng: mọi state phải được xóa trong <see cref="Reset"/>.</remarks>
 public abstract class EffectRuntime
@@ -34,7 +34,7 @@ public abstract class EffectRuntime
     protected CharacterTeam SourceTeam; // Chốt phe nguồn lúc áp dụng; runtime không cần giữ người bắn.
     internal double Remaining, TickElapsed; // Thời hạn và pha tick riêng của lượt effect này.
     internal bool Paused;
-    internal EffectManager Manager; // Bên duy nhất cập nhật và trả runtime về pool; handle so sánh để chặn handle của manager khác.
+    internal EffectSystem Manager; // Bên duy nhất cập nhật và trả runtime về pool; handle so sánh để chặn handle của manager khác.
     internal int ActiveIndex; // Cho phép manager gỡ O(1) bằng đổi chỗ phần tử cuối.
     internal int TargetIndex; // Chỉ số trong nhóm effect của đúng cá thể.
     internal bool IsActive; // False ngay khi bị gỡ, dù Remove/Reset có thể đang chờ callback kết thúc.

@@ -5,7 +5,8 @@ using Zenject;
 
 // Điều phối luồng giữa các UI; controller giữ logic nghiệp vụ riêng và gửi yêu cầu mở/đóng.
 [AddComponentMenu("Shooter Game/UI/UI Manager")]
-public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation, IUIRootNavigation
+// Không bind vào Zenject (không ai inject nó); SceneContext vẫn tự inject Construct vì nó nằm trong scene.
+public sealed class UIManager : MonoBehaviour
 {
     #region Scene References
 
@@ -24,7 +25,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     #region Navigation State
 
     private readonly List<UIPanelController> history = new List<UIPanelController>(); // Stack yêu cầu: đóng panel trên cùng thì quay về panel trước.
-    private IGameStateReader game; // Đọc state hiện tại khi UI được bật lại sau một khoảng tắt subscription.
+    private IGameState game; // Đọc state hiện tại khi UI được bật lại sau một khoảng tắt subscription.
     private UIPanelController rootPanel; // Gốc luồng hiện tại do SetRootPanel chỉ định lúc chạy, không phải cấu hình default.
     private UIPanelController activePanel; // Controller đang được manager cấp quyền hiển thị.
     private bool visible = true; // Ẩn toàn bộ UI vẫn bảo toàn lịch sử để tiếp tục khi hiện lại.
@@ -44,11 +45,11 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
         if (game != null) ApplyGameState(game.State);
     }
 
-    // Zenject cung cấp nguồn state; UI không tự gọi IGameStateReader chuyển trạng thái để chọn màn hình.
+    // Zenject cung cấp nguồn state; UI chỉ đọc state để chọn màn hình, không tự chuyển state.
     [Inject]
-    public void Construct(IGameFlow gameFlow)
+    public void Construct(IGameState gameState)
     {
-        this.game = gameFlow.GetGameStateReader();
+        this.game = gameState;
         if (!isActiveAndEnabled) return; // Chưa bật thì OnEnable sẽ tự đăng ký sau.
         Subscribe();
         ListenToGame();
@@ -130,7 +131,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     {
         Subscribe();
         if (panel == null || Array.IndexOf(panels, panel) < 0)
-            throw new ArgumentException("Register the panel in IUINavigation before opening it.", nameof(panel));
+            throw new ArgumentException("Register the panel in UIManager.Panels before opening it.", nameof(panel));
         if (panel == rootPanel) { SetRootPanel(panel); return; }
         panel.RecordVisibilityRequest(true);
         history.Remove(panel);
@@ -174,7 +175,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     // Dùng chung một đường hiển thị cho mọi controller; chỉ một panel hoạt động tại một thời điểm.
     private void RefreshFlow()
     {
-        UIPanelController next = visible && history.Count > 0 ? history[history.Count - 1] : null; // Lịch sử rỗng thì không có UI; IGameStateReader quyết định luồng tiếp theo.
+        UIPanelController next = visible && history.Count > 0 ? history[history.Count - 1] : null; // Lịch sử rỗng thì không có UI; GameState quyết định luồng tiếp theo.
         if (activePanel != next)
         {
             UIPanelController previous = activePanel; // Đổi state trước callback để không giữ panel cũ trong lúc nó đóng.
@@ -195,15 +196,6 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
         visible = value;
         RefreshFlow();
     }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public IUIPanelNavigation GetUIPanelNavigation() => this;
-
-    public IUIRootNavigation GetUIRootNavigation() => this;
 
     #endregion
 }

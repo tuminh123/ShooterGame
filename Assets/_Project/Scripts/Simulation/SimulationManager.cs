@@ -11,8 +11,8 @@ using Zenject;
 /// <code>
 /// SimulationManager
 /// ├── SpatialSearchFactory   tạo query hợp lệ, chọn strategy truy vấn
-/// ├── SpatialManager         lưới hitbox, snapshot mỗi frame, chạy truy vấn
-/// └── MovementManager        job di chuyển XY; báo SpatialManager dựng lại lưới sau khi đổi vị trí
+/// ├── SpatialSystem         lưới hitbox, snapshot mỗi frame, chạy truy vấn
+/// └── MovementSystem        job di chuyển XY; báo SpatialSystem dựng lại lưới sau khi đổi vị trí
 /// </code>
 /// Simulation là hạ tầng nằm dưới mọi miền gameplay. Manager chỉ ủy quyền cho system con;
 /// miền khác dùng các vai trò trong <c>SimulationContracts.cs</c>.
@@ -33,8 +33,8 @@ public sealed class SimulationManager :
     #region Owned Systems
 
     private readonly SpatialSearchFactory searchFactory;
-    private readonly SpatialManager spatial;
-    private readonly MovementManager movement;
+    private readonly SpatialSystem spatial;
+    private readonly MovementSystem movement;
     private bool disposed;
 
     #endregion
@@ -47,12 +47,12 @@ public sealed class SimulationManager :
         try
         {
             searchFactory = new SpatialSearchFactory();
-            spatial = new SpatialManager(searchFactory);
-            movement = new MovementManager(spatial);
+            spatial = new SpatialSystem(searchFactory);
+            movement = new MovementSystem(spatial);
         }
         catch
         {
-            // SpatialManager cấp phát NativeArray ngay trong constructor; lỗi ở bước sau không được làm rò bộ nhớ.
+            // SpatialSystem cấp phát NativeArray ngay trong constructor; lỗi ở bước sau không được làm rò bộ nhớ.
             Dispose();
             throw;
         }

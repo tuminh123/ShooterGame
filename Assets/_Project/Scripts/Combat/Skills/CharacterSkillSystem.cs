@@ -44,8 +44,8 @@ public sealed class CharacterSkillSystem : IDisposable
     private readonly ICharacterRegistry characters;
     private readonly ICharacterDeathEvents deaths;
     private readonly SkillFactory factory;
-    private readonly SkillManager gameplaySkills;
-    private readonly EffectManager effects;
+    private readonly SkillSystem gameplaySkills;
+    private readonly EffectSystem effects;
     private readonly Dictionary<CharacterView, Entry> entries = new Dictionary<CharacterView, Entry>(128);
     private readonly List<Entry> tickSnapshot = new List<Entry>(128);
     private bool disposed;
@@ -55,7 +55,7 @@ public sealed class CharacterSkillSystem : IDisposable
     #region Constructor
 
     public CharacterSkillSystem(ICharacterRegistry characters, ICharacterDeathEvents deaths,
-        SkillFactory factory, SkillManager gameplaySkills, EffectManager effects)
+        SkillFactory factory, SkillSystem gameplaySkills, EffectSystem effects)
     {
         this.characters = characters ?? throw new ArgumentNullException(nameof(characters));
         this.deaths = deaths ?? throw new ArgumentNullException(nameof(deaths));

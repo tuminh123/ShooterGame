@@ -1,8 +1,7 @@
 # Kiến trúc mới: Data-driven có khung OOP
 
-Ngày chốt: 2026-11-18. Trạng thái: **đang refactor**. Code cũ vẫn tồn tại song song
-cho tới khi từng giai đoạn ở mục 9 hoàn thành. Khi một miền đã chuyển xong, tài liệu này
-là nguồn sự thật cho miền đó. `Systems-Overview.md` chỉ còn mô tả phần chưa chuyển.
+Ngày chốt: 2026-11-18. Trạng thái: **refactor xong (Giai đoạn 0–7)**. Mọi miền đã chuyển; tài liệu này
+là nguồn sự thật cho kiến trúc. `Systems-Overview.md` là bản đồ hệ thống → class để tra nhanh.
 
 ## 1. Nguyên tắc ưu tiên
 
@@ -45,57 +44,63 @@ Chữ thường là class concrete do Manager tự tạo bằng `new`; `I…` l�
 ```text
 SaveManager
 ├── SaveStorage, SaveMigration
-⬆ ISaveStore
+⬆ ISaveStore, ISaveMaintenance
 
 ProgressionManager
 ├── Wallet, CharacterLevels, Loadout, StageProgress
-⬆ IWallet, IPermanentBonuses, IStageProgress      ⚡ WalletChanged
+⬆ IWallet, IPermanentBonuses, IStageProgress      ⚡ BalanceChanged, BonusesChanged
 
-PoolManager
-├── GameObjectPools, RuntimePools, Prewarmer
-⬆ IPools
+PoolManager   (bọc LeanPool; pool runtime C# thuần thuộc miền sở hữu runtime đó)
+⬆ IGameObjectPool, IPoolPreparation, IPoolCleanup
+   (Prewarm nằm ở miền Game — GamePrewarm: kế hoạch cần Character/Combat/Simulation, đặt trong Pool sẽ tạo vòng phụ thuộc)
 
 SimulationManager   (Jobs/Burst, chủ duy nhất của vị trí, hướng và hitbox)
 ├── MovementSystem, SpatialSystem   (Ground là miền World riêng, xem WorldManager)
-⬆ IMovement, IHitboxes, ISpatialQuery
+⬆ IMovementRegistration, IMovementCommand, IMovementArena, ISpatialRegistration, ISpatialInvalidation,
+  ISpatialResolution, ISpatialQuery, ISpatialQueryBuilder, ISimulationCapacity
 
 CharacterManager
-├── CharacterFactory, CharacterRegistry, PlayerSystem, EnemyVisibility
-└── ICharacterController ← PlayerController / EnemyController          (Strategy)
-⬆ ICharacterSpawner, ITargetQuery, ICharacterDamage, ICharacterStats
-⚡ Spawned, Died, Despawned
+├── CharacterRuntimePool, CharacterRegistry, CharacterFactory, PlayerSystem, EnemyVisibility
+├── CharacterSearch → ISingleCharacterSearch / IMultipleCharacterSearch            (Strategy)
+└── ICharacterController ← PlayerController / EnemyController                      (Strategy)
+⬆ ICharacterSpawn, ICharacterDespawn, ICharacterRegistry, ICharacterDeathEvents,
+  IPlayerReader, IPlayerLifecycle, ICharacterSearch, ICharacterCapacity
+⚡ CharacterAdded, CharacterRemoved, CharacterDied, PlayerChanged
 
 CombatManager
-├── SkillSystem → SkillFactory
-│     ├── ShootFactory → IShootPattern ← Straight/Fan/Circle/Spiral   (Strategy)
-│     └── Saw / FrostZone …                                          (Strategy)
-├── ProjectileSystem → IProjectileMove ← Linear / Homing …            (Strategy)
-├── EffectSystem → IEffect ← Slow / Burn / Poison                     (Strategy)
-└── CombatVfx
-⬆ ISkillGrant, ISkillReader
+├── EffectRuntimePool → EffectSystem → IGameplayEffect ← Slow / DamageOverTime    (Strategy)
+├── CombatVfx
+├── ProjectileSystem → IProjectileMove ← Straight / …                             (Strategy)
+├── SkillServices → SkillFactory → ISkill ← Shooting / Saw / Aura / …              (Strategy)
+│     └── ShootingSkill → IShooter ← Straight / Fan / Circle / Spiral              (Strategy)
+├── SkillSystem              skill gameplay nhận trong trận
+└── CharacterSkillSystem     skill vốn có của nhân vật (nghe vòng đời Character)
+⬆ ISkillGrant, IOwnedSkillReader, ICombatLifecycle, ICombatCapacity
 
 WorldManager   (map nền; không biết wave, boss hay điều kiện thắng)
 ├── MapCatalog (MapDatabaseSO), GroundChunks (nền theo chunk, bám vị trí Player)
 ⬆ IWorldMap (đổi map theo key, đọc map hiện tại)
 
 StageManager
-├── WaveSystem → IFormation, IPath                                    (Strategy)
-└── BossSystem
-⬆ IStageSelection, IStageResult                    ⚡ StageCleared, BossSpawned
+├── EnemySpawner (dùng chung), WaveSpawnSystem, FormationSpawnSystem, BossSpawnSystem + BossArena
+└── StageRewards
+⬆ IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule   ⚡ Cleared, Failed, SpawnScheduled
    (dùng IWorldMap để đặt map của màn; World không biết Stage)
 
 RunManager
-├── RunClock, RunLevel, LootSystem
-⬆ IRunReader, ISkillChoice                         ⚡ LevelUp, LootCollected
+├── RunClock, RunStatistics, RunLevel (+ nguồn bonus trên Player), LootSystem, SkillChoice
+⬆ IRunReader, IRunLifecycle, ISkillChoice          ⚡ LevelUp, RunReset, PendingChanged, ChoicesCanceled
+   (`LootSystem.Collected` là event nội bộ, chỉ RunManager nghe)
 
 GameManager
-├── GameStateMachine, PauseControl
-⬆ IGameFlow, IGameState                            ⚡ StateChanged
+├── GameStateMachine, GamePause, GamePrewarm
+⬆ IGameState, IGameFlow, IGamePause, ILoadingProgress   ⚡ StateChanged
 
-UIManager
-├── ScreenNavigation, ScreenTransition, HomeScreen, HudScreen,
-│   SkillChoicePopup, ResultPopup, PausePopup
-⬆ (không có; UI là lá cuối)
+UI (MonoBehaviour trong scene, SceneContext tự inject; không có Manager C# thuần)
+├── UIManager           chọn panel theo GameState (không bind: không ai inject nó)
+├── ScreenTransitionController   binding UI duy nhất (Home + menu pause dùng chung)
+└── Home, Loading, HUD (RunUI), SkillChoice, Result, Pause …
+⬆ (không có cho miền khác; UIContracts.cs chỉ dùng giữa các panel)
 ```
 
 ## 4. Chiều phụ thuộc và giao tiếp
@@ -126,9 +131,9 @@ UIManager
 Ví dụ các luồng chính:
 
 ```text
-Lên cấp:   Run.LevelUp ─event─▶ UI mở popup ─ISkillChoice.Choose()─▶ Run ─ISkillGrant─▶ Combat
+Lên cấp:   Run.LevelUp → SkillChoice ─event PendingChanged─▶ UI mở popup ─ISkillChoice.Choose()─▶ Run ─ISkillGrant─▶ Combat
 Quái chết: Combat ─ICharacterDamage─▶ Character ─event Died─▶ Combat / Run / Stage
-Hết trận:  Stage.StageCleared ─event─▶ Game.Win() ─event StateChanged─▶ UI hiện Result
+Hết trận:  Stage.Cleared ─event─▶ GameManager (thắng) ─event StateChanged─▶ UI hiện Result
 ```
 
 ## 5. Quy tắc thiết kế
@@ -149,6 +154,8 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 
 ### Strategy
 - Chọn biến thể bằng **enum + một switch duy nhất** trong factory của họ đó.
+- Ngoại lệ đã dùng trong code: các strategy chỉ chứa tham số cấu hình (`IShooter`, `IProjectileMove`, `IGameplayEffect`)
+  được chọn thẳng trong data bằng `[SerializeReference]`, nên không cần enum + switch.
 - Nơi dùng không bao giờ kiểm tra kiểu bằng `is`/`as`.
 
 ### Kiểu dùng chung (thư mục `Scripts/Shared`)
@@ -160,7 +167,7 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
   (base từ SO → cộng thẳng → nhân phần trăm).
 - Hiện có hai vấn đề, sẽ xử lý ở **Giai đoạn 2** khi viết lại `Character`:
   1. `CharacterRuntimeData` gánh 3 việc: chỉ số, HP/giáp, thông báo và vòng đời pool.
-  2. Có **hai cách thêm bonus**: `SetExternalBonus` (PlayerManager gom level vĩnh viễn + level trận + trang bị
+  2. Có **hai cách thêm bonus**: `SetExternalBonus` (PlayerSystem gom level vĩnh viễn + level trận + trang bị
      thành một giá trị rồi ghi đè) và `AddModifier` (skill, effect, wave thêm từng nguồn và nhận lease để gỡ).
 - Hướng xử lý: tách class `StatSheet` khỏi `CharacterRuntimeData`. Class này gồm danh sách nguồn bonus,
   lời gọi `StatCalculator.Calculate`, `Final` và event `Changed`. Mọi nguồn bonus, dù vĩnh viễn hay tạm thời,
@@ -173,6 +180,8 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 ## 6. Vòng đời
 
 Container chỉ đăng ký các Manager. Thứ tự nội bộ do từng Manager tự gọi trong code.
+Thứ tự giữa các Manager khai báo bằng số trong `GameSceneInstaller` (một file, mục *Lifecycle Order*);
+chỉ Manager có Initialize/Tick/LateTick/Dispose thật sự mới có dòng ở đó.
 
 ```text
 Initialize: Save → Progression → Pool → Simulation → Character → Combat → Stage → Run → Game → UI
@@ -204,7 +213,7 @@ Scripts/
 | Simple | Tên nói rõ ý định, không viết tắt |
 | Simple | Chỉ tối ưu (Span, Jobs) ở chỗ nóng đã đo bằng Profiler |
 | Simple | Manager chỉ điều phối; nếu vượt khoảng 300 dòng, logic đang đặt sai chỗ |
-| Simple | Không dùng `partial` |
+| Simple | Không dùng `partial` (`GameSceneInstaller` đã gộp lại thành một file ở GĐ 6) |
 | DRY | Code lặp đến lần thứ 3 mới tách ra |
 | DRY | Mỗi khái niệm chỉ có một nơi định nghĩa |
 | SOLID | Interface chỉ ở ranh giới miền hoặc họ strategy |
@@ -227,13 +236,13 @@ kết thúc mỗi giai đoạn, game phải chơi được và qua smoke test tr
 | Giai đoạn | Nội dung | Trạng thái |
 | --- | --- | --- |
 | 0. Nền tảng | ✅ 0.1 `CharacterHandle` · ✅ 0.2 `DamageInfo` vào `Shared/` · ✅ 0.3 chốt hướng chỉ số (chuyển sang GĐ 2) · ✅ 0.4 bỏ `GameUIEventBus` static (Game gọi xuống Combat/Character; UI nghe `IGameStateReader.StateChanged`) | ✅ Xong |
-| 1. Combat | ✅ 1.1 làm phẳng strategy, xóa 2 factory trung gian · ✅ 1.2 `CombatManager` + `CombatContracts.cs`, `ProjectileView` không inject nữa · ✅ 1.3 bỏ interface nội bộ, `SkillServices` concrete · ✅ 1.4 tách `CombatSpawner` → `ProjectileManager` (trọn vòng đời đạn) + `CombatVfx` · ✅ 1.5 (gộp vào 1.2) · ✅ 1.6 `CharacterHandle` trong Combat · ✅ 1.7 thư mục, comment, tài liệu | ✅ Xong |
+| 1. Combat | ✅ 1.1 làm phẳng strategy, xóa 2 factory trung gian · ✅ 1.2 `CombatManager` + `CombatContracts.cs`, `ProjectileView` không inject nữa · ✅ 1.3 bỏ interface nội bộ, `SkillServices` concrete · ✅ 1.4 tách `CombatSpawner` → `ProjectileSystem` (trọn vòng đời đạn) + `CombatVfx` · ✅ 1.5 (gộp vào 1.2) · ✅ 1.6 `CharacterHandle` trong Combat · ✅ 1.7 thư mục, comment, tài liệu | ✅ Xong |
 | 2. Simulation + Character | ✅ 2.1 làm phẳng `ICharacterController`, bỏ 4 chỗ kiểm tra kiểu · ✅ 2.2 `SimulationManager` (Movement + Spatial) + `SimulationContracts.cs` · ✅ 2.3 `CharacterManager` + `CharacterContracts.cs`, `CharacterView` không inject nữa (`CharacterContext`) · ✅ 2.4 bỏ interface nội bộ (gộp tìm mục tiêu thành `ICharacterSearch`) · ✅ 2.5 Combat nghe vòng đời Character (`CharacterSkillSystem`), xóa `ICombatOwners` · ✅ 2.6 tách `CharacterView` bằng composition (`CharacterPresentation`, `CharacterFeedback`) + `CharacterHandle` · ✅ 2.7 `StatSheet` + một cách thêm bonus (`AddSource`) · ✅ 2.8 thư mục, comment, tài liệu | ✅ Xong |
 | 3. World + Stage | ✅ 3.1 **WorldManager** riêng (map nền + ground chunk; nằm trên Character vì cần vị trí Player, nằm dưới Stage vì Stage chọn map) · ✅ 3.2 dọn sạch khi rời gameplay (`ClearGameplayWorld` + lưới an toàn ở pool) · ✅ 3.3 StageManager tự tạo 3 spawn system + BossArena · ✅ 3.4 `EnemySpawner` C# thuần · ✅ 3.5 `StageContracts.cs` (4 vai trò), `StageRewards`, dời sang `Scripts/Stage/` + `Editor/Stage/`, cập nhật tài liệu | ✅ Xong (play test 2026-11-18 OK) |
-| 4. Run | RunSession, RunLevel, Level, Loot | |
-| 5. Save + Progression + Pool | Wallet, Levels, Loadout, StageProgress | |
-| 6. Game + UI | GameStateMachine, UIManager | |
-| 7. Dọn dẹp | Xóa `Interfaces/`, `ServiceContractVerification`, các runner `Tests/` cũ; cân nhắc xóa các SO effect legacy (`Combat/Effects/Data`: 3 asset + inspector trong `ProjectDataSOEditor`, code gameplay không còn đọc); cập nhật docs | |
+| 4. Run | ✅ `RunManager` + `RunContracts.cs` (`IRunReader`, `IRunLifecycle`) tự tạo `RunClock`, `RunStatistics`, `RunLevel`, `LootSystem` · xóa `RunSessionManager`, `RunLevelService`, `LootManager`, `IRunSession`, `IRunLevelService`; `LevelManager` chỉ còn level vĩnh viễn · Run tự thêm nguồn bonus level trận vào `StatSheet` của Player (PlayerSystem bỏ nghe ngược) · Run gọi `ICombatLifecycle.ClearRunSkills` khi reset (SkillSystem bỏ nghe ngược) · dời code sang `Scripts/Run/` (giữ `.meta`) | ✅ Xong (play test 2026-11-18 OK) |
+| 5. Save + Progression + Pool | ✅ `SaveManager` (tự tạo `SaveStorage` + `SaveMigration`, bỏ binding SaveMigration riêng) + `SaveContracts.cs` (`ISaveStore`, `ISaveMaintenance`) · `ProgressionManager` (tự tạo `Wallet`, `CharacterLevels`, `Loadout`, `StageProgress`) + `ProgressionContracts.cs` (`IWallet`, `IPermanentBonuses`, `IStageProgress`) · `PoolManager` bind qua `BindInterfacesTo` + `PoolContracts.cs` (`IGameObjectPool`, `IPoolPreparation`, `IPoolCleanup`) · xóa `CurrencyService`, `CharacterLevelService`, `LevelManager`, `PlayerEquipmentService`, `StageProgressService` và 8 facade trong `Interfaces/` · kiểm tra save-data chuyển vào chính lớp section (`XxxSaveData.Validate`), Save không còn tham chiếu lên Progression/Character · dời code sang `Save/`, `Progression/`, `Pooling/` (giữ `.meta`) | ✅ Xong (play test 2026-11-18 OK) |
+| 6. Game + UI | ✅ `GameManager` bind qua `BindInterfacesTo` + `GameContracts.cs` (`IGameState`, `IGameFlow`, `IGamePause`, `ILoadingProgress`), tự tạo `GameStateMachine`, `GamePause` (thay GameplayPauseService), `GamePrewarm` (thay PoolPrewarmService) · bỏ `WinRun`/`LoseRun` công khai (không ai gọi; thắng qua `IStageResults.Cleared`) · `ISkillChoice` (Run): lượt chờ, roll, áp dụng, chặn skill lỗi chuyển từ `SkillChoiceController` sang `Run/SkillChoice/`; controller chỉ còn trình bày · UI: bỏ binding `UIManager`, `ScreenTransitionController` qua `UI/UIContracts.cs` (`IScreenTransition`) · xóa 5 facade cuối trong `Interfaces/` và `SignalBusInstaller` (không dùng) · `GameSceneInstaller` gộp 3 file partial thành một class: bind một dòng/miền theo chiều phụ thuộc + thứ tự lifecycle · chưa thêm vai trò nâng level vĩnh viễn/đổi trang bị (chưa có UI dùng) | ✅ Xong (play test 2026-11-18 OK) |
+| 7. Dọn dẹp | ✅ Đổi tên 7 system con đang mang tên `…Manager` (chỉ Manager của miền mới tên Manager): `MovementSystem`, `SpatialSystem`, `ProjectileSystem`, `SkillSystem`, `EffectSystem`, `PlayerSystem`, `EnemyVisibility` (giữ `.meta`; không asset/scene nào serialize theo tên kiểu) · xóa thư mục `Interfaces/` · xóa runner `Tests/` cũ (thay bằng `Docs/Tools/Verification.md`) · xóa 3 SO effect legacy (`Burn`, `Poison`, `Slow` — 0 tham chiếu) cùng script và inspector · `ServiceContractVerification` **giữ lại** (là bộ kiểm tra tự động duy nhất), bỏ phần facade, thêm quy tắc chặn facade tổng hợp quay lại · cập nhật cây Manager theo code thật và các doc lỗi thời | ✅ Code xong 2026-11-18: compile sạch, 53 contract PASS, Zenject Validate OK, 0 Missing Script; **chờ play test** |
 
 Giai đoạn 3 đã kiểm chứng ngày 2026-11-18: compile sạch (không `error CS`), **Check Service Contracts**
 PASS 89 contract, **Report Missing Scripts** 0 lỗi, play test thủ công trong Editor không lỗi.

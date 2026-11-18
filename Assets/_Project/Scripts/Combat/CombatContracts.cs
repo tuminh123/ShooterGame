@@ -31,7 +31,7 @@ public interface IOwnedSkillReader
 
 #region Game Flow (GameManager)
 
-/// <summary>Dọn combat theo luồng game. Dùng bởi GameManager khi kết thúc trận, chơi lại hoặc về Home.</summary>
+/// <summary>Dọn combat theo luồng game. Dùng bởi GameManager (kết thúc trận, chơi lại, về Home) và RunManager (reset lượt).</summary>
 public interface ICombatLifecycle
 {
     /// <summary>
@@ -46,7 +46,7 @@ public interface ICombatLifecycle
 
 #endregion
 
-#region Prewarm (PoolPrewarmService)
+#region Prewarm (GamePrewarm của miền Game)
 
 /// <summary>Cấp phát trước bộ nhớ của combat trong bước loading, để không cấp phát giữa trận.</summary>
 public interface ICombatCapacity

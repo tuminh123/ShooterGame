@@ -16,8 +16,7 @@ There is no CLI build or lint step. You compile by opening the project in Unity,
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, after Home is ready: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
-- **Standalone runners (legacy).** `Tests/SkillProgression/Run.ps1` and `Tests/EffectPlayback/Run.ps1` compile production files together with host doubles, using Unity's bundled Roslyn (`csc.dll`) and the `dotnet` SDK. They need `Library/ScriptAssemblies` to exist, which means importing the project once. **They are currently out of date.** They reference removed timer/wave/feedback sources, so their passing does not count as verification (see `Tests/ServiceContracts/README.md`).
-- **Play Mode debug menus.** **Shooter Game > Skills > Grant Or Upgrade Selected Skill** (select a skill asset first) and **Shooter Game > Skills > Grant One Run Level**.
+- **Zenject graph check (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolves every dependency without entering Play Mode. See `Docs/Tools/Verification.md` for the full checklist.
 - **Editor tools.** **Tools/Shooter Game/Hitbox Editor** and **Tools/Shooter Game/Formation & Path Workbench**.
 
 ### Unity MCP
@@ -27,9 +26,9 @@ The project uses the `com.coplaydev.unity-mcp` package, pinned to a specific com
 - Start the server: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/MCP/Start-Server.ps1`. It listens on `127.0.0.1:8080`. Don't also start it from the button inside Unity.
 - In Unity, open the MCP window, choose HTTP Local and connect. If you change the port, update `Start-Server.ps1`, `.codex/config.toml` and the Unity URL together.
 
-## Architecture refactor in progress
+## Architecture (refactor completed)
 
-The project is being moved to a **data-driven architecture with an OOP structure**. The target design, rules and phase status are in `Docs/Architecture/Refactor-Architecture.md`, and that doc wins over the "Architecture" section below for any domain that has already been migrated. Key rules:
+The project was moved (phases 0–7, all done) to a **data-driven architecture with an OOP structure**. The target design, rules and phase status are in `Docs/Architecture/Refactor-Architecture.md`, and that doc wins over the "Architecture" section below for any domain that has already been migrated. Key rules:
 - Design priority is **Simple → DRY → SOLID**. Readability comes first, and every design suggestion must state its reason.
 - There are about 10 domain Managers. Each Manager creates its own systems with `new`, and only Managers are bound in Zenject. Calls between domains go through the Manager's role interfaces, all of which live in one `XxxContracts.cs` file per domain. Communication back up the dependency chain uses C# `event` only (no static bus, no SignalBus).
 - Create interfaces only for domain boundaries or strategy families (2+ interchangeable behaviours). Pick variants with an enum plus one switch inside the family's factory.
@@ -39,43 +38,43 @@ The project is being moved to a **data-driven architecture with an OOP structure
 
 ## Architecture
 
-Start with `Docs/Architecture/Systems-Overview.md`, which maps systems to classes and describes the startup flow. Some other docs in `Docs/Architecture` are blueprints or proposals that were never implemented, such as `Character-Visual-Rendering.md` and `Character-EventDriven-OOP.md`. Don't assume a doc describes the current code; check the code first.
+Start with `Docs/Architecture/Systems-Overview.md`, which maps systems to classes and describes the startup flow. Some other docs in `Docs/Architecture` are blueprints or proposals that were never implemented, such as `Character-Visual-Rendering.md`. Don't assume a doc describes the current code; check the code first.
 
 ### Layering
 ScriptableObject config → service/factory (creates objects, wires them, owns lifecycle) → per-instance runtime state → View/UI. **Never write runtime state into a shared SO asset.** HP, cooldowns and temporary bonuses belong in runtime objects such as `CharacterRuntimeData` and `SkillRuntime`.
 
 ### Zenject composition (`Scripts/Infrastructure/Zenject/`)
-`GameSceneInstaller` is a partial class split across three files:
-- `.Bindings.cs`: every service is bound through `BindService<IFacade, Impl>()` (or `BindInterfacesTo`). Concrete services are never exposed.
-- `.ExecutionOrder.cs`: holds **all** Initialize, Tick, LateTick and Dispose ordering in one place. A new service with lifecycle needs an entry here. Initialize order: Save (-200) → SaveMigration → progression services (-150) → RunSession (-50) → GameManager (100). Dispose order is the reverse, from higher numbers to lower.
+`GameSceneInstaller` is a single (non-partial) MonoInstaller:
+- `BindDomainManagers()`: one `BindInterfacesTo<XxxManager>()` line per domain, ordered bottom-up by dependency. Concrete types are never exposed. The only other binding is `ScreenTransitionController` (shared UI service, `UI/UIContracts.cs`); UI panels are scene MonoBehaviours injected automatically.
+- *Lifecycle Order* region: holds **all** Initialize, Tick, LateTick and Dispose ordering in one place. A new manager with lifecycle needs an entry here. Initialize order: SaveManager (-200, migration runs inside) → ProgressionManager (-160) → CharacterManager (-150) → WorldManager (50) → GameManager (100). Dispose order is the reverse, from higher numbers to lower.
 - Managers are plain Zenject `ITickable` classes, not MonoBehaviours.
 
 ### Service contracts
-- **Migrated domains** (Combat, Simulation, Character, Stage): the Manager is the only binding (`BindInterfacesTo<XxxManager>()`), and every cross-domain role lives in `XxxContracts.cs` beside it. Strategy interfaces live beside their family. Stage lives in `Scripts/Stage/` (contracts, rewards, spawn systems).
-- **Not yet migrated** (`Scripts/Interfaces/`, see its README.md): each system exposes a getter-only **aggregate facade**; consumers get small roles through facade getters. This folder is removed in Phase 7.
-- `ServiceContractVerification` checks stable getter results, no bound leaf roles or concrete types, domain managers, and no duplicate or missing lifecycle registrations. Run it after any change to interfaces or bindings.
+- **All domains are migrated** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Run, Game): the Manager is the only binding (`BindInterfacesTo<XxxManager>()`), and every cross-domain role lives in `XxxContracts.cs` beside it. Strategy interfaces live beside their family. Stage lives in `Scripts/Stage/` (contracts, rewards, spawn systems). Run lives in `Scripts/Run/` (clock, statistics, run level, loot).
+- Aggregate facades (getter-only interfaces) are gone and `ServiceContractVerification` rejects new ones.
+- `ServiceContractVerification` checks that every role resolves to its domain manager, no concrete types are bound, and there are no duplicate or missing lifecycle registrations. **Edit > Zenject > Validate Current Scenes** checks that the whole graph resolves without entering Play Mode. Run it after any change to interfaces or bindings.
 
 ### Game flow
-`GameManager` / `GameState` drive the flow: prewarm → Home → PreparingRun → reset run → spawn Player → Playing → Won/Lost. `ResultController` shows the Victory/Defeat popups, and gameplay calls `GameManager.WinRun()`. Pool prewarm is synchronous, happens in this scene, and is configured in `DataSO/Databases/PoolPrewarmSettings.asset`. There is no loading scene.
+`GameManager` / `GameState` drive the flow: prewarm → Home → PreparingRun → reset run → spawn Player → Playing → Won/Lost. `ResultController` shows the Victory/Defeat popups. A run is won when Stage raises `IStageResults.Cleared` and lost when the current Player dies; both go through one private `FinishRun`. `GameManager` (in `Scripts/Game/`) owns `GameStateMachine`, `GamePause` and `GamePrewarm`. Pool prewarm is synchronous, happens in this scene, and is configured in `DataSO/Databases/PoolPrewarmSettings.asset`. There is no loading scene.
 
 ### Characters and pooling
-`CharacterManager` creates the factory, registry, search, runtime pool and `PlayerManager`; other domains use only `Characters/CharacterContracts.cs`. `CharacterFactory` leases a `CharacterRuntimeData`, takes a `CharacterView` shell from the pool under an inactive "Preparing" parent, attaches the controller, visual, hitbox and UI, and then registers it with the movement and spatial systems. Combat picks up skills by listening to the registry's `CharacterAdded`/`CharacterRemoved` events. On despawn the same steps run in reverse. `CharacterView` delegates presentation to `CharacterPresentation` and hit/status colours to `CharacterFeedback`. **Hold pooled instances as `CharacterHandle`** (`IsCurrent`, `IsAlive`, `TryGetCharacter`): it captures `Generation`, so stale callbacks and targets never match a reused object. Do not compare generations by hand.
+`CharacterManager` creates the factory, registry, search, runtime pool and `PlayerSystem`; other domains use only `Characters/CharacterContracts.cs`. `CharacterFactory` leases a `CharacterRuntimeData`, takes a `CharacterView` shell from the pool under an inactive "Preparing" parent, attaches the controller, visual, hitbox and UI, and then registers it with the movement and spatial systems. Combat picks up skills by listening to the registry's `CharacterAdded`/`CharacterRemoved` events. On despawn the same steps run in reverse. `CharacterView` delegates presentation to `CharacterPresentation` and hit/status colours to `CharacterFeedback`. **Hold pooled instances as `CharacterHandle`** (`IsCurrent`, `IsAlive`, `TryGetCharacter`): it captures `Generation`, so stale callbacks and targets never match a reused object. Do not compare generations by hand.
 
 Every stat bonus (spawn bonus, Player level and equipment, skill buffs, slows, wave HP) is added the same way, through `runtime.Stats.AddSource(...)` on `StatSheet`. Keep the returned `StatModifierLease` to update or remove it. The single formula lives in `StatCalculator`.
 
 ### Combat
 - `SkillDataSO` holds the full per-level data. `SkillFactory` and the behaviour factories build behaviours from enums.
-- `CharacterSkills` manages skills built into a character type. `SkillManager` schedules skills gained during a run.
-- `ShootingSkill` uses `ShootBehaviorFactory` (straight, fan, circle or spiral patterns) and `ProjectileManager`. Projectiles share one shell.
-- Gameplay effects (slow, burn, poison) run through `EffectManager` / `EffectRuntimePool`. Visual VFX run separately through `CombatAssetsSO`, `CombatVfx` and `EffectView`. `ProjectileManager` owns the whole bullet lifecycle (spawn, flight, hit queries, release). All of these are created inside `CombatManager`; other domains use only `Combat/CombatContracts.cs`.
+- `CharacterSkills` manages skills built into a character type. `SkillSystem` schedules skills gained during a run.
+- `ShootingSkill` uses an `IShooter` strategy chosen in the data via `[SerializeReference]` (straight, fan, circle or spiral) and `ProjectileSystem`. Projectiles share one shell.
+- Gameplay effects (slow, burn, poison) run through `EffectSystem` / `EffectRuntimePool`. Visual VFX run separately through `CombatAssetsSO`, `CombatVfx` and `EffectView`. `ProjectileSystem` owns the whole bullet lifecycle (spawn, flight, hit queries, release). All of these are created inside `CombatManager`; other domains use only `Combat/CombatContracts.cs`.
 
 See `Docs/Architecture/Skill-Shooting-Pipeline.md` and `Skill-Run-Progression.md`.
 
 ### Movement and spatial queries
-`Scripts/Simulation`: `SimulationManager` creates `MovementManager` and `SpatialManager`, which use Burst/Jobs with reusable buffers. Other domains use only `Simulation/SimulationContracts.cs`. Movement is applied in LateTick. See the README in that folder.
+`Scripts/Simulation`: `SimulationManager` creates `MovementSystem` and `SpatialSystem`, which use Burst/Jobs with reusable buffers. Other domains use only `Simulation/SimulationContracts.cs`. Movement is applied in LateTick. See the README in that folder.
 
 ### Data
-`Assets/_Project/DataSO/README.md` and `DataSO/Documentation/` cover how to configure levels, saves, equipment, stats and skills. The save system (`SaveManager` and `SaveMigration`) stores data in keyed sections, and `SaveMigration` converts old saves.
+`Assets/_Project/DataSO/README.md` and `DataSO/Documentation/` cover how to configure levels, saves, equipment, stats and skills. The save system (`SaveManager`, which owns `SaveStorage` and `SaveMigration`) stores data in keyed sections, and `SaveMigration` converts old saves. Each section validates itself (`XxxSaveData.Validate`).
 
 ---
 
@@ -95,8 +94,7 @@ Không có bước build hay lint bằng CLI. Muốn biên dịch thì mở dự
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, sau khi vào Home: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
-- **Runner độc lập (cũ).** `Tests/SkillProgression/Run.ps1` và `Tests/EffectPlayback/Run.ps1` biên dịch file production cùng host double, dùng Roslyn (`csc.dll`) đi kèm Unity và `dotnet` SDK. Cần có sẵn `Library/ScriptAssemblies`, tức là phải import dự án một lần. **Hiện hai runner này đã lỗi thời.** Chúng tham chiếu tới các file timer/wave/feedback đã bị xóa, nên kết quả pass không được tính là đã kiểm tra (xem `Tests/ServiceContracts/README.md`).
-- **Menu debug trong Play Mode.** **Shooter Game > Skills > Grant Or Upgrade Selected Skill** (chọn một asset skill trước) và **Shooter Game > Skills > Grant One Run Level**.
+- **Kiểm tra đồ thị Zenject (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolve mọi dependency mà không cần vào Play Mode. Danh sách đầy đủ xem `Docs/Tools/Verification.md`.
 - **Công cụ Editor.** **Tools/Shooter Game/Hitbox Editor** và **Tools/Shooter Game/Formation & Path Workbench**.
 
 ### Unity MCP
@@ -106,9 +104,9 @@ Dự án dùng package `com.coplaydev.unity-mcp`, khóa vào một commit cụ t
 - Khởi động server: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/MCP/Start-Server.ps1`. Server lắng nghe tại `127.0.0.1:8080`. Không bấm thêm nút Start Server trong Unity.
 - Trong Unity, mở cửa sổ MCP, chọn HTTP Local rồi bấm Connect. Nếu đổi cổng thì phải sửa đồng thời `Start-Server.ps1`, `.codex/config.toml` và URL trong Unity.
 
-## Đang refactor kiến trúc
+## Kiến trúc (đã refactor xong)
 
-Dự án đang được chuyển sang kiến trúc **data-driven có khung OOP**. Thiết kế đích, quy tắc và trạng thái từng giai đoạn nằm trong `Docs/Architecture/Refactor-Architecture.md`. Với miền nào đã chuyển xong, tài liệu này được ưu tiên hơn phần "Kiến trúc" bên dưới. Các quy tắc chính:
+Dự án đã được chuyển (giai đoạn 0–7, đã xong) sang kiến trúc **data-driven có khung OOP**. Thiết kế đích, quy tắc và trạng thái từng giai đoạn nằm trong `Docs/Architecture/Refactor-Architecture.md`. Với miền nào đã chuyển xong, tài liệu này được ưu tiên hơn phần "Kiến trúc" bên dưới. Các quy tắc chính:
 - Thứ tự ưu tiên thiết kế là **Simple → DRY → SOLID**. Dễ đọc là quan trọng nhất, và mọi đề xuất thiết kế phải kèm lý do.
 - Có khoảng 10 Manager theo miền. Mỗi Manager tự `new` các System của mình, và chỉ Manager được bind vào Zenject. Giữa các miền chỉ giao tiếp qua interface vai trò của Manager, toàn bộ nằm trong một file `XxxContracts.cs` cho mỗi miền. Giao tiếp chiều ngược chỉ dùng C# `event` (không dùng static bus, không dùng SignalBus).
 - Chỉ tạo interface cho ranh giới miền hoặc cho họ strategy (từ 2 hành vi thay được cho nhau trở lên). Chọn biến thể bằng enum + một switch trong factory của họ đó.
@@ -118,40 +116,40 @@ Dự án đang được chuyển sang kiến trúc **data-driven có khung OOP**
 
 ## Kiến trúc
 
-Bắt đầu từ `Docs/Architecture/Systems-Overview.md`: file này có bản đồ hệ thống → class và mô tả luồng khởi động. Một số tài liệu khác trong `Docs/Architecture` chỉ là blueprint/đề xuất chưa từng được triển khai, ví dụ `Character-Visual-Rendering.md` và `Character-EventDriven-OOP.md`. Đừng mặc định tài liệu mô tả đúng code hiện tại; hãy đối chiếu với code trước.
+Bắt đầu từ `Docs/Architecture/Systems-Overview.md`: file này có bản đồ hệ thống → class và mô tả luồng khởi động. Một số tài liệu khác trong `Docs/Architecture` chỉ là blueprint/đề xuất chưa từng được triển khai, ví dụ `Character-Visual-Rendering.md`. Đừng mặc định tài liệu mô tả đúng code hiện tại; hãy đối chiếu với code trước.
 
 ### Phân tầng
 ScriptableObject cấu hình → service/factory (tạo object, kết nối và quản lý vòng đời) → trạng thái runtime riêng của từng cá thể → View/UI. **Không bao giờ ghi trạng thái runtime vào asset SO dùng chung.** HP, cooldown và bonus tạm thời phải nằm trong các object runtime như `CharacterRuntimeData` và `SkillRuntime`.
 
 ### Khởi tạo bằng Zenject (`Scripts/Infrastructure/Zenject/`)
-`GameSceneInstaller` là partial class, chia thành ba file:
-- `.Bindings.cs`: mọi service đều được bind qua `BindService<IFacade, Impl>()` (hoặc `BindInterfacesTo`). Không bao giờ công khai concrete service.
-- `.ExecutionOrder.cs`: chứa **toàn bộ** thứ tự Initialize, Tick, LateTick và Dispose ở một chỗ. Service mới có vòng đời thì phải thêm thứ tự vào đây. Thứ tự Initialize: Save (-200) → SaveMigration → các service tiến trình (-150) → RunSession (-50) → GameManager (100). Dispose chạy ngược lại, từ số lớn đến số nhỏ.
+`GameSceneInstaller` là một MonoInstaller duy nhất (không còn partial):
+- `BindDomainManagers()`: mỗi miền một dòng `BindInterfacesTo<XxxManager>()`, xếp từ dưới lên theo chiều phụ thuộc. Không bao giờ công khai kiểu concrete. Binding khác duy nhất là `ScreenTransitionController` (dịch vụ UI dùng chung, `UI/UIContracts.cs`); các panel UI là MonoBehaviour trong scene, được inject tự động.
+- Vùng *Lifecycle Order*: chứa **toàn bộ** thứ tự Initialize, Tick, LateTick và Dispose ở một chỗ. Manager mới có vòng đời thì phải thêm thứ tự vào đây. Thứ tự Initialize: SaveManager (-200, migration chạy bên trong) → ProgressionManager (-160) → CharacterManager (-150) → WorldManager (50) → GameManager (100). Dispose chạy ngược lại, từ số lớn đến số nhỏ.
 - Các manager là class Zenject `ITickable` thuần, không phải MonoBehaviour.
 
 ### Service contract
-- **Miền đã chuyển** (Combat, Simulation, Character, Stage): Manager là binding duy nhất (`BindInterfacesTo<XxxManager>()`), mọi vai trò giữa các miền nằm trong `XxxContracts.cs` cạnh nó. Interface strategy nằm cạnh họ của chúng. Miền Stage nằm trong `Scripts/Stage/` (contracts, rewards, các spawn system).
-- **Miền chưa chuyển** (`Scripts/Interfaces/`, xem README.md trong đó): mỗi hệ thống công khai một **facade tổng hợp** chỉ có getter; nơi dùng lấy vai trò nhỏ qua getter. Thư mục này bị xóa ở Giai đoạn 7.
-- `ServiceContractVerification` kiểm tra: getter trả về kết quả ổn định, không bind vai trò lá hay kiểu concrete, domain manager, không đăng ký vòng đời trùng hoặc thiếu. Hãy chạy nó sau mỗi lần sửa interface hoặc binding.
+- **Mọi miền đã chuyển** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Run, Game): Manager là binding duy nhất (`BindInterfacesTo<XxxManager>()`), mọi vai trò giữa các miền nằm trong `XxxContracts.cs` cạnh nó. Interface strategy nằm cạnh họ của chúng. Miền Stage nằm trong `Scripts/Stage/` (contracts, rewards, các spawn system). Miền Run nằm trong `Scripts/Run/` (đồng hồ, thống kê, level trận, loot).
+- Không còn facade tổng hợp (interface chỉ có getter); `ServiceContractVerification` chặn việc tạo lại.
+- `ServiceContractVerification` kiểm tra: mọi vai trò resolve về đúng domain manager, không bind kiểu concrete, không đăng ký vòng đời trùng hoặc thiếu. **Edit > Zenject > Validate Current Scenes** kiểm tra toàn bộ đồ thị dependency mà không cần vào Play Mode. Hãy chạy nó sau mỗi lần sửa interface hoặc binding.
 
 ### Luồng game
-`GameManager` / `GameState` điều khiển luồng: prewarm → Home → PreparingRun → reset trận → spawn Player → Playing → Won/Lost. `ResultController` hiển thị popup Victory/Defeat; gameplay gọi `GameManager.WinRun()` khi thắng. Prewarm pool chạy đồng bộ ngay trong scene này, cấu hình ở `DataSO/Databases/PoolPrewarmSettings.asset`. Chưa có loading scene.
+`GameManager` / `GameState` điều khiển luồng: prewarm → Home → PreparingRun → reset trận → spawn Player → Playing → Won/Lost. `ResultController` hiển thị popup Victory/Defeat. Thắng khi Stage phát `IStageResults.Cleared`, thua khi Player hiện tại chết; cả hai đi qua một hàm `FinishRun` riêng. `GameManager` (trong `Scripts/Game/`) sở hữu `GameStateMachine`, `GamePause` và `GamePrewarm`. Prewarm pool chạy đồng bộ ngay trong scene này, cấu hình ở `DataSO/Databases/PoolPrewarmSettings.asset`. Chưa có loading scene.
 
 ### Nhân vật và pooling
-`CharacterManager` tạo factory, registry, search, pool runtime và `PlayerManager`; miền khác chỉ dùng `Characters/CharacterContracts.cs`. `CharacterFactory` thuê một `CharacterRuntimeData`, lấy vỏ `CharacterView` từ pool dưới node cha "Preparing" đang tắt, gắn controller, visual, hitbox và UI, rồi đăng ký với movement và spatial. Combat tự nhận skill bằng cách nghe event `CharacterAdded`/`CharacterRemoved` của registry. Khi despawn, các bước chạy theo thứ tự ngược lại. `CharacterView` giao phần trình bày cho `CharacterPresentation` và màu trúng đòn/trạng thái cho `CharacterFeedback`. **Giữ cá thể trong pool bằng `CharacterHandle`** (`IsCurrent`, `IsAlive`, `TryGetCharacter`): handle chụp `Generation`, nên callback và target cũ không bao giờ khớp với object đã tái sử dụng. Không so sánh generation bằng tay.
+`CharacterManager` tạo factory, registry, search, pool runtime và `PlayerSystem`; miền khác chỉ dùng `Characters/CharacterContracts.cs`. `CharacterFactory` thuê một `CharacterRuntimeData`, lấy vỏ `CharacterView` từ pool dưới node cha "Preparing" đang tắt, gắn controller, visual, hitbox và UI, rồi đăng ký với movement và spatial. Combat tự nhận skill bằng cách nghe event `CharacterAdded`/`CharacterRemoved` của registry. Khi despawn, các bước chạy theo thứ tự ngược lại. `CharacterView` giao phần trình bày cho `CharacterPresentation` và màu trúng đòn/trạng thái cho `CharacterFeedback`. **Giữ cá thể trong pool bằng `CharacterHandle`** (`IsCurrent`, `IsAlive`, `TryGetCharacter`): handle chụp `Generation`, nên callback và target cũ không bao giờ khớp với object đã tái sử dụng. Không so sánh generation bằng tay.
 
 Mọi bonus chỉ số (bonus lúc spawn, level và trang bị của Player, buff skill, slow, HP theo wave) đều thêm theo một cách: `runtime.Stats.AddSource(...)` của `StatSheet`. Giữ `StatModifierLease` trả về để cập nhật hoặc gỡ. Công thức duy nhất nằm trong `StatCalculator`.
 
 ### Combat
 - `SkillDataSO` giữ đầy đủ dữ liệu theo từng cấp. `SkillFactory` và các behaviour factory dựng hành vi từ enum.
-- `CharacterSkills` quản lý skill có sẵn theo loại nhân vật. `SkillManager` lên lịch các skill nhận được trong lượt chơi.
-- `ShootingSkill` dùng `ShootBehaviorFactory` (kiểu bắn thẳng, quạt, vòng tròn hoặc xoắn ốc) và `ProjectileManager`. Các viên đạn dùng chung một vỏ.
-- Effect gameplay (làm chậm, cháy, độc) chạy qua `EffectManager` / `EffectRuntimePool`. VFX hình ảnh chạy riêng qua `CombatAssetsSO`, `CombatVfx` và `EffectView`. `ProjectileManager` sở hữu trọn vòng đời đạn (spawn, bay, quét va chạm, thu hồi). Tất cả được tạo bên trong `CombatManager`; miền khác chỉ dùng `Combat/CombatContracts.cs`.
+- `CharacterSkills` quản lý skill có sẵn theo loại nhân vật. `SkillSystem` lên lịch các skill nhận được trong lượt chơi.
+- `ShootingSkill` dùng strategy `IShooter` chọn trong data bằng `[SerializeReference]` (kiểu bắn thẳng, quạt, vòng tròn hoặc xoắn ốc) và `ProjectileSystem`. Các viên đạn dùng chung một vỏ.
+- Effect gameplay (làm chậm, cháy, độc) chạy qua `EffectSystem` / `EffectRuntimePool`. VFX hình ảnh chạy riêng qua `CombatAssetsSO`, `CombatVfx` và `EffectView`. `ProjectileSystem` sở hữu trọn vòng đời đạn (spawn, bay, quét va chạm, thu hồi). Tất cả được tạo bên trong `CombatManager`; miền khác chỉ dùng `Combat/CombatContracts.cs`.
 
 Xem `Docs/Architecture/Skill-Shooting-Pipeline.md` và `Skill-Run-Progression.md`.
 
 ### Movement và truy vấn không gian
-`Scripts/Simulation`: `SimulationManager` tạo `MovementManager` và `SpatialManager`, dùng Burst/Jobs với buffer tái sử dụng. Miền khác chỉ dùng `Simulation/SimulationContracts.cs`. Di chuyển được áp dụng ở LateTick. Xem README trong thư mục này.
+`Scripts/Simulation`: `SimulationManager` tạo `MovementSystem` và `SpatialSystem`, dùng Burst/Jobs với buffer tái sử dụng. Miền khác chỉ dùng `Simulation/SimulationContracts.cs`. Di chuyển được áp dụng ở LateTick. Xem README trong thư mục này.
 
 ### Dữ liệu
-`Assets/_Project/DataSO/README.md` và `DataSO/Documentation/` hướng dẫn cấu hình level, save, trang bị, chỉ số và skill. Hệ thống save (`SaveManager` và `SaveMigration`) lưu dữ liệu theo các section có key, và `SaveMigration` chuyển đổi save cũ sang định dạng mới.
+`Assets/_Project/DataSO/README.md` và `DataSO/Documentation/` hướng dẫn cấu hình level, save, trang bị, chỉ số và skill. Hệ thống save (`SaveManager`, sở hữu `SaveStorage` và `SaveMigration`) lưu dữ liệu theo các section có key, và `SaveMigration` chuyển đổi save cũ sang định dạng mới. Mỗi section tự kiểm tra dữ liệu (`XxxSaveData.Validate`).

@@ -12,15 +12,15 @@ using System;
 public sealed class SkillServices
 {
     /// <summary>Bắn từng viên đạn (hành vi tự chia hướng bằng <see cref="IShooter"/>).</summary>
-    public ProjectileManager Projectiles { get; }
+    public ProjectileSystem Projectiles { get; }
 
     /// <summary>Thuê và trả visual của hành vi (cưa xoay, vùng aura…).</summary>
     public IGameObjectPool Pools { get; }
 
     /// <summary>Áp effect một lần hoặc effect duy trì, và kiểm tra/gỡ handle của effect duy trì.</summary>
-    public EffectManager Effects { get; }
+    public EffectSystem Effects { get; }
 
-    public SkillServices(ProjectileManager projectiles, IGameObjectPool pools, EffectManager effects)
+    public SkillServices(ProjectileSystem projectiles, IGameObjectPool pools, EffectSystem effects)
     {
         Projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
         Pools = pools ?? throw new ArgumentNullException(nameof(pools));

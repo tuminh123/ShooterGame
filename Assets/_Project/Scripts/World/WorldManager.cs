@@ -67,12 +67,12 @@ public sealed class WorldManager : IWorldMap, IInitializable, ITickable, IDispos
 
     #region Lifecycle
 
-    public WorldManager(Settings settings, IPlayerReader players, IPoolSystem pools)
+    public WorldManager(Settings settings, IPlayerReader players, IGameObjectPool pools)
     {
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.players = players ?? throw new ArgumentNullException(nameof(players));
         settings.Validate();
-        ground = new GroundChunks(pools.GetGameObjectPool(), settings.GroundTemplate, settings.ChunkParent,
+        ground = new GroundChunks(pools, settings.GroundTemplate, settings.ChunkParent,
             settings.ChunkSize, settings.VisibleRadius);
         players.PlayerChanged += OnPlayerChanged;
     }

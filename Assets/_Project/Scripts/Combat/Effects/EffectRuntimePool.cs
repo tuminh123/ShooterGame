@@ -4,7 +4,7 @@ using Zenject;
 
 /// <summary>
 /// Pool runtime của effect gameplay, tra theo kiểu runtime. Cấu hình effect tự chọn kiểu runtime
-/// (<see cref="IGameplayEffect.RentRuntime"/>), nên EffectManager không phải switch theo loại effect.
+/// (<see cref="IGameplayEffect.RentRuntime"/>), nên EffectSystem không phải switch theo loại effect.
 /// </summary>
 /// <remarks>Do <see cref="CombatManager"/> tạo; không bind vào Zenject.</remarks>
 public sealed class EffectRuntimePool

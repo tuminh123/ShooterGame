@@ -6,16 +6,15 @@ using System.Collections.Generic;
 /// </summary>
 /// <remarks>
 /// Do <see cref="StageManager"/> tạo; tách riêng để StageManager chỉ còn lo điều phối spawn và điều kiện thắng.
-/// Ghi vào miền Progression qua <see cref="ICurrencyWallet"/> (thua) và <see cref="IStageVictoryRewards"/> (thắng,
+/// Ghi vào miền Progression qua <see cref="IWallet"/> (thua) và <see cref="IStageProgress"/> (thắng,
 /// cấp thưởng và mốc vượt màn trong một lần lưu).
 /// </remarks>
 internal sealed class StageRewards
 {
     #region State
 
-    private readonly ICurrencyWallet currencies;
-    private readonly IStageProgressReader stageProgress;
-    private readonly IStageVictoryRewards victoryRewards;
+    private readonly IWallet currencies;
+    private readonly IStageProgress stageProgress;
     private readonly Dictionary<CurrencyType, long> granted = new Dictionary<CurrencyType, long>(); // Số đã cấp ở lượt này.
 
     /// <summary>Lượt hiện tại đã nhận thưởng kết quả chưa (chặn cấp hai lần).</summary>
@@ -25,11 +24,10 @@ internal sealed class StageRewards
 
     #region Lifecycle
 
-    internal StageRewards(ICurrencyWallet currencies, IStageProgressReader stageProgress, IStageVictoryRewards victoryRewards)
+    internal StageRewards(IWallet currencies, IStageProgress stageProgress)
     {
         this.currencies = currencies;
         this.stageProgress = stageProgress;
-        this.victoryRewards = victoryRewards;
     }
 
     /// <summary>Bắt đầu lượt mới hoặc đổi màn: quên thưởng của lượt trước.</summary>
@@ -58,7 +56,7 @@ internal sealed class StageRewards
         Dictionary<CurrencyType, long> rewards = Build(stage, won);
         // Lỗi IO được hệ thống save giữ snapshot để thử lại; không bao giờ cộng thưởng lần thứ hai.
         if (won)
-            victoryRewards.GrantVictoryRewards(stage.StageId, rewards);
+            stageProgress.GrantVictoryRewards(stage.StageId, rewards);
         else
             currencies.AddBatch(rewards);
         Granted = true;
@@ -73,7 +71,7 @@ internal sealed class StageRewards
     private Dictionary<CurrencyType, long> Build(StageDataSO stage, bool won)
     {
         var rewards = new Dictionary<CurrencyType, long>();
-        if (won && !stageProgress.HasFirstClearedStage(stage.StageId))
+        if (won && !stageProgress.HasFirstCleared(stage.StageId))
             Add(rewards, stage.FirstClearStageRewards);
         Add(rewards, won ? stage.VictoryRewards : stage.DefeatRewards);
         return rewards;

@@ -3,26 +3,26 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Hiển thị tiến độ thật của prewarm; IGameStateReader quyết định khi nào được vào Home.
+// Hiển thị tiến độ thật của prewarm; GameManager quyết định khi nào được vào Home.
 public sealed class LoadingController : UIPanelController
 {
     #region Scene References
 
     [SerializeField] private Slider progressBar;
     [SerializeField] private TMP_Text progressText;
-    private IPoolPrewarmProgress resources;
-    private IGameStateReader game;
+    private ILoadingProgress resources;
+    private IGameState game;
 
     #endregion
 
     #region Progress And Visibility
 
     [Inject]
-    public void Construct(IPoolPrewarmService poolPrewarmService, IGameFlow gameFlow)
+    public void Construct(ILoadingProgress loadingProgress, IGameState gameState)
     {
         Unsubscribe();
-        this.resources = poolPrewarmService.GetPoolPrewarmProgress();
-        this.game = gameFlow.GetGameStateReader();
+        this.resources = loadingProgress;
+        this.game = gameState;
         if (isActiveAndEnabled) Subscribe();
     }
 

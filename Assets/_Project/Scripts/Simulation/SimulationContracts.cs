@@ -2,7 +2,7 @@ using Unity.Collections;
 using UnityEngine;
 
 // Ranh giới của miền Simulation (di chuyển và truy vấn không gian bằng Jobs/Burst).
-// Mọi interface trong file này do SimulationManager implement. MovementManager, SpatialManager và
+// Mọi interface trong file này do SimulationManager implement. MovementSystem, SpatialSystem và
 // SpatialSearchFactory nằm bên trong miền, không được bind vào Zenject.
 // Simulation là hạ tầng: không biết gameplay (skill, wave, loot); miền khác dùng nó, không có chiều ngược lại.
 // Mỗi vai trò dưới đây ứng với một nhóm nơi dùng thực tế, ghi trong summary.
@@ -86,7 +86,7 @@ public interface ISpatialQueryBuilder
 
 #region Prewarm
 
-/// <summary>Cấp phát trước buffer của Jobs trong bước loading, để không resize giữa trận. Dùng bởi PoolPrewarmService.</summary>
+/// <summary>Cấp phát trước buffer của Jobs trong bước loading, để không resize giữa trận. Dùng bởi GamePrewarm (miền Game).</summary>
 public interface ISimulationCapacity
 {
     /// <param name="movers">Số đối tượng di chuyển tối đa (nhân vật, đạn, vật phẩm rơi).</param>

@@ -133,7 +133,7 @@ DeploymentComplete means that the system has finished its spawn program; AliveCo
 is separate. Stage wins only when all systems finished and no living actors remain.
 Pattern members may satisfy this by naturally reaching the route end or Area expiry.
 
-Real kills still raise CharacterDied and use LootManager EXP/gold rules. Natural
+Real kills still raise CharacterDied and use the Run domain's loot rules (RunManager → LootSystem). Natural
 despawn returns actors without kill rewards. Identity/generation guards prevent
 stale owners from affecting a reused pooled shell.
 

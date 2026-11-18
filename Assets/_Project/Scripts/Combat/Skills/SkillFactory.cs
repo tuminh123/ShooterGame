@@ -4,7 +4,7 @@ using System;
 /// Tạo skill đang chạy (<see cref="SkillRuntime"/>) và các hành vi của nó từ template trong <see cref="SkillDataSO"/>.
 /// </summary>
 /// <remarks>
-/// Không quản lý cấp hay vòng tick; việc đó thuộc <see cref="SkillRuntime"/> và <see cref="SkillManager"/>.
+/// Không quản lý cấp hay vòng tick; việc đó thuộc <see cref="SkillRuntime"/> và <see cref="SkillSystem"/>.
 /// Do <see cref="CombatManager"/> tạo; không bind vào Zenject.
 /// </remarks>
 public sealed class SkillFactory

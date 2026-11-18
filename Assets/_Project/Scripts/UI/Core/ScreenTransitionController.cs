@@ -5,7 +5,7 @@ using UnityEngine;
 using Zenject;
 
 // Che UI trước khi đổi lượt; giữ pause đến khi màn mới đã hiện hoàn toàn.
-public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitionService, IScreenTransition
+public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransition
 {
     #region Presentation Settings
 
@@ -19,9 +19,9 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     #endregion
 
     #region Dependencies And Playback State
-    private IGameStateReader gameState;
-    private IRunCommands runCommands;
-    private IGameplayPause pauses;
+    private IGameState gameState;
+    private IGameFlow runCommands;
+    private IGamePause pauses;
     private IDisposable pauseLease;
     private Func<bool> pendingCommand;
     private Tween fade;
@@ -29,11 +29,11 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     public bool IsTransitioning => pauseLease != null;
 
     [Inject]
-    public void Construct(IGameFlow gameFlow, IGameplayPauseService gameplayPauseService)
+    public void Construct(IGameState gameState, IGameFlow gameFlow, IGamePause gamePause)
     {
-        this.gameState = gameFlow.GetGameStateReader();
-        this.runCommands = gameFlow.GetRunCommands();
-        this.pauses = gameplayPauseService.GetGameplayPause();
+        this.gameState = gameState;
+        this.runCommands = gameFlow;
+        this.pauses = gamePause;
         ResetPresentation();
     }
 
@@ -110,13 +110,6 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
 
     private void OnDisable() => ResetPresentation();
     private void OnDestroy() => ResetPresentation();
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public IScreenTransition GetScreenTransition() => this;
 
     #endregion
 }

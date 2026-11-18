@@ -6,7 +6,7 @@ using UnityEngine;
 /// System VFX của miền Combat: phát các hiệu ứng hình ảnh chạy một lần (trúng đòn, nổ…) và thu hồi chúng.
 /// </summary>
 /// <remarks>
-/// Chỉ là hình ảnh, không ảnh hưởng gameplay; effect gameplay (slow, burn…) thuộc <see cref="EffectManager"/>.
+/// Chỉ là hình ảnh, không ảnh hưởng gameplay; effect gameplay (slow, burn…) thuộc <see cref="EffectSystem"/>.
 /// Do <see cref="CombatManager"/> tạo; không bind vào Zenject.
 /// </remarks>
 public sealed class CombatVfx : IDisposable

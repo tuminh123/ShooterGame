@@ -13,10 +13,10 @@ Canvas                               <- UIManager
 
 `GameManager` là class thuần AsSingle trong GameSceneInstaller, sống cùng scene hiện tại.
 Nó giữ GameState và điều phối Save sẵn sàng → prewarm → reset → spawn → Playing.
-Player chết chuyển Lost; WinRun do điều kiện gameplay gọi. StartRun chơi lại,
+Player chết chuyển Lost; Stage báo sạch quái (`IStageResults.Cleared`) chuyển Won. StartRun chơi lại,
 ReturnHome dọn Player/Enemy/đạn cũ và reset tiến trình. Không có loading scene riêng.
 
-`IGameStateReader.StateChanged` (event của GameManager) chỉ thông báo cho tầng UI.
+`IGameState.StateChanged` (event của GameManager) chỉ thông báo cho tầng UI.
 Hệ thống gameplay bên dưới (đạn, effect, VFX, ăn mừng của quái) không nghe event này;
 GameManager gọi thẳng xuống chúng khi trận kết thúc. Từng UI tự gỡ listener trong OnDisable.
 
@@ -32,9 +32,12 @@ Auto Start Run trên installer đang bật để giữ hành vi tự vào trận
 đợi lệnh StartRun từ Home UI sau này. Các menu Shooter Game > Game Flow cho phép
 thử Start Run, Win Run, Lose Run và Return Home trong Play Mode.
 
-`SkillChoiceController : UIPanelController` được Zenject inject LevelManager,
-PlayerManager, SkillManager, GameplayPauseService và SkillDatabaseSO. Controller quản lý
-queue, owner, pause, roll, retry và áp dụng lựa chọn; luôn hoạt động trên root LevelUpUI, là cha của panel con.
+Từ Giai đoạn 6, logic chọn skill thuộc miền Run: `SkillChoice` (do RunManager tạo, lộ qua `ISkillChoice`) đếm lượt chờ
+khi lên cấp, roll lựa chọn (`SkillChoicePool`), áp dụng qua `ISkillGrant` và chặn tạm skill lỗi; nó tự hủy lượt chờ khi reset lượt,
+đổi Player hoặc Player chết/bị thu hồi.
+`SkillChoiceController : UIPanelController` được inject `ISkillChoice`, `IOwnedSkillReader` (hiện ô skill đang có), `IGamePause`
+và `IGameState`. Controller chỉ lo slow motion, pause, mở/đóng panel và chuyển click cho `ISkillChoice`; rời Playing thì gọi
+`CancelChoices`. Luôn hoạt động trên root LevelUpUI, là cha của panel con.
 `GameplayController` nằm trên root GameplayUI và tự quản lý ẩn/hiện HUD cùng pause thủ công. UIManager không còn giữ GameObject HUD hay PauseUI trực tiếp.
 `SkillChoiceUI` chỉ render, giới hạn input/focus và phát Selected/Hidden.
 Panel tắt không làm mất listener lên cấp của controller.
@@ -78,10 +81,8 @@ còn lại và tiếp tục game như chính sách trước đây.
 
 ## Kiểm tra
 
-Chạy `powershell -NoProfile -ExecutionPolicy Bypass -File Tests/SkillProgression/Run.ps1`.
-Harness chạy code UIManager, SkillChoiceController và skill production với panel/Unity native doubles;
-kiểm tra queue, loại skill lỗi, retry, rollback, stat/timer cleanup, ẩn/hiện và reset.
-Vẫn cần Play Mode để xác minh render, focus và click thực tế trong scene.
+Runner độc lập cũ (`Tests/SkillProgression`) đã bị xóa ở Giai đoạn 7. Kiểm tra theo `Docs/Tools/Verification.md`
+(smoke check có cấp/nâng skill và reset khi chơi lại), rồi play test để xác minh render, focus và click thực tế trong scene.
 ## Folder và quyền sở hữu
 
 - `UI/Core`: UIManager và hợp đồng UIPanelController.
@@ -102,7 +103,7 @@ skill chưa có ở bảng trước; nếu thiếu ứng viên thì dùng lại 
 thẻ. Skill đã max hoặc bị đánh dấu lỗi vẫn bị loại. Input chọn/roll bị khóa chung
 cho đến khi các thẻ mới hiện xong; bàn phím/gamepad đi xuống từ thẻ tới nút ROLL.
 
-SkillChoiceController chỉ lấy snapshot skill Gameplay của đúng Player từ SkillManager,
+SkillChoiceController chỉ lấy snapshot skill Gameplay của đúng Player từ SkillSystem,
 SkillChoiceUI quản lý các instance đang dùng, còn OwnedSkillSlot chỉ hiển thị icon/sao.
 Prefab: Assets/_Project/Prefabs/UI/OwnedSkillSlot.prefab. Kéo component prefab vào
 Owned Slot Template của SkillChoiceUI; reference icon, Gems Off và Gems On nằm sẵn trên prefab.

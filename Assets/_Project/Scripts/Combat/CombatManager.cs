@@ -9,11 +9,11 @@ using Zenject;
 /// <remarks>
 /// <code>
 /// CombatManager
-/// ├── EffectRuntimePool → EffectManager   effect gameplay (slow, burn, poison)
+/// ├── EffectRuntimePool → EffectSystem   effect gameplay (slow, burn, poison)
 /// ├── CombatVfx                           VFX chạy một lần (trúng đòn, nổ)
-/// ├── ProjectileManager                   trọn vòng đời đạn: spawn → bay → quét va chạm → thu hồi
+/// ├── ProjectileSystem                   trọn vòng đời đạn: spawn → bay → quét va chạm → thu hồi
 /// ├── SkillServices → SkillFactory
-/// ├── SkillManager                        skill gameplay nhận trong trận
+/// ├── SkillSystem                        skill gameplay nhận trong trận
 /// └── CharacterSkillSystem                skill vốn có của từng nhân vật; nghe vòng đời nhân vật từ miền Character
 /// </code>
 /// Các system con được tạo bằng <c>new</c> ngay trong constructor, nên toàn bộ cách nối dây nằm ở một chỗ,
@@ -32,11 +32,11 @@ public sealed class CombatManager :
     #region Owned Systems
 
     private readonly EffectRuntimePool effectRuntimes;
-    private readonly EffectManager effects;
+    private readonly EffectSystem effects;
     private readonly CombatVfx vfx;
-    private readonly ProjectileManager projectiles;
+    private readonly ProjectileSystem projectiles;
     private readonly SkillFactory skillFactory;
-    private readonly SkillManager skills;
+    private readonly SkillSystem skills;
     private readonly CharacterSkillSystem characterSkills;
     private bool disposed;
 
@@ -52,7 +52,7 @@ public sealed class CombatManager :
     /// <param name="slowRuntimes">Pool runtime làm chậm; installer bind kèm số lượng tạo sẵn.</param>
     /// <param name="damageOverTimeRuntimes">Pool runtime sát thương theo thời gian (burn, poison dùng chung).</param>
     public CombatManager(
-        IPoolSystem poolSystem,
+        IGameObjectPool pools,
         CombatAssetsSO combatAssets,
         IMovementRegistration movementRegistration, // Các vai trò Simulation mà đạn dùng (SimulationContracts.cs).
         IMovementCommand movementCommand,
@@ -61,27 +61,26 @@ public sealed class CombatManager :
         ISpatialQueryBuilder queryBuilder,
         ICharacterRegistry characters,
         ICharacterDeathEvents characterDeaths,
-        ILevelService levelService,
         ClassPool<SlowEffectRuntime> slowRuntimes,
         ClassPool<DamageOverTimeEffectRuntime> damageOverTimeRuntimes)
     {
         try
         {
             effectRuntimes = new EffectRuntimePool(slowRuntimes, damageOverTimeRuntimes);
-            effects = new EffectManager(effectRuntimes);
-            vfx = new CombatVfx(poolSystem.GetGameObjectPool(), combatAssets);
-            // Đạn cần EffectManager (áp effect khi trúng) và CombatVfx (phát VFX trúng đòn).
-            projectiles = new ProjectileManager(poolSystem, combatAssets, movementRegistration, movementCommand,
+            effects = new EffectSystem(effectRuntimes);
+            vfx = new CombatVfx(pools, combatAssets);
+            // Đạn cần EffectSystem (áp effect khi trúng) và CombatVfx (phát VFX trúng đòn).
+            projectiles = new ProjectileSystem(pools, combatAssets, movementRegistration, movementCommand,
                 spatialResolution, spatialQuery, queryBuilder, effects, vfx);
-            // Hành vi skill cần ProjectileManager để bắn, pool để thuê visual, và EffectManager để áp aura/slow.
-            skillFactory = new SkillFactory(new SkillServices(projectiles, poolSystem.GetGameObjectPool(), effects));
-            skills = new SkillManager(levelService, skillFactory);
-            // Tạo sau cùng: khi nhân vật chết/thu hồi, nó dọn cả skill gameplay (SkillManager) và effect (EffectManager).
+            // Hành vi skill cần ProjectileSystem để bắn, pool để thuê visual, và EffectSystem để áp aura/slow.
+            skillFactory = new SkillFactory(new SkillServices(projectiles, pools, effects));
+            skills = new SkillSystem(skillFactory);
+            // Tạo sau cùng: khi nhân vật chết/thu hồi, nó dọn cả skill gameplay (SkillSystem) và effect (EffectSystem).
             characterSkills = new CharacterSkillSystem(characters, characterDeaths, skillFactory, skills, effects);
         }
         catch
         {
-            // ProjectileManager giữ NativeArray và đăng ký Camera.onPreCull ngay khi được tạo.
+            // ProjectileSystem giữ NativeArray và đăng ký Camera.onPreCull ngay khi được tạo.
             // Nếu bước sau lỗi (ví dụ CombatAssetsSO cấu hình sai) thì phải dọn những gì đã tạo.
             Dispose();
             throw;
@@ -167,7 +166,7 @@ public sealed class CombatManager :
     /// CharacterSkillSystem còn gỡ listener khỏi miền Character.
     /// Phần còn lại giữ đúng thứ tự cũ khi mỗi system còn được Zenject dispose riêng (175 → 160 → 150).
     /// Mỗi bước được cô lập để lỗi của một system không chặn việc dọn các system còn lại,
-    /// đặc biệt là NativeArray của ProjectileManager (không dọn sẽ bị leak).
+    /// đặc biệt là NativeArray của ProjectileSystem (không dọn sẽ bị leak).
     /// </summary>
     public void Dispose()
     {

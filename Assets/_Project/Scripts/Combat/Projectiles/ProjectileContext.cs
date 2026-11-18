@@ -3,7 +3,7 @@
 /// </summary>
 /// <remarks>
 /// Trước đây <see cref="ProjectileView"/> tự inject 6 hệ thống qua Zenject khi pool tạo vỏ. Như vậy các
-/// hệ thống nội bộ của Combat phải được bind công khai vào container. Giờ <see cref="ProjectileManager"/>
+/// hệ thống nội bộ của Combat phải được bind công khai vào container. Giờ <see cref="ProjectileSystem"/>
 /// truyền context này vào <see cref="ProjectileView.Initialize"/>, nên đạn không cần biết tới Zenject,
 /// và Combat chỉ cần bind <see cref="CombatManager"/>.
 /// </remarks>
@@ -17,7 +17,7 @@ internal sealed class ProjectileContext
     /// <summary>Đặt hướng và tốc độ cho đạn sau mỗi lần quét va chạm.</summary>
     public IMovementCommand MovementCommand { get; }
 
-    /// <summary>Tạo query quét va chạm; SpatialManager gom mọi viên vào cùng một job.</summary>
+    /// <summary>Tạo query quét va chạm; SpatialSystem gom mọi viên vào cùng một job.</summary>
     public ISpatialQueryBuilder QueryBuilder { get; }
 
     /// <summary>Thuê và trả visual con của đạn.</summary>
@@ -28,10 +28,10 @@ internal sealed class ProjectileContext
     #region Combat (cùng miền, dùng class trực tiếp)
 
     /// <summary>Đăng ký đạn để cập nhật chung một vòng, và trả vỏ đạn về pool (kèm thu hồi visual con trước).</summary>
-    public ProjectileManager Projectiles { get; }
+    public ProjectileSystem Projectiles { get; }
 
     /// <summary>Áp effect gameplay của đạn lên mục tiêu khi trúng.</summary>
-    public EffectManager Effects { get; }
+    public EffectSystem Effects { get; }
 
     /// <summary>Phát VFX trúng đòn.</summary>
     public CombatVfx Vfx { get; }
@@ -45,8 +45,8 @@ internal sealed class ProjectileContext
         IMovementCommand movementCommand,
         ISpatialQueryBuilder queryBuilder,
         IGameObjectPool pools,
-        ProjectileManager projectiles,
-        EffectManager effects,
+        ProjectileSystem projectiles,
+        EffectSystem effects,
         CombatVfx vfx)
     {
         MovementRegistration = movementRegistration;

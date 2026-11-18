@@ -36,12 +36,12 @@ cấp 2. Danh sách mẫu bên dưới phải chứa cả ShootingSkill và Fros
 
 ## Runtime
 
-SkillManager chỉ giữ và tick runtime nguồn Gameplay. Reset trận chỉ dọn nhóm này.
+SkillSystem chỉ giữ và tick runtime nguồn Gameplay. Reset trận chỉ dọn nhóm này.
 CharacterSkills giữ context của spawn, tự tạo và sở hữu runtime Character/Equipment.
 CombatManager tick CharacterSkills qua CharacterSkillSystem (nghe vòng đời của miền Character); disable/enable pause/resume skill,
 chết/despawn/destroy dispose timer, visual và modifier. Skill nhân vật còn sống
 không bị xóa hoặc dựng lại khi reset riêng tiến trình trận.
-Slot trong LevelUpPanel chỉ hiển thị danh sách Gameplay từ SkillManager.
+Slot trong LevelUpPanel chỉ hiển thị danh sách Gameplay từ SkillSystem.
 SkillRuntime chọn data theo cấp, ghép theo Type, gọi ApplyData cho hành vi đã có,
 tạo instance cho loại mới và dispose loại không còn trong cấp mới.
 
@@ -82,7 +82,7 @@ Owner chết/despawn gỡ timer, visual và token của chính owner đó.
 Damage bắn/cưa/tiếp xúc tiếp tục dùng final stats của owner và pipeline hiện có.
 Đạn snapshot damage/effect khi bắn; nâng cấp không thay đổi viên đã bay.
 Mỗi shooter có state riêng. Đổi config shooter tạo instance mới; cùng config giữ
-góc Spiral. IProjectileMove quyết định hướng bay, MovementManager cập nhật vị trí.
+góc Spiral. IProjectileMove quyết định hướng bay, MovementSystem cập nhật vị trí.
 
 Cưa dùng spatial sweep và lịch hit riêng theo lưỡi/mục tiêu. Aura không gây damage,
 slow duy trì bị gỡ khi mục tiêu ra ngoài hoặc nguồn pause/dispose.

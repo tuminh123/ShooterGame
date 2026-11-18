@@ -7,10 +7,10 @@ using UnityEngine;
 /// <remarks>
 /// Vòng đời của một lượt bay:
 /// <list type="number">
-/// <item><see cref="ProjectileManager.SpawnBullet"/> gọi <see cref="Initialize"/> khi vỏ còn tắt, truyền dịch vụ và thông số của viên đạn.</item>
-/// <item>Pool bật vỏ, <c>OnEnable</c> đăng ký movement và ProjectileManager.</item>
-/// <item>Mỗi frame, ProjectileManager gọi <see cref="AdvanceLifetime"/> → <see cref="PrepareQuery"/> → quét va chạm theo lô → <see cref="CompleteQuery"/>.</item>
-/// <item>Trúng mục tiêu hoặc hết tuổi thọ thì đạn trả vỏ về pool qua <see cref="ProjectileManager.Release"/>; <c>OnDisable</c> xóa toàn bộ trạng thái của lượt bay.</item>
+/// <item><see cref="ProjectileSystem.SpawnBullet"/> gọi <see cref="Initialize"/> khi vỏ còn tắt, truyền dịch vụ và thông số của viên đạn.</item>
+/// <item>Pool bật vỏ, <c>OnEnable</c> đăng ký movement và ProjectileSystem.</item>
+/// <item>Mỗi frame, ProjectileSystem gọi <see cref="AdvanceLifetime"/> → <see cref="PrepareQuery"/> → quét va chạm theo lô → <see cref="CompleteQuery"/>.</item>
+/// <item>Trúng mục tiêu hoặc hết tuổi thọ thì đạn trả vỏ về pool qua <see cref="ProjectileSystem.Release"/>; <c>OnDisable</c> xóa toàn bộ trạng thái của lượt bay.</item>
 /// </list>
 /// Không đổi tên class này: prefab đạn tham chiếu script qua GUID trong file .meta.
 /// </remarks>
@@ -51,7 +51,7 @@ public sealed class ProjectileView : MonoBehaviour
 
     /// <summary>
     /// Bounds gộp mọi renderer đang hiện của visual (sprite, mesh, particle…).
-    /// ProjectileManager dùng để thu hồi đạn đã bay ra khỏi camera.
+    /// ProjectileSystem dùng để thu hồi đạn đã bay ra khỏi camera.
     /// </summary>
     internal Bounds VisualBounds
     {
@@ -146,11 +146,11 @@ public sealed class ProjectileView : MonoBehaviour
 
     #endregion
 
-    #region Per-Frame Flight (ProjectileManager gọi)
+    #region Per-Frame Flight (ProjectileSystem gọi)
 
     /// <summary>
     /// Bước 2 (sau AdvanceLifetime): cập nhật hướng bay và tạo query quét đoạn đường sắp bay trong frame này.
-    /// Được gọi trước MovementManager.LateTick; hàm này không tự đổi vị trí.
+    /// Được gọi trước MovementSystem.LateTick; hàm này không tự đổi vị trí.
     /// </summary>
     internal bool PrepareQuery(float deltaTime, out SpatialQuery query)
     {
@@ -210,7 +210,7 @@ public sealed class ProjectileView : MonoBehaviour
             DamageResult result = character.ReceiveDamage(hitDamage);
             if (!result.Accepted) return;
 
-            // EffectManager kiểm tra lại handle: quái vừa chết hoặc despawn thì effect không áp sang cá thể mới.
+            // EffectSystem kiểm tra lại handle: quái vừa chết hoặc despawn thì effect không áp sang cá thể mới.
             for (int index = 0; index < hitEffects.Count; index++)
                 context.Effects.Apply(hitEffects[index], hitTarget, hitDamage.SourceTeam, sourceEffectHit);
             context.Vfx.Spawn(hitVisual, hitVisualPosition);
@@ -222,7 +222,7 @@ public sealed class ProjectileView : MonoBehaviour
         }
     }
 
-    /// <summary>Kết thúc lượt bay và trả vỏ về pool. ProjectileManager cũng gọi khi dọn đạn hàng loạt.</summary>
+    /// <summary>Kết thúc lượt bay và trả vỏ về pool. ProjectileSystem cũng gọi khi dọn đạn hàng loạt.</summary>
     internal void Release()
     {
         isFlying = false;
@@ -230,7 +230,7 @@ public sealed class ProjectileView : MonoBehaviour
     }
 
     /// <summary>
-    /// Trả visual con về pool. ProjectileManager gọi TRƯỚC khi trả vỏ về pool; xóa reference trước khi trả
+    /// Trả visual con về pool. ProjectileSystem gọi TRƯỚC khi trả vỏ về pool; xóa reference trước khi trả
     /// để không trả cùng một visual hai lần.
     /// </summary>
     internal void ClearVisual()

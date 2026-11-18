@@ -27,30 +27,35 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | Hệ thống | Thành phần chính | Trách nhiệm hiện tại |
 | --- | --- | --- |
 | Khởi tạo | GameSceneInstaller, Zenject | Bind dependency, thứ tự khởi tạo và dọn dịch vụ. |
-| Save | SaveManager, SaveMigration | Đọc/ghi theo key, retry snapshot lỗi; chuyển save cũ sang các section. |
-| Tiền tệ | CurrencyService, CurrencyType | Sở hữu số dư vàng/kim cương; cộng/trừ và lưu ví ngay khi thay đổi. |
+| **Save** (kiến trúc mới) | **SaveManager**, SaveContracts, SaveStorage, SaveMigration | Manager duy nhất được bind: mở file, migration ngay trong Initialize, đọc/ghi theo key, retry snapshot lỗi. Miền khác chỉ dùng `ISaveStore`/`ISaveMaintenance`. |
+| **Progression** (kiến trúc mới) | **ProgressionManager**, ProgressionContracts | Manager duy nhất được bind; tự tạo Wallet, CharacterLevels, Loadout, StageProgress. Miền khác chỉ dùng `IWallet`, `IPermanentBonuses`, `IStageProgress`. |
+| ↳ Ví | Wallet, CurrencyType | Số dư vàng/kim cương; cộng/trừ và lưu ví ngay khi thay đổi. |
+| ↳ Level vĩnh viễn | CharacterLevels, CharacterLevelConfigSO, LevelDatabaseSO | Level vĩnh viễn theo nhân vật, bonus, chi phí nâng cấp. |
+| ↳ Trang bị | Loadout, EquipmentDatabaseSO | Loadout và tổng bonus theo dữ liệu trang bị. |
+| ↳ Mốc vượt màn | StageProgress | Đánh dấu màn đã thắng lần đầu và cấp thưởng thắng trong cùng một lần lưu. |
 | **Character** (kiến trúc mới) | **CharacterManager**, CharacterContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng CharacterContracts.cs. |
 | ↳ Spawn | CharacterFactory, CharacterRegistry, CharacterRuntimePool | Ghép vỏ, runtime và hành vi; danh sách nhân vật đang sống; phát CharacterAdded/Removed/Died. |
 | ↳ View | CharacterView, CharacterPresentation, CharacterFeedback | Vỏ MonoBehaviour điều phối vòng đời; hướng quay/animation/ẩn hiện; nháy trắng và màu trạng thái. |
 | ↳ Chỉ số | CharacterRuntimeData, StatSheet, StatCalculator | HP/giáp của lượt spawn; mọi nguồn bonus thêm qua `Stats.AddSource` (lease); một công thức duy nhất. |
 | ↳ Tìm mục tiêu | CharacterSearch, CharacterSearchFactory | Strategy gần nhất / trúng đầu tiên trên đường quét / mọi mục tiêu trong vòng tròn. |
-| ↳ Player | PlayerManager, PlayerController | Nhân vật đang chơi, input; giữ một nguồn bonus level/trang bị và cập nhật tại chỗ. |
+| ↳ Player | PlayerSystem, PlayerController | Nhân vật đang chơi, input; giữ một nguồn bonus level/trang bị và cập nhật tại chỗ. |
 | Enemy/boss | EnemySpawner (trong Stage), EnemyController, WaveConfigSO | Chọn đợt/quái, sinh theo vùng, đuổi player, tách đàn và thu hồi. |
-| Visual | CharacterVisualSettings, EnemyVisualManager | Prefab visual theo loại, layout, hitbox và bật/tắt visual enemy theo camera. |
-| Pool | PoolManager, PoolPrewarmService, ClassPool | Tạo sẵn/tái sử dụng GameObject và object C# thuần. |
+| Visual | CharacterVisualSettings, EnemyVisibility | Prefab visual theo loại, layout, hitbox và bật/tắt visual enemy theo camera. |
+| **Pool** (kiến trúc mới) | **PoolManager**, PoolContracts, ClassPool | Manager duy nhất được bind: thuê/trả GameObject qua LeanPool. Kế hoạch prewarm nằm ở miền Game (GamePrewarm). |
 | **Combat** (kiến trúc mới) | **CombatManager**, CombatContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng CombatContracts.cs. |
-| ↳ Skill | CharacterSkills, SkillRuntime, SkillManager, SkillFactory, SkillServices | Data đầy đủ theo cấp, ghép hành vi bằng enum; tách nguồn Character/Gameplay, quản lý cooldown và vòng đời. |
-| ↳ Shooting | ShootingSkill, IShooter, ProjectileManager | Kiểu bắn do asset chọn ([SerializeReference]); ProjectileManager sở hữu trọn vòng đời đạn. |
-| ↳ Effect gameplay | EffectManager, EffectRuntimePool | Áp dụng/lập lịch/reset runtime làm chậm và sát thương theo thời gian. |
+| ↳ Skill | CharacterSkills, SkillRuntime, SkillSystem, SkillFactory, SkillServices | Data đầy đủ theo cấp, ghép hành vi bằng enum; tách nguồn Character/Gameplay, quản lý cooldown và vòng đời. |
+| ↳ Shooting | ShootingSkill, IShooter, ProjectileSystem | Kiểu bắn do asset chọn ([SerializeReference]); ProjectileSystem sở hữu trọn vòng đời đạn. |
+| ↳ Effect gameplay | EffectSystem, EffectRuntimePool | Áp dụng/lập lịch/reset runtime làm chậm và sát thương theo thời gian. |
 | ↳ Effect hình ảnh | CombatAssetsSO, CombatVfx, EffectView | Tra và phát prefab VFX; tách khỏi trạng thái effect gameplay. |
-| Level | LevelManager, CharacterLevelService, RunLevelService | Level vĩnh viễn và EXP/level của lượt chơi. |
-| Trang bị | PlayerEquipmentService, EquipmentDatabaseSO | Loadout và tổng bonus theo dữ liệu trang bị. |
 | **Stage** (kiến trúc mới) | **StageManager**, StageContracts, StageRewards | Manager duy nhất được bind của miền; tự tạo EnemySpawner, ba spawn system (Wave/Formation/Boss) và BossArena. Chọn map, xác nhận clear và cấp thưởng kết quả một lần. |
 | ↳ Stage results | StageRewards | Thưởng thắng/thua + first-clear, chặn cấp hai lần. |
-| ↳ Stage progression | StageProgressService (tạm ở Stage/, sang Progression ở GĐ 5) | Đánh dấu màn đã vượt lần đầu và cấp thưởng vượt màn cùng lúc lưu. |
-| Loot/lượt chơi | LootManager, PickupView, RunSessionManager | Vật phẩm rơi, nhận EXP/vàng, đồng hồ và số enemy bị hạ. |
-| UI | UIManager, RunUI, CharacterUI, PauseUI | Trạm UI, HUD trận, máu/giáp theo nhân vật và pause. |
-| **Simulation** (kiến trúc mới) | **SimulationManager**, SimulationContracts, MovementManager, SpatialManager | Burst/Jobs với buffer dùng lại: cập nhật movement và truy vấn không gian. Miền khác chỉ dùng SimulationContracts.cs. |
+| **Run** (kiến trúc mới) | **RunManager**, RunContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng RunContracts.cs (`IRunReader`, `IRunLifecycle`). |
+| ↳ Đồng hồ, thống kê | RunClock, RunStatistics | Giây gameplay khi Player sống; vàng nhặt được và số quái bị hạ (chỉ thống kê). |
+| ↳ Level trận | RunLevel, RunLevelProgress, RunLevelConfigSO | EXP/level của lượt; tự thêm một nguồn bonus vào `StatSheet` của Player khi Player xuất hiện. |
+| ↳ Loot | LootSystem, PickupView, LootDatabaseSO | Rơi EXP/vàng khi quái chết, nhặt theo bán kính ở LateTick; RunManager chuyển EXP → RunLevel, vàng → ví + thống kê. |
+| **Game** (kiến trúc mới) | **GameManager**, GameContracts, GameStateMachine, GamePause, GamePrewarm | Manager duy nhất được bind: loading → Home → trận → kết quả. UI dùng `IGameState`, `IGameFlow`, `IGamePause`, `ILoadingProgress`. |
+| UI | UIManager, ScreenTransitionController, RunUI, CharacterUI, PauseUI, SkillChoiceController | Panel là MonoBehaviour trong scene (tự inject). UIManager chọn panel theo GameState; chỉ ScreenTransitionController được bind (`UIContracts.cs`). Bảng chọn skill chỉ trình bày; logic nằm ở `ISkillChoice` (Run). |
+| **Simulation** (kiến trúc mới) | **SimulationManager**, SimulationContracts, MovementSystem, SpatialSystem | Burst/Jobs với buffer dùng lại: cập nhật movement và truy vấn không gian. Miền khác chỉ dùng SimulationContracts.cs. |
 | **World** (kiến trúc mới) | **WorldManager**, WorldContracts, GroundChunks | Map nền theo key (Stage gọi `IWorldMap.SetMap`) và nền lặp theo vị trí Player. Cấu hình ở GameSceneInstaller > World. |
 
 Boss thuộc phe Enemy; `IsBoss` đánh dấu loại nhân vật để hiển thị thanh máu.
@@ -60,12 +65,12 @@ Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
 
 ```text
 Bind dịch vụ và inject scene
-→ SaveManager.Initialize (-200)
-→ SaveMigration.Initialize (-180)
-→ CurrencyService / CharacterLevelService / PlayerEquipmentService / CharacterManager.Initialize (-150)
-→ RunSessionManager.Initialize (-50)
-→ Các service scene còn lại Initialize
-→ GameManager.Initialize (100)
+→ SaveManager.Initialize (-200): mở file + migration
+→ ProgressionManager.Initialize (-160): ví, level vĩnh viễn, trang bị, mốc vượt màn
+→ CharacterManager.Initialize (-150): nhân vật đang chọn
+→ Các service scene còn lại Initialize (thứ tự mặc định 0)
+→ WorldManager.Initialize (50): đặt map ban đầu trước khi vào Home
+→ GameManager.Initialize (100): GamePrewarm tạo sẵn pool/buffer
 → prewarm → Home → PreparingRun → reset trận → spawn Player → Playing
 → Gameplay/spawner được phép hoạt động
 ```
@@ -97,14 +102,14 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 
 - `CharacterDataSO.Skills` là danh sách skill được trang bị sẵn cho loại nhân vật.
 - `SkillDataSO` giữ cấu hình; behavior runtime thuộc cá thể/lượt chơi.
-- `CharacterSkills` quản lý skill gắn sẵn; `SkillManager` quản lý lịch skill của lượt chơi.
+- `CharacterSkills` quản lý skill gắn sẵn; `SkillSystem` quản lý lịch skill của lượt chơi.
 - Shooting hiện bắn theo cooldown và `ProjectileCount`.
 - Cơ chế băng đạn/nạp đạn cùng UI số đạn/thanh nạp đã được gỡ.
 
 ## UI và visual hiện tại
 
 - Hai prefab trong `Prefabs/CharacterType` dùng `CharacterVisualHandle` nhận enum/event từ `CharacterView` để quay mặt toàn mô hình và phát animation. Xem [Character visual events](Character-Visual-Events.md).
-- `ResultController` dùng chung cho Won/Lost: mở popup Victory/Defeat có sẵn trong SampleScene, gọi `StaggeredPopupTween` hiện có để scale nội dung và cho Continue bắt đầu trận mới. Popup chạy bằng unscaled time; Player được phát hết Death trước khi chuyển Lost. Điều kiện thắng vẫn do gameplay gọi `GameManager.WinRun()`.
+- `ResultController` dùng chung cho Won/Lost: mở popup Victory/Defeat có sẵn trong SampleScene, gọi `StaggeredPopupTween` hiện có để scale nội dung và cho Continue bắt đầu trận mới. Popup chạy bằng unscaled time; Player được phát hết Death trước khi chuyển Lost. Thắng khi Stage phát `IStageResults.Cleared`.
 
 - Thanh máu dùng `Slider_Player` trên Canvas world space của character.
 - Player và boss hiển thị máu/giáp; enemy thường không bật thanh này.
@@ -133,6 +138,15 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 | [Character stats](../../Assets/_Project/DataSO/Documentation/CharacterStats.md) | Chỉ số và công thức bonus. |
 | [Combat and skills](../../Assets/_Project/DataSO/Documentation/CombatAndSkills.md) | Tài liệu combat/skill bổ sung. |
 | [Simulation](../../Assets/_Project/Scripts/Simulation/README.md) | Movement, spatial và batch truy vấn; vai trò của miền và ai dùng. |
-| [Refactor architecture](Refactor-Architecture.md) | Kiến trúc đích, quy tắc và tiến độ từng giai đoạn. |
-| [Character blueprint](Character-EventDriven-OOP.md) | Tham khảo thiết kế ban đầu, không phải mô tả đầy đủ code hiện tại. |
-| [Character demo](Character-Architecture-Demo.md) | Demo/blueprint nhân vật, có phần chưa triển khai. |
+| [Refactor architecture](Refactor-Architecture.md) | Kiến trúc, quy tắc và lịch sử các giai đoạn refactor. |
+| [Verification](../Tools/Verification.md) | Các bước kiểm tra contract, binding Zenject và smoke test. |
+
+## Tài liệu lịch sử (không mô tả code hiện tại)
+
+Các file dưới đây có tiêu đề bắt đầu bằng **[LỊCH SỬ]** và banner 📜 ở đầu. Chỉ dùng để tra lại quá trình refactor.
+
+| Tài liệu | Ghi lại gì |
+| --- | --- |
+| [Spawn-Folders](Spawn-Folders.md) | Danh sách di chuyển file khi gom spawn vào `Scripts/Spawning/` (trước Task 3.5). |
+| [Stage-Spawn-Refactor](Stage-Spawn-Refactor.md) | Báo cáo tách Stage khỏi spawn manager, thời còn registry `IStageSpawnSystem`. |
+| [Formation-Spawn-Separation](Formation-Spawn-Separation.md) | Tách hình học Formation khỏi cách spawn, thời còn `IStageSpawnSystem`; cấu hình hiện tại xem `Scripts/Stage/Patterns/README.md`. |

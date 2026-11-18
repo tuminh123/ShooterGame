@@ -26,7 +26,7 @@ public sealed class PlayerController : CharacterControllerBase
         input += new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
 #endif
         input = Vector2.ClampMagnitude(input, 1f);
-        // * MovementManager chuẩn hóa hướng nên nhân tốc độ với độ nghiêng để giữ điều khiển analog.
+        // * MovementSystem chuẩn hóa hướng nên nhân tốc độ với độ nghiêng để giữ điều khiển analog.
         view.Move(input, runtime.FinalStats.moveSpeed * input.magnitude);
     }
 

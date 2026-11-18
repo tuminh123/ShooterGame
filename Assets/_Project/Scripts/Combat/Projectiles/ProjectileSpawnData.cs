@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Thông số của một viên đạn, chốt tại thời điểm bắn. Skill, AI hay bất kỳ nguồn nào cũng có thể
-/// tạo struct này để bắn qua <see cref="ProjectileManager.SpawnBullet"/>.
+/// tạo struct này để bắn qua <see cref="ProjectileSystem.SpawnBullet"/>.
 /// </summary>
 public readonly struct ProjectileSpawnData
 {

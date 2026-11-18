@@ -11,8 +11,7 @@ public sealed class RunUI : MonoBehaviour
     [SerializeField] private TextView timeText;
     [SerializeField] private TextView levelText;
     [SerializeField] private TextView defeatedText;
-    private IRunProgress levels;
-    private IRunStatistics session;
+    private IRunReader run;
     private bool subscribed;
 
     #endregion
@@ -20,40 +19,39 @@ public sealed class RunUI : MonoBehaviour
     #region Injection And Subscription
 
     [Inject]
-    public void Construct(ILevelService levelService, IRunSession runSession)
+    public void Construct(IRunReader runReader)
     {
-        this.levels = levelService.GetRunProgress();
-        this.session = runSession.GetRunStatistics();
+        this.run = runReader;
         if (isActiveAndEnabled) Subscribe();
     }
 
     private void OnEnable()
     {
-        if (levels != null) Subscribe();
+        if (run != null) Subscribe();
     }
 
     private void Subscribe()
     {
         if (subscribed) return;
         subscribed = true;
-        levels.RunExperienceChanged += RefreshExperience;
-        session.GoldChanged += RefreshGold;
-        session.TimeChanged += RefreshTime;
-        session.EnemiesDefeatedChanged += RefreshDefeated;
-        RefreshExperience(levels.RunExperience, levels.RunExperienceToNextLevel);
-        RefreshGold(session.Gold);
-        RefreshTime(session.ElapsedSeconds);
-        RefreshDefeated(session.EnemiesDefeated);
+        run.ExperienceChanged += RefreshExperience;
+        run.GoldChanged += RefreshGold;
+        run.TimeChanged += RefreshTime;
+        run.EnemiesDefeatedChanged += RefreshDefeated;
+        RefreshExperience(run.Experience, run.ExperienceToNextLevel);
+        RefreshGold(run.Gold);
+        RefreshTime(run.ElapsedSeconds);
+        RefreshDefeated(run.EnemiesDefeated);
     }
 
     private void OnDisable()
     {
         if (!subscribed) return;
         subscribed = false;
-        levels.RunExperienceChanged -= RefreshExperience;
-        session.GoldChanged -= RefreshGold;
-        session.TimeChanged -= RefreshTime;
-        session.EnemiesDefeatedChanged -= RefreshDefeated;
+        run.ExperienceChanged -= RefreshExperience;
+        run.GoldChanged -= RefreshGold;
+        run.TimeChanged -= RefreshTime;
+        run.EnemiesDefeatedChanged -= RefreshDefeated;
     }
 
     #endregion
@@ -63,7 +61,7 @@ public sealed class RunUI : MonoBehaviour
     private void RefreshExperience(int current, int required)
     {
         experienceBar.SetValue(required > 0 ? current : 1, required > 0 ? required : 1);
-        levelText.SetText(levels.RunLevel.ToString());
+        levelText.SetText(run.Level.ToString());
     }
 
     private void RefreshGold(int amount) => goldText.SetText(amount.ToString());
