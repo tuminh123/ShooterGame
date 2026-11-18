@@ -1,6 +1,7 @@
 using System;
 
-// Hành vi buff owner bằng modifier chung; không switch riêng theo damage/crit/giáp.
+/// <summary>Hành vi tăng/giảm chỉ số: giữ một modifier chỉ số trên chủ nhân trong suốt thời gian sở hữu skill.</summary>
+/// <remarks>Dùng chung modifier của hệ chỉ số nên không cần switch theo loại chỉ số. Lên cấp thì thay modifier tại chỗ. Data: <see cref="StatBonusData"/>.</remarks>
 [Serializable]
 public sealed class StatBonusSkill : Skill
 {
@@ -37,7 +38,7 @@ public sealed class StatBonusSkill : Skill
             if (!disposed) applied = value;
             return;
         }
-        StatModifierLease token = Owner.Identity.AddModifier(value);
+        StatModifierLease token = Owner.Identity.Stats.AddSource(value);
         if (disposed) token.Dispose();
         else { modifier = token; applied = value; }
     }

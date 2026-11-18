@@ -2,15 +2,20 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// * Ghép dữ liệu, hành vi và vỏ tại một chỗ; Player/Enemy dùng chính xác cùng prefab và pool của vỏ.
-public sealed class CharacterFactory : IDisposable, ICharacterFactory, ICharacterSpawn, ICharacterDespawn
+/// <summary>
+/// Ghép template, runtime, controller và vỏ thành một nhân vật tại một chỗ duy nhất, và thu hồi ngược lại.
+/// Player và quái dùng chính xác cùng một prefab vỏ và cùng pool.
+/// </summary>
+/// <remarks>Do <see cref="CharacterManager"/> tạo; miền khác dùng qua <see cref="ICharacterSpawn"/>/<see cref="ICharacterDespawn"/>.</remarks>
+public sealed class CharacterFactory : IDisposable, ICharacterSpawn, ICharacterDespawn
 {
-
     #region Dependencies And State
+
     private readonly CharacterView prefab; // * Prefab vỏ duy nhất do GameSceneInstaller truyền vào.
     private readonly IGameObjectPool pools; // * Chuẩn bị clone dưới nhánh tắt trước khi cho OnEnable chạy.
-    private readonly ICharacterRegistration characters;
-    private readonly ICharacterRuntimeLease runtimes;
+    private readonly CharacterRegistry characters;
+    private readonly CharacterRuntimePool runtimes;
+    private readonly CharacterContext context; // Dịch vụ truyền vào mọi vỏ lúc spawn.
     private readonly HashSet<CharacterView> activeCharacters = new HashSet<CharacterView>(); // * Chỉ thu hồi các cá thể do factory này tạo, kể cả lúc đóng scene.
     private bool disposed; // * Ngăn tạo thêm nhân vật khi scene đang giải phóng dịch vụ.
 
@@ -18,22 +23,20 @@ public sealed class CharacterFactory : IDisposable, ICharacterFactory, ICharacte
 
     #region Initialization
 
-    public CharacterFactory(
-        CharacterView prefab,
-        IPoolSystem poolSystem,
-        ICharacterSystem characterSystem,
-        ICharacterRuntimePool characterRuntimePool)
+    public CharacterFactory(CharacterView prefab, IGameObjectPool pools, CharacterRegistry characters, CharacterContext context)
     {
         this.prefab = prefab;
-        this.pools = poolSystem.GetGameObjectPool();
-        this.characters = characterSystem.GetCharacterRegistration();
-        this.runtimes = characterRuntimePool.GetCharacterRuntimeLease();
+        this.pools = pools ?? throw new ArgumentNullException(nameof(pools));
+        this.characters = characters ?? throw new ArgumentNullException(nameof(characters));
+        this.context = context ?? throw new ArgumentNullException(nameof(context));
+        runtimes = context.Runtimes;
     }
 
     #endregion
 
     #region Creation
 
+    /// <inheritdoc/>
     public CharacterView Spawn(
         CharacterDataSO template,
         StatBonus bonus,
@@ -52,7 +55,8 @@ public sealed class CharacterFactory : IDisposable, ICharacterFactory, ICharacte
         catch { runtimes.TryReturn(runtime, generation); throw; }
     }
 
-    public CharacterView Spawn(
+    // Overload nội bộ: runtime đã được thuê sẵn từ pool.
+    private CharacterView Spawn(
         CharacterDataSO template,
         CharacterRuntimeData runtime,
         ICharacterController controller,
@@ -70,7 +74,7 @@ public sealed class CharacterFactory : IDisposable, ICharacterFactory, ICharacte
                 CharacterView view = clone.GetComponent<CharacterView>();
                 try
                 {
-                    view.Initialize(template, runtime, controller);
+                    view.Initialize(context, template, runtime, controller);
                 }
                 catch
                 {
@@ -126,27 +130,31 @@ public sealed class CharacterFactory : IDisposable, ICharacterFactory, ICharacte
 
     #region Cleanup
 
+    /// <summary>
+    /// Thu hồi mọi nhân vật do factory này tạo: Player, quái, boss, kể cả nhân vật đang chạy animation chết.
+    /// Duyệt danh sách của factory (nguồn đầy đủ nhất), không duyệt registry. Một nhân vật lỗi không chặn các nhân vật còn lại.
+    /// </summary>
+    public void DespawnAll()
+    {
+        // Despawn sửa activeCharacters (và có thể gọi lồng nhau qua callback), nên duyệt bản sao.
+        var remaining = new CharacterView[activeCharacters.Count];
+        activeCharacters.CopyTo(remaining);
+        foreach (CharacterView character in remaining)
+        {
+            try { Despawn(character); }
+            catch (Exception exception) { Debug.LogException(exception); }
+        }
+    }
+
     // * Installer gọi trước PoolManager.Dispose để visual con luôn được trả trước khi vỏ bị tắt.
     public void Dispose()
     {
         if (disposed)
             return;
         disposed = true;
-        var remaining = new CharacterView[activeCharacters.Count];
-        activeCharacters.CopyTo(remaining);
-        foreach (CharacterView character in remaining)
-            Despawn(character);
+        DespawnAll();
         activeCharacters.Clear();
     }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ICharacterSpawn GetCharacterSpawn() => this;
-
-    public ICharacterDespawn GetCharacterDespawn() => this;
 
     #endregion
 }

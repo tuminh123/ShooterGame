@@ -1,13 +1,18 @@
 using System;
 using UnityEngine;
 
-// Facade gameplay: chỉ chọn cách tìm qua factory; strategy giữ logic truy vấn và chuyển kết quả.
-public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch, ICharacterRegionSearch, ICharacterTargetSearch
+/// <summary>
+/// Tìm nhân vật cho gameplay: chọn strategy qua factory, chuẩn bị request và vẽ debug. Thuật toán nằm trong strategy.
+/// </summary>
+/// <remarks>Do <see cref="CharacterManager"/> tạo; miền khác dùng qua <see cref="ICharacterSearch"/> (lấy từ <see cref="CharacterView.Search"/>).</remarks>
+public sealed class CharacterSearch : ICharacterSearch
 {
     #region Dependencies
-    private readonly ICharacterSearchFactory searchFactory; // Chọn strategy qua interface, không giữ SpatialManager.
 
-    public CharacterSearch(ICharacterSearchFactory searchFactory)=> this.searchFactory = searchFactory;
+    private readonly CharacterSearchFactory searchFactory; // Chọn strategy; không giữ SpatialManager.
+
+    public CharacterSearch(CharacterSearchFactory searchFactory)
+        => this.searchFactory = searchFactory ?? throw new ArgumentNullException(nameof(searchFactory));
 
     #endregion
 
@@ -24,8 +29,8 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
     // Cặp đã biết thì kiểm tra trực tiếp hai hộp, không cần tìm lại trong toàn bộ grid.
     public static bool Overlaps(CharacterView first, CharacterView second)
     {
-        return first != second && new CharacterTarget(first).TryGetCharacter(out _) &&
-            new CharacterTarget(second).TryGetCharacter(out _) &&
+        return first != second && new CharacterHandle(first).TryGetCharacter(out _) &&
+            new CharacterHandle(second).TryGetCharacter(out _) &&
             SpatialGeometry.BoxesOverlap(first.GetSpatialEntity(), second.GetSpatialEntity());
     }
 
@@ -37,12 +42,12 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
     public bool TryFind(
         CharacterSearchType type,
         CharacterSearchRequest request,
-        out CharacterTarget target,
+        out CharacterHandle target,
         out Vector2 hitPosition)
         => searchFactory.GetSingle(type).TryFind(request, out target, out hitPosition);
 
     // Caller giữ buffer qua nhiều lượt; giá trị trả về là số phần tử hợp lệ trong mảng.
-    public int FindAll(CharacterSearchType type, CharacterSearchRequest request, ref CharacterTarget[] results)
+    public int FindAll(CharacterSearchType type, CharacterSearchRequest request, ref CharacterHandle[] results)
         => searchFactory.GetMultiple(type).FindAll(request, ref results);
 
     #endregion
@@ -52,10 +57,10 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
     // Các hàm dưới giữ cách gọi ngắn cho gameplay; đều chuyển tới strategy qua interface ở trên.
 
     // Tìm gần nhất; facade chỉ chuẩn bị dữ liệu và debug, strategy quyết định cách tìm.
-    public CharacterTarget FindNearest(Vector2 center, float radius, CharacterTeam targetTeam, CharacterView exclude = null)
+    public CharacterHandle FindNearest(Vector2 center, float radius, CharacterTeam targetTeam, CharacterView exclude = null)
     {
         var request = new CharacterSearchRequest(center, center, radius, targetTeam, exclude);
-        TryFind(CharacterSearchType.Nearest, request, out CharacterTarget target, out _);
+        TryFind(CharacterSearchType.Nearest, request, out CharacterHandle target, out _);
         DrawSearchCircle(center, radius);
         return target;
     }
@@ -65,7 +70,7 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
         Vector2 center,
         float radius,
         CharacterTeam targetTeam,
-        ref CharacterTarget[] results,
+        ref CharacterHandle[] results,
         CharacterView exclude = null)
     {
         var request = new CharacterSearchRequest(center, center, radius, targetTeam, exclude);
@@ -75,7 +80,7 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
     }
 
     // Quét đường bay và trả tâm đạn tại điểm trúng đầu tiên.
-    public CharacterTarget FindFirstOnPath(
+    public CharacterHandle FindFirstOnPath(
         Vector2 origin,
         float radius,
         Vector2 direction,
@@ -86,7 +91,7 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
         if (float.IsNaN(distance) || float.IsInfinity(distance) || distance < 0f)
             throw new ArgumentOutOfRangeException(nameof(distance));
         var request = new CharacterSearchRequest(origin, origin + direction.normalized * distance, radius, targetTeam);
-        bool found = TryFind(CharacterSearchType.FirstOnPath, request, out CharacterTarget target, out hitPosition);
+        bool found = TryFind(CharacterSearchType.FirstOnPath, request, out CharacterHandle target, out hitPosition);
         DrawSearchPath(origin, radius, direction, distance, found ? (Vector2?)hitPosition : null);
         return target;
     }
@@ -137,17 +142,6 @@ public sealed class CharacterSearch : ICharacterSearch, ICharacterSearchDispatch
             previous = next;
         }
     }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ICharacterSearchDispatch GetCharacterSearchDispatch() => this;
-
-    public ICharacterRegionSearch GetCharacterRegionSearch() => this;
-
-    public ICharacterTargetSearch GetCharacterTargetSearch() => this;
 
     #endregion
 }

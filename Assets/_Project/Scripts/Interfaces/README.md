@@ -1,5 +1,19 @@
 # Service contracts và Zenject
 
+> ⚠️ **Tài liệu này mô tả kiến trúc CŨ, đang được thay thế.** Xem `Docs/Architecture/Refactor-Architecture.md`.
+>
+> - **Miền Combat đã chuyển xong** (Giai đoạn 1): các interface của Combat **không còn** nằm trong thư mục này.
+>   Ranh giới của miền nằm trong `Combat/CombatContracts.cs`; các strategy (`ISkill`, `IShooter`, `IProjectileMove`,
+>   `IGameplayEffect`, `IEffectVisual`) nằm cạnh họ của chúng trong `Combat/`. Mọi đoạn bên dưới nhắc tới
+>   `ISkillSystem`, `ISkillFactory`, `ISkillServices`, `IEffectSystem`, `IProjectileSystem`, `ICombatSpawnSystem`… là code đã bị xóa.
+> - **Miền Simulation và Character đã chuyển xong** (Giai đoạn 2): `Interfaces/Characters/` và `Interfaces/Core/JobSystem/`
+>   **không còn**. Ranh giới nằm trong `Simulation/SimulationContracts.cs` và `Characters/CharacterContracts.cs`;
+>   strategy `ICharacterController`, `ISingleCharacterSearch`/`IMultipleCharacterSearch` và `ISpatialSearchStrategy`
+>   nằm cạnh họ của chúng. Mục "CharacterView và skill" bên dưới (inject, `Construct`, facade getter) đã lỗi thời:
+>   `CharacterView` nhận dịch vụ qua `CharacterContext` lúc Initialize, còn skill do `CombatManager` quản lý.
+> - Quy tắc "tối đa ba phương thức" và facade getter bên dưới **không áp dụng** cho code mới.
+> - Thư mục `Interfaces/` sẽ bị xóa ở Giai đoạn 7, khi mọi miền đã chuyển xong.
+
 ## Quy tắc hợp đồng
 
 - Interface chức năng khai báo tối đa ba phương thức. Mỗi overload tính riêng.

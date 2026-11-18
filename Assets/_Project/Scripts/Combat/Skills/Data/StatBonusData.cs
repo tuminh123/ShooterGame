@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
 
-// Một tác động stat ở cấp hiện tại, dùng được cho cả buff dương và debuff âm.
+/// <summary>Thông số của <see cref="StatBonusSkill"/> tại một cấp: chỉ số nào, cộng thẳng hay phần trăm, giá trị bao nhiêu (âm là debuff).</summary>
+/// <remarks>Chỉ đọc, không chứa state runtime. Không đổi tên class hoặc field: Unity lưu chúng trong asset skill.</remarks>
 [Serializable]
 public sealed class StatBonusData : SkillBehaviourData
 {

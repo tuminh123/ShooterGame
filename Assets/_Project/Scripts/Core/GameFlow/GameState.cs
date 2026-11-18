@@ -1,4 +1,4 @@
-// State trận đấu được phát cho gameplay và UI qua GameUIEventBus.
+// State trận đấu. GameManager là nơi duy nhất ghi, và phát cho UI qua IGameStateReader.StateChanged.
 public enum GameState
 {
     Boot, // Scene đang khởi tạo tài nguyên.

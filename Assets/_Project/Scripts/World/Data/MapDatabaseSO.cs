@@ -16,7 +16,7 @@ public sealed class MapDatabaseSO : ScriptableObject
         // ! Key phân biệt chữ hoa/thường; dùng cùng một cách viết trong Level Data.
         [Tooltip("Khóa map phân biệt hoa/thường; phải khớp Map Key trong StageDataSO. Không để trống hoặc trùng.")]
         public string key;
-        [Tooltip("Sprite nền được gán cho các chunk của map. Kích thước lưới vẫn do GroundChunkManager quyết định.")]
+        [Tooltip("Sprite nền được gán cho các chunk của map. Kích thước lưới do WorldManager.Settings (Chunk Size) quyết định.")]
         public Sprite sprite;  // * Ảnh nền được gán lên SpriteRenderer của chunk.
     }
 

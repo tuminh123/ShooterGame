@@ -38,7 +38,7 @@ public sealed class CharacterUI : MonoBehaviour
         if (showsVitals)
         {
             runtime.Changed += RefreshVitals;
-            character.VisualVisibilityChanged += OnVisualVisibilityChanged;
+            character.Presentation.VisibilityChanged += OnVisualVisibilityChanged;
             character.Deactivated += Unbind;
         }
         RefreshVitals();
@@ -50,7 +50,7 @@ public sealed class CharacterUI : MonoBehaviour
         if (runtime != null) runtime.Changed -= RefreshVitals;
         if (character != null)
         {
-            character.VisualVisibilityChanged -= OnVisualVisibilityChanged;
+            character.Presentation.VisibilityChanged -= OnVisualVisibilityChanged;
             character.Deactivated -= Unbind;
         }
         runtime = null;
@@ -72,7 +72,7 @@ public sealed class CharacterUI : MonoBehaviour
     {
         if (vitalsRoot == null) return;
         bool visible = showsVitals && runtime != null && runtime.IsAlive && character != null &&
-            character.isActiveAndEnabled && ReferenceEquals(character.RuntimeData, runtime) && character.IsVisualVisible;
+            character.isActiveAndEnabled && ReferenceEquals(character.RuntimeData, runtime) && character.Presentation.IsVisible;
         vitalsRoot.gameObject.SetActive(visible);
         // Bật rõ thanh nhỏ, không chỉ Canvas: thanh con có thể đang tắt trong prefab/Inspector.
         // Lớp giáp là con của healthBar nên không hiện nếu chỉ bật vitalsRoot.

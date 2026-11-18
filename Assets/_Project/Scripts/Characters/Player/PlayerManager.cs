@@ -1,10 +1,17 @@
 using System;
 using Terresquall;
 using UnityEngine;
-using Zenject;
 
-// * Class thuần quản lý Player; GameManager gọi SpawnPlayer/RemovePlayer theo luồng trận, Zenject quản lý Dispose.
-public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, IPlayerReader, IPlayerSelection, IPlayerLifecycle
+/// <summary>
+/// Quản lý Player: spawn/thu hồi theo luồng trận (GameManager gọi), áp bonus từ level vĩnh viễn, level trong trận
+/// và trang bị, và lưu nhân vật đang chọn.
+/// </summary>
+/// <remarks>
+/// Do <see cref="CharacterManager"/> tạo; miền khác dùng qua <see cref="IPlayerReader"/>/<see cref="IPlayerLifecycle"/>.
+/// ⏳ Việc nghe RunLevel (miền Run, nằm trên Character) là phụ thuộc ngược. Giai đoạn 4: miền Run tự thêm nguồn bonus
+/// level trận của nó vào <see cref="StatSheet"/> của Player (một lease riêng), và PlayerManager chỉ còn level vĩnh viễn + trang bị.
+/// </remarks>
+public sealed class PlayerManager : IDisposable, IPlayerReader, IPlayerLifecycle
 {
 
     #region Player Configuration & Dependencies
@@ -32,6 +39,9 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
     private readonly IPermanentLevelReader permanentLevels;
     private readonly IRunProgress levelsRunProgress;
     private readonly IEquipmentReader equipment;  // * Cung cấp bonus và thông báo khi trang bị thay đổi.
+    // Nguồn bonus của Player (level vĩnh viễn + level trận + trang bị) trong StatSheet của lượt spawn hiện tại.
+    // Cập nhật tại chỗ khi level/trang bị đổi; không cộng dồn thêm nguồn mới.
+    private StatModifierLease playerBonus;
     private bool disposed;                   // * Chặn tạo player sau khi dịch vụ kết thúc.
 
     #endregion
@@ -79,17 +89,17 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
 
     #region Service Initialization
 
-    // * Nhận dependency từ Zenject; constructor chưa tạo nhân vật.
+    // * CharacterManager tạo và truyền dependency; constructor chưa tạo nhân vật.
     public PlayerManager(
-        ICharacterFactory characterFactory,
+        CharacterFactory characterFactory,
         VirtualJoystick joystick,
         Settings settings,
         ISaveService saveService,
         ILevelService levelService,
         IEquipmentService equipmentService)
     {
-        this.characterSpawn = characterFactory.GetCharacterSpawn();
-        this.characterDespawn = characterFactory.GetCharacterDespawn();
+        this.characterSpawn = characterFactory ?? throw new ArgumentNullException(nameof(characterFactory));
+        this.characterDespawn = characterFactory;
         this.joystick = joystick;
         this.settings = settings;
         this.saveReader = saveService.GetSaveReader() ?? throw new ArgumentNullException(nameof(saveService));
@@ -121,12 +131,24 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
         CharacterDataSO template = levelCatalog.GetCharacter(type);
         if (template.Team != CharacterTeam.Player)
             throw new InvalidOperationException($"Selected character {type} must belong to the Player team.");
-        StatBonus bonus = permanentLevels.GetPermanentBonus(type) + levelsRunProgress.RunBonus + equipment.TotalBonus;
-        CurrentPlayer = characterSpawn.Spawn(template, bonus, new PlayerController(joystick), Vector3.zero);
-        if (CurrentPlayer == null)
+        CharacterView player = characterSpawn.Spawn(template, default, new PlayerController(joystick), Vector3.zero);
+        if (player == null)
             throw new InvalidOperationException("Could not spawn the Player shell.");
+        try
+        {
+            // Bonus là một nguồn có lease (không phải bonus lúc spawn), để RefreshRuntime cập nhật tại chỗ.
+            // Thêm ngay sau Spawn, khi Player chưa nhận sát thương nên HP vẫn đầy theo max mới.
+            playerBonus = player.RuntimeData.Stats.AddSource(CurrentBonus(type).ToModifiers());
+        }
+        catch
+        {
+            // Bonus không hợp lệ (NaN…): không để lại Player thiếu bonus trên scene.
+            characterDespawn.Despawn(player);
+            throw;
+        }
+        CurrentPlayer = player;
         CurrentPlayer.Released += OnPlayerReleased;
-        PlayerChanged?.Invoke(CurrentPlayer);
+        PlayerChanged?.Invoke(CurrentPlayer); // Phát sau khi bonus đã áp, để UI đọc đúng chỉ số cuối.
         return CurrentPlayer;
     }
 
@@ -155,6 +177,9 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
     private void DetachPlayer(CharacterView player)
     {
         player.Released -= OnPlayerReleased;
+        // Không Dispose: gỡ nguồn sẽ tính lại chỉ số và phát Changed trên một Player đang bị thu hồi.
+        // Runtime về pool sẽ xóa mọi nguồn và vô hiệu hóa lease này.
+        playerBonus = null;
     }
 
     #endregion
@@ -172,14 +197,18 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
         RefreshRuntime();
     }
 
+    // Level vĩnh viễn, level trận hoặc trang bị đổi: thay nguồn bonus của Player tại chỗ (không cộng thêm nguồn mới).
     private void RefreshRuntime()
     {
         CharacterRuntimeData runtime = RuntimeData;
-        if (disposed || runtime == null)
+        if (disposed || runtime == null || playerBonus == null)
             return;
-        CharacterType type = runtime.CharacterType;
-        runtime.SetExternalBonus(permanentLevels.GetPermanentBonus(type) + levelsRunProgress.RunBonus + equipment.TotalBonus);
+        playerBonus.Update(CurrentBonus(runtime.CharacterType).ToModifiers());
     }
+
+    // Tổng bonus cộng thẳng của Player: level vĩnh viễn + level trong trận + trang bị.
+    private StatBonus CurrentBonus(CharacterType type)
+        => permanentLevels.GetPermanentBonus(type) + levelsRunProgress.RunBonus + equipment.TotalBonus;
 
     #endregion
 
@@ -201,16 +230,4 @@ public sealed class PlayerManager : IInitializable, IDisposable, IPlayerSystem, 
     }
 
     #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public IPlayerReader GetPlayerReader() => this;
-
-    public IPlayerSelection GetPlayerSelection() => this;
-
-    public IPlayerLifecycle GetPlayerLifecycle() => this;
-
-    #endregion
-
 }

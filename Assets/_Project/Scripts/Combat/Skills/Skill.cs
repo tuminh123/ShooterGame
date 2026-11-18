@@ -1,22 +1,43 @@
 using System;
 
-// Các hàm mặc định cho hành vi; interface ISkill vẫn là hợp đồng thực thi.
+/// <summary>
+/// Class nền cho mọi hành vi skill. Cung cấp phần tạo bản sao runtime và hành vi mặc định
+/// cho các hàm không bắt buộc của <see cref="ISkill"/>.
+/// </summary>
+/// <remarks>
+/// Instance nằm trong <see cref="SkillDataSO"/> là <b>template</b> và không bao giờ chạy trực tiếp.
+/// Mỗi skill đang chạy dùng bản sao từ <see cref="CreateRuntime"/>, nhờ đó trạng thái runtime
+/// (field <c>[NonSerialized]</c>) không bao giờ bị ghi vào asset dùng chung.
+///
+/// Không đổi tên class con của Skill: Unity lưu tên class trong asset (<c>[SerializeReference]</c>),
+/// nên đổi tên sẽ làm mất dữ liệu đã cấu hình.
+/// </remarks>
 [Serializable]
-public abstract class Skill : ISkill, ISkillConfiguration, ISkillExecution, ISkillLifecycle
+public abstract class Skill : ISkill
 {
     #region Runtime Context
 
-    [NonSerialized] protected CharacterSkills Owner; // Context của đúng lượt spawn, không ghi vào asset.
-    [NonSerialized] protected ISkillServices Services; // Dịch vụ scene dùng chung, không sở hữu vòng đời của chúng.
+    /// <summary>Nhân vật sở hữu skill, đúng lượt spawn hiện tại. Không ghi vào asset.</summary>
+    [NonSerialized] protected CharacterSkills Owner;
+
+    /// <summary>Các dịch vụ combat dùng chung của scene. Hành vi chỉ dùng, không sở hữu vòng đời của chúng.</summary>
+    [NonSerialized] protected SkillServices Services;
+
+    /// <inheritdoc/>
     public abstract SkillBehaviourType Type { get; }
 
     #endregion
 
-    #region Initialization
+    #region Runtime Creation
 
-    // Factory chỉ clone mẫu; dữ liệu theo cấp được áp dụng sau khi runtime đã nhận ownership.
-    internal Skill CreateRuntime(CharacterSkills owner, ISkillServices services)
+    /// <summary>
+    /// Tạo bản sao chạy được từ template và gắn context. Data theo cấp được áp dụng sau,
+    /// khi <see cref="SkillRuntime"/> đã nhận quyền sở hữu bản sao này.
+    /// </summary>
+    internal Skill CreateRuntime(CharacterSkills owner, SkillServices services)
     {
+        // MemberwiseClone chỉ sao chép nông: field collection vẫn trỏ chung tới template,
+        // vì vậy class con có state dạng collection phải cấp phát lại trong InitializeRuntime.
         var runtime = (Skill)MemberwiseClone();
         runtime.Owner = owner;
         runtime.Services = services;
@@ -24,38 +45,30 @@ public abstract class Skill : ISkill, ISkillConfiguration, ISkillExecution, ISki
         return runtime;
     }
 
-    // Hành vi có collection/state mutable phải cấp phát lại để không dùng chung với template.
+    /// <summary>Hook cho class con reset hoặc cấp phát lại state runtime ngay sau khi clone.</summary>
     protected virtual void InitializeRuntime() { }
 
     #endregion
 
-    #region Behaviour Lifecycle
+    #region ISkill Defaults
 
-    // Bắt buộc nhận đúng loại data; runtime chịu trách nhiệm chọn cấp.
+    /// <inheritdoc/>
     public abstract void ApplyData(SkillBehaviourData data);
 
-    // Hành vi liên tục/buff không phải viết lại hàm cast rỗng.
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không có đòn chủ động, dành cho hành vi liên tục hoặc buff.</remarks>
     public virtual bool TryExecute() => false;
 
-    // Chỉ cưa/aura hoặc hành vi duy trì cần override.
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không làm gì; chỉ hành vi liên tục như cưa xoay hay aura mới override.</remarks>
     public virtual void Tick(float deltaTime) { }
 
-    // Hành vi có visual/state pause riêng mới cần override.
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không làm gì; chỉ hành vi có visual hoặc timer riêng mới override.</remarks>
     public virtual void SetPaused(bool paused) { }
 
-    // Hành vi sở hữu timer phụ, visual hoặc token stats phải thu hồi tại đây.
+    /// <summary>Thu hồi timer phụ, visual hoặc token chỉ số mà hành vi đang giữ.</summary>
     public virtual void Dispose() { }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ISkillConfiguration GetConfiguration() => this;
-
-    public ISkillExecution GetExecution() => this;
-
-    public ISkillLifecycle GetLifecycle() => this;
 
     #endregion
 }

@@ -2,17 +2,26 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Sở hữu skill Character/Equipment của một lượt spawn, độc lập với skill gameplay.
+/// <summary>
+/// Bộ skill vốn có (nguồn Character/Equipment) của một lượt spawn, và là context chung mà mọi skill
+/// của nhân vật đó (kể cả skill gameplay) dùng để biết chủ nhân còn hợp lệ hay không.
+/// </summary>
+/// <remarks>Tạo khi spawn, dispose khi chết hoặc despawn. Skill gameplay nhận trong trận do <see cref="SkillManager"/> giữ.</remarks>
 public sealed class CharacterSkills : IDisposable
 {
 
     #region Dependencies And State
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>();
-    private readonly ulong generation;
+    private readonly CharacterHandle handle; // Đúng lượt spawn đã tạo bộ skill này.
     private bool disposed, ticking;
     internal CharacterView Owner { get; }
-    internal CharacterRuntimeData Identity { get; }
-    internal bool IsValid => !disposed && Owner != null && ReferenceEquals(Owner.RuntimeData, Identity) && Identity.Generation == generation && Identity.IsAlive;
+    internal CharacterRuntimeData Identity { get; } // Runtime của lượt spawn: hành vi đọc phe, chỉ số và thêm modifier qua đây.
+
+    /// <summary>
+    /// Bộ skill vẫn thuộc đúng lượt spawn đang sống. Mọi <see cref="SkillRuntime"/> của bộ này đều dựa vào
+    /// điều kiện duy nhất này, nên không runtime nào phải tự so sánh generation nữa.
+    /// </summary>
+    internal bool IsValid => !disposed && handle.IsAlive;
     // Khóa hành động tạm thời không làm IsValid mất hiệu lực: skill phải còn để tiếp tục sau choáng.
     internal bool CanRun => IsValid && Owner.isActiveAndEnabled && Owner.CanUseSkills;
 
@@ -21,11 +30,11 @@ public sealed class CharacterSkills : IDisposable
     #region Initialization
 
     // CharacterView tạo context khi vỏ còn tắt; mọi runtime ban đầu thuộc context này.
-    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, ISkillRuntimeFactory factory)
+    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillFactory factory)
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Identity = owner.RuntimeData ?? throw new ArgumentException("Initialize character data before skills.");
-        generation = Identity.Generation;
+        handle = new CharacterHandle(owner);
         if (definitions == null) throw new ArgumentNullException(nameof(definitions));
         if (factory == null) throw new ArgumentNullException(nameof(factory));
         try

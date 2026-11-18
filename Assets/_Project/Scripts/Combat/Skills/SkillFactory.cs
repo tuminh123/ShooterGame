@@ -1,71 +1,43 @@
 using System;
 
-// Factory cung cấp dịch vụ và tạo instance hành vi từ mẫu; không quản lý cấp hoặc vòng tick.
-public sealed class SkillFactory :
-    ISkillFactory,
-    ISkillServices,
-    ISkillRuntimeFactory,
-    ISkillBehaviourFactory,
-    ISkillShootingServices,
-    ISkillEffectServices
+/// <summary>
+/// Tạo skill đang chạy (<see cref="SkillRuntime"/>) và các hành vi của nó từ template trong <see cref="SkillDataSO"/>.
+/// </summary>
+/// <remarks>
+/// Không quản lý cấp hay vòng tick; việc đó thuộc <see cref="SkillRuntime"/> và <see cref="SkillManager"/>.
+/// Do <see cref="CombatManager"/> tạo; không bind vào Zenject.
+/// </remarks>
+public sealed class SkillFactory
 {
-    #region Scene Services
+    #region Dependencies
 
-    public IProjectileSpawner Spawner { get; }
-    public IShootBehaviorFactory Shooters { get; }
-    public IProjectileMoveSelection Moves { get; }
-    public IGameObjectPool Pools { get; }
-    public IEffectApplication Effects { get; }
+    private readonly SkillServices services; // Truyền vào mọi hành vi được tạo; factory không sở hữu vòng đời của chúng.
 
-    // Zenject cấp các dịch vụ dùng chung; runtime con chỉ sở hữu state của riêng nó.
-    public SkillFactory(
-        ICombatSpawnSystem combatSpawnSystem,
-        IShootBehaviorFactory shooters,
-        IProjectileMoveFactory projectileMoveFactory,
-        IPoolSystem poolSystem,
-        IEffectSystem effectSystem)
-    {
-        Spawner = combatSpawnSystem.GetProjectileSpawner();
-        Shooters = shooters;
-        Moves = projectileMoveFactory.GetProjectileMoveSelection();
-        Pools = poolSystem.GetGameObjectPool();
-        Effects = effectSystem.GetEffectApplication();
-        EffectHandles = effectSystem.GetEffectHandleControl();
-    }
-
-    public IEffectHandleControl EffectHandles { get; }
+    public SkillFactory(SkillServices services)
+        => this.services = services ?? throw new ArgumentNullException(nameof(services));
 
     #endregion
 
-    #region Runtime Creation
+    #region Creation
 
-    // Điểm tạo một skill hoàn chỉnh; runtime sẽ mở các hành vi có data ở cấp bắt đầu.
+    /// <summary>
+    /// Tạo một skill hoàn chỉnh cho <paramref name="owner"/>. Runtime tự mở các hành vi có data ở cấp bắt đầu.
+    /// </summary>
     public SkillRuntime Create(SkillDataSO definition, CharacterSkills owner)
     {
         definition.Validate();
         return new SkillRuntime(definition, owner, this);
     }
 
-    // Enum tìm đúng mẫu; abstract Skill đã cung cấp việc clone và khởi tạo context.
+    /// <summary>Tạo bản sao chạy được của hành vi <paramref name="type"/> từ template trong <paramref name="definition"/>.</summary>
     public ISkill CreateBehaviour(SkillDataSO definition, SkillBehaviourType type, CharacterSkills owner)
     {
+        // Kiểm tra kiểu ở đây là kiểm tra dữ liệu, không phải chọn hành vi: chỉ class con của Skill
+        // mới có phần clone template an toàn. SkillDataSO.Validate cũng chặn trường hợp này từ sớm.
         if (!(definition.GetBehaviour(type) is Skill template))
             throw new InvalidOperationException("Behaviour templates must inherit Skill.");
-        return template.CreateRuntime(owner, this);
+        return template.CreateRuntime(owner, services);
     }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ISkillRuntimeFactory GetRuntimeFactory() => this;
-
-    public ISkillBehaviourFactory GetBehaviourFactory() => this;
-
-    public ISkillShootingServices GetShooting() => this;
-
-    public ISkillEffectServices GetEffects() => this;
 
     #endregion
 }

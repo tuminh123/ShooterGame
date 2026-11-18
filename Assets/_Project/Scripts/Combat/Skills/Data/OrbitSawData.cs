@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-// Cấu hình của một loại hành vi tại một cấp; không chứa state runtime.
+/// <summary>Thông số của <see cref="OrbitSawSkill"/> tại một cấp: số lưỡi, bán kính quỹ đạo, tốc độ quay, nhịp đánh lại.</summary>
+/// <remarks>Chỉ đọc, không chứa state runtime. Không đổi tên class hoặc field: Unity lưu chúng trong asset skill.</remarks>
 [Serializable]
 public sealed class OrbitSawData : SkillBehaviourData
 {

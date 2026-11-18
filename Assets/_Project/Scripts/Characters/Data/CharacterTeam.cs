@@ -1,4 +1,4 @@
-// * Phe dùng để phân biệt player với enemy; boss cũng thuộc phe Enemy.
+/// <summary>Phe dùng để phân biệt player với enemy; boss cũng thuộc phe Enemy.</summary>
 public enum CharacterTeam
 {
     Player = 0,  // * Phe người chơi.

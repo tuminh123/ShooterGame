@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi đánh thường: đánh mục tiêu gần nhất đang chạm hitbox, rồi áp effect nếu đòn trúng.</summary>
+/// <remarks>Data: <see cref="NormalAttackData"/>.</remarks>
 [Serializable]
 public sealed class NormalAttackSkill : Skill
 {
@@ -31,15 +32,15 @@ public sealed class NormalAttackSkill : Skill
     public override bool TryExecute()
     {
         if (!Owner.CanRun || data == null) return false;
-        CharacterTarget target = Owner.Owner.TargetSearch.FindNearest(Owner.Owner.HitPosition, data.range,
+        CharacterHandle target = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.range,
             CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
         if (!target.TryGetCharacter(out CharacterView victim) || !CharacterSearch.Overlaps(Owner.Owner, victim)) return false;
         DamageResult hit = Owner.Owner.DealDamage(target);
-        if (hit.Accepted && Services.GetEffects().Effects != null && Owner.CanRun)
+        if (hit.Accepted && Services.Effects != null && Owner.CanRun)
             foreach (IGameplayEffect effect in effects)
             {
                 if (!Owner.CanRun) break;
-                Services.GetEffects().Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
+                Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
             }
         return hit.Accepted;
     }

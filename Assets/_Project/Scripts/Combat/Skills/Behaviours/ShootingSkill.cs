@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi bắn: tìm mục tiêu gần nhất rồi bắn một lượt đạn, chia hướng bằng <see cref="IShooter"/>.</summary>
+/// <remarks>Không có mục tiêu thì không tiêu cooldown (trừ khi data cho bắn không cần mục tiêu). Data: <see cref="ShootingData"/>.</remarks>
 [Serializable]
 public sealed class ShootingSkill : Skill
 {
@@ -10,7 +11,7 @@ public sealed class ShootingSkill : Skill
 
     [NonSerialized] private ShootingData data; // Cấu hình đang dùng, chỉ đọc.
     [NonSerialized] private IShooter liveShooter; // Trạng thái bắn riêng, ví dụ góc Spiral.
-    [NonSerialized] private IProjectileMove movement; // Movement đã được factory kiểm tra.
+    [NonSerialized] private IProjectileMove movement; // Quỹ đạo của cấp hiện tại; không trạng thái nên dùng thẳng instance trong asset.
     [NonSerialized] private IGameplayEffect[] effectSnapshot; // Đạn giữ snapshot của cấp lúc bắn.
     public override SkillBehaviourType Type => SkillBehaviourType.Shooting;
 
@@ -33,8 +34,8 @@ public sealed class ShootingSkill : Skill
         var next = configuration as ShootingData ?? throw new ArgumentException("ShootingSkill requires ShootingData.");
         next.Validate();
         if (data == null || !SameShooter(data.shooter, next.shooter))
-            liveShooter = Services.GetShooting().Shooters.GetFactory().CreateRuntime(next.shooter);
-        movement = Services.GetShooting().Moves.Create(next.projectileMove);
+            liveShooter = next.shooter.CreateRuntime(); // Bản sao riêng, để góc Spiral không dùng chung với template.
+        movement = next.projectileMove;
         effectSnapshot = next.effects.ToArray();
         data = next;
     }
@@ -51,12 +52,13 @@ public sealed class ShootingSkill : Skill
     public override bool TryExecute()
     {
         if (!Owner.CanRun || data == null) return false;
-        CharacterTarget selected = default;
+        CharacterHandle selected = default;
         Vector2 position = (Vector2)Owner.Owner.HitPosition + data.muzzleOffset;
         Vector2 direction = data.defaultDirection.normalized;
-        if (data.requiresTarget || movement is HomingProjectileMove)
+        // Đạn đuổi cần mục tiêu để bay, kể cả khi data cho phép bắn khi không có mục tiêu.
+        if (data.requiresTarget || movement.TracksTarget)
         {
-            selected = Owner.Owner.TargetSearch.FindNearest(Owner.Owner.HitPosition, data.range,
+            selected = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.range,
                 CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
             if (selected.TryGetCharacter(out CharacterView target))
             {
@@ -69,7 +71,7 @@ public sealed class ShootingSkill : Skill
     }
 
     // Chốt cả cấu hình và stats trước callback spawn; nâng cấp giữa volley không trộn hai cấp.
-    private int ExecuteVolley(Vector2 position, Vector2 aim, CharacterTarget target)
+    private int ExecuteVolley(Vector2 position, Vector2 aim, CharacterHandle target)
     {
         ShootingData shot = data;
         IShooter shooter = liveShooter;
@@ -81,12 +83,12 @@ public sealed class ShootingSkill : Skill
         for (int i = 0; i < shot.projectileCount; i++)
         {
             if (!Owner.CanRun) break;
-            Vector2 direction = Services.GetShooting().Shooters.GetDirectionProvider().ShootingHandle(shooter, aim.normalized, i, shot.projectileCount);
+            Vector2 direction = shooter.GetDirection(aim.normalized, i, shot.projectileCount);
             var projectile = new ProjectileSpawnData(shot.bulletType, CharacterRuntimeData.CreateDamage(stats, team),
                 shot.speed, shot.lifetime, move, effects, stats.effectHit);
-            if (Services.GetShooting().Spawner.SpawnBullet(projectile, position, direction, target)) spawned++;
+            if (Services.Projectiles.SpawnBullet(projectile, position, direction, target)) spawned++;
         }
-        if (spawned > 0) shooter.GetExecution().OnShotCompleted();
+        if (spawned > 0) shooter.OnShotCompleted();
         return spawned;
     }
 

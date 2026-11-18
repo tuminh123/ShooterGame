@@ -3,7 +3,7 @@ using UnityEngine;
 
 #region Single Target Searches
 
-// Chung bước xác nhận danh tính; lớp cụ thể quyết định query nào cần gửi xuống Spatial.
+/// <summary>Chung bước xác nhận danh tính; lớp cụ thể quyết định query nào cần gửi xuống Spatial.</summary>
 public abstract class SingleCharacterSearch : ISingleCharacterSearch
 {
     private readonly ISpatialResolution spatialResolution; // Chạy query và tra lại đúng lượt spawn.
@@ -17,7 +17,7 @@ public abstract class SingleCharacterSearch : ISingleCharacterSearch
     protected abstract SpatialQuery CreateQuery(CharacterSearchRequest request); // Lớp cụ thể chọn dữ liệu hình học cần tìm.
 
     // Chạy query rồi xác nhận đúng cá thể; không trả mục tiêu đã chết hoặc tái sử dụng.
-    public bool TryFind(CharacterSearchRequest request, out CharacterTarget target, out Vector2 hitPosition)
+    public bool TryFind(CharacterSearchRequest request, out CharacterHandle target, out Vector2 hitPosition)
     {
         SpatialHit hit = spatialSpatialQuery.Query(CreateQuery(request), request.Exclude != null ? request.Exclude.SpatialHandle : default);
         hitPosition = hit.Found != 0 ? new Vector2(hit.Position.x, hit.Position.y) : request.Origin;
@@ -27,6 +27,7 @@ public abstract class SingleCharacterSearch : ISingleCharacterSearch
     }
 }
 
+/// <summary>Strategy tìm nhân vật gần nhất trong vòng tròn (hitbox phải chạm vòng, xếp theo khoảng cách tâm).</summary>
 public sealed class FindNearestSearch : SingleCharacterSearch
 {
     public FindNearestSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialSpatialQuery, queryBuilder) { }
@@ -36,6 +37,7 @@ public sealed class FindNearestSearch : SingleCharacterSearch
         => Queries.Nearest(request.Origin, request.Radius, request.TargetTeam);
 }
 
+/// <summary>Strategy tìm nhân vật đầu tiên trên đường quét của viên đạn.</summary>
 public sealed class FindFirstOnPathSearch : SingleCharacterSearch
 {
     public FindFirstOnPathSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialSpatialQuery, queryBuilder) { }
@@ -49,6 +51,7 @@ public sealed class FindFirstOnPathSearch : SingleCharacterSearch
 
 #region Multiple Target Search
 
+/// <summary>Strategy lấy mọi nhân vật trong vòng tròn (aura, nổ lan).</summary>
 public sealed class FindAllInCircleSearch : IMultipleCharacterSearch
 {
     private readonly ISpatialResolution spatialResolution; // Sở hữu native view tạm của kết quả job.
@@ -61,16 +64,16 @@ public sealed class FindAllInCircleSearch : IMultipleCharacterSearch
         this.queryBuilder = queryBuilder; }
 
     // Chuyển native hit thành mục tiêu trong buffer của caller; chỉ trả số mục tiêu còn hợp lệ.
-    public int FindAll(CharacterSearchRequest request, ref CharacterTarget[] results)
+    public int FindAll(CharacterSearchRequest request, ref CharacterHandle[] results)
     {
         var hits = spatialSpatialQuery.FindAll(queryBuilder.AllInCircle(request.Origin, request.Radius, request.TargetTeam),
             request.Exclude != null ? request.Exclude.SpatialHandle : default);
-        if (results == null) results = Array.Empty<CharacterTarget>();
+        if (results == null) results = Array.Empty<CharacterHandle>();
         // Chỉ cấp phát khi vượt dung lượng; không cắt bớt kết quả để vừa mảng cũ.
         if (results.Length < hits.Length) Array.Resize(ref results, Mathf.NextPowerOfTwo(hits.Length));
         int count = 0;
         for (int index = 0; index < hits.Length; index++)
-            if (spatialResolution.TryResolve(hits[index], out CharacterTarget target)) results[count++] = target;
+            if (spatialResolution.TryResolve(hits[index], out CharacterHandle target)) results[count++] = target;
         // Không giữ mục tiêu cũ ở phần đuôi khi lần tìm này có ít kết quả hơn.
         Array.Clear(results, count, results.Length - count);
         return count;

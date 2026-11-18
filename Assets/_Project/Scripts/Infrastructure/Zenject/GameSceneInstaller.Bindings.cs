@@ -43,33 +43,32 @@ public sealed partial class GameSceneInstaller
 
     #region Characters, Player & Stage
 
-    // Registry nhân vật, vòng đời spawn/despawn, hiển thị Enemy và bonus từ cấp/trang bị.
+    // Level và trang bị (sẽ vào ProgressionManager ở Giai đoạn 5).
     private void BindCharactersAndLevels()
     {
-        BindService<ICharacterSystem, CharacterManager>().AsSingle();
-        Container.BindInterfacesTo<EnemyVisualManager>().AsSingle().NonLazy();
         BindService<IEquipmentService, PlayerEquipmentService>().AsSingle().NonLazy();
         BindService<ICharacterLevelService, CharacterLevelService>().AsSingle().NonLazy();
         BindService<IRunLevelService, RunLevelService>().AsSingle().NonLazy();
         BindService<ILevelService, LevelManager>().AsSingle().NonLazy();
-        BindService<ICharacterFactory, CharacterFactory>().AsSingle().WithArguments(characterPrefab);
     }
 
-    // Nhân vật Player hiện tại và joystick có sẵn trong scene; settings chọn Player mặc định.
+    // Miền Character: chỉ bind CharacterManager. Factory, registry, runtime pool, Player, hiển thị quái và
+    // tìm mục tiêu do manager tự tạo; miền khác chỉ dùng CharacterContracts.cs.
+    // Joystick và settings Player là dữ liệu scene/cấu hình mà manager nhận để dựng PlayerManager.
     private void BindPlayerAndInput()
     {
         Container.BindInstance(new PlayerManager.Settings(defaultPlayerType));
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
-        BindService<IPlayerSystem, PlayerManager>().AsSingle().NonLazy();
+        Container.BindInterfacesTo<CharacterManager>().AsSingle().WithArguments(characterPrefab).NonLazy();
     }
 
-    // Điều phối màn/wave/boss và nền; spawner/nền là component scene, không tạo GameObject mới ở đây.
+    // Miền World: chỉ bind WorldManager (map nền + nền lặp theo Player); miền khác chỉ dùng WorldContracts.cs.
+    // Miền Stage: chỉ bind StageManager (tự tạo EnemySpawner, Wave/Formation/Boss, BossArena, StageRewards từ cấu hình "stage");
+    // miền khác chỉ dùng StageContracts.cs.
     private void BindStageAndWorld()
     {
-        BindSceneSystem<IEnemySpawnService, EnemySpawnManager>();
-        BindSceneSystem<IWorldMapService, GroundChunkManager>();
-        BindService<IBossSummonService, BossHandleSummon>().AsSingle();
-        BindService<IStageService, StageManager>().AsSingle().NonLazy();
+        Container.BindInterfacesTo<WorldManager>().AsSingle().WithArguments(world).NonLazy();
+        Container.BindInterfacesTo<StageManager>().AsSingle().WithArguments(stage).NonLazy();
     }
 
     #endregion
@@ -95,7 +94,6 @@ public sealed partial class GameSceneInstaller
     private void BindPoolsAndPrewarm()
     {
         BindService<IPoolSystem, PoolManager>().AsSingle().NonLazy();
-        BindService<ICharacterRuntimePool, CharacterRuntimePool>().AsSingle();
         BindService<IPoolPrewarmService, PoolPrewarmService>().AsSingle().WithArguments(characterPrefab).NonLazy();
     }
 
@@ -103,36 +101,22 @@ public sealed partial class GameSceneInstaller
 
     #region Movement, Combat & Skills
 
-    // Job di chuyển và truy vấn không gian; factory chọn chiến lược tìm mục tiêu cho các hệ gameplay.
+    // Miền Simulation: chỉ bind SimulationManager (job di chuyển + lưới không gian), các vai trò nằm trong SimulationContracts.cs.
     private void BindSpatialAndMovement()
     {
-        BindService<ISpatialSearchFactory, SpatialSearchFactory>().AsSingle();
-        BindService<ISpatialManager, SpatialManager>().AsSingle();
-        Container.Bind<ICharacterSearchFactory>().To<CharacterSearchFactory>().AsSingle();
-        BindService<ICharacterSearch, CharacterSearch>().AsSingle();
-        BindService<IMovementSystem, MovementManager>().AsSingle().NonLazy();
+        Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy();
     }
 
-    // Tạo/thu hồi đạn và VFX; factory chọn kiểu bắn/quỹ đạo, manager cập nhật toàn bộ đạn.
-    private void BindShootingAndProjectiles()
+    // Miền Combat: chỉ bind CombatManager. Skill, đạn, effect và VFX do manager tự tạo bên trong,
+    // nên miền khác chỉ dùng được các interface trong CombatContracts.cs.
+    // Hai MemoryPool là hạ tầng của Zenject; CombatManager nhận chúng để dựng pool runtime của effect.
+    private void BindCombat()
     {
-        BindService<ICombatSpawnSystem, CombatSpawner>().AsSingle();
-        BindService<IShootBehaviorFactory, ShootBehaviorFactory>().AsSingle();
-        BindService<IProjectileMoveFactory, ProjectileMoveFactory>().AsSingle();
-        BindService<IProjectileSystem, ProjectileManager>().AsSingle();
-    }
-
-    // Skill gameplay, hiệu ứng độc/đốt/làm chậm và pool runtime class thuần của từng loại effect.
-    private void BindSkillsAndEffects()
-    {
-        BindService<ISkillFactory, SkillFactory>(typeof(ISkillServices)).AsSingle();
-        BindService<ISkillSystem, SkillManager>().AsSingle().NonLazy();
         Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>()
             .WithInitialSize(poolPrewarmSettings.slowRuntimes);
         Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>()
             .WithInitialSize(poolPrewarmSettings.damageOverTimeRuntimes);
-        BindService<IEffectRuntimePool, EffectRuntimePool>().AsSingle();
-        BindService<IEffectSystem, EffectManager>().AsSingle().NonLazy();
+        Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy();
     }
 
     #endregion
@@ -150,19 +134,6 @@ public sealed partial class GameSceneInstaller
         var contracts = new[] { typeof(TFacade) }.Concat(additionalFacades)
             .Concat(lifecycle.Where(contract => contract.IsAssignableFrom(implementation))).Distinct();
         return Container.Bind(contracts).To<TImplementation>();
-    }
-
-    #endregion
-
-    #region Scene Contract Binding
-
-    // Chỉ bind hợp đồng gameplay: component scene tự đăng ký TickableManager trong Start.
-    // BindInterfacesTo ở đây sẽ đăng ký thêm ITickable/ILateTickable và gây cập nhật hai lần.
-    private void BindSceneSystem<TContract, TComponent>()
-        where TContract : class
-        where TComponent : Component, TContract
-    {
-        Container.Bind<TContract>().To<TComponent>().FromComponentInHierarchy().AsSingle();
     }
 
     #endregion

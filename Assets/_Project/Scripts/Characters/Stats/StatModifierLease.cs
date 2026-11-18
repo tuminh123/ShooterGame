@@ -1,6 +1,6 @@
 using System;
 
-// Quyền sở hữu một nhóm modifier; thay nguyên nhóm tại chỗ hoặc gỡ đúng nguồn.
+/// <summary>Quyền sở hữu một nhóm modifier; thay nguyên nhóm tại chỗ hoặc gỡ đúng nguồn.</summary>
 public sealed class StatModifierLease : IDisposable
 {
     #region Ownership

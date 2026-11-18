@@ -1,7 +1,12 @@
 using UnityEngine;
 
-// Visual đơn giản bằng mesh để hai skill dùng được ngay, không phụ thuộc sprite tải thêm.
-// Không gây damage/slow tại đây; gameplay thuộc behavior C# thuần. Object này được PoolManager tái sử dụng.
+/// <summary>
+/// Visual vẽ bằng mesh cho vùng/lưỡi của skill (aura băng, cưa xoay), không cần sprite riêng.
+/// </summary>
+/// <remarks>
+/// Chỉ là hình ảnh: sát thương và làm chậm thuộc hành vi C# thuần (<see cref="FrostAuraSkill"/>, <see cref="OrbitSawSkill"/>).
+/// Được pool tái sử dụng. Không đổi tên class: prefab tham chiếu script qua GUID.
+/// </remarks>
 public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
 {
     #region Zenject Tick Registration

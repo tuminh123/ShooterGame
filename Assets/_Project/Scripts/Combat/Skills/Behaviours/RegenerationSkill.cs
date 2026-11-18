@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi hồi máu: mỗi lần hết cooldown thì hồi một lượng HP cố định cho chủ nhân.</summary>
+/// <remarks>Data: <see cref="RegenerationData"/>.</remarks>
 [Serializable]
 public sealed class RegenerationSkill : Skill
 {

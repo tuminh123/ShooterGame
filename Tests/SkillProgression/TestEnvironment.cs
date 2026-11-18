@@ -102,7 +102,7 @@ public struct ProjectileSpawnData {
 }
 public class CombatSpawner {
  public readonly List<ProjectileSpawnData> Shots=new List<ProjectileSpawnData>();public Action OnSpawn;
- public bool SpawnBullet(ProjectileSpawnData d,UnityEngine.Vector2 p,UnityEngine.Vector2 dir,CharacterTarget t){Shots.Add(d);OnSpawn?.Invoke();return true;}
+ public bool SpawnBullet(ProjectileSpawnData d,UnityEngine.Vector2 p,UnityEngine.Vector2 dir,CharacterHandle t){Shots.Add(d);OnSpawn?.Invoke();return true;}
 }
 public class CharacterDataSO {
  public UnityEngine.GameObject VisualPrefab=new UnityEngine.GameObject();
@@ -118,7 +118,7 @@ public class CharacterView {
  public void EndCombatLifetime(){Died?.Invoke(this);Skills?.Dispose();EffectManager?.ClearTarget(this,RuntimeData);FeedbackController?.Dispose();}
  public void ChangeHealth(float amount)=>RuntimeData.SetVitals(Math.Max(0,RuntimeData.CurrentHealth+amount),RuntimeData.CurrentShield);
  public void GrantShield(float amount)=>RuntimeData.AddShield(amount);
- public DamageResult DealDamage(CharacterTarget target)=>target.TryGetCharacter(out var victim)?victim.ReceiveDamage(RuntimeData.CreateDamage()):default;
+ public DamageResult DealDamage(CharacterHandle target)=>target.TryGetCharacter(out var victim)?victim.ReceiveDamage(RuntimeData.CreateDamage()):default;
  public CharacterRuntimeData RuntimeData;public CharacterSkills Skills;public EffectManager EffectManager;
  public readonly UnityEngine.Transform transform=new UnityEngine.Transform();public UnityEngine.Vector3 HitPosition=>transform.position;
  public bool isActiveAndEnabled=true;public Search Search;public ITimerManager Timers;
@@ -143,12 +143,12 @@ public sealed class FeedbackController:CharacterControllerBase {
 }
 public class Search {
  public readonly List<CharacterView> Targets=new List<CharacterView>();
- public int FindAll(UnityEngine.Vector2 c,float r,CharacterTeam team,ref CharacterTarget[] buffer,CharacterView exclude=null){
-  if(buffer.Length<Targets.Count)buffer=new CharacterTarget[Targets.Count];int n=0;
-  foreach(var t in Targets)if(t!=exclude&&t.isActiveAndEnabled&&t.RuntimeData.IsAlive&&t.RuntimeData.Team==team&&SpatialGeometry.CircleOverlapsBox(new float2(c.x,c.y),r,t.GetSpatialEntity()))buffer[n++]=new CharacterTarget(t);
+ public int FindAll(UnityEngine.Vector2 c,float r,CharacterTeam team,ref CharacterHandle[] buffer,CharacterView exclude=null){
+  if(buffer.Length<Targets.Count)buffer=new CharacterHandle[Targets.Count];int n=0;
+  foreach(var t in Targets)if(t!=exclude&&t.isActiveAndEnabled&&t.RuntimeData.IsAlive&&t.RuntimeData.Team==team&&SpatialGeometry.CircleOverlapsBox(new float2(c.x,c.y),r,t.GetSpatialEntity()))buffer[n++]=new CharacterHandle(t);
   return n;
  }
- public CharacterTarget FindNearest(UnityEngine.Vector2 c,float r,CharacterTeam team,CharacterView exclude=null){CharacterTarget[] b=Array.Empty<CharacterTarget>();return FindAll(c,r,team,ref b,exclude)>0?b[0]:default;}
+ public CharacterHandle FindNearest(UnityEngine.Vector2 c,float r,CharacterTeam team,CharacterView exclude=null){CharacterHandle[] b=Array.Empty<CharacterHandle>();return FindAll(c,r,team,ref b,exclude)>0?b[0]:default;}
 }
 public static class CharacterSearch {public static bool Overlaps(CharacterView a,CharacterView b)=>(a.HitPosition.x-b.HitPosition.x)*(a.HitPosition.x-b.HitPosition.x)+(a.HitPosition.y-b.HitPosition.y)*(a.HitPosition.y-b.HitPosition.y)<.04f;public static CharacterTeam OpponentOf(CharacterTeam t)=>t==CharacterTeam.Player?CharacterTeam.Enemy:CharacterTeam.Player;}
 namespace Zenject {

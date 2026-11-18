@@ -1,0 +1,104 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Định nghĩa một skill: thông tin hiển thị, danh sách cấp (mỗi cấp chứa đủ data của các hành vi được bật),
+/// và template của từng hành vi.
+/// </summary>
+/// <remarks>
+/// Template hành vi (<see cref="ISkill"/>) và data theo cấp (<see cref="SkillBehaviourData"/>) được lưu bằng
+/// <c>[SerializeReference]</c> và ghép với nhau qua <see cref="SkillBehaviourType"/>. Asset chỉ đọc khi chạy.
+/// Skill vốn có của nhân vật và skill nhận trong trận là hai asset riêng, không dùng chung.
+/// </remarks>
+[CreateAssetMenu(menuName = "Shooter Game/Skills/Skill")]
+public sealed class SkillDataSO : ScriptableObject
+{
+    #region Display And Source
+
+    [Tooltip("Gameplay: skill có thể xuất hiện trong lựa chọn nâng cấp. Character/Equipment: skill vốn có, lấy cấp ban đầu từ Level.")]
+    [SerializeField] private SkillSource source; // Chỉ Gameplay được nhận/nâng qua bảng thưởng.
+    [Tooltip("Cấp ban đầu của skill Character/Equipment. Skill Gameplay luôn bắt đầu ở cấp 1 trong trận.")]
+    [SerializeField, Min(1)] private int level = 1; // Cấp ban đầu của Character/Equipment; Gameplay luôn bắt đầu cấp một.
+    [Tooltip("Tên skill hiển thị trên UI.")]
+    [SerializeField] private string displayName; // Tên hiển thị.
+    [Tooltip("Mô tả chung, dùng khi cấp hiện tại không có mô tả riêng.")]
+    [SerializeField, TextArea] private string description; // Mô tả dự phòng khi cấp chưa có mô tả riêng.
+    [Tooltip("Icon hiển thị trên thẻ lựa chọn và ô skill.")]
+    [SerializeField] private Sprite icon; // Icon thẻ và slot sở hữu.
+    [Tooltip("Chỉ dùng cho boss: animation khi Shooting thực thi thành công. Chọn Idle để không yêu cầu animation; NormalAttack của boss dùng Attack.")]
+    [SerializeField] private CharacterVisualState shootingVisualState = CharacterVisualState.Cast;
+
+    #endregion
+
+    #region Level Data And Behaviour Templates
+
+    [Tooltip("Danh sách cấu hình theo cấp, theo thứ tự từ cấp 1. Mỗi cấp giữ mô tả và các Behaviour Data được bật ở cấp đó.")]
+    [SerializeField] private SkillLevelData[] levels = Array.Empty<SkillLevelData>(); // Index 0 là cấp 1; mỗi cấp chứa đủ cấu hình.
+    [Tooltip("Các mẫu triển khai hành vi. Mẫu chỉ định cách skill chạy; thông số cụ thể nằm trong Behaviour Data của từng cấp.")]
+    [SerializeReference] private ISkill[] behaviours = Array.Empty<ISkill>(); // Mẫu hành vi không chứa thông số theo cấp.
+    public SkillSource Source => source;
+    public int Level => level;
+    public int MaxLevel => levels.Length;
+    public int MaxRunLevel => MaxLevel;
+    public string DisplayName => displayName;
+    public string Description => description;
+    public Sprite Icon => icon;
+    public CharacterVisualState ShootingVisualState => shootingVisualState;
+    public IReadOnlyList<SkillLevelData> Levels => Array.AsReadOnly(levels);
+    public IReadOnlyList<ISkill> Behaviours => Array.AsReadOnly(behaviours);
+
+    // Không fallback về cấp trước: mỗi cấp phải khai báo đầy đủ data cần hoạt động.
+    public SkillLevelData GetLevel(int currentLevel)
+    {
+        if (currentLevel < 1 || currentLevel > levels.Length) throw new ArgumentOutOfRangeException(nameof(currentLevel));
+        return levels[currentLevel - 1];
+    }
+
+    // Một loại hành vi có tối đa một mẫu trong definition; enum được khai báo cố định trong class.
+    internal ISkill GetBehaviour(SkillBehaviourType type)
+    {
+        foreach (ISkill behaviour in behaviours) if (behaviour.Type == type) return behaviour;
+        throw new InvalidOperationException($"No {type} behaviour in {name}.");
+    }
+
+    // UI đọc mô tả từ cùng cấp dùng để cấu hình runtime.
+    public string GetRunLevelDescription(int currentLevel)
+    {
+        string text = GetLevel(currentLevel).Description;
+        return string.IsNullOrWhiteSpace(text) ? description : text;
+    }
+
+    #endregion
+
+    #region Validation
+
+    // Chặn thiếu mẫu, trùng enum và data không khớp trước khi thay đổi bất kỳ runtime nào.
+    public void Validate()
+    {
+        if (!Enum.IsDefined(typeof(SkillSource), source) || levels == null || levels.Length == 0 ||
+            level < 1 || level > levels.Length || behaviours == null || behaviours.Length == 0)
+            throw new InvalidOperationException($"Invalid skill definition: {name}.");
+        var templates = new HashSet<SkillBehaviourType>();
+        foreach (ISkill behaviour in behaviours)
+            if (!(behaviour is Skill) || !Enum.IsDefined(typeof(SkillBehaviourType), behaviour.Type) || !templates.Add(behaviour.Type))
+                throw new InvalidOperationException($"Missing/duplicate behaviour in {name}.");
+        foreach (SkillLevelData entry in levels)
+        {
+            if (entry == null || entry.Behaviours == null || entry.Behaviours.Count == 0)
+                throw new InvalidOperationException($"Missing level data in {name}.");
+            var types = new HashSet<SkillBehaviourType>();
+            foreach (SkillBehaviourData data in entry.Behaviours)
+            {
+                if (data == null || !templates.Contains(data.Type) || !types.Add(data.Type))
+                    throw new InvalidOperationException($"Missing/duplicate/mismatched level behaviour in {name}.");
+                data.Validate();
+            }
+        }
+    }
+
+    #endregion
+}
+
+/// <summary>Nguồn của skill. Chỉ <see cref="Gameplay"/> mới được cấp/nâng qua bảng chọn khi lên cấp.</summary>
+public enum SkillSource { Gameplay, Character, Equipment }

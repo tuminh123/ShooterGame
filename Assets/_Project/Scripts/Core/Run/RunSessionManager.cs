@@ -20,13 +20,13 @@ public sealed class RunSessionManager : IInitializable, ITickable, IDisposable, 
     public event Action<int> EnemiesDefeatedChanged;
 
     public RunSessionManager(
-        IPlayerSystem playerSystem,
+        IPlayerReader playerReader,
         ILevelService levelService,
-        ICharacterSystem characterSystem)
+        ICharacterDeathEvents characterDeaths)
     {
-        this.players = playerSystem.GetPlayerReader();
+        this.players = playerReader;
         this.levels = levelService.GetRunProgress();
-        this.characters = characterSystem.GetCharacterDeathEvents();
+        this.characters = characterDeaths;
     }
 
     #endregion

@@ -37,6 +37,17 @@ public interface IPoolHierarchy
 
 #endregion
 
+#region PoolCleanup
+
+/// <summary>Lưới an toàn khi rời gameplay: thu hồi object của trận mà miền sở hữu đã quên dọn. Dùng bởi GameManager.</summary>
+public interface IPoolCleanup
+{
+    /// <summary>Thu hồi mọi clone còn hoạt động trừ nền (World) và UI; trả về số clone bị sót (bình thường là 0).</summary>
+    int DespawnGameplayClones();
+}
+
+#endregion
+
 #region System Contract
 
 /// <summary>Gom hợp đồng của PoolManager; consumer nhận vai trò nhỏ cần dùng.</summary>
@@ -45,6 +56,7 @@ public interface IPoolSystem
     IGameObjectPool GetGameObjectPool();
     IPoolPreparation GetPoolPreparation();
     IPoolHierarchy GetPoolHierarchy();
+    IPoolCleanup GetPoolCleanup();
 }
 
 #endregion

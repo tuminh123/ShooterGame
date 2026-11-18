@@ -55,6 +55,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private IOwnedSkillReader skills; // Đầu mối nhận/nâng runtime; UI không trực tiếp sửa behavior.
     private IPlayerReader players; // Nguồn Player hiện tại và thông báo đổi nhân vật.
     private IGameplayPause pauses; // Dịch vụ pause nhiều nguồn; đóng modal không gỡ pause thủ công.
+    private IGameStateReader game; // Rời Playing (thắng/thua/về Home) thì hủy bảng thưởng còn đang chờ.
     private CharacterView owner; // Player nhận thưởng; đổi owner phải bỏ queue của owner cũ.
     private IDisposable pauseLease; // Token pause của bảng lên cấp; trả khi đóng hoặc ẩn bảng.
     private IDisposable slowMotionLease;
@@ -75,15 +76,18 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     [Inject]
     public void Construct(
         ILevelService levelService,
-        ISkillSystem skillSystem,
-        IPlayerSystem playerSystem,
+        ISkillGrant skillGrant,
+        IOwnedSkillReader ownedSkills,
+        IPlayerReader playerReader,
         IGameplayPauseService gameplayPauseService,
+        IGameFlow gameFlow,
         SkillDatabaseSO database)
     {
+        this.game = gameFlow.GetGameStateReader();
         this.levels = levelService.GetRunProgress();
-        this.skills = skillSystem.GetReader();
-        this.skillGrant = skillSystem.GetGrant();
-        this.players = playerSystem.GetPlayerReader();
+        this.skills = ownedSkills; // Cả hai vai trò đều do CombatManager implement (CombatContracts.cs).
+        this.skillGrant = skillGrant;
+        this.players = playerReader;
         this.pauses = gameplayPauseService.GetGameplayPause();
         catalog = database.CreateRunChoiceCatalog();
         if (levelUpPanel == null)
@@ -105,7 +109,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         if (subscribed) return;
         subscribed = true;
         levels.RunLevelChanged += OnRunLevelChanged;
-        GameUIEventBus.StateChanged += OnGameStateChanged;
+        game.StateChanged += OnGameStateChanged;
         levels.RunReset += CancelChoices;
         players.PlayerChanged += OnPlayerChanged;
         levelUpPanel.Selected += Choose;
@@ -328,7 +332,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         if (subscribed)
         {
             levels.RunLevelChanged -= OnRunLevelChanged;
-            GameUIEventBus.StateChanged -= OnGameStateChanged;
+            game.StateChanged -= OnGameStateChanged;
             levels.RunReset -= CancelChoices;
             players.PlayerChanged -= OnPlayerChanged;
             levelUpPanel.Selected -= Choose;

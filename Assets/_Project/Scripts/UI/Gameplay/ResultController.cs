@@ -53,12 +53,12 @@ public sealed class ResultController : UIPanelController
     public void Construct(
         IGameFlow gameFlow,
         IRunSession runSession,
-        IStageService stageService)
+        IStageResults stageResults)
     {
         this.gameState = gameFlow.GetGameStateReader();
         this.runCommands = gameFlow.GetRunCommands();
         this.session = runSession.GetRunStatistics();
-        this.stage = stageService.GetStageResults();
+        this.stage = stageResults;
         victory.Validate();
         defeat.Validate();
     }

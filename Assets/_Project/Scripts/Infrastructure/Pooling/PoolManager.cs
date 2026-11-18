@@ -6,18 +6,22 @@ using Lean.Pool;
 using UnityEngine;
 using Zenject;
 
-// * Nhóm holder cho object đang hoạt động, không quyết định hành vi của prefab.
+/// <summary>
+/// Nhóm của object đang hoạt động: chọn holder trong Hierarchy, và quyết định object có bị thu hồi khi rời gameplay không
+/// (xem <see cref="PoolManager.DespawnGameplayClones"/>). Không quyết định hành vi của prefab.
+/// </summary>
 public enum PoolGroup
 {
     Enemies,
     Bullets,
-    World,
-    Other
+    World, // Nền map: tồn tại cả ở Home, không bị thu hồi khi rời gameplay.
+    Other,
+    UI     // Phần tử UI dùng pool (ô skill…): UI tự quản lý, không bị thu hồi khi rời gameplay.
 }
 
 // * Class thuần bọc LeanPool để gom Hierarchy và inject bản sao mới trước OnEnable.
 // ! API gọi từ main thread; pool tự tạo dùng OnEnable/OnDisable thay cho thông báo IPoolable.
-public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPoolPreparation, IPoolHierarchy
+public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPoolPreparation, IPoolHierarchy, IPoolCleanup
 {
 
     #region Pool State & Holders
@@ -26,8 +30,10 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
     private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>(); // * Tra pool theo prefab, dùng lại qua các lượt spawn.
     private readonly HashSet<LeanGameObjectPool> ownedPools = new HashSet<LeanGameObjectPool>();  // * Chỉ hủy pool tự tạo.
     private readonly HashSet<GameObject> injectedClones = new HashSet<GameObject>();  // * Inject một lần mỗi bản sao.
-    private readonly HashSet<GameObject> activeClones = new HashSet<GameObject>();    // * Clone cần thu hồi khi kết thúc.
-    private readonly Transform[] holders = new Transform[4];  // * Holder theo thứ tự PoolGroup.
+    // * Clone đang hoạt động → nhóm lúc spawn. Nhóm dùng để biết clone nào là của trận khi rời gameplay.
+    private readonly Dictionary<GameObject, PoolGroup> activeClones = new Dictionary<GameObject, PoolGroup>();
+    private readonly List<GameObject> sweepBuffer = new List<GameObject>(); // Dùng lại giữa các lần quét; Despawn sửa activeClones.
+    private readonly Transform[] holders = new Transform[5];  // * Holder theo thứ tự PoolGroup.
     private Transform root;           // * Gốc Pool Holders với transform mặc định.
     private Transform poolsHolder;    // * Chứa pool và các object đã thu hồi.
     private Transform stagingHolder;  // * Nhánh tắt trong lúc chuẩn bị injection.
@@ -133,7 +139,7 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
                 container.InjectGameObject(clone);
                 injectedClones.Add(clone);
             }
-            activeClones.Add(clone);
+            activeClones[clone] = group;
             // * Gán runtime/controller khi clone còn ở Preparing; không để OnEnable nhìn thấy trạng thái cũ.
             beforeActivate?.Invoke(clone);
             clone.transform.SetParent(holder, true);
@@ -169,6 +175,49 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
 
     #endregion
 
+    #region Gameplay Cleanup
+
+    /// <summary>
+    /// Lưới an toàn khi rời gameplay: thu hồi mọi clone còn hoạt động thuộc nhóm của trận (Enemies, Bullets, Other).
+    /// Giữ lại nền (World) và UI. Gọi SAU khi các miền đã tự dọn theo quy trình; trả về số clone bị sót.
+    /// </summary>
+    /// <remarks>
+    /// Bình thường kết quả là 0. Khác 0 nghĩa là một miền đã quên dọn object của nó, nên log warning kèm tên object
+    /// để tìm nguyên nhân gốc. Object bị thu hồi ở đây không chạy cleanup của miền (registry, runtime…).
+    /// </remarks>
+    public int DespawnGameplayClones()
+    {
+        if (disposed)
+            return 0;
+        sweepBuffer.Clear();
+        foreach (KeyValuePair<GameObject, PoolGroup> entry in activeClones)
+            if (entry.Value != PoolGroup.World && entry.Value != PoolGroup.UI)
+                sweepBuffer.Add(entry.Key);
+
+        int count = 0;
+        var names = new System.Text.StringBuilder();
+        foreach (GameObject clone in sweepBuffer)
+        {
+            // Thu hồi một vỏ có thể kéo theo visual con của nó: bỏ qua clone đã được trả trong vòng lặp này.
+            if (!activeClones.TryGetValue(clone, out PoolGroup group))
+                continue;
+            count++;
+            if (clone == null)
+            {
+                activeClones.Remove(clone);
+                continue;
+            }
+            names.Append("\n- ").Append(clone.name).Append(" (").Append(group).Append(clone.activeInHierarchy ? ", đang hiện)" : ", đang ẩn)");
+            Despawn(clone);
+        }
+        sweepBuffer.Clear();
+        if (count > 0)
+            Debug.LogWarning($"[PoolManager] Rời gameplay còn sót {count} object chưa được miền sở hữu thu hồi; đã thu hồi:{names}");
+        return count;
+    }
+
+    #endregion
+
     #region Pool & Holder Creation
 
     // * Các holder có position zero, rotation identity, scale one để không làm lệch object.
@@ -183,6 +232,7 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
         holders[(int)PoolGroup.Bullets] = CreateHolder("Bullets", root);
         holders[(int)PoolGroup.World] = CreateHolder("World", root);
         holders[(int)PoolGroup.Other] = CreateHolder("Other", root);
+        holders[(int)PoolGroup.UI] = CreateHolder("UI", root);
         poolsHolder = CreateHolder("Pools", root);
         stagingHolder = CreateHolder("Preparing", poolsHolder);
         stagingHolder.gameObject.SetActive(false);
@@ -225,7 +275,7 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
         disposed = true;
         // * OnDisable của vỏ thu hồi cả visual con, làm thay đổi activeClones; duyệt bản sao để tránh lỗi collection.
         GameObject[] remaining = new GameObject[activeClones.Count];
-        activeClones.CopyTo(remaining);
+        activeClones.Keys.CopyTo(remaining, 0);
         foreach (GameObject clone in remaining)
             if (clone != null && LeanPool.Links.ContainsKey(clone))
                 LeanPool.Despawn(clone);
@@ -255,6 +305,8 @@ public sealed class PoolManager : IDisposable, IPoolSystem, IGameObjectPool, IPo
     public IPoolPreparation GetPoolPreparation() => this;
 
     public IPoolHierarchy GetPoolHierarchy() => this;
+
+    public IPoolCleanup GetPoolCleanup() => this;
 
     #endregion
 

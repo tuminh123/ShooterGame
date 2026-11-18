@@ -2,17 +2,22 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Chỉ tính toán: không biết owner, UI, thời hạn effect hoặc lượng HP/giáp đã mất.
+/// <summary>
+/// Công thức chỉ số duy nhất của game. Chỉ tính toán: không biết owner, UI, thời hạn effect hay HP/giáp đã mất.
+/// </summary>
 public static class StatCalculator
 {
     #region Stat Evaluation
 
     private static readonly StatType[] statTypes = (StatType[])Enum.GetValues(typeof(StatType)); // Cache để không cấp phát enum array mỗi lần tính.
 
-    // Mọi loại stat dùng cùng công thức: (base + external + tổng Add) * (1 + tổng Percent / 100).
-    public static BaseStats Calculate(BaseStats baseStats, StatBonus externalBonus, IEnumerable<StatModifier[]> groups)
+    /// <summary>
+    /// Mọi chỉ số dùng cùng công thức: <c>(base + tổng Add) × (1 + tổng Percent / 100)</c>, rồi kẹp trong giới hạn hợp lệ.
+    /// Bonus lúc spawn, level và trang bị là các nguồn Add như mọi nguồn khác (xem <see cref="StatBonus.ToModifiers"/>).
+    /// </summary>
+    public static BaseStats Calculate(BaseStats baseStats, IEnumerable<StatModifier[]> groups)
     {
-        BaseStats stats = externalBonus.ApplyTo(baseStats);
+        BaseStats stats = baseStats;
         BaseStats additions = default;
         BaseStats percentages = default;
         foreach (StatModifier[] group in groups)

@@ -1,8 +1,8 @@
 using Terresquall;
 using UnityEngine;
 
-// * Hành vi riêng của người chơi: hướng di chuyển hoàn toàn do joystick/bàn phím quyết định.
-// * Không giữ HP, không tự tạo visual và không chứa AI của Enemy.
+/// <summary>Hành vi của người chơi: hướng di chuyển hoàn toàn do joystick (và bàn phím trong Editor/PC) quyết định.</summary>
+/// <remarks>Không giữ HP, không tạo visual, không có AI. Mọi khả năng khác dùng mặc định của <see cref="CharacterControllerBase"/>.</remarks>
 public sealed class PlayerController : CharacterControllerBase
 {
     private readonly VirtualJoystick joystick; // * Input của scene; không lưu tham chiếu scene trên prefab hoặc SO.
@@ -30,7 +30,7 @@ public sealed class PlayerController : CharacterControllerBase
         view.Move(input, runtime.FinalStats.moveSpeed * input.magnitude);
     }
 
-    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
+    protected override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
         // Giữ vỏ cho Lose; GameManager chuyển Lost sau khi visual phát xong.
         view.Move(Vector2.zero, 0f);

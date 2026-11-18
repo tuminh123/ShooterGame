@@ -1,0 +1,146 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>Lên lịch nhiều Elite và tối đa một Boss từ dữ liệu Stage. Do StageManager tạo và tick; không bind vào Zenject.</summary>
+internal sealed class BossSpawnSystem
+{
+
+    #region Dependencies And State
+    public event Action<StageSpawnWarning, float> SpawnScheduled;
+    // Stage cung cấp mốc hoàn tất wave nếu xác định được; không thay thế điều kiện summon thực tế.
+    public float? ScheduledWaveCompletion { private get; set; }
+
+    #endregion
+
+    #region Supporting Types
+    private sealed class EliteRun
+    {
+        public BossSpawnDataSO.Entry entry;
+        public bool spawned;
+    }
+
+    #endregion
+
+    #region Dependencies And State
+    private readonly EnemySpawner spawner; // Tạo/thu hồi quái, vùng sinh; do StageManager tạo và dùng chung cho mọi system.
+    private readonly StageSpawnRoster roster;
+    private readonly BossArena summon; // Đấu trường của Boss: dọn quái thường, khóa vùng, sinh Boss.
+    private readonly List<EliteRun> elites = new List<EliteRun>();
+    private BossSpawnDataSO.Entry boss;
+    private BossAppearanceCondition condition;
+    private Vector2 arenaSize;
+    private bool allWavesSpawned, finalWaveCleared, bossSpawned;
+    private bool bossSchedulePublished;
+
+    public bool DeploymentComplete
+    {
+        get
+        {
+            foreach (EliteRun elite in elites) if (!elite.spawned) return false;
+            return boss == null || bossSpawned;
+        }
+    }
+    public int AliveCount => roster.AliveCount;
+
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Nhận spawner và đấu trường Boss do StageManager tạo.</summary>
+    public BossSpawnSystem(EnemySpawner spawner, BossArena arena)
+    {
+        this.spawner = spawner ?? throw new ArgumentNullException(nameof(spawner));
+        this.summon = arena ?? throw new ArgumentNullException(nameof(arena));
+        roster = new StageSpawnRoster(spawner);
+    }
+
+    #endregion
+
+    #region Validation
+
+    /// <summary>Kiểm tra entry Elite/Boss và nhân vật tương ứng.</summary>
+    public void Validate(BossSpawnDataSO config)
+    {
+        config.Validate();
+        foreach (BossSpawnDataSO.Entry entry in config.entries) spawner.ValidateCharacter(entry.character);
+    }
+
+    #endregion
+
+    #region Runtime Operations
+
+    /// <summary>Đăng ký các Elite theo StageTime và ghi nhận cấu hình điều kiện Boss.</summary>
+    public void Execute(BossSpawnDataSO config)
+    {
+        condition = config.bossAppearanceCondition;
+        foreach (BossSpawnDataSO.Entry entry in config.entries)
+        {
+            if (entry.type == SpecialEnemyType.Elite)
+            {
+                elites.Add(new EliteRun { entry = entry });
+                SpawnScheduled?.Invoke(StageSpawnWarning.Elite, entry.eliteStageTime);
+            }
+            else
+            {
+                boss = entry;
+                arenaSize = config.arenaSize;
+                if (condition == BossAppearanceCondition.AfterAllWavesSpawned && ScheduledWaveCompletion.HasValue)
+                {
+                    bossSchedulePublished = true;
+                    SpawnScheduled?.Invoke(StageSpawnWarning.Boss, ScheduledWaveCompletion.Value);
+                }
+            }
+        }
+    }
+
+    /// <summary>Nhận event Wave để kích hoạt điều kiện xuất hiện Boss.</summary>
+    public void NotifyAllWavesSpawned() => allWavesSpawned = true;
+    public void NotifyFinalWaveCleared() => finalWaveCleared = true;
+
+    /// <summary>Spawn Elite tại mốc StageTime rồi summon Boss khi event Wave phù hợp đã tới.</summary>
+    public void Tick(float stageTime, float deltaTime)
+    {
+        if (deltaTime <= 0f) return;
+        foreach (EliteRun elite in elites)
+        {
+            if (elite.spawned || stageTime < elite.entry.eliteStageTime) continue;
+            var view = spawner.SpawnElite(elite.entry.character, elite.entry.enemyLevel,
+                spawner.ChoosePerimeterPoint(), elite.entry.eliteScale, elite.entry.eliteHealthMultiplier);
+            roster.Add(view);
+            elite.spawned = true;
+        }
+        if (boss == null || bossSpawned) return;
+        bool ready = condition == BossAppearanceCondition.AfterAllWavesSpawned ? allWavesSpawned : finalWaveCleared;
+        if (!ready) return;
+        if (!bossSchedulePublished)
+        {
+            // Điều kiện dọn quái không có mốc dự đoán chính xác: báo ngay khi điều kiện đạt.
+            bossSchedulePublished = true;
+            SpawnScheduled?.Invoke(StageSpawnWarning.Boss, stageTime);
+        }
+        roster.Add(summon.Summon(boss.character, boss.enemyLevel, arenaSize));
+        bossSpawned = true;
+    }
+
+    #endregion
+
+    #region Cleanup
+
+    /// <summary>Dọn lượt đặc biệt và gỡ ranh giới đấu trường.</summary>
+    public void Stop()
+    {
+        try { roster.Clear(); }
+        finally
+        {
+            summon.Clear();
+            elites.Clear();
+            boss = null;
+            allWavesSpawned = finalWaveCleared = bossSpawned = false;
+            bossSchedulePublished = false;
+            ScheduledWaveCompletion = null;
+        }
+    }
+
+    #endregion
+}

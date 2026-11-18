@@ -16,9 +16,9 @@ Nó giữ GameState và điều phối Save sẵn sàng → prewarm → reset �
 Player chết chuyển Lost; WinRun do điều kiện gameplay gọi. StartRun chơi lại,
 ReturnHome dọn Player/Enemy/đạn cũ và reset tiến trình. Không có loading scene riêng.
 
-`GameUIEventBus` static chỉ thông báo StateChanged cho UI, không giữ state và không
-được manager gameplay dùng để thay thế thứ tự chuẩn bị. Static listener được reset
-ở SubsystemRegistration và từng UI tự gỡ trong OnDisable.
+`IGameStateReader.StateChanged` (event của GameManager) chỉ thông báo cho tầng UI.
+Hệ thống gameplay bên dưới (đạn, effect, VFX, ăn mừng của quái) không nghe event này;
+GameManager gọi thẳng xuống chúng khi trận kết thúc. Từng UI tự gỡ listener trong OnDisable.
 
 `UIManager` giữ mảng panels chung và mapping statePanels từ GameState sang UI gốc.
 Không còn defaultPanel hoặc ShowDefaultPanel. SetRootPanel chọn gốc lúc chạy,

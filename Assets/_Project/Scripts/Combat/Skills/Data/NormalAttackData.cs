@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Cấu hình của một loại hành vi tại một cấp; không chứa state runtime.
+/// <summary>Thông số của <see cref="NormalAttackSkill"/> tại một cấp.</summary>
+/// <remarks>Chỉ đọc, không chứa state runtime. Không đổi tên class hoặc field: Unity lưu chúng trong asset skill.</remarks>
 [Serializable]
 public sealed class NormalAttackData : SkillBehaviourData
 {

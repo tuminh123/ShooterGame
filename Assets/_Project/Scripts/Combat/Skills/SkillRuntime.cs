@@ -1,7 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-// Một skill của một owner: cấp chung, nhiều hành vi và cooldown riêng cho từng hành vi.
+/// <summary>
+/// Một skill đang chạy của một nhân vật: giữ cấp hiện tại, các hành vi đã mở ở cấp đó, và cooldown riêng của từng hành vi.
+/// </summary>
+/// <remarks>
+/// Một skill có thể gồm nhiều hành vi (ví dụ vừa bắn vừa có aura). Lên cấp có thể mở thêm, gỡ bớt hoặc đổi
+/// thông số hành vi, nhưng không reset cooldown đang chạy. Runtime tự kết thúc khi chủ nhân chết hoặc vỏ sang lượt spawn khác.
+/// </remarks>
 public sealed class SkillRuntime : IDisposable
 {
     #region Behaviour Scheduling
@@ -31,7 +37,7 @@ public sealed class SkillRuntime : IDisposable
         // Đổi config không khởi động lại cooldown đang chạy.
         internal void ApplyData(SkillBehaviourData data)
         {
-            Action.GetConfiguration().ApplyData(data);
+            Action.ApplyData(data);
             cooldown = data.Cooldown;
         }
 
@@ -40,10 +46,10 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed || paused) return;
             remaining = Math.Max(0f, remaining - deltaTime);
-            Action.GetExecution().Tick(deltaTime);
-            if (disposed || Remaining > 0f || !Action.GetExecution().TryExecute() || disposed) return;
+            Action.Tick(deltaTime);
+            if (disposed || Remaining > 0f || !Action.TryExecute() || disposed) return;
             remaining = cooldown;
-            runtime.NotifyVisualAction(Action.GetConfiguration().Type);
+            runtime.NotifyVisualAction(Action.Type);
         }
 
         // Pause giữ nguyên cooldown và đồng bộ visual/state của hành vi.
@@ -51,7 +57,7 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed) return;
             paused = value;
-            Action.GetLifecycle().SetPaused(value);
+            Action.SetPaused(value);
         }
 
         // Không còn callback thời gian bên ngoài; dispose chấm dứt hành vi ngay.
@@ -59,7 +65,7 @@ public sealed class SkillRuntime : IDisposable
         {
             if (disposed) return;
             disposed = true;
-            Action.GetLifecycle().Dispose();
+            Action.Dispose();
         }
     }
 
@@ -70,9 +76,7 @@ public sealed class SkillRuntime : IDisposable
     private readonly List<Behaviour> behaviours = new List<Behaviour>(); // Chỉ chứa hành vi đã được mở ở cấp hiện tại.
     private readonly CharacterSkills context; // Context đúng lượt spawn.
     private readonly CharacterView owner; // Owner của toàn bộ hành vi.
-    private readonly CharacterRuntimeData identity; // Không dùng runtime cũ trên spawn mới.
-    private readonly ulong generation; // Phân biệt lượt pool tái sử dụng cùng runtime data.
-    private readonly ISkillBehaviourFactory factory; // Tạo hành vi mới khi cấp mới mở thêm loại.
+    private readonly SkillFactory factory; // Tạo hành vi mới khi cấp mới mở thêm loại.
     private bool changingLevel; // Chặn nâng cấp lồng nhau từ callback.
     private bool paused; // Trạng thái truyền cho hành vi mở mới.
     private int revision; // Thay đổi danh sách giữa callback sẽ kết thúc vòng tick cũ.
@@ -98,14 +102,12 @@ public sealed class SkillRuntime : IDisposable
     #region Initialization
 
     // Runtime đăng ký owner trước khi ApplyData có thể phát callback stats.
-    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, ISkillBehaviourFactory factory)
+    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, SkillFactory factory)
     {
         Definition = definition;
         this.context = context;
         this.factory = factory;
         owner = context.Owner;
-        identity = context.Identity;
-        generation = identity.Generation;
         paused = !owner.isActiveAndEnabled;
         RunLevel = definition.Source == SkillSource.Gameplay ? 1 : definition.Level;
         owner.Died += OnOwnerEnded;
@@ -127,7 +129,7 @@ public sealed class SkillRuntime : IDisposable
     // Tìm theo enum loại; một skill có tối đa một hành vi của mỗi loại.
     private Behaviour FindBehaviour(SkillBehaviourType type)
     {
-        foreach (Behaviour behaviour in behaviours) if (behaviour.Action.GetConfiguration().Type == type) return behaviour;
+        foreach (Behaviour behaviour in behaviours) if (behaviour.Action.Type == type) return behaviour;
         return null;
     }
 
@@ -146,7 +148,7 @@ public sealed class SkillRuntime : IDisposable
             {
                 ISkill action = factory.CreateBehaviour(Definition, item.Type, context);
                 try { behaviour = new Behaviour(action, paused, this); }
-                catch { action.GetLifecycle().Dispose(); throw; }
+                catch { action.Dispose(); throw; }
                 behaviours.Add(behaviour); // Nhận ownership trước callback ApplyData để reset/dispose có thể dọn ngay.
             }
             behaviour.ApplyData(item);
@@ -156,7 +158,7 @@ public sealed class SkillRuntime : IDisposable
         foreach (Behaviour behaviour in behaviours.ToArray())
         {
             if (!IsActive) return;
-            if (required.Contains(behaviour.Action.GetConfiguration().Type)) continue;
+            if (required.Contains(behaviour.Action.Type)) continue;
             behaviours.Remove(behaviour);
             behaviour.Dispose();
         }
@@ -199,17 +201,17 @@ public sealed class SkillRuntime : IDisposable
     // Chỉ boss yêu cầu Attack/Cast; Player và enemy thường vẫn thực thi skill nhưng không phát ani tấn công.
     private void NotifyVisualAction(SkillBehaviourType type)
     {
-        if (!IsActive || !owner.IsBoss || !context.IsValid || !ReferenceEquals(owner.RuntimeData, identity) ||
-            identity.Generation != generation || !identity.IsAlive) return;
+        // context.IsValid đã kiểm tra đúng lượt spawn và còn sống; callback của hành vi có thể vừa làm owner chết.
+        if (!IsActive || !context.IsValid || !owner.IsBoss) return;
         switch (type)
         {
             case SkillBehaviourType.NormalAttack:
-                owner.RequestVisualState(CharacterVisualState.Attack);
+                owner.Presentation.RequestVisualState(CharacterVisualState.Attack);
                 break;
             case SkillBehaviourType.Shooting:
                 CharacterVisualState state = Definition.ShootingVisualState;
                 if (state == CharacterVisualState.Attack || state == CharacterVisualState.Cast)
-                    owner.RequestVisualState(state);
+                    owner.Presentation.RequestVisualState(state);
                 break;
         }
     }
@@ -220,9 +222,8 @@ public sealed class SkillRuntime : IDisposable
         ValidateDeltaTime(deltaTime);
         if (deltaTime <= 0f) return;
         if (!IsActive) return;
-        if (!context.IsValid || owner == null || !ReferenceEquals(owner.RuntimeData, identity) ||
-            identity.Generation != generation || !identity.IsAlive)
-        { Dispose(); return; }
+        // Owner chết hoặc vỏ đã sang lượt spawn khác: skill của lượt này kết thúc luôn.
+        if (!context.IsValid) { Dispose(); return; }
         // Choáng/tuần tra giữ nguyên cooldown; chỉ Dispose khi chết hoặc pool đổi danh tính.
         SetPaused(!owner.isActiveAndEnabled || !owner.CanUseSkills);
         if (paused) return;

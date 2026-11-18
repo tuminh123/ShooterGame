@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi aura băng: làm chậm mọi đối thủ trong bán kính, và áp effect khi chúng đi vào vùng.</summary>
+/// <remarks>Hành vi liên tục. Slow là effect duy trì, gỡ ngay khi mục tiêu rời vùng. Data: <see cref="FrostAuraData"/>.</remarks>
 [Serializable]
 public sealed class FrostAuraSkill : Skill
 {
@@ -10,11 +11,11 @@ public sealed class FrostAuraSkill : Skill
 
     [NonSerialized] private FrostAuraData data; // Cấu hình đang hoạt động.
     [NonSerialized] private IGameplayEffect[] effectSnapshot; // Danh sách effect của đúng cấp.
-    [NonSerialized] private Dictionary<CharacterTarget, EffectHandle> slowed; // Handle runtime riêng của từng mục tiêu trong vùng.
+    [NonSerialized] private Dictionary<CharacterHandle, EffectHandle> slowed; // Handle runtime riêng của từng mục tiêu trong vùng.
     [NonSerialized] private SlowEffect slowEffect; // Cấu hình slow dùng chung; manager sở hữu runtime.
-    [NonSerialized] private HashSet<CharacterTarget> inside; // Mục tiêu được query trong bước này.
-    [NonSerialized] private List<CharacterTarget> leaving; // Buffer gỡ effect không còn trong vùng.
-    [NonSerialized] private CharacterTarget[] targets; // Buffer query dùng lại.
+    [NonSerialized] private HashSet<CharacterHandle> inside; // Mục tiêu được query trong bước này.
+    [NonSerialized] private List<CharacterHandle> leaving; // Buffer gỡ effect không còn trong vùng.
+    [NonSerialized] private CharacterHandle[] targets; // Buffer query dùng lại.
     [NonSerialized] private SkillAreaVisual visual; // Visual đang thuê pool.
     [NonSerialized] private float radius; // Bán kính được dùng khi query.
     [NonSerialized] private bool paused; // Pause phải gỡ slow duy trì.
@@ -31,11 +32,11 @@ public sealed class FrostAuraSkill : Skill
     {
         data = null;
         effectSnapshot = Array.Empty<IGameplayEffect>();
-        slowed = new Dictionary<CharacterTarget, EffectHandle>();
+        slowed = new Dictionary<CharacterHandle, EffectHandle>();
         slowEffect = null;
-        inside = new HashSet<CharacterTarget>();
-        leaving = new List<CharacterTarget>();
-        targets = Array.Empty<CharacterTarget>();
+        inside = new HashSet<CharacterHandle>();
+        leaving = new List<CharacterHandle>();
+        targets = Array.Empty<CharacterHandle>();
         visual = null;
         radius = 0f;
         revision = 0;
@@ -51,7 +52,7 @@ public sealed class FrostAuraSkill : Skill
         ClearSlow();
         if (visual != null && data != null && data.visualPrefab != next.visualPrefab)
         {
-            Services.GetEffects().Pools.Despawn(visual.gameObject);
+            Services.Pools.Despawn(visual.gameObject);
             visual = null;
         }
         data = next;
@@ -70,12 +71,12 @@ public sealed class FrostAuraSkill : Skill
         if (disposed || paused || !Owner.CanRun || deltaTime <= 0f) return;
         if (visual == null)
         {
-            GameObject clone = Services.GetEffects().Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
+            GameObject clone = Services.Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
                 beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, radius));
             if (clone == null) throw new InvalidOperationException("Could not spawn frost visual.");
             visual = clone.GetComponent<SkillAreaVisual>();
         }
-        int found = Owner.Owner.RegionSearch.FindAll(Owner.Owner.HitPosition, radius,
+        int found = Owner.Owner.Search.FindAll(Owner.Owner.HitPosition, radius,
             CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
         inside.Clear();
         int currentRevision = revision;
@@ -83,30 +84,30 @@ public sealed class FrostAuraSkill : Skill
         {
             for (int i = 0; i < found && !disposed && !paused && Owner.CanRun && currentRevision == revision; i++)
             {
-                CharacterTarget target = targets[i];
+                CharacterHandle target = targets[i];
                 if (!target.TryGetCharacter(out _)) continue;
                 inside.Add(target);
                 if (slowed.ContainsKey(target)) continue;
-                EffectHandle handle = Services.GetEffects().Effects.ApplyMaintained(slowEffect, target, Owner.Identity.Team);
+                EffectHandle handle = Services.Effects.ApplyMaintained(slowEffect, target, Owner.Identity.Team);
                 // Stats callback có thể vừa thu hồi chính chủ aura/mục tiêu.
                 if (disposed || paused || !Owner.CanRun || currentRevision != revision || !target.TryGetCharacter(out _))
                 {
-                    Services.GetEffects().EffectHandles.Remove(handle);
+                    Services.Effects.Remove(handle);
                     continue;
                 }
                 slowed.Add(target, handle);
                 // Chỉ áp dụng lúc vào vùng; không spam hoặc gia hạn duration mỗi frame.
-                if (Services.GetEffects().Effects != null)
+                if (Services.Effects != null)
                     foreach (IGameplayEffect effect in effectSnapshot)
                     {
                         if (!Owner.CanRun || disposed || currentRevision != revision) break;
-                        Services.GetEffects().Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
+                        Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
                     }
             }
             leaving.Clear();
-            foreach (CharacterTarget target in slowed.Keys)
+            foreach (CharacterHandle target in slowed.Keys)
                 if (!inside.Contains(target) || !target.TryGetCharacter(out _)) leaving.Add(target);
-            foreach (CharacterTarget target in leaving) RemoveSlow(target);
+            foreach (CharacterHandle target in leaving) RemoveSlow(target);
         }
         finally
         {
@@ -116,11 +117,11 @@ public sealed class FrostAuraSkill : Skill
         }
     }
 
-    private void RemoveSlow(CharacterTarget target)
+    private void RemoveSlow(CharacterHandle target)
     {
         if (!slowed.TryGetValue(target, out var entry)) return;
         slowed.Remove(target); // Gỡ ownership trước callback tính lại stats.
-        Services.GetEffects().EffectHandles.Remove(entry);
+        Services.Effects.Remove(entry);
     }
 
     private void ClearSlow()
@@ -128,7 +129,7 @@ public sealed class FrostAuraSkill : Skill
         // Không giữ enumerator khi gỡ effect có thể phát callback. Mỗi handle thuộc đúng một nguồn aura.
         while (slowed.Count > 0)
         {
-            CharacterTarget target;
+            CharacterHandle target;
             using (var iterator = slowed.Keys.GetEnumerator()) { iterator.MoveNext(); target = iterator.Current; }
             try { RemoveSlow(target); }
             catch (Exception exception) { Debug.LogException(exception); }
@@ -152,7 +153,7 @@ public sealed class FrostAuraSkill : Skill
         try { ClearSlow(); }
         finally
         {
-            if (visual != null) Services.GetEffects().Pools.Despawn(visual.gameObject);
+            if (visual != null) Services.Pools.Despawn(visual.gameObject);
             visual = null;
             Array.Clear(targets, 0, targets.Length);
         }

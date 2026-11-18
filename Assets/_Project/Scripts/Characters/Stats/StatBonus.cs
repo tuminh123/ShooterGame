@@ -58,17 +58,23 @@ public struct StatBonus
         };
     }
 
-    // Summation does not clamp. Runtime limits the final result after combining all sources.
-    public BaseStats ApplyTo(BaseStats source)
+    /// <summary>
+    /// Chuyển thành một nguồn modifier cho <see cref="StatSheet"/>: mỗi chỉ số là một modifier <c>Add</c>.
+    /// Công thức không đổi, vì bonus cộng thẳng và modifier Add đều được cộng trước khi nhân phần trăm.
+    /// </summary>
+    public StatModifier[] ToModifiers()
     {
-        source.maxHealth += maxHealth;
-        source.damage += damage;
-        source.defense += defense;
-        source.moveSpeed += moveSpeed;
-        source.critChance += critChance;
-        source.critDamageMultiplier += critDamageMultiplier;
-        source.effectResistance += effectResistance;
-        source.effectHit += effectHit;
-        return source;
+        Validate();
+        return new[]
+        {
+            new StatModifier(StatType.MaxHealth, StatOperation.Add, maxHealth),
+            new StatModifier(StatType.Damage, StatOperation.Add, damage),
+            new StatModifier(StatType.Defense, StatOperation.Add, defense),
+            new StatModifier(StatType.MoveSpeed, StatOperation.Add, moveSpeed),
+            new StatModifier(StatType.CritChance, StatOperation.Add, critChance),
+            new StatModifier(StatType.CritDamageMultiplier, StatOperation.Add, critDamageMultiplier),
+            new StatModifier(StatType.EffectResistance, StatOperation.Add, effectResistance),
+            new StatModifier(StatType.EffectHit, StatOperation.Add, effectHit)
+        };
     }
 }

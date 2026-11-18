@@ -2,25 +2,25 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Chỉ đăng ký và chọn cách tìm nhân vật; thuật toán nằm trong CharacterSearchStrategies.
-public sealed class CharacterSearchFactory : ICharacterSearchFactory
+/// <summary>Đăng ký và chọn strategy tìm nhân vật theo <see cref="CharacterSearchType"/>; thuật toán nằm trong CharacterSearchStrategies.</summary>
+public sealed class CharacterSearchFactory
 {
     #region Strategy Registry
 
     private readonly Dictionary<CharacterSearchType, ISingleCharacterSearch> singleSearches; // Các cách trả một mục tiêu.
     private readonly Dictionary<CharacterSearchType, IMultipleCharacterSearch> multipleSearches; // Các cách trả nhiều mục tiêu.
 
-    // Mỗi strategy được tạo một lần; tất cả truy cập Spatial qua interface.
-    public CharacterSearchFactory(ISpatialManager spatialManager, ISpatialSearchFactory spatialSearchFactory)
+    // Mỗi strategy được tạo một lần; tất cả truy cập Simulation qua các vai trò trong SimulationContracts.cs.
+    public CharacterSearchFactory(ISpatialResolution resolution, ISpatialQuery queries, ISpatialQueryBuilder queryBuilder)
     {
         singleSearches = new Dictionary<CharacterSearchType, ISingleCharacterSearch>
         {
-            { CharacterSearchType.Nearest, new FindNearestSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) },
-            { CharacterSearchType.FirstOnPath, new FindFirstOnPathSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) }
+            { CharacterSearchType.Nearest, new FindNearestSearch(resolution, queries, queryBuilder) },
+            { CharacterSearchType.FirstOnPath, new FindFirstOnPathSearch(resolution, queries, queryBuilder) }
         };
         multipleSearches = new Dictionary<CharacterSearchType, IMultipleCharacterSearch>
         {
-            { CharacterSearchType.AllInCircle, new FindAllInCircleSearch(spatialManager.GetResolution(), spatialManager.GetQueries(), spatialSearchFactory.GetQueryBuilder()) }
+            { CharacterSearchType.AllInCircle, new FindAllInCircleSearch(resolution, queries, queryBuilder) }
         };
     }
 
@@ -44,9 +44,10 @@ public sealed class CharacterSearchFactory : ICharacterSearchFactory
 
     #endregion
 }
-public enum CharacterSearchType { Nearest, AllInCircle, FirstOnPath } // Các cách tìm gameplay, độc lập loại job ở tầng Spatial.
+/// <summary>Các cách tìm mục tiêu ở tầng gameplay; độc lập với loại job ở tầng Spatial.</summary>
+public enum CharacterSearchType { Nearest, AllInCircle, FirstOnPath }
 
-// Yêu cầu trên main thread; strategy tự tạo query hình học, không truyền CharacterView vào job.
+/// <summary>Yêu cầu trên main thread; strategy tự tạo query hình học, không truyền CharacterView vào job.</summary>
 public readonly struct CharacterSearchRequest
 {
     public readonly Vector2 Origin; // Tâm vùng hoặc điểm bắt đầu đường tìm.

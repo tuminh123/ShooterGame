@@ -1,76 +1,62 @@
 using System;
 using UnityEngine;
 
-// Shared combat and innate-skill activation. Derived controllers specialize movement and death.
-public abstract class CharacterControllerBase :
-    ICharacterController,
-    ICharacterFeedbackSource,
-    ICharacterControl,
-    ICharacterDamageReceiver,
-    ICharacterDamageDealer,
-    ICharacterVitals,
-    IDisposable
+/// <summary>
+/// Phần dùng chung của mọi controller: nhận/gây sát thương, thay đổi HP/giáp, xử lý chết, đếm feedback trạng thái.
+/// Class con (<see cref="PlayerController"/>, <see cref="EnemyController"/>) chỉ quyết định di chuyển và phản ứng khi chết.
+/// </summary>
+/// <remarks>
+/// Một controller gắn với đúng một lượt spawn: lần đầu nhận (view, runtime) nó ghi nhớ danh tính, và mọi lời gọi
+/// sau đó thuộc lượt spawn khác đều bị bỏ qua (xem <see cref="IsCurrent"/>).
+/// </remarks>
+public abstract class CharacterControllerBase : ICharacterController
 {
-    #region Runtime Identity And Lifecycle
+    #region State
 
-    // Controller có state pause riêng mới cần override.
-    public virtual void SetPaused(bool paused) { }
-    // Controller có tài nguyên riêng mới cần thu hồi.
-    public virtual void Dispose()
-    {
-        feedbackDisposed = true;
-        FeedbackChanged = null;
-        Array.Clear(effectCounts, 0, effectCounts.Length);
-    }
-    public event Action<CharacterFeedbackKind, bool> FeedbackChanged;
+    private CharacterHandle spawn; // Lượt spawn mà controller này phục vụ; ghi nhớ ở lời gọi đầu tiên.
+    private bool spawnBound;
+    private CharacterRuntimeData deathHandled; // Chặn xử lý chết hai lần trên cùng lượt spawn.
+
+    // Số effect đang bật theo từng loại (index = CharacterFeedbackKind). Màu chỉ tắt khi effect cuối cùng của loại đó hết.
     private readonly int[] effectCounts = new int[4];
     private bool feedbackDisposed;
 
-    public void NotifyEffect(CharacterView view, CharacterRuntimeData runtime, ulong spawnGeneration,
-        CharacterFeedbackKind kind, bool active)
-    {
-        if (feedbackDisposed || !IsCurrent(view, runtime) || runtime.Generation != spawnGeneration ||
-            kind == CharacterFeedbackKind.Hit || !Enum.IsDefined(typeof(CharacterFeedbackKind), kind)) return;
-        int index = (int)kind;
-        int previous = effectCounts[index];
-        effectCounts[index] = active ? previous + 1 : Math.Max(0, previous - 1);
-        if ((previous > 0) != (effectCounts[index] > 0)) PublishFeedback(kind, effectCounts[index] > 0);
-    }
-
-    private void PublishFeedback(CharacterFeedbackKind kind, bool active)
-    {
-        Action<CharacterFeedbackKind, bool> listeners = FeedbackChanged;
-        if (feedbackDisposed || listeners == null) return;
-        ulong currentGeneration = generation;
-        foreach (Action<CharacterFeedbackKind, bool> listener in listeners.GetInvocationList())
-        {
-            if (feedbackDisposed || identity == null || identity.Generation != currentGeneration) break;
-            try { listener(kind, active); } catch (Exception exception) { Debug.LogException(exception); }
-        }
-    }
-    private CharacterRuntimeData deathHandled; // Chặn xử lý chết nhiều lần trên cùng lượt spawn.
-    private CharacterRuntimeData identity; // Danh tính runtime đang thuộc controller.
-    private ulong generation; // Không dùng controller cũ khi pool tái sử dụng runtime.
-    // Xử lý trạng thái chết do thay stats trước khi cập nhật chuyển động.
-    public void Tick(CharacterView view, CharacterRuntimeData runtime)
-    {
-        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled) return;
-        // Giảm max HP từ modifier cũng có thể làm current về 0; xử lý chết như khi nhận damage.
-        if (!runtime.IsAlive) { CompleteDeath(view, runtime); return; }
-
-        TickMovement(view, runtime);
-    }
-
-    // Lớp con quyết định input/AI và hướng di chuyển.
-    protected abstract void TickMovement(CharacterView view, CharacterRuntimeData runtime);
-    // Lớp con xử lý hành vi sau khi kết thúc combat lifetime.
-    public abstract void OnDeath(CharacterView view, CharacterRuntimeData runtime);
+    /// <inheritdoc/>
+    public event Action<CharacterFeedbackKind, bool> FeedbackChanged;
 
     #endregion
 
-    #region Combat Mutation
+    #region Frame Update
 
-    // Giáp hấp thụ trước HP; runtime ghi lượng đã mất rồi phát Changed cho UI.
+    /// <inheritdoc/>
+    public void Tick(CharacterView view, CharacterRuntimeData runtime)
+    {
+        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled) return;
+        // Giảm max HP bằng modifier cũng có thể đưa HP về 0; xử lý chết giống như khi nhận sát thương.
+        if (!runtime.IsAlive) { CompleteDeath(view, runtime); return; }
+        TickMovement(view, runtime);
+    }
+
+    /// <summary>Class con quyết định hướng di chuyển: input với Player, AI với Enemy.</summary>
+    protected abstract void TickMovement(CharacterView view, CharacterRuntimeData runtime);
+
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không làm gì; chỉ Enemy trong đội hình cần xử lý va chạm sau skill.</remarks>
+    public virtual void CompletePatternContact(CharacterHandle spawn) { }
+
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không có state cần pause.</remarks>
+    public virtual void SetPaused(bool paused) { }
+
+    /// <inheritdoc/>
+    /// <remarks>Mặc định luôn được đánh.</remarks>
+    public virtual bool CanAttack => true;
+
+    #endregion
+
+    #region Combat
+
+    /// <inheritdoc/>
     public DamageResult ReceiveDamage(CharacterView view, CharacterRuntimeData runtime, DamageInfo damage)
     {
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive ||
@@ -86,31 +72,53 @@ public abstract class CharacterControllerBase :
         try
         {
             runtime.SetVitals(health - healthLost, shield - absorbed);
+            // SetVitals phát Changed đồng bộ; listener có thể đã despawn nhân vật, nên kiểm tra lại trước mỗi bước.
             if (IsCurrent(view, runtime))
             {
                 if (result.Accepted) PublishFeedback(CharacterFeedbackKind.Hit, true);
-                if (IsCurrent(view, runtime))
-                    view.NotifyDamageReceived(damage, result);
+                if (IsCurrent(view, runtime)) view.NotifyDamageReceived(damage, result);
             }
         }
         finally
         {
+            // Chết phải được xử lý kể cả khi listener ném lỗi, nếu không nhân vật sẽ kẹt ở 0 HP mà không chết.
             if (result.Killed) CompleteDeath(view, runtime);
         }
         return result;
     }
 
-    // Thay đổi HP trực tiếp bỏ qua giáp; phần cộng tăng max/current và phát Changed, không hồi sinh nhân vật đã chết.
+    /// <inheritdoc/>
+    public virtual DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
+        CharacterHandle target, float multiplier = 1f)
+    {
+        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive ||
+            !target.TryGetCharacter(out CharacterView victim)) return default;
+
+        // Hướng "đẩy ra" từ nạn nhân về phía người đánh; hai bên trùng vị trí thì chọn hướng cố định theo instance ID.
+        Vector2 away = view.HitPosition - victim.HitPosition;
+        if (away.sqrMagnitude <= 0.000001f)
+            away = view.GetInstanceID() < victim.GetInstanceID() ? Vector2.left : Vector2.right;
+
+        DamageResult result = victim.ReceiveDamage(runtime.CreateDamage(multiplier));
+        if (result.Accepted && IsCurrent(view, runtime) && runtime.IsAlive)
+            OnAttack(view, runtime, away);
+        return result;
+    }
+
+    /// <summary>Phản ứng sau một đòn đánh trúng (ví dụ Enemy bị đẩy lùi). Mặc định không làm gì.</summary>
+    protected virtual void OnAttack(CharacterView view, CharacterRuntimeData runtime, Vector2 away) { }
+
+    /// <inheritdoc/>
     public void ChangeHealth(CharacterView view, CharacterRuntimeData runtime, float amount)
     {
         if (float.IsNaN(amount) || float.IsInfinity(amount))
             throw new ArgumentOutOfRangeException(nameof(amount));
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive) return;
+
         float previousHealth = runtime.CurrentHealth;
         try
         {
-            runtime.SetVitals(Mathf.Max(0f, runtime.CurrentHealth + amount),
-                runtime.CurrentShield);
+            runtime.SetVitals(Mathf.Max(0f, runtime.CurrentHealth + amount), runtime.CurrentShield);
             if (IsCurrent(view, runtime) && runtime.CurrentHealth < previousHealth)
                 PublishFeedback(CharacterFeedbackKind.Hit, true);
         }
@@ -120,39 +128,24 @@ public abstract class CharacterControllerBase :
         }
     }
 
-    // Gửi damage tới đúng lượt spawn của mục tiêu.
-    // EnemyController ghi đè cửa vào này để từ chối đánh khi choáng/tuần tra mà vẫn dùng chung xử lý damage.
-    public virtual DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
-        CharacterTarget target, float multiplier = 1f)
-    {
-        if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive ||
-            !target.TryGetCharacter(out CharacterView victim)) return default;
-        Vector2 away = view.HitPosition - victim.HitPosition;
-        if (away.sqrMagnitude <= 0.000001f)
-            away = view.GetInstanceID() < victim.GetInstanceID() ? Vector2.left : Vector2.right;
-        DamageResult result = victim.ReceiveDamage(runtime.CreateDamage(multiplier));
-        if (result.Accepted && IsCurrent(view, runtime) && runtime.IsAlive)
-            OnAttack(view, runtime, away);
-        return result;
-    }
-
-    // Lớp con có thể thêm phản ứng sau một đòn đánh thành công.
-    protected virtual void OnAttack(CharacterView view, CharacterRuntimeData runtime, Vector2 away) { }
-
-    // Cấp giáp qua runtime để max/current và thông báo UI được cập nhật cùng nhau.
+    /// <inheritdoc/>
     public void GrantShield(CharacterView view, CharacterRuntimeData runtime, float amount)
     {
         if (float.IsNaN(amount) || float.IsInfinity(amount) || amount < 0f)
             throw new ArgumentOutOfRangeException(nameof(amount));
+        // Cấp qua runtime để max/current và thông báo UI được cập nhật cùng lúc.
         if (IsCurrent(view, runtime) && view.isActiveAndEnabled && runtime.IsAlive)
             runtime.AddShield(amount);
     }
 
     #endregion
 
-    #region Owner Lifetime Guards
+    #region Death
 
-    // Chết từ damage hoặc giảm max đều dùng cùng một đường cleanup.
+    /// <summary>Phản ứng riêng sau khi lượt spawn kết thúc combat (Player đứng yên chờ Lose, Enemy chờ trả về pool…).</summary>
+    protected abstract void OnDeath(CharacterView view, CharacterRuntimeData runtime);
+
+    // Chết vì sát thương hay vì giảm max HP đều đi qua đúng một đường dọn dẹp này.
     private void CompleteDeath(CharacterView view, CharacterRuntimeData runtime)
     {
         if (!IsCurrent(view, runtime) || runtime.IsAlive || ReferenceEquals(deathHandled, runtime)) return;
@@ -161,27 +154,64 @@ public abstract class CharacterControllerBase :
         finally { if (IsCurrent(view, runtime)) OnDeath(view, runtime); }
     }
 
-    // Callback không được tác động vào một spawn khác đã dùng lại cùng vỏ/runtime.
-    private bool IsCurrent(CharacterView view, CharacterRuntimeData runtime)
+    #endregion
+
+    #region Feedback
+
+    /// <inheritdoc/>
+    public void NotifyEffect(CharacterHandle target, CharacterFeedbackKind kind, bool active)
     {
-        if (view == null || runtime == null || !ReferenceEquals(view.RuntimeData, runtime)) return false;
-        if (identity == null) { identity = runtime; generation = runtime.Generation; }
-        return ReferenceEquals(identity, runtime) && runtime.Generation == generation;
+        // Hit không đi qua đây (nó là nháy tức thời, không có trạng thái bật/tắt).
+        if (feedbackDisposed || !target.IsCurrent || !IsCurrent(target.View, target.View.RuntimeData) ||
+            kind == CharacterFeedbackKind.Hit || !Enum.IsDefined(typeof(CharacterFeedbackKind), kind)) return;
+
+        int index = (int)kind;
+        int previous = effectCounts[index];
+        effectCounts[index] = active ? previous + 1 : Math.Max(0, previous - 1);
+        // Chỉ báo khi chuyển giữa "không có" và "có ít nhất một"; effect thứ hai cùng loại không đổi màu.
+        if ((previous > 0) != (effectCounts[index] > 0)) PublishFeedback(kind, effectCounts[index] > 0);
+    }
+
+    private void PublishFeedback(CharacterFeedbackKind kind, bool active)
+    {
+        Action<CharacterFeedbackKind, bool> listeners = FeedbackChanged;
+        if (feedbackDisposed || listeners == null) return;
+        foreach (Action<CharacterFeedbackKind, bool> listener in listeners.GetInvocationList())
+        {
+            // Listener có thể vừa trả nhân vật về pool; dừng thông báo của lượt spawn cũ.
+            if (feedbackDisposed || !spawnBound || !spawn.IsCurrent) break;
+            try { listener(kind, active); } catch (Exception exception) { Debug.LogException(exception); }
+        }
     }
 
     #endregion
 
-    #region Facade Access
+    #region Editor Debug
 
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ICharacterControl GetControl() => this;
+    /// <inheritdoc/>
+    /// <remarks>Mặc định không vẽ gì; chỉ Enemy có phạm vi tách đàn.</remarks>
+    public virtual void DrawSeparationGizmo(Vector3 position) { }
 
-    public ICharacterDamageReceiver GetDamageReceiver() => this;
+    #endregion
 
-    public ICharacterDamageDealer GetDamageDealer() => this;
+    #region Lifetime
 
-    public ICharacterVitals GetVitals() => this;
+    /// <summary>Thu hồi tài nguyên của controller khi lượt spawn kết thúc. Class con override phải gọi base.</summary>
+    public virtual void Dispose()
+    {
+        feedbackDisposed = true;
+        FeedbackChanged = null;
+        Array.Clear(effectCounts, 0, effectCounts.Length);
+    }
 
-    public IDisposable GetLifetime() => this;
+    // Lời gọi đầu tiên ghi nhớ lượt spawn; mọi lời gọi sau thuộc lượt spawn khác (vỏ hoặc runtime đã bị pool tái sử dụng) bị bỏ qua.
+    private bool IsCurrent(CharacterView view, CharacterRuntimeData runtime)
+    {
+        if (view == null || runtime == null || !ReferenceEquals(view.RuntimeData, runtime)) return false;
+        var call = new CharacterHandle(view, runtime);
+        if (!spawnBound) { spawn = call; spawnBound = true; }
+        return spawn.Equals(call); // Cùng vỏ, cùng runtime, cùng generation.
+    }
+
     #endregion
 }

@@ -1,5 +1,10 @@
 # Báo cáo cấu trúc spawn cuối cùng
 
+> **Tài liệu lịch sử.** Viết ở bước tách Stage khỏi spawn manager. Đường dẫn `Scripts/Spawning/...`
+> sau đó đã dời sang `Scripts/Stage/...`, và "registry `Dictionary<Type, IStageSpawnSystem>`"
+> đã được thay bằng switch trên loại data trong `StageManager` (xem
+> [Refactor-Architecture](Refactor-Architecture.md) và [Script-Folders](Script-Folders.md)).
+
 ## Cấu trúc đã chốt
 
 ```text

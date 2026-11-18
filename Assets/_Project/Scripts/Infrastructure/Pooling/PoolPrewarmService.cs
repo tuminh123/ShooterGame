@@ -15,11 +15,9 @@ public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoo
     private readonly CombatAssetsSO combat;
     private readonly LootDatabaseSO loot;
     private readonly IPoolPreparation objects;
-    private readonly ICharacterRuntimeCapacity characterRuntimes;
-    private readonly IEffectRuntimeCapacity effectRuntimes;
-    private readonly IMovementCapacity movement;
-    private readonly IProjectileCapacity projectiles;
-    private readonly ISpatialCapacity spatialCapacity;
+    private readonly ICharacterCapacity characterRuntimes; // Runtime nhân vật của miền Character.
+    private readonly ICombatCapacity combatCapacity; // Runtime effect và buffer đạn của miền Combat.
+    private readonly ISimulationCapacity simulationCapacity; // Buffer job di chuyển và lưới hitbox.
 
     public bool IsReady { get; private set; }
     public int PreparedObjectCount { get; private set; }
@@ -37,11 +35,9 @@ public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoo
         CombatAssetsSO combat,
         LootDatabaseSO loot,
         IPoolSystem poolSystem,
-        ICharacterRuntimePool characterRuntimePool,
-        IEffectRuntimePool effectRuntimePool,
-        IMovementSystem movementSystem,
-        IProjectileSystem projectileSystem,
-        ISpatialManager spatialManager)
+        ICharacterCapacity characterCapacity,
+        ICombatCapacity combatCapacity,
+        ISimulationCapacity simulationCapacity)
     {
         this.settings = settings;
         this.characterPrefab = characterPrefab;
@@ -49,11 +45,9 @@ public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoo
         this.combat = combat;
         this.loot = loot;
         this.objects = poolSystem.GetPoolPreparation();
-        this.characterRuntimes = characterRuntimePool.GetCharacterRuntimeCapacity();
-        this.effectRuntimes = effectRuntimePool.GetEffectRuntimeCapacity();
-        this.movement = movementSystem.GetCapacity();
-        this.projectiles = projectileSystem.GetProjectileCapacity();
-        this.spatialCapacity = spatialManager.GetCapacity();
+        this.characterRuntimes = characterCapacity;
+        this.combatCapacity = combatCapacity;
+        this.simulationCapacity = simulationCapacity;
     }
 
     #endregion
@@ -89,13 +83,12 @@ public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoo
         foreach (int count in plan.Values) totalObjects = checked(totalObjects + count);
         objects.ReserveActiveCapacity(totalObjects);
 
-        characterRuntimes.Prewarm(settings.characterRuntimes);
-        effectRuntimes.Prewarm<SlowEffectRuntime>(settings.slowRuntimes);
-        effectRuntimes.Prewarm<DamageOverTimeEffectRuntime>(settings.damageOverTimeRuntimes);
+        characterRuntimes.PrewarmRuntimes(settings.characterRuntimes);
+        combatCapacity.PrewarmCapacity(settings.slowRuntimes, settings.damageOverTimeRuntimes, settings.bullets);
         // Tạo sẵn cả vùng nhớ job: chỉ prewarm GameObject sẽ vẫn bị resize buffer trong trận đầu.
-        movement.PrewarmCapacity(checked(settings.characterShells + settings.bullets + settings.pickups));
-        projectiles.PrewarmCapacity(settings.bullets);
-        spatialCapacity.PrewarmCapacity(settings.characterShells);
+        simulationCapacity.PrewarmCapacity(
+            movers: checked(settings.characterShells + settings.bullets + settings.pickups),
+            hitboxes: settings.characterShells);
 
         PreparedObjectCount = 0;
         foreach (KeyValuePair<GameObject, int> entry in plan)
@@ -113,7 +106,7 @@ public sealed class PoolPrewarmService : IPoolPrewarmService, IPoolPrewarm, IPoo
         Progress = 1f;
         ProgressChanged?.Invoke(Progress);
         Debug.Log($"[PoolPrewarm] Ready: {PreparedObjectCount} objects, " +
-            $"{characterRuntimes.AvailableCount} character runtimes; player can spawn.");
+            $"{characterRuntimes.AvailableRuntimes} character runtimes; player can spawn.");
     }
 
     private static void Add(Dictionary<GameObject, int> plan, GameObject prefab, int count)

@@ -1,16 +1,19 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Zenject;
 
-// Chỉ sở hữu skill nhận trong gameplay; skill nhân vật thuộc CharacterSkills.
-public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillOwnerLifecycle, ISkillGrant, IOwnedSkillReader, IRunSkillCleanup
+/// <summary>
+/// System skill gameplay của miền Combat: các skill nhận được trong trận (qua bảng chọn khi lên cấp).
+/// Skill vốn có của nhân vật không thuộc đây mà thuộc <see cref="CharacterSkills"/>.
+/// </summary>
+/// <remarks>Do <see cref="CombatManager"/> tạo và gọi <see cref="Tick()"/>; không bind vào Zenject.</remarks>
+public sealed class SkillManager : IDisposable
 {
     #region Services And Runtime Collection
 
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
     private readonly IRunProgress levels; // Nhận reset trận; không tự quyết định luồng game.
-    private readonly ISkillRuntimeFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
+    private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
     public int RunCount { get { int count = 0; foreach (SkillRuntime skill in skills) if (skill.IsActive) count++; return count; } }
@@ -19,12 +22,13 @@ public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillO
 
     #region Initialization And Lookup
 
-    // Zenject tạo singleton; đăng ký đồng hồ chung nhưng chưa chạy trước frame đầu.
-    public SkillManager(ILevelService levelService, ISkillFactory skillFactory)
+    // ⏳ Nghe RunReset của miền Level là phụ thuộc ngược (Combat nghe miền trên nó).
+    // Giai đoạn 4 (Run): RunManager sẽ gọi ICombatLifecycle.ClearRunSkills thay cho event này.
+    public SkillManager(ILevelService levelService, SkillFactory skillFactory)
     {
         this.levels = levelService.GetRunProgress();
-        this.factory = skillFactory.GetRuntimeFactory();
-        levelService.GetRunProgress().RunReset += OnRunReset;
+        this.factory = skillFactory ?? throw new ArgumentNullException(nameof(skillFactory));
+        levels.RunReset += OnRunReset;
     }
 
     // UI chỉ đọc skill gameplay của đúng owner.
@@ -49,11 +53,12 @@ public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillO
     #region Grant And Registration
 
     // Nhận skill từ UI hoặc gameplay: chỉ tạo mới nếu chưa sở hữu, không cộng lại bonus khi nâng cấp.
-    public bool GrantOrUpgrade(SkillDataSO definition, CharacterView owner)
+    // context là CharacterSkills của lượt spawn hiện tại (CharacterSkillSystem cung cấp); null nghĩa là nhân vật không còn hợp lệ.
+    public bool GrantOrUpgrade(SkillDataSO definition, CharacterSkills context)
     {
-        if (disposed || definition == null || definition.Source != SkillSource.Gameplay || owner == null || owner.Skills == null || !owner.Skills.IsValid) return false;
-        if (TryGetRuntime(definition, owner, out SkillRuntime runtime)) return runtime.TryUpgrade();
-        return AddGameplaySkill(definition, owner.Skills);
+        if (disposed || definition == null || definition.Source != SkillSource.Gameplay || context == null || !context.IsValid) return false;
+        if (TryGetRuntime(definition, context.Owner, out SkillRuntime runtime)) return runtime.TryUpgrade();
+        return AddGameplaySkill(definition, context);
     }
 
     // Tạo skill gameplay mới trong context của lượt spawn hiện tại.
@@ -78,7 +83,7 @@ public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillO
 
     #region Scheduling And Owner Lifecycle
 
-    // Zenject điều phối skill gameplay; CharacterManager gọi skill riêng của nhân vật.
+    // CombatManager gọi mỗi frame; skill vốn có của nhân vật do CharacterView tự tick qua CharacterSkills.
     public void Tick() => Tick(Time.deltaTime);
     // Dùng cho test/manual simulation, cùng logic scheduler production.
     // Callback có thể despawn/reset/spawn; chỉ duyệt số phần tử có sẵn ở đầu frame.
@@ -141,19 +146,6 @@ public sealed class SkillManager : ITickable, IDisposable, ISkillSystem, ISkillO
         disposed = true;
         levels.RunReset -= OnRunReset; ClearRunSkills();
     }
-
-    #endregion
-
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ISkillOwnerLifecycle GetOwnerLifecycle() => this;
-
-    public ISkillGrant GetGrant() => this;
-
-    public IOwnedSkillReader GetReader() => this;
-
-    public IRunSkillCleanup GetRunCleanup() => this;
 
     #endregion
 }

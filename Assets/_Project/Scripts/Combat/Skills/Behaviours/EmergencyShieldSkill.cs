@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi khiên khẩn cấp: khi HP xuống dưới ngưỡng phần trăm, cấp một lượng khiên cho chủ nhân.</summary>
+/// <remarks>HP còn trên ngưỡng thì không tiêu cooldown. Data: <see cref="EmergencyShieldData"/>.</remarks>
 [Serializable]
 public sealed class EmergencyShieldSkill : Skill
 {

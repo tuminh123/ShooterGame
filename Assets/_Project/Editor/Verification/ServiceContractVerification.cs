@@ -22,10 +22,12 @@ public static class ServiceContractVerification
                 .Where(method => !method.IsSpecialName).ToArray();
             bool isFacade = methods.Length > 0 && methods.All(method => method.Name.StartsWith("Get", StringComparison.Ordinal) &&
                 method.GetParameters().Length == 0 && method.ReturnType.IsInterface);
+            // Kiến trúc mới (Docs/Architecture/Refactor-Architecture.md) bỏ giới hạn 3 method/interface:
+            // một strategy như ISkill hay IShooter là một khái niệm, cắt nhỏ chỉ thêm file mà không thêm giá trị.
+            // Facade cũ vẫn được kiểm tra cho tới khi miền của nó được chuyển xong.
             if (isFacade) Require(contract.GetInterfaces().Length == 0, contract.Name + " must expose roles through getters, not inheritance.");
-            else Require(methods.Length <= 3, contract.Name + " declares more than three methods.");
         }
-        Debug.Log($"[ServiceContracts] PASS: {interfaces.Length} public contracts, maximum three declared methods per role.");
+        Debug.Log($"[ServiceContracts] PASS: {interfaces.Length} public contracts.");
     }
 
     [MenuItem("Shooter Game/Verification/Report Missing Scripts")]
@@ -90,9 +92,9 @@ public static class ServiceContractVerification
         CheckBindings(container);
 
         var commands = container.Resolve<IGameFlow>().GetRunCommands();
-        var playerReader = container.Resolve<IPlayerSystem>().GetPlayerReader();
-        var characterDespawn = container.Resolve<ICharacterFactory>().GetCharacterDespawn();
-        var stageLifecycle = container.Resolve<IStageService>().GetStageRunLifecycle();
+        var playerReader = container.Resolve<IPlayerReader>();
+        var characterDespawn = container.Resolve<ICharacterDespawn>();
+        var stageLifecycle = container.Resolve<IStageRunLifecycle>();
         var pauses = container.Resolve<IGameplayPauseService>().GetGameplayPause();
         using (pauses.Acquire())
         {
@@ -119,7 +121,7 @@ public static class ServiceContractVerification
                 Require(!ReferenceEquals(oldRuntime, playerReader.RuntimeData) || oldGeneration != oldRuntime.Generation,
                     "Restart reused a runtime without changing its generation.");
                 var owned = new List<SkillRuntime>();
-                container.Resolve<ISkillSystem>().GetReader().GetOwnedSkills(playerReader.CurrentPlayer, owned);
+                container.Resolve<IOwnedSkillReader>().GetOwnedSkills(playerReader.CurrentPlayer, owned);
                 Require(owned.Count == 0, "Restart retained gameplay skills.");
                 Require(container.Resolve<ILevelService>().GetRunProgress().RunLevel == 1, "Restart did not reset run level.");
                 Require(commands.ReturnHome(), "ReturnHome failed.");
@@ -138,15 +140,12 @@ public static class ServiceContractVerification
     private static void CheckBindings(DiContainer container)
     {
         Type[] aggregates = {
-            typeof(IMovementSystem), typeof(ISpatialManager), typeof(ISpatialSearchFactory), typeof(ICharacterSearch),
-            typeof(ISkillSystem), typeof(ISkillFactory), typeof(ISkillServices), typeof(IEffectSystem),
-            typeof(ICharacterFactory), typeof(ICharacterSystem), typeof(IPlayerSystem), typeof(ILevelService),
+            typeof(ILevelService),
             typeof(ICharacterLevelService), typeof(IRunLevelService), typeof(IEquipmentService),
-            typeof(IPoolSystem), typeof(ICharacterRuntimePool), typeof(IEffectRuntimePool), typeof(IPoolPrewarmService),
-            typeof(IProjectileSystem), typeof(ICombatSpawnSystem), typeof(IShootBehaviorFactory), typeof(IProjectileMoveFactory),
+            typeof(IPoolSystem), typeof(IPoolPrewarmService),
             typeof(IGameFlow), typeof(IGameplayPauseService), typeof(IRunSession), typeof(ISaveService),
-            typeof(ICurrencyService), typeof(IStageService), typeof(IStageProgress), typeof(IEnemySpawnService),
-            typeof(IBossSummonService), typeof(IWorldMapService), typeof(IScreenTransitionService), typeof(IUINavigation)
+            typeof(ICurrencyService), typeof(IStageProgress),
+            typeof(IScreenTransitionService), typeof(IUINavigation)
         };
         foreach (Type aggregate in aggregates)
         {
@@ -177,6 +176,42 @@ public static class ServiceContractVerification
                 Require(count == (implementation is MonoBehaviour ? 0 : 1), "Duplicate/absent late tick registration: " + implementation.GetType().Name);
             }
         }
+        CheckDomainManager(container, typeof(CombatManager), typeof(ISkillGrant), typeof(IOwnedSkillReader),
+            typeof(ICombatLifecycle), typeof(ICombatCapacity));
+        CheckDomainManager(container, typeof(SimulationManager), typeof(IMovementRegistration), typeof(IMovementCommand),
+            typeof(IMovementArena), typeof(ISpatialRegistration), typeof(ISpatialInvalidation), typeof(ISpatialResolution),
+            typeof(ISpatialQuery), typeof(ISpatialQueryBuilder), typeof(ISimulationCapacity));
+        CheckDomainManager(container, typeof(CharacterManager), typeof(ICharacterSpawn), typeof(ICharacterDespawn),
+            typeof(ICharacterRegistry), typeof(ICharacterDeathEvents), typeof(IPlayerReader), typeof(IPlayerLifecycle),
+            typeof(ICharacterCapacity));
+        CheckDomainManager(container, typeof(WorldManager), typeof(IWorldMap));
+        CheckDomainManager(container, typeof(StageManager), typeof(IStageRunLifecycle), typeof(IStageSelection),
+            typeof(IStageResults), typeof(IStageSchedule));
+    }
+
+    // Kiến trúc mới: một manager theo miền, các vai trò của nó đều resolve về cùng một instance,
+    // không bind concrete, và đăng ký Tick/Dispose đúng một lần. System con không có binding nào.
+    private static void CheckDomainManager(DiContainer container, Type manager, params Type[] roles)
+    {
+        object instance = container.Resolve(roles[0]);
+        Require(manager.IsInstanceOfType(instance), roles[0].Name + " must resolve to " + manager.Name);
+        foreach (Type role in roles)
+            Require(ReferenceEquals(container.Resolve(role), instance), role.Name + " resolved to a different instance than " + manager.Name);
+        Require(!container.HasBinding(manager), "Unexpected concrete binding: " + manager.Name);
+        if (instance is ITickable)
+            Require(container.ResolveAll<ITickable>().Count(item => ReferenceEquals(item, instance)) == 1, "Duplicate/absent tick registration: " + manager.Name);
+        if (instance is IDisposable)
+            Require(container.ResolveAll<IDisposable>().Count(item => ReferenceEquals(item, instance)) == 1, "Duplicate/absent disposal: " + manager.Name);
+    }
+
+    // Smoke test cần gọi thẳng system bên trong một manager (ví dụ áp effect thủ công).
+    // Production không lộ các system này, nên tool kiểm tra lấy chúng qua reflection.
+    private static T GetManagerSystem<TRole, T>(DiContainer container, string fieldName)
+    {
+        object manager = container.Resolve(typeof(TRole));
+        FieldInfo field = manager.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Require(field != null && typeof(T).IsAssignableFrom(field.FieldType), manager.GetType().Name + " has no system field " + fieldName);
+        return (T)field.GetValue(manager);
     }
 
     #endregion
@@ -188,15 +223,15 @@ public static class ServiceContractVerification
         Vector3 before = player.transform.position;
         player.Move(Vector2.right, 2f);
         // Mô phỏng thủ công khi toàn scene đang pause; scheduler không chạy thêm bước gameplay.
-        ((MovementManager)container.Resolve<IMovementSystem>()).Simulate(0.1f);
+        GetManagerSystem<IMovementCommand, MovementManager>(container, "movement").Simulate(0.1f);
         Require(player.transform.position.x > before.x, "Movement command did not reach the movement job.");
         player.Move(Vector2.zero, 0f);
     }
 
     private static void CheckSkills(DiContainer container, CharacterView player)
     {
-        var grant = container.Resolve<ISkillSystem>().GetGrant();
-        var reader = container.Resolve<ISkillSystem>().GetReader();
+        var grant = container.Resolve<ISkillGrant>();
+        var reader = container.Resolve<IOwnedSkillReader>();
         SkillDataSO definition = container.Resolve<SkillDatabaseSO>().CreateRunChoiceCatalog().First();
         Require(grant.GrantOrUpgrade(definition, player), "Could not grant a gameplay skill.");
         Require(reader.TryGetRuntime(definition, player, out SkillRuntime runtime), "Granted skill cannot be read.");
@@ -211,17 +246,17 @@ public static class ServiceContractVerification
     {
         CharacterDataSO definition = container.Resolve<CharacterDatabaseSO>().CreateLookup().Values
             .First(item => item.Team == CharacterTeam.Enemy && !item.IsBoss);
-        CharacterView enemy = container.Resolve<IEnemySpawnService>().GetEnemySpawn().Spawn(definition, 1,
+        CharacterView enemy = GetManagerSystem<IStageRunLifecycle, EnemySpawner>(container, "spawner").Spawn(definition, 1,
             (Vector2)player.transform.position + Vector2.right * 3f);
-        var target = new CharacterTarget(enemy);
+        var target = new CharacterHandle(enemy);
         SpatialHandle spatialHandle = enemy.SpatialHandle;
-        var registration = container.Resolve<ISpatialManager>().GetRegistration();
-        var effects = container.Resolve<IEffectSystem>().GetEffectApplication();
-        var handles = container.Resolve<IEffectSystem>().GetEffectHandleControl();
+        var registration = container.Resolve<ISpatialRegistration>();
+        EffectManager effects = GetManagerSystem<ICombatLifecycle, EffectManager>(container, "effects");
+        EffectManager handles = effects; // Cùng một system áp effect và quản lý handle.
         try
         {
             Require(registration.IsRegistered(spatialHandle), "Enemy did not register its hitbox.");
-            Require(player.TargetSearch.FindNearest(enemy.HitPosition, 0.1f, CharacterTeam.Enemy).TryGetCharacter(out _),
+            Require(player.Search.FindNearest(enemy.HitPosition, 0.1f, CharacterTeam.Enemy).TryGetCharacter(out _),
                 "Character search did not resolve the enemy.");
             CheckProjectile(container, player, enemy);
             float speed = enemy.RuntimeData.FinalStats.moveSpeed;
@@ -241,7 +276,7 @@ public static class ServiceContractVerification
             Require(!handles.IsActive(replacement), "Death retained the owner's effect.");
         }
         finally { release.Despawn(enemy); }
-        Require(!container.Resolve<ISpatialManager>().GetResolution().TryResolve(spatialHandle, out _), "Released spatial handle resolved a character.");
+        Require(!container.Resolve<ISpatialResolution>().TryResolve(spatialHandle, out _), "Released spatial handle resolved a character.");
     }
 
     // Gọi đúng pipeline production dưới pause để quét đạn mà không làm đồng hồ scene chạy thêm.
@@ -252,15 +287,16 @@ public static class ServiceContractVerification
             new DamageInfo(Mathf.Min(0.1f, before * 0.1f), CharacterTeam.Player), 50f, 1f,
             new StraightProjectileMove(), Array.Empty<IGameplayEffect>(), 0f);
         Vector2 direction = (enemy.HitPosition - player.HitPosition).normalized;
-        Require(container.Resolve<ICombatSpawnSystem>().GetProjectileSpawner().SpawnBullet(data, player.HitPosition, direction, default),
+        ProjectileManager projectiles = GetManagerSystem<ICombatLifecycle, ProjectileManager>(container, "projectiles");
+        Require(projectiles.SpawnBullet(data, player.HitPosition, direction, default),
             "Projectile spawner failed.");
         ProjectileView projectile = UnityEngine.Object.FindObjectsOfType<ProjectileView>().Single();
         MethodInfo prepare = typeof(ProjectileView).GetMethod("PrepareQuery", BindingFlags.Instance | BindingFlags.NonPublic);
         MethodInfo complete = typeof(ProjectileView).GetMethod("CompleteQuery", BindingFlags.Instance | BindingFlags.NonPublic);
         object[] arguments = { 0.1f, default(SpatialQuery) };
         Require((bool)prepare.Invoke(projectile, arguments), "Projectile did not prepare a sweep query.");
-        SpatialHit hit = container.Resolve<ISpatialManager>().GetQueries().Query((SpatialQuery)arguments[1]);
-        Require(container.Resolve<ISpatialManager>().GetResolution().TryResolve(hit, out CharacterTarget target), "Projectile sweep missed the enemy.");
+        SpatialHit hit = container.Resolve<ISpatialQuery>().Query((SpatialQuery)arguments[1]);
+        Require(container.Resolve<ISpatialResolution>().TryResolve(hit, out CharacterHandle target), "Projectile sweep missed the enemy.");
         complete.Invoke(projectile, new object[] { target, new Vector2(hit.Position.x, hit.Position.y) });
         Require(enemy.RuntimeData.CurrentHealth + enemy.RuntimeData.CurrentShield < before, "Projectile hit did not apply damage.");
         Require(!projectile.isActiveAndEnabled, "Projectile hit did not return its shell to the pool.");

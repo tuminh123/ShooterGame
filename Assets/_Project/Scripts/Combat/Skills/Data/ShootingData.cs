@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Cấu hình của một loại hành vi tại một cấp; không chứa state runtime.
+/// <summary>Thông số của <see cref="ShootingSkill"/> tại một cấp: kiểu bắn, quỹ đạo, số viên, tốc độ, effect khi trúng.</summary>
+/// <remarks>Chỉ đọc, không chứa state runtime. Không đổi tên class hoặc field: Unity lưu chúng trong asset skill.</remarks>
 [Serializable]
 public sealed class ShootingData : SkillBehaviourData
 {
@@ -40,9 +41,8 @@ public sealed class ShootingData : SkillBehaviourData
             !Finite(defaultDirection.y) || defaultDirection.sqrMagnitude < 0.000001f ||
             !Positive(speed) || !Positive(lifetime))
             throw new InvalidOperationException("Invalid shooting data.");
-        shooter.GetDefinition().Validate();
-        ShootBehaviorFactory.ValidateSupported(shooter);
-        ProjectileMoveFactory.ValidateSupported(projectileMove);
+        // Không cần whitelist kiểu bắn/quỹ đạo: [SerializeReference] chỉ cho chọn class implement đúng interface.
+        shooter.Validate();
         ValidateEffects(effects);
     }
 

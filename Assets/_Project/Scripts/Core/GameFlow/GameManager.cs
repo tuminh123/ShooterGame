@@ -15,12 +15,11 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
     private readonly IRunProgressCommands levels; // Reset level, bonus, skill và các hệ thống nghe RunReset đúng một lần mỗi trận.
     private readonly IPlayerReader playerReader; // GameManager là nơi quyết định lúc spawn/remove Player.
     private readonly IPlayerLifecycle playerLifecycle;
-    private readonly ICharacterRegistry characterRegistry; // Nhận Player chết và thu thập character còn lại khi dọn trận.
+    private readonly IPoolCleanup poolCleanup; // Lưới an toàn khi rời gameplay: thu hồi object mà miền sở hữu quên dọn.
     private readonly ICharacterDeathEvents characterDeaths;
-    private readonly ICharacterDespawn factory; // Trả character về đúng pool, không Destroy trực tiếp.
-    private readonly IProjectileCleanup projectiles; // Thu hồi đạn cũ trước khi tạo trận mới.
+    private readonly ICharacterDespawn characterDespawn; // Thu hồi mọi nhân vật khi rời gameplay, không Destroy trực tiếp.
+    private readonly ICombatLifecycle combat; // Dọn đạn/effect/VFX và skill gameplay; skill vốn có theo vòng đời CharacterView.
     private readonly IGameplayPause pauses; // Token luồng game độc lập với pause thủ công và bảng chọn skill.
-    private readonly IRunSkillCleanup skills; // Dọn skill gameplay; skill nhân vật theo vòng đời CharacterView.
     private readonly IStageRunLifecycle stageLifecycle;
     private readonly IStageResults stageResults;
     private readonly bool autoStartRun; // Tắt để chờ người chơi bấm Play tại Home.
@@ -32,8 +31,15 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
     private bool playerResultComplete;
     private bool enemiesResultComplete;
     private GameState? completedDuringTransition; // Giữ kết quả nếu hoàn tất ngay trong lúc bus đang phát state.
-    public GameState State { get; private set; } = GameState.Boot; // Nguồn trạng thái duy nhất; bus/UI không tự ghi.
+    public GameState State { get; private set; } = GameState.Boot; // Nguồn trạng thái duy nhất; UI chỉ đọc, không tự ghi.
     public Exception LastError { get; private set; } // Cho loading/error UI đọc nguyên nhân chuẩn bị thất bại.
+
+    /// <summary>
+    /// Phát (state trước, state sau) ngay sau khi <see cref="State"/> đã được ghi.
+    /// Chỉ dành cho tầng trên Game (UI). Các hệ thống gameplay bên dưới không nghe event này;
+    /// GameManager gọi thẳng xuống chúng (ví dụ <see cref="ICombatLifecycle.ClearCombat"/> khi kết thúc trận).
+    /// </summary>
+    public event Action<GameState, GameState> StateChanged;
 
     #endregion
 
@@ -44,30 +50,31 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
         ISaveService saveService,
         IPoolPrewarmService poolPrewarmService,
         ILevelService levelService,
-        IPlayerSystem playerSystem,
-        ICharacterSystem characterSystem,
-        ICharacterFactory characterFactory,
-        IProjectileSystem projectileSystem,
+        IPlayerReader playerReader, // Năm vai trò Character đều do CharacterManager implement (CharacterContracts.cs).
+        IPlayerLifecycle playerLifecycle,
+        IPoolSystem poolSystem,
+        ICharacterDeathEvents characterDeaths,
+        ICharacterDespawn characterDespawn,
+        ICombatLifecycle combatLifecycle,
         IGameplayPauseService gameplayPauseService,
-        ISkillSystem skillSystem,
-        IStageService stageService,
+        IStageRunLifecycle stageLifecycle, // Hai vai trò Stage đều do StageManager implement (StageContracts.cs).
+        IStageResults stageResults,
         bool autoStartRun = false)
     {
         this.saves = saveService.GetSaveReader();
         this.poolPrewarm = poolPrewarmService.GetPoolPrewarm();
         this.prewarmProgress = poolPrewarmService.GetPoolPrewarmProgress();
         this.levels = levelService.GetRunProgressCommands();
-        this.playerReader = playerSystem.GetPlayerReader();
-        this.playerLifecycle = playerSystem.GetPlayerLifecycle();
-        this.characterRegistry = characterSystem.GetCharacterRegistry();
-        this.characterDeaths = characterSystem.GetCharacterDeathEvents();
-        this.factory = characterFactory.GetCharacterDespawn();
-        this.projectiles = projectileSystem.GetProjectileCleanup();
+        this.playerReader = playerReader;
+        this.playerLifecycle = playerLifecycle;
+        this.poolCleanup = poolSystem.GetPoolCleanup();
+        this.characterDeaths = characterDeaths;
+        this.characterDespawn = characterDespawn;
+        this.combat = combatLifecycle;
         this.pauses = gameplayPauseService.GetGameplayPause();
         this.autoStartRun = autoStartRun;
-        this.skills = skillSystem.GetRunCleanup();
-        this.stageLifecycle = stageService.GetStageRunLifecycle();
-        this.stageResults = stageService.GetStageResults();
+        this.stageLifecycle = stageLifecycle;
+        this.stageResults = stageResults;
     }
 
     // Chạy sau Save/RunSession.Initialize; chỉ cho vào Playing sau khi pool sẵn sàng và spawn thành công.
@@ -127,9 +134,7 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
             LastError = null;
             completedDuringTransition = null;
             ChangeState(GameState.PreparingRun);
-            stageLifecycle.StopRun();
-            CleanupCharactersAndProjectiles();
-            levels.StartNewRun();
+            ClearGameplayWorld();
             stageLifecycle.BeginRun();
             CharacterView player = playerLifecycle.SpawnPlayer(); // PlayerChanged được phát trước khi UI/gameplay nhận Playing.
             if (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive)
@@ -156,9 +161,7 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
         HoldFlowPause();
         try
         {
-            stageLifecycle.StopRun();
-            CleanupCharactersAndProjectiles();
-            levels.StartNewRun();
+            ClearGameplayWorld();
             ChangeState(GameState.Home);
             return true;
         }
@@ -170,7 +173,7 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
 
     #region Transition And Cleanup
 
-    // Khóa gameplay, phát state kết thúc để listener dọn đạn và chạy animation kết quả.
+    // Khóa gameplay, chuyển sang state kết thúc, dọn combat và chạy animation kết quả.
     private bool FinishRun(GameState result)
     {
         if (!CanTransition() || State != GameState.Playing) return false;
@@ -182,12 +185,19 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
                 return false;
             HoldFlowPause();
             stageResults.FinishRun(result == GameState.Won);
-            skills.ClearRunSkills();
+            combat.ClearRunSkills();
             GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
             completedDuringTransition = null;
             playerResultComplete = false;
             enemiesResultComplete = result == GameState.Won;
             ChangeState(ending);
+
+            // Thắng hay thua đều không được để đạn, effect và VFX chạy tiếp phía sau popup kết quả.
+            // Phải chạy SAU ChangeState: nếu không còn quái nào để ăn mừng, CharacterManager báo hoàn tất
+            // ngay lập tức, và OnEnemyCelebrationsCompleted chỉ chấp nhận khi State đã là EndingLose.
+            combat.ClearCombat();
+            if (ending == GameState.EndingLose) characterDeaths.PlayEnemyCelebrations();
+
             CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
             if (player == null || !player.PlayResultAnimation(animation, () => OnPlayerResultAnimationCompleted(ending)))
                 playerResultComplete = true;
@@ -253,16 +263,42 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
         if (State == next) return;
         GameState previous = State; // Chụp state cũ trước khi phát thông báo cho các listener.
         State = next;
-        GameUIEventBus.Publish(previous, next);
+        PublishStateChanged(previous, next);
     }
 
-    // Dọn bản sao danh sách vì Despawn thay đổi registry đồng bộ; không dùng Dispose để các service còn tái sử dụng.
-    private void CleanupCharactersAndProjectiles()
+    // Lỗi của một listener không được chặn các listener còn lại, nếu không một panel UI lỗi
+    // có thể khiến các panel khác kẹt ở state cũ.
+    private void PublishStateChanged(GameState previous, GameState next)
     {
-        projectiles.ClearProjectiles();
+        Action<GameState, GameState> handlers = StateChanged; // Chụp danh sách để listener tự gỡ khi đang phát vẫn an toàn.
+        if (handlers == null) return;
+        foreach (Action<GameState, GameState> handler in handlers.GetInvocationList())
+        {
+            try { ((Action<GameState, GameState>)handler)(previous, next); }
+            catch (Exception exception) { Debug.LogException(exception); }
+        }
+    }
+
+    /// <summary>
+    /// Rời gameplay (về Home, hoặc trước khi vào trận mới): dọn sạch mọi object của trận. Một chỗ duy nhất cho cả hai đường.
+    /// Không dùng Dispose, vì các service còn được dùng lại cho trận sau.
+    /// </summary>
+    /// <remarks>
+    /// Thứ tự có lý do:
+    /// 1. Stage dừng trước, để không spawn thêm quái trong lúc dọn.
+    /// 2. Combat dọn đạn/effect/VFX trước nhân vật, để đạn đang bay không trúng nhân vật đang bị thu hồi.
+    /// 3. Gỡ Player qua PlayerManager (đồng bộ CurrentPlayer/PlayerChanged), rồi thu hồi MỌI nhân vật còn lại.
+    /// 4. StartNewRun phát RunReset: loot, level và skill của trận được reset.
+    /// 5. Lưới an toàn ở tầng pool: thu hồi thứ gì còn sót và log warning kèm tên, để tìm miền nào quên dọn.
+    /// </remarks>
+    private void ClearGameplayWorld()
+    {
+        stageLifecycle.StopRun();
+        combat.ClearCombat();
         playerLifecycle.RemovePlayer();
-        foreach (CharacterView character in new List<CharacterView>(characterRegistry.Characters.Keys))
-            if (character != null) factory.Despawn(character);
+        characterDespawn.DespawnAll();
+        levels.StartNewRun();
+        poolCleanup.DespawnGameplayClones();
     }
 
     // Token chỉ được lấy một lần; các nguồn pause khác vẫn giữ token riêng của chúng.
@@ -300,6 +336,7 @@ public sealed class GameManager : IInitializable, IDisposable, IGameFlow, IGameS
         stageResults.Failed -= Fail;
         stageLifecycle.StopRun();
         ReleaseFlowPause();
+        StateChanged = null; // UI bị hủy cùng scene; không giữ reference tới listener đã chết.
     }
 
     #endregion

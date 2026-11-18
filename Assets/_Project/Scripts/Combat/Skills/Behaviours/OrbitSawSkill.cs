@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-// Hành vi runtime; nhận data theo cấp từ SkillRuntime.
+/// <summary>Hành vi cưa xoay: các lưỡi cưa quay quanh chủ nhân, gây sát thương và effect lên quái chạm phải.</summary>
+/// <remarks>Hành vi liên tục (chạy trong Tick). Mỗi lưỡi có nhịp đánh lại riêng cho từng mục tiêu. Data: <see cref="OrbitSawData"/>.</remarks>
 [Serializable]
 public sealed class OrbitSawSkill : Skill
 {
@@ -12,9 +13,9 @@ public sealed class OrbitSawSkill : Skill
     [NonSerialized] private OrbitSawData data; // Cấu hình cấp đang hoạt động.
     [NonSerialized] private IGameplayEffect[] effectSnapshot; // Effect riêng của cưa.
     [NonSerialized] private SkillAreaVisual[] blades; // Visual đang thuê từ pool.
-    [NonSerialized] private Dictionary<CharacterTarget, float>[] nextHits; // Lịch hit riêng của mỗi lưỡi.
-    [NonSerialized] private List<CharacterTarget> expired; // Buffer dọn mục tiêu hết cooldown/đã despawn.
-    [NonSerialized] private CharacterTarget[] targets; // Buffer query, không cấp phát mỗi frame.
+    [NonSerialized] private Dictionary<CharacterHandle, float>[] nextHits; // Lịch hit riêng của mỗi lưỡi.
+    [NonSerialized] private List<CharacterHandle> expired; // Buffer dọn mục tiêu hết cooldown/đã despawn.
+    [NonSerialized] private CharacterHandle[] targets; // Buffer query, không cấp phát mỗi frame.
     [NonSerialized] private int count; // Số lưỡi đang chạy.
     [NonSerialized] private float angle; // Góc hiện tại, giữ khi nâng cấp.
     [NonSerialized] private float clock; // Thời gian phục vụ lịch hit.
@@ -35,9 +36,9 @@ public sealed class OrbitSawSkill : Skill
         data = null;
         effectSnapshot = Array.Empty<IGameplayEffect>();
         blades = Array.Empty<SkillAreaVisual>();
-        nextHits = Array.Empty<Dictionary<CharacterTarget, float>>();
-        expired = new List<CharacterTarget>();
-        targets = Array.Empty<CharacterTarget>();
+        nextHits = Array.Empty<Dictionary<CharacterHandle, float>>();
+        expired = new List<CharacterHandle>();
+        targets = Array.Empty<CharacterHandle>();
         count = revision = 0;
         angle = clock = 0f;
         hasPrevious = paused = disposed = false;
@@ -53,7 +54,7 @@ public sealed class OrbitSawSkill : Skill
         for (int i = 0; i < blades.Length; i++)
         {
             if (i < next.bladeCount && !changedPrefab) continue;
-            if (blades[i] != null) Services.GetEffects().Pools.Despawn(blades[i].gameObject);
+            if (blades[i] != null) Services.Pools.Despawn(blades[i].gameObject);
             blades[i] = null;
             nextHits[i].Clear();
         }
@@ -61,7 +62,7 @@ public sealed class OrbitSawSkill : Skill
         Array.Resize(ref nextHits, next.bladeCount);
         for (int i = 0; i < nextHits.Length; i++)
         {
-            if (nextHits[i] == null) nextHits[i] = new Dictionary<CharacterTarget, float>();
+            if (nextHits[i] == null) nextHits[i] = new Dictionary<CharacterHandle, float>();
             if (blades[i] != null) blades[i].SetRadius(next.bladeRadius);
         }
         data = next;
@@ -84,7 +85,7 @@ public sealed class OrbitSawSkill : Skill
         clock += deltaTime;
         // Query rộng một lần, rồi dùng hình học sweep cho từng lưỡi. Không dùng Physics2D.
         Vector2 middle = (center + previousCenter) * 0.5f;
-        int found = Owner.Owner.RegionSearch.FindAll(middle,
+        int found = Owner.Owner.Search.FindAll(middle,
             data.orbitRadius + data.bladeRadius + Vector2.Distance(center, previousCenter) * 0.5f,
             CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
         try
@@ -103,18 +104,18 @@ public sealed class OrbitSawSkill : Skill
                     Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.orbitRadius;
                     for (int i = 0; i < found && !disposed && Owner.CanRun && currentRevision == revision; i++)
                     {
-                        CharacterTarget target = targets[i];
+                        CharacterHandle target = targets[i];
                         if (nextHits[blade].ContainsKey(target) || !target.TryGetCharacter(out CharacterView victim)) continue;
                         if (!SpatialGeometry.SweepCircle(new float2(start.x, start.y), new float2(end.x, end.y),
                             data.bladeRadius, victim.GetSpatialEntity(), out _)) continue;
                         // Lịch riêng theo lưỡi + danh tính spawn. Ghi trước callback damage để chống gọi lồng nhau.
                         nextHits[blade][target] = clock + data.hitInterval;
                         DamageResult hit = victim.ReceiveDamage(Owner.Identity.CreateDamage());
-                        if (hit.Accepted && Services.GetEffects().Effects != null && Owner.CanRun)
+                        if (hit.Accepted && Services.Effects != null && Owner.CanRun)
                             foreach (IGameplayEffect effect in effectSnapshot)
                             {
                                 if (!Owner.CanRun || disposed || currentRevision != revision) break;
-                                Services.GetEffects().Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
+                                Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
                             }
                     }
                     start = end;
@@ -136,18 +137,18 @@ public sealed class OrbitSawSkill : Skill
     private void EnsureBlade(int index)
     {
         if (blades[index] != null) return;
-        GameObject clone = Services.GetEffects().Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
+        GameObject clone = Services.Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
             beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, data.bladeRadius));
         if (clone == null) throw new InvalidOperationException("Could not spawn saw visual.");
         blades[index] = clone.GetComponent<SkillAreaVisual>();
     }
 
-    private void Prune(Dictionary<CharacterTarget, float> hits)
+    private void Prune(Dictionary<CharacterHandle, float> hits)
     {
         expired.Clear();
         foreach (var hit in hits)
             if (hit.Value <= clock || !hit.Key.TryGetCharacter(out _)) expired.Add(hit.Key);
-        foreach (CharacterTarget target in expired) hits.Remove(target);
+        foreach (CharacterHandle target in expired) hits.Remove(target);
         expired.Clear();
     }
 
@@ -167,7 +168,7 @@ public sealed class OrbitSawSkill : Skill
         disposed = true;
         for (int i = 0; i < blades.Length; i++)
         {
-            if (blades[i] != null) Services.GetEffects().Pools.Despawn(blades[i].gameObject);
+            if (blades[i] != null) Services.Pools.Despawn(blades[i].gameObject);
             blades[i] = null;
             nextHits[i].Clear();
         }

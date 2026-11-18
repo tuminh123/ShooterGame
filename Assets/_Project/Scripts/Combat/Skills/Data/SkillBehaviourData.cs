@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Class nền cho thông số của một hành vi tại một cấp. Mỗi class hành vi (<see cref="Skill"/>) có một class data tương ứng.
+/// </summary>
+/// <remarks>Chỉ đọc, không chứa state runtime. Không đổi tên class con: Unity lưu tên class trong asset skill.</remarks>
 [Serializable]
 public abstract class SkillBehaviourData
 {
@@ -24,7 +28,7 @@ public abstract class SkillBehaviourData
         foreach (IGameplayEffect effect in effects)
         {
             if (effect == null) throw new InvalidOperationException("Missing effect.");
-            effect.GetValidation().Validate();
+            effect.Validate();
         }
     }
 }

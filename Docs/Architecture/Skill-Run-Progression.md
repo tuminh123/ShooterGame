@@ -38,7 +38,7 @@ cấp 2. Danh sách mẫu bên dưới phải chứa cả ShootingSkill và Fros
 
 SkillManager chỉ giữ và tick runtime nguồn Gameplay. Reset trận chỉ dọn nhóm này.
 CharacterSkills giữ context của spawn, tự tạo và sở hữu runtime Character/Equipment.
-CharacterView.Update gọi CharacterSkills.Tick; disable/enable pause/resume skill,
+CombatManager tick CharacterSkills qua CharacterSkillSystem (nghe vòng đời của miền Character); disable/enable pause/resume skill,
 chết/despawn/destroy dispose timer, visual và modifier. Skill nhân vật còn sống
 không bị xóa hoặc dựng lại khi reset riêng tiến trình trận.
 Slot trong LevelUpPanel chỉ hiển thị danh sách Gameplay từ SkillManager.
@@ -131,8 +131,10 @@ thông báo và không tự hồi sinh. Không chạy toàn bộ harness hoặc 
 ## Modifier stat chung
 
 StatModifier xác định StatType, StatOperation (Add/Percent) và value.
-StatCalculator tính (Base + external + tổng Add) * (1 + tổng Percent / 100).
-CharacterRuntimeData dùng AddModifier/AddModifiers và StatModifierLease.Update/Dispose.
+StatCalculator tính (Base + tổng Add) * (1 + tổng Percent / 100).
+Mọi nguồn bonus (bonus lúc spawn, level + trang bị của Player, buff skill, slow, HP theo wave)
+thêm theo một cách duy nhất: `runtime.Stats.AddSource(...)` (StatSheet), giữ StatModifierLease để Update/Dispose.
+StatBonus cộng thẳng được đổi thành các modifier Add bằng `StatBonus.ToModifiers()`.
 Không còn movementScale hoặc AddTemporaryBonus. lostHealth/lostShield vẫn là trạng
 thái damage đã nhận để tính current từ max, không phải modifier.
 

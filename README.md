@@ -21,7 +21,7 @@ Player hỗ trợ joystick và bàn phím WASD/phím mũi tên trong Editor ho�
 - `ProjectSettings`: cấu hình dự án.
 - `Docs/Architecture`: tài liệu thiết kế; một số phần là blueprint chưa triển khai.
 
-Luồng hiện có gồm di chuyển Player/quái, pooling và prewarm trước khi tạo Player, nền theo chunk, level vĩnh viễn/trong trận, loot EXP/vàng, lưu tiến trình và trang bị. Combat dùng SkillDataSO, có bắn thẳng/quạt/vòng tròn/xoắn ốc, đạn dùng chung vỏ và hiệu ứng làm chậm/cháy/độc. Nhân vật có cấu hình visual/hitbox/thanh máu và shader giáp. Luồng loading scene, thắng/thua và trở về chưa được hoàn thiện.
+Luồng hiện có gồm di chuyển Player/quái, pooling và prewarm trước khi tạo Player, nền theo chunk, level vĩnh viễn/trong trận, loot EXP/vàng, lưu tiến trình và trang bị. Combat dùng SkillDataSO, có bắn thẳng/quạt/vòng tròn/xoắn ốc, đạn dùng chung vỏ và hiệu ứng làm chậm/cháy/độc. Nhân vật có cấu hình visual/hitbox/thanh máu và shader giáp. Thắng/thua có popup kết quả và về Home trong cùng scene; chưa có loading scene riêng hay chuyển scene.
 
 ## Tài liệu hệ thống
 

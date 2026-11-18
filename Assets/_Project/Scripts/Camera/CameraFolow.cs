@@ -50,11 +50,11 @@ public class CameraFolow : MonoBehaviour, Zenject.ILateTickable
 
     // * SceneContext inject; nhận player hiện tại dù manager tạo trước hay sau camera.
     [Inject]
-    public void Construct(IPlayerSystem playerSystem)
+    public void Construct(IPlayerReader playerReader)
     {
         if (playerManager != null)
             playerManager.PlayerChanged -= OnPlayerChanged;
-        playerManager = playerSystem.GetPlayerReader();
+        playerManager = playerReader;
         if (isActiveAndEnabled)
             OnEnable();
     }

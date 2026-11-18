@@ -23,8 +23,8 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
 
     public LootManager(
         LootDatabaseSO database,
-        ICharacterSystem characterSystem,
-        IPlayerSystem playerSystem,
+        ICharacterDeathEvents characterDeaths,
+        IPlayerReader playerReader,
         ILevelService levelService,
         IPoolSystem poolSystem,
         IRunSession runSession,
@@ -32,8 +32,8 @@ public sealed class LootManager : IInitializable, ILateTickable, IDisposable
     {
         this.database = database != null ? database : throw new ArgumentNullException(nameof(database));
         drops = database.CreateLookup();
-        this.characters = characterSystem.GetCharacterDeathEvents();
-        this.players = playerSystem.GetPlayerReader();
+        this.characters = characterDeaths;
+        this.players = playerReader;
         this.levelsRunProgress = levelService.GetRunProgress();
         this.runProgressCommands = levelService.GetRunProgressCommands();
         this.pools = poolSystem.GetGameObjectPool();

@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Data của một cấp skill. Mỗi cấp chứa <b>đầy đủ</b> thông số của các hành vi được bật ở cấp đó,
+/// không kế thừa từ cấp trước; hành vi không có entry ở cấp này thì chưa được mở.
+/// </summary>
 [Serializable]
 public sealed class SkillLevelData
 {

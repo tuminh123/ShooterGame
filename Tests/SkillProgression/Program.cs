@@ -108,8 +108,8 @@ class Program
   Equal(runtime.FinalStats.damage,80,"runtime snapshots mutable input array");
   source.Dispose();True(changed>0,"modifier changes notify UI");
   var world=new World();var owner=world.Character(CharacterTeam.Player);
-  var weak=world.Effects.ApplyMaintained(new SlowEffect(.1f),new CharacterTarget(owner),CharacterTeam.Enemy);
-  var strong=world.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterTarget(owner),CharacterTeam.Enemy);
+  var weak=world.Effects.ApplyMaintained(new SlowEffect(.1f),new CharacterHandle(owner),CharacterTeam.Enemy);
+  var strong=world.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterHandle(owner),CharacterTeam.Enemy);
   Equal(owner.RuntimeData.FinalStats.moveSpeed,.6f,"slow percentages add across runtimes");
   world.Effects.Remove(strong);Equal(owner.RuntimeData.FinalStats.moveSpeed,.9f,"remove only strong slow source");
   world.Effects.Remove(weak);Equal(owner.RuntimeData.FinalStats.moveSpeed,1,"clear last slow");
@@ -120,7 +120,7 @@ class Program
  {
   // Bullet hết hạn độc lập với slow duy trì; cùng cấu hình aura vẫn có runtime riêng.
   {
-   var w=new World();var victim=w.Character(CharacterTeam.Enemy);var target=new CharacterTarget(victim);
+   var w=new World();var victim=w.Character(CharacterTeam.Enemy);var target=new CharacterHandle(victim);
    var bullet=new SlowEffect(.3f);typeof(GameplayEffectData).GetField("duration",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(bullet,1f);
    True(w.Effects.Apply(bullet,target,CharacterTeam.Player),"bullet slow applied");Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"bullet leaves 70 percent speed");
    var aura=new SlowEffect(.2f);var first=w.Effects.ApplyMaintained(aura,target,CharacterTeam.Player);
@@ -148,7 +148,7 @@ class Program
    w.Manager.GrantOrUpgrade(definition,owner);w.Manager.TryGetRuntime(definition,owner,out var runtime);w.Manager.Tick();
    Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"aura applies on enter");
    var bullet=new SlowEffect(.3f);typeof(GameplayEffectData).GetField("duration",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(bullet,1f);
-   w.Effects.Apply(bullet,new CharacterTarget(victim),CharacterTeam.Player);Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"real aura stacks with bullet");
+   w.Effects.Apply(bullet,new CharacterHandle(victim),CharacterTeam.Player);Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"real aura stacks with bullet");
    w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.5f,"staying inside does not add slow each frame");
    victim.transform.position=new Vector3(10,0);w.Manager.Tick();Equal(victim.RuntimeData.FinalStats.moveSpeed,.7f,"leaving aura preserves bullet");
    victim.transform.position=new Vector3(.5f,0);w.Manager.Tick();w.Timers.Advance(1f);Equal(victim.RuntimeData.FinalStats.moveSpeed,.8f,"bullet expires while inside actual aura");
@@ -160,7 +160,7 @@ class Program
   {
    var w=new World();var victim=w.Character(CharacterTeam.Enemy);Action release=null;
    release=()=>{victim.RuntimeData.Changed-=release;victim.Release();};victim.RuntimeData.Changed+=release;
-   var handle=w.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterTarget(victim),CharacterTeam.Player);
+   var handle=w.Effects.ApplyMaintained(new SlowEffect(.3f),new CharacterHandle(victim),CharacterTeam.Player);
    True(!w.Effects.IsActive(handle),"cleanup inside Apply invalidates handle");Equal(victim.RuntimeData.FinalStats.moveSpeed,1,"cleanup inside Apply releases modifier");w.Manager.Dispose();w.Effects.Dispose();
   }
  }
@@ -275,9 +275,9 @@ class Program
    int Count(CharacterFeedbackKind kind,bool active){int n=0;foreach(var e in events)if(e.Kind==kind&&e.Active==active)n++;return n;}
    var poison=new PoisonEffect();Set(poison,"duration",2f);var burn=new BurnEffect();Set(burn,"duration",3f);
    var slowA=new SlowEffect(.1f);Set(slowA,"duration",1f);var slowB=new SlowEffect(.2f);Set(slowB,"duration",3f);
-   True(w.Effects.Apply(poison,new CharacterTarget(owner),source),"poison applies to either character team");
-   True(w.Effects.Apply(poison,new CharacterTarget(owner),source),"poison refresh succeeds");Equal(Count(CharacterFeedbackKind.Poison,true),1,"refresh does not duplicate active feedback");
-   w.Effects.Apply(burn,new CharacterTarget(owner),source);w.Effects.Apply(slowA,new CharacterTarget(owner),source);w.Effects.Apply(slowB,new CharacterTarget(owner),source);
+   True(w.Effects.Apply(poison,new CharacterHandle(owner),source),"poison applies to either character team");
+   True(w.Effects.Apply(poison,new CharacterHandle(owner),source),"poison refresh succeeds");Equal(Count(CharacterFeedbackKind.Poison,true),1,"refresh does not duplicate active feedback");
+   w.Effects.Apply(burn,new CharacterHandle(owner),source);w.Effects.Apply(slowA,new CharacterHandle(owner),source);w.Effects.Apply(slowB,new CharacterHandle(owner),source);
    Equal(Count(CharacterFeedbackKind.Burn,true),1,"burn identified separately from poison shared runtime");Equal(Count(CharacterFeedbackKind.Slow,true),1,"stacked slow publishes one activation");
    w.Timers.Advance(1f);Equal(Count(CharacterFeedbackKind.Slow,false),0,"one expired slow cannot clear another active slow");
    w.Timers.Advance(1f);Equal(Count(CharacterFeedbackKind.Poison,false),1,"poison expiration publishes removal");Equal(Count(CharacterFeedbackKind.Burn,false),0,"poison expiration keeps burn active");
@@ -291,7 +291,7 @@ class Program
    feedback.NotifyEffect(owner,owner.RuntimeData,owner.RuntimeData.Generation+1,CharacterFeedbackKind.Poison,true);Equal(Count(CharacterFeedbackKind.Poison,true),1,"stale spawn notification ignored");
    int logs=0;Debug.ExceptionSink=_=>logs++;Action<CharacterFeedbackKind,bool> failing=(kind,active)=>throw new Exception("injected feedback listener failure");feedback.FeedbackChanged+=failing;
    owner.ReceiveDamage(new DamageInfo(1,source));feedback.FeedbackChanged-=failing;Debug.ExceptionSink=null;Equal(logs,1,"feedback listener error is isolated");
-   w.Effects.Apply(poison,new CharacterTarget(owner),source);w.Effects.ClearTarget(owner,owner.RuntimeData);Equal(Count(CharacterFeedbackKind.Poison,false),2,"explicit cleanup removes status feedback");
+   w.Effects.Apply(poison,new CharacterHandle(owner),source);w.Effects.ClearTarget(owner,owner.RuntimeData);Equal(Count(CharacterFeedbackKind.Poison,false),2,"explicit cleanup removes status feedback");
    w.Manager.Dispose();owner.Release();
   }
  }

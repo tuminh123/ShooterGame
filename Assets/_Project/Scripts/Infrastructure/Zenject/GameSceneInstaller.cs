@@ -16,6 +16,17 @@ public sealed partial class GameSceneInstaller : MonoInstaller
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, inject cho Player được tạo.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
+    [Tooltip("Nền lặp theo Player và danh mục map; WorldManager dựng từ cấu hình này.")]
+    [SerializeField] private WorldManager.Settings world = new WorldManager.Settings();
+    [Tooltip("Vùng sinh quái và AI quái (tách đàn, phản lực); StageManager dựng EnemySpawner từ cấu hình này.")]
+    [SerializeField] private EnemySpawner.Settings stage = new EnemySpawner.Settings();
+
+    #endregion
+
+    #region Editor Gizmos
+
+    // Vùng sinh quái trước đây vẽ trên component EnemySpawnManager; giờ cấu hình nằm ở installer nên vẽ tại đây.
+    private void OnDrawGizmosSelected() => stage?.DrawGizmos();
 
     #endregion
 
@@ -54,8 +65,7 @@ public sealed partial class GameSceneInstaller : MonoInstaller
         BindGameFlowAndUI();
         BindRunSessionAndLoot();
         BindPoolsAndPrewarm();
-        BindShootingAndProjectiles();
-        BindSkillsAndEffects();
+        BindCombat();
         BindSpatialAndMovement();
         ConfigureInitializationOrder();
         ConfigureFrameOrder();

@@ -52,10 +52,10 @@ public sealed class GameplayController : UIPanelController, ILateTickable
     private readonly List<ScheduledWarning> pendingWarnings = new List<ScheduledWarning>();
 
     [Inject]
-    public void Construct(IStageService stageService, LazyInject<TickableManager> tickables)
+    public void Construct(IStageSchedule stageSchedule, LazyInject<TickableManager> tickables)
     {
         Unsubscribe();
-        this.stage = stageService.GetStageSchedule();
+        this.stage = stageSchedule;
         this.tickables = tickables;
         ClearWarnings();
         if (isActiveAndEnabled) Subscribe();

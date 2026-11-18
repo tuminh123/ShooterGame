@@ -13,9 +13,10 @@ public sealed partial class GameSceneInstaller
         Container.BindInitializableExecutionOrder<CurrencyService>(-150);
         Container.BindInitializableExecutionOrder<PlayerEquipmentService>(-150);
         Container.BindInitializableExecutionOrder<CharacterLevelService>(-150);
-        Container.BindInitializableExecutionOrder<PlayerManager>(-150);
+        Container.BindInitializableExecutionOrder<CharacterManager>(-150); // Đọc nhân vật đang chọn từ save (PlayerManager bên trong).
         Container.BindInitializableExecutionOrder<StageProgressService>(-140);
         Container.BindInitializableExecutionOrder<RunSessionManager>(-50);
+        Container.BindInitializableExecutionOrder<WorldManager>(50); // Map ban đầu trước khi GameManager vào Home.
         Container.BindInitializableExecutionOrder<GameManager>(100); // Prewarm/spawn sau khi các service đã sẵn sàng.
     }
 
@@ -26,13 +27,14 @@ public sealed partial class GameSceneInstaller
     // Tick chạy số nhỏ trước. Cooldown/duration thuộc runtime; Zenject gọi trực tiếp từng manager.
     private void ConfigureFrameOrder()
     {
-        Container.BindTickableExecutionOrder<EffectManager>(-300);
         Container.BindTickableExecutionOrder<RunSessionManager>(-250);
-        Container.BindTickableExecutionOrder<SkillManager>(-100);
-        Container.BindTickableExecutionOrder<ProjectileManager>(100);
+        // Effect → skill → đạn: thứ tự nội bộ do CombatManager.Tick tự gọi (trước đây là -300/-100/100).
+        Container.BindTickableExecutionOrder<CombatManager>(-100);
         Container.BindTickableExecutionOrder<StageManager>(200);
         Container.BindTickableExecutionOrder<CharacterManager>(300);
-        Container.BindLateTickableExecutionOrder<MovementManager>(0);
+        Container.BindTickableExecutionOrder<WorldManager>(400); // Nền theo Player sau khi nhân vật đã tick (cùng thứ tự với GroundChunkManager cũ).
+        Container.BindLateTickableExecutionOrder<SimulationManager>(0); // Áp dụng di chuyển sau khi mọi Tick đã gửi lệnh.
+        Container.BindLateTickableExecutionOrder<StageManager>(200); // Bù chuyển động camera cho đội hình sau khi đã di chuyển (giữ thứ tự cũ của EnemySpawnManager).
         Container.BindLateTickableExecutionOrder<LootManager>(600); // Nhặt đồ sau khi đã áp dụng chuyển động.
     }
 
@@ -45,22 +47,20 @@ public sealed partial class GameSceneInstaller
     {
         Container.BindDisposableExecutionOrder<GameManager>(300);
         Container.BindDisposableExecutionOrder<StageManager>(250);
-        Container.BindDisposableExecutionOrder<EnemyVisualManager>(225); // Gỡ callback camera trước khi dọn nhân vật.
+        // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk trả về pool).
+        Container.BindDisposableExecutionOrder<WorldManager>(230);
         Container.BindDisposableExecutionOrder<LootManager>(210);
         Container.BindDisposableExecutionOrder<RunSessionManager>(205);
-        Container.BindDisposableExecutionOrder<CharacterFactory>(200); // Trả visual và vỏ trước khi dọn pool.
-        Container.BindDisposableExecutionOrder<ProjectileManager>(175);
-        Container.BindDisposableExecutionOrder<CombatSpawner>(160);
-        Container.BindDisposableExecutionOrder<EffectManager>(150);
-        Container.BindDisposableExecutionOrder<CharacterManager>(125);
+        // Thu hồi mọi nhân vật (trả visual và vỏ) trước khi dọn Combat và pool. Thứ tự nội bộ xem CharacterManager.Dispose.
+        Container.BindDisposableExecutionOrder<CharacterManager>(200);
+        // Sau CharacterManager: nhân vật despawn còn gọi Combat để dọn skill/effect của chính nó.
+        // Trước PoolManager: skill, đạn và VFX còn trả visual về pool. Thứ tự nội bộ xem CombatManager.Dispose.
+        Container.BindDisposableExecutionOrder<CombatManager>(175);
         Container.BindDisposableExecutionOrder<PoolManager>(100);
-        Container.BindDisposableExecutionOrder<CharacterRuntimePool>(90);
-        Container.BindDisposableExecutionOrder<PlayerManager>(50);
         Container.BindDisposableExecutionOrder<CurrencyService>(0);
         Container.BindDisposableExecutionOrder<SaveManager>(-50);
-        Container.BindDisposableExecutionOrder<SkillManager>(-75);
-        Container.BindDisposableExecutionOrder<MovementManager>(-100);
-        Container.BindDisposableExecutionOrder<SpatialManager>(-250); // Snapshot sống tới khi các bên dùng đã dọn xong.
+        // Gần cuối: mọi miền gameplay đã gỡ đăng ký movement/hitbox xong. Bên trong: movement rồi spatial (xem SimulationManager.Dispose).
+        Container.BindDisposableExecutionOrder<SimulationManager>(-100);
     }
 
     #endregion

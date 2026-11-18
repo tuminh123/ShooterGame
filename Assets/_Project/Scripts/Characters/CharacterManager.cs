@@ -1,145 +1,223 @@
 using System;
 using System.Collections.Generic;
+using Terresquall;
 using UnityEngine;
 using Zenject;
 
-// Theo dõi nhân vật đang sống và phát animation ăn mừng khi trận thua.
-public sealed class CharacterManager : IDisposable, ITickable, ICharacterSystem, ICharacterRegistration, ICharacterRegistry, ICharacterDeathEvents
+/// <summary>
+/// Manager của miền Character: sở hữu và điều phối spawn/thu hồi nhân vật, danh sách nhân vật, Player,
+/// hiển thị quái theo camera và tìm mục tiêu. Đây là class <b>duy nhất</b> của Character được bind vào Zenject.
+/// </summary>
+/// <remarks>
+/// <code>
+/// CharacterManager
+/// ├── CharacterRuntimePool                  runtime theo lượt spawn
+/// ├── CharacterRegistry                     danh sách nhân vật, tick, sự kiện chết, ăn mừng khi thua
+/// ├── CharacterSearchFactory → CharacterSearch   tìm mục tiêu (qua Simulation)
+/// ├── CharacterContext                      dịch vụ truyền vào mọi vỏ lúc spawn
+/// ├── CharacterFactory                      ghép template + runtime + controller + vỏ
+/// ├── PlayerManager                         Player hiện tại, bonus, nhân vật đang chọn
+/// └── EnemyVisualManager                    bật/tắt visual quái theo camera
+/// </code>
+/// Các system con được tạo bằng <c>new</c> ngay trong constructor, đọc từ trên xuống.
+/// Miền khác chỉ thấy các interface trong <c>CharacterContracts.cs</c>.
+/// </remarks>
+public sealed class CharacterManager :
+    ICharacterSpawn,
+    ICharacterDespawn,
+    ICharacterRegistry,
+    ICharacterDeathEvents,
+    IPlayerReader,
+    IPlayerLifecycle,
+    ICharacterCapacity,
+    IInitializable,
+    ITickable,
+    IDisposable
 {
-    #region Frame Scheduling
+    #region Owned Systems
 
-    private readonly List<(CharacterView View, CharacterRuntimeData Runtime, ulong Generation)> tickSnapshot =
-        new List<(CharacterView, CharacterRuntimeData, ulong)>(128);
+    private readonly CharacterRuntimePool runtimes;
+    private readonly CharacterRegistry registry;
+    private readonly CharacterFactory factory;
+    private readonly PlayerManager players;
+    private readonly EnemyVisualManager enemyVisibility;
+    private bool disposed;
 
-    // Dùng registry sẵn có; snapshot giữ đúng lượt spawn khi callback sinh/thu hồi nhân vật.
+    #endregion
+
+    #region Construction
+
+    /// <summary>Dựng miền Character. Thứ tự tạo đi theo chiều phụ thuộc: system nào được dùng thì phải tạo trước.</summary>
+    /// <param name="characterPrefab">Prefab vỏ dùng chung cho Player, quái và boss (installer truyền vào).</param>
+    public CharacterManager(
+        CharacterView characterPrefab,
+        IPoolSystem poolSystem,
+        IMovementRegistration movementRegistration,
+        IMovementCommand movementCommand,
+        ISpatialRegistration spatialRegistration,
+        ISpatialResolution spatialResolution,
+        ISpatialQuery spatialQuery,
+        ISpatialQueryBuilder queryBuilder,
+        VirtualJoystick joystick,
+        PlayerManager.Settings playerSettings,
+        ISaveService saveService,
+        ILevelService levelService,
+        IEquipmentService equipmentService)
+    {
+        try
+        {
+            IGameObjectPool pools = poolSystem.GetGameObjectPool();
+            runtimes = new CharacterRuntimePool();
+            registry = new CharacterRegistry();
+            var search = new CharacterSearch(new CharacterSearchFactory(spatialResolution, spatialQuery, queryBuilder));
+            var context = new CharacterContext(movementRegistration, movementCommand, spatialRegistration,
+                pools, search, runtimes);
+            factory = new CharacterFactory(characterPrefab, pools, registry, context);
+            players = new PlayerManager(factory, joystick, playerSettings, saveService, levelService, equipmentService);
+            enemyVisibility = new EnemyVisualManager(registry);
+        }
+        catch
+        {
+            // PlayerManager và EnemyVisualManager đăng ký event ngay khi được tạo; lỗi ở bước sau phải gỡ lại.
+            Dispose();
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Lifecycle
+
+    /// <summary>Đọc nhân vật đang chọn từ save. Chạy sau SaveManager (xem ExecutionOrder).</summary>
+    public void Initialize()
+    {
+        if (disposed) return;
+        players.Initialize();
+    }
+
+    /// <summary>Tick mọi nhân vật (controller rồi skill vốn có). Chạy sau Combat và Stage trong frame.</summary>
     public void Tick()
     {
         if (disposed) return;
-        tickSnapshot.Clear();
-        foreach (var view in characters.Keys)
-            if (view != null && view.RuntimeData != null)
-                tickSnapshot.Add((view, view.RuntimeData, view.RuntimeData.Generation));
-        try
-        {
-            foreach (var entry in tickSnapshot)
-            {
-                if (disposed) break;
-                if (entry.View == null || !characters.ContainsKey(entry.View) ||
-                    !ReferenceEquals(entry.View.RuntimeData, entry.Runtime) || entry.Runtime.Generation != entry.Generation) continue;
-                try { entry.View.TickFrame(Time.deltaTime); }
-                catch (Exception exception) { Debug.LogException(exception, entry.View); }
-            }
-        }
-        finally { tickSnapshot.Clear(); }
+        registry.Tick();
     }
 
     #endregion
 
-    #region Character Registry & Events
+    #region ICharacterSpawn, ICharacterDespawn, ICharacterCapacity
 
-    private readonly Dictionary<CharacterView, CharacterDataSO> characters = new Dictionary<CharacterView, CharacterDataSO>();
-    private bool disposed;
-    private int celebrationVersion;
-    private int waitingCelebrations;
-    public IReadOnlyDictionary<CharacterView, CharacterDataSO> Characters => characters;
-    public event Action<CharacterView, CharacterDataSO> CharacterAdded;
-    public event Action<CharacterView> CharacterRemoved;
-    public event Action<CharacterView> CharacterDied;
-    public event Action EnemyCelebrationsCompleted;
+    /// <inheritdoc/>
+    public CharacterView Spawn(CharacterDataSO template, StatBonus bonus, ICharacterController controller, Vector3 position)
+        => factory.Spawn(template, bonus, controller, position);
 
-    public CharacterManager()    {
-        GameUIEventBus.StateChanged += OnGameStateChanged;
-    }
+    /// <inheritdoc/>
+    public void Despawn(CharacterView character) => factory.Despawn(character);
 
-    #endregion
+    /// <inheritdoc/>
+    public void DespawnAll() => factory.DespawnAll();
 
-    #region Result Presentation
+    /// <inheritdoc/>
+    public void PrewarmRuntimes(int count) => runtimes.Prewarm(count);
 
-    // Khi thua, giữ quái còn sống và yêu cầu visual phát animation Win.
-    private void OnGameStateChanged(GameState previous, GameState current)
-    {
-        if (disposed || current != GameState.EndingLose) return;
-
-        int version = ++celebrationVersion;
-        waitingCelebrations = 0;
-        var snapshot = new List<CharacterView>(characters.Keys);
-        foreach (CharacterView character in snapshot)
-        {
-            if (character == null || character.RuntimeData == null ||
-                character.RuntimeData.Team != CharacterTeam.Enemy || !character.RuntimeData.IsAlive) continue;
-            if (character.PlayResultAnimation(CharacterVisualState.Win, () => OnCelebrationCompleted(version)))
-                waitingCelebrations++;
-        }
-
-        if (waitingCelebrations == 0) PublishCelebrationsCompleted(version);
-    }
-
-    // Bỏ callback thuộc lượt trình bày cũ.
-    private void OnCelebrationCompleted(int version)
-    {
-        if (disposed || version != celebrationVersion || waitingCelebrations <= 0) return;
-        waitingCelebrations--;
-        if (waitingCelebrations == 0) PublishCelebrationsCompleted(version);
-    }
-
-    private void PublishCelebrationsCompleted(int version)
-    {
-        if (disposed || version != celebrationVersion) return;
-        Action handlers = EnemyCelebrationsCompleted;
-        if (handlers == null) return;
-        foreach (Action handler in handlers.GetInvocationList())
-        {
-            try { handler(); }
-            catch (Exception exception) { Debug.LogException(exception); }
-        }
-    }
+    /// <inheritdoc/>
+    public int AvailableRuntimes => runtimes.AvailableCount;
 
     #endregion
 
-    #region Registration & Cleanup
+    #region ICharacterRegistry, ICharacterDeathEvents
 
-    public void Register(CharacterView character, CharacterDataSO definition)
+    /// <inheritdoc/>
+    public IReadOnlyDictionary<CharacterView, CharacterDataSO> Characters => registry.Characters;
+
+    /// <inheritdoc/>
+    public event Action<CharacterView, CharacterDataSO> CharacterAdded
     {
-        if (disposed) throw new ObjectDisposedException(nameof(CharacterManager));
-        if (character == null || character.RuntimeData == null || definition == null)
-            throw new ArgumentException("Register an initialized character.");
-        if (characters.ContainsKey(character)) return;
-        characters.Add(character, definition);
-        character.Released += Unregister;
-        character.Died += OnDied;
-        try { CharacterAdded?.Invoke(character, definition); }
-        catch { Unregister(character); throw; }
+        add => registry.CharacterAdded += value;
+        remove => registry.CharacterAdded -= value;
     }
 
-    public void Unregister(CharacterView character)
+    /// <inheritdoc/>
+    public event Action<CharacterView> CharacterRemoved
     {
-        if (!characters.Remove(character)) return;
-        character.Released -= Unregister;
-        character.Died -= OnDied;
-        CharacterRemoved?.Invoke(character);
+        add => registry.CharacterRemoved += value;
+        remove => registry.CharacterRemoved -= value;
     }
 
-    private void OnDied(CharacterView character) => CharacterDied?.Invoke(character);
+    /// <inheritdoc/>
+    public event Action<CharacterView> CharacterDied
+    {
+        add => registry.CharacterDied += value;
+        remove => registry.CharacterDied -= value;
+    }
 
+    /// <inheritdoc/>
+    public event Action EnemyCelebrationsCompleted
+    {
+        add => registry.EnemyCelebrationsCompleted += value;
+        remove => registry.EnemyCelebrationsCompleted -= value;
+    }
+
+    /// <inheritdoc/>
+    public void PlayEnemyCelebrations() => registry.PlayEnemyCelebrations();
+
+    #endregion
+
+    #region IPlayerReader, IPlayerLifecycle
+
+    /// <inheritdoc/>
+    public CharacterView CurrentPlayer => players.CurrentPlayer;
+
+    /// <inheritdoc/>
+    public CharacterRuntimeData RuntimeData => players.RuntimeData;
+
+    /// <inheritdoc/>
+    public Transform PlayerTransform => players.PlayerTransform;
+
+    /// <inheritdoc/>
+    public event Action<CharacterView> PlayerChanged
+    {
+        add => players.PlayerChanged += value;
+        remove => players.PlayerChanged -= value;
+    }
+
+    /// <inheritdoc/>
+    public CharacterView SpawnPlayer() => players.SpawnPlayer();
+
+    /// <inheritdoc/>
+    public void RemovePlayer() => players.RemovePlayer();
+
+    #endregion
+
+    #region Disposal
+
+    /// <summary>
+    /// Thứ tự: hiển thị quái → factory → Player → registry → runtime pool.
+    /// <list type="bullet">
+    /// <item>Gỡ callback camera trước khi nhân vật bị thu hồi (trước đây EnemyVisualManager dispose ở 225, trước factory 200).</item>
+    /// <item>Factory thu hồi mọi nhân vật còn lại, kể cả Player; mỗi vỏ còn gọi Combat để dọn skill/effect (Combat dispose sau, ở 175).</item>
+    /// <item>Player gỡ event level/trang bị; Player đã bị factory thu hồi nên RemovePlayer không làm gì thêm.</item>
+    /// <item>Registry và runtime pool dọn sau cùng vì vỏ còn dùng chúng trong lúc bị thu hồi.</item>
+    /// </list>
+    /// Mỗi bước được cô lập để lỗi của một system không chặn việc dọn các system còn lại.
+    /// </summary>
     public void Dispose()
     {
         if (disposed) return;
         disposed = true;
-        celebrationVersion++;
-        GameUIEventBus.StateChanged -= OnGameStateChanged;
-        foreach (CharacterView character in new List<CharacterView>(characters.Keys)) Unregister(character);
-        CharacterAdded = null; CharacterRemoved = null; CharacterDied = null; EnemyCelebrationsCompleted = null;
+        DisposeSafely(enemyVisibility);
+        DisposeSafely(factory);
+        DisposeSafely(players);
+        DisposeSafely(registry);
+        DisposeSafely(runtimes);
     }
 
-    #endregion
+    // System có thể null nếu constructor lỗi giữa chừng.
+    private static void DisposeSafely(IDisposable system)
+    {
+        if (system == null) return;
+        try { system.Dispose(); }
+        catch (Exception exception) { Debug.LogException(exception); }
+    }
 
-    #region Facade Access
-
-    // Các getter trả về vai trò của cùng instance; không tạo thêm service.
-    public ICharacterRegistration GetCharacterRegistration() => this;
-
-    public ICharacterRegistry GetCharacterRegistry() => this;
-
-    public ICharacterDeathEvents GetCharacterDeathEvents() => this;
     #endregion
 }

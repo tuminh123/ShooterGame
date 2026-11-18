@@ -162,8 +162,9 @@ public sealed class SkillChoiceUI : MonoBehaviour
             throw new InvalidOperationException("Assign owned slot prefab, group and inject IGameObjectPool in SkillChoiceUI.");
         while (ownedSlots.Count < skills.Count)
         {
+            // Nhóm UI: lưới an toàn khi rời gameplay không thu hồi ô skill mà UI đang giữ.
             GameObject clone = pools.Spawn(ownedSlotTemplate.gameObject, Vector3.zero, Quaternion.identity,
-                parent: ownedSlotsRoot); // Pool tăng tự nhiên khi thiếu, không lấy cắp các ô đang dùng.
+                PoolGroup.UI, ownedSlotsRoot); // Pool tăng tự nhiên khi thiếu, không lấy cắp các ô đang dùng.
             if (clone == null) throw new InvalidOperationException("Could not spawn owned skill slot.");
             OwnedSkillSlot slot = clone.GetComponent<OwnedSkillSlot>(); // Prefab đã gán sẵn icon/sao, không tìm theo tên object.
             RectTransform rect = (RectTransform)clone.transform; // Pool spawn theo world space nên chuẩn hóa lại UI local transform.

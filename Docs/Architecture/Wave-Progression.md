@@ -13,36 +13,38 @@ Stage_01 directly references:
 
 The map, stable Stage ID, first-clear flags and reward values remain unchanged.
 
-## Registry and construction
+## Construction and dispatch
 
-IStageSpawnData supplies SystemType, CreateSystem(DiContainer) and Validate.
-Each asset inherits ScriptableObject directly and implements that interface.
+IStageSpawnData only marks an asset as allowed in StageDataSO.spawnData and exposes
+Validate(); data no longer creates systems and carries no SystemType or factory.
 
-StageManager walks the flat list once at construction and creates one system
-per configured Type in Dictionary<Type, IStageSpawnSystem>. Data factories use
-the existing Zenject container's Instantiate<T>() to supply constructor dependencies.
-No StageSpawnContext, Initialize(context), reflection scan, type switch or
-per-system binding in GameSceneInstaller is required.
+StageManager, the only bound service of the domain, creates the three systems with new:
+WaveSpawnSystem, FormationSpawnSystem and BossSpawnSystem (with BossArena), and shares
+one EnemySpawner among them. Both Validate and Execute pick the system with a single
+switch on the data type: a new spawn type adds a DataSO, a system and one branch in
+each switch.
 
-WaveSpawnSystem and BossSpawnSystem receive EnemySpawnManager directly.
-FormationSpawnSystem receives EnemySpawnManager, PlayerManager and ISpatialManager.
+WaveSpawnSystem and BossSpawnSystem receive the shared EnemySpawner.
+FormationSpawnSystem receives the EnemySpawner, IPlayerReader and ISpatialInvalidation.
+
+Systems do not know each other; StageManager wires Wave -> Boss directly
+(AllWavesSpawned, FinalWaveCleared) and forwards their spawn-schedule warnings to the HUD.
 
 Stage starts each configured asset once, on the first gameplay tick after the
 player exists. It ticks the systems and waits for their DeploymentComplete and
 AliveCount statuses. Each system owns its detailed spawn logic. No wave index,
 ordinary quota or inter-wave delay is held by StageManager.
 
-## Separate contracts and one Stage clock
+## One Stage clock, concrete systems
 
-- IStageSpawnSystem: Validate, Execute and Stop only.
-- IStageSpawnStatus: DeploymentComplete and AliveCount; required for spawn systems.
-- IUpdateStage: Tick(stageTime, deltaTime); implemented only when updates are needed.
-- ILateUpdateStage: LateTick; currently implemented only by FormationSpawnSystem.
-
-StageManager builds separate interface lists once when registering each system.
-The registry remains Dictionary<Type, IStageSpawnSystem>; data factories and the
-direct asset list do not change. There are no empty update methods on systems
-that do not need that update phase.
+- The systems are concrete classes owned by StageManager. IStageSpawnSystem,
+  IStageSpawnStatus, IUpdateStage and ILateUpdateStage no longer exist.
+- StageManager calls Validate/Execute/Tick/LateTick/Stop directly on each system, in the
+  fixed order Wave -> Formation -> Boss, and aggregates their failures into one exception.
+- Only FormationSpawnSystem has a late tick (formation camera compensation), invoked from
+  StageManager.LateTick.
+- Each system exposes DeploymentComplete and AliveCount; StageManager combines them for
+  the victory condition.
 
 StageTime resets to zero at BeginRun and advances only on active gameplay ticks
 after the player is ready. Every system receives the same StageTime and deltaTime.
@@ -113,7 +115,8 @@ StageTime to reach delay, then creates that deployment using its configured leve
 without reading a shared WaveNumber/context. Pending boss deployments also prevent
 premature Stage victory. Existing assets default to delay 0; existing GUIDs are kept.
 
-All systems create actors through EnemySpawnManager and CharacterFactory/Pool.
+All systems create actors through the shared EnemySpawner (ICharacterSpawn from
+CharacterManager) and the existing CharacterFactory/Pool path.
 Boss presentation uses CharacterDataSO.IsBoss; existing shared AI is unchanged.
 
 ## Lifetime, rewards and cleanup

@@ -29,6 +29,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     private UIPanelController activePanel; // Controller đang được manager cấp quyền hiển thị.
     private bool visible = true; // Ẩn toàn bộ UI vẫn bảo toàn lịch sử để tiếp tục khi hiện lại.
     private bool subscribed; // Chống đăng ký sự kiện lặp khi OnEnable và API điều hướng cùng chạy.
+    private bool listeningToGame; // Tách khỏi `subscribed`: OnEnable có thể chạy trước Construct, lúc đó chưa có `game` để nghe.
     public UIPanelController ActivePanel => activePanel; // Chỉ đọc panel hiện tại để các hệ thống quan sát luồng UI.
 
     #endregion
@@ -39,6 +40,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     private void OnEnable()
     {
         Subscribe();
+        ListenToGame();
         if (game != null) ApplyGameState(game.State);
     }
 
@@ -47,11 +49,29 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     public void Construct(IGameFlow gameFlow)
     {
         this.game = gameFlow.GetGameStateReader();
-        if (isActiveAndEnabled) { Subscribe(); ApplyGameState(gameFlow.GetGameStateReader().State); }
+        if (!isActiveAndEnabled) return; // Chưa bật thì OnEnable sẽ tự đăng ký sau.
+        Subscribe();
+        ListenToGame();
+        ApplyGameState(game.State);
     }
 
-    // Bus phục vụ UI: mỗi trạng thái chỉ chọn route hiển thị, không spawn/reset hoặc quyết định thắng/thua.
+    // Mỗi state chỉ chọn route hiển thị, không spawn/reset hoặc quyết định thắng/thua.
     private void OnGameStateChanged(GameState previous, GameState current) => ApplyGameState(current);
+
+    // Đăng ký đúng một lần, và chỉ khi Zenject đã cấp nguồn state.
+    private void ListenToGame()
+    {
+        if (listeningToGame || game == null) return;
+        listeningToGame = true;
+        game.StateChanged += OnGameStateChanged;
+    }
+
+    private void StopListeningToGame()
+    {
+        if (!listeningToGame) return;
+        listeningToGame = false;
+        game.StateChanged -= OnGameStateChanged;
+    }
 
     // Không có route thì đóng luồng UI cũ, không tự quay về Gameplay hoặc UI mặc định.
     private void ApplyGameState(GameState state)
@@ -66,7 +86,6 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     {
         if (subscribed) return;
         subscribed = true;
-        GameUIEventBus.StateChanged += OnGameStateChanged;
         history.Clear();
         if (rootPanel != null) history.Add(rootPanel);
         foreach (UIPanelController panel in panels)
@@ -83,7 +102,7 @@ public sealed class UIManager : MonoBehaviour, IUINavigation, IUIPanelNavigation
     // Ngừng điều phối, ẩn modal và trả tài nguyên hiển thị qua controller; giữ ý định mở để khôi phục lúc bật lại.
     private void OnDisable()
     {
-        GameUIEventBus.StateChanged -= OnGameStateChanged;
+        StopListeningToGame();
         foreach (UIPanelController panel in panels)
         {
             if (panel == null) continue;

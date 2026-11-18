@@ -1,14 +1,15 @@
 using UnityEngine;
 
-// * Hành vi riêng của quái: tự tìm hướng đến Player hiện tại, hoàn toàn không đọc joystick.
-public sealed class EnemyController : CharacterControllerBase, ICharacterActionPermission, ICharacterContactCompletion
-#if UNITY_EDITOR
-    , ICharacterSeparationGizmos
-#endif
+/// <summary>
+/// Hành vi của quái: đuổi theo Player hiện tại, tách đàn khỏi quái xung quanh, bị đẩy lùi khi đánh trúng,
+/// và đi theo đường/đội hình nếu được spawn theo pattern. Không đọc joystick.
+/// </summary>
+/// <remarks>Override các khả năng mà chỉ quái có: <see cref="CanAttack"/>, <see cref="CompletePatternContact"/>, <see cref="DrawSeparationGizmo"/>.</remarks>
+public sealed class EnemyController : CharacterControllerBase
 {
     #region Separation Configuration
 
-    // * Cấu hình chung hiển thị trên EnemySpawnManager; mỗi controller chỉ giữ bản sao giá trị cần dùng.
+    // * Cấu hình chung ở GameSceneInstaller > Stage (EnemySpawner.Settings); mỗi controller chỉ giữ bản sao giá trị cần dùng.
     [System.Serializable]
     public sealed class SeparationSettings
     {
@@ -36,7 +37,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     private readonly float separationStrength; // * Trọng số tách đã chốt cho cá thể; bằng 0 sẽ bỏ qua truy vấn hàng xóm.
     private readonly float scanInterval; // * Chu kỳ quét của cá thể, tối thiểu 0.01 giây dù cấu hình bị sửa ngoài Inspector.
     private Vector2 separationDirection; // * Hướng ra xa đã tính ở lượt quét trước; dùng lại giữa các lần quét.
-    private CharacterTarget[] neighborBuffer = System.Array.Empty<CharacterTarget>(); // Mảng của controller, chỉ tăng khi thiếu chỗ; không mượn/trả mỗi lần tìm.
+    private CharacterHandle[] neighborBuffer = System.Array.Empty<CharacterHandle>(); // Mảng của controller, chỉ tăng khi thiếu chỗ; không mượn/trả mỗi lần tìm.
     private float scanRemaining, recoilRemaining;
     private bool timingInitialized, paused;
     private EnemyFormationRuntime formation; // Chủ sở hữu nhóm, giữ cả khi con đã tách chuyển động.
@@ -50,7 +51,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     private Vector2 pathAnchorOffset;
     private bool pathFinished;
     // Va chạm không gây choáng hoặc khóa skill; cooldown vẫn do skill quản lý.
-    public bool CanAttack => !disposed;
+    public override bool CanAttack => !disposed;
     /// <summary>Cho biết controller còn đang thực hiện phản lực riêng.</summary>
     internal bool IsKnockedBack => recoilRemaining > 0f;
     private bool scanReady; // Nhiều nhịp trễ được gộp thành một lần quét, không tính hàng xóm lặp lại vô ích.
@@ -165,13 +166,13 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     }
 
     /// <summary>Chốt tiếp xúc sau skill; chỉ con va chạm bị tách và nhận knockback.</summary>
-    public void CompletePatternContact(CharacterView view, CharacterRuntimeData identity, ulong generation)
+    public override void CompletePatternContact(CharacterHandle spawn)
     {
         EnemyFormationRuntime group = pendingPatternContact;
         pendingPatternContact = null;
+        // TryGetCharacter: vẫn đúng lượt spawn, còn sống và đang hoạt động.
         if (disposed || group == null || group.IsBroken || !ReferenceEquals(group, formation) ||
-            view == null || !view.isActiveAndEnabled || !ReferenceEquals(view.RuntimeData, identity) ||
-            identity.Generation != generation || !identity.IsAlive || paused || Time.deltaTime <= 0f) return;
+            !spawn.TryGetCharacter(out CharacterView view) || paused || Time.deltaTime <= 0f) return;
         CharacterView player = players.CurrentPlayer;
         if (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive) return;
         bool touching = CharacterSearch.Overlaps(view, player);
@@ -185,7 +186,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
 
     // Controller đã dispose không tiếp tục gửi damage qua callback cũ.
     public override DamageResult DealDamage(CharacterView view, CharacterRuntimeData runtime,
-        CharacterTarget target, float multiplier = 1f)
+        CharacterHandle target, float multiplier = 1f)
         => CanAttack ? base.DealDamage(view, runtime, target, multiplier) : default;
 
     #endregion
@@ -258,7 +259,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     private Vector2 CalculateSeparation(CharacterView view)
     {
         Vector2 position = GetSeparationCenter(view.transform.position);
-        int neighborCount = view.RegionSearch.FindAll(position, separationRadius, CharacterTeam.Enemy, ref neighborBuffer, view);
+        int neighborCount = view.Search.FindAll(position, separationRadius, CharacterTeam.Enemy, ref neighborBuffer, view);
         float radiusSquared = separationRadius * separationRadius;
         Vector2 direction = Vector2.zero;
         try
@@ -402,7 +403,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
         base.Dispose();
         scanRemaining = recoilRemaining = 0f;
         System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);
-        neighborBuffer = System.Array.Empty<CharacterTarget>();
+        neighborBuffer = System.Array.Empty<CharacterHandle>();
     }
 
     #endregion
@@ -413,7 +414,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     // * CharacterView gọi khi chọn Enemy trong Scene view; dùng đúng bán kính đã chốt cho lượt spawn này.
     // Vẽ vùng tìm hàng xóm theo world XY, không nhân theo scale của vỏ hoặc visual.
     // ! Chỉ hiển thị phạm vi quét, không thực hiện truy vấn Physics2D hoặc thay đổi hành vi di chuyển.
-    public void DrawSeparationGizmo(Vector3 position)
+    public override void DrawSeparationGizmo(Vector3 position)
     {
         // * DrawingScope tự khôi phục màu và ma trận để không ảnh hưởng gizmo của đối tượng khác.
         using (new UnityEditor.Handles.DrawingScope(Color.yellow, Matrix4x4.identity))
@@ -428,7 +429,7 @@ public sealed class EnemyController : CharacterControllerBase, ICharacterActionP
     #region Death Behavior
 
     // Boss giữ xác sau Death; enemy thường trả về pool khi Death hoàn tất.
-    public override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
+    protected override void OnDeath(CharacterView view, CharacterRuntimeData runtime)
     {
         if (view.IsBoss)
         {

@@ -1,5 +1,10 @@
 # Bố trí thư mục hệ thống spawn
 
+> **Tài liệu lịch sử.** Đây là bước trung gian khi mọi thứ còn nằm trong `Scripts/Spawning/`.
+> Ở Task 3.5 miền này đã dời sang `Assets/_Project/Scripts/Stage/` và `Assets/_Project/Editor/Stage/`
+> (xem [Script-Folders](Script-Folders.md) cho cấu trúc hiện tại). Danh sách di chuyển bên dưới
+> giữ nguyên làm mốc lịch sử, không phải đường dẫn đang dùng.
+
 Chỉ di chuyển file, đổi tên thư mục và cập nhật tài liệu. Không đổi tên class,
 namespace, logic, cấu hình gameplay hoặc GUID của script/asset. Không chạy test,
 build, yêu cầu compile hay thao tác Play trong Editor.
