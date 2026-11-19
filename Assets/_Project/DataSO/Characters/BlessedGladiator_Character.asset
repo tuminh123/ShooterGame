@@ -27,6 +27,8 @@ MonoBehaviour:
     HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
     HealthBarScale: 0.0035
     ShieldThickness: 3
+  portrait: {fileID: 21300000, guid: 55423cb896009490a8dd8fe1a31aa5b1, type: 3}
+  rarity: 0
   baseStats:
     maxHealth: 100
     damage: 10

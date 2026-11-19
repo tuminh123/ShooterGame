@@ -1,6 +1,21 @@
 # Màn Character (Collection + Detail) — kế hoạch task bản demo
 
-Trạng thái: **chờ duyệt** · Ngày lập: 2026-11-19
+> **Trạng thái:** ✅ Đã triển khai Task 1–5 (2026-11-19), chờ người dùng play test theo checklist cuối file · Ngày lập: 2026-11-19
+
+## Khác biệt so với kế hoạch (người dùng duyệt 2026-11-19)
+
+Người dùng yêu cầu làm liền Task 2–5, gom mọi script UI của màn vào **một thư mục** và gom class/struct/enum thuần vào chung file:
+
+- Mọi script UI nằm trong `Scripts/UI/CharacterScreen/`, kể cả `CurrencyBarView` (kế hoạch cũ đặt ở `UI/Views/`).
+- Model và enum gom vào `CharacterScreenModels.cs`: `CharacterScreenPage`, `CharacterScreenTab`, `CharacterCardState`, `CharacterCardModel`, `StatRowModel`, `CostModel`, `UpgradeButtonModel`, `CharacterDetailModel`.
+- `CharacterRarity` nằm luôn trong `CharacterDataSO.cs` (thay cho file riêng N1).
+- MonoBehaviour và ScriptableObject vẫn mỗi class một file, vì Unity bắt buộc tên file phải trùng tên class.
+- Sửa thêm 2 file ngoài danh sách:
+  - `CharacterDatabaseSO.cs`: thêm getter `Characters`, để giữ thứ tự database (Dictionary không bảo đảm thứ tự).
+  - `PlayerSystem.cs`: thêm `ActiveCharacterType` (save chưa chọn → loại mặc định), để UI đánh dấu đúng nhân vật đang dùng. `SpawnPlayer` dùng lại chính thuộc tính này.
+- Portrait của BlessedGladiator tạm dùng `CharacterList_Sample01` (ảnh trong mockup), vì chưa có ảnh chân dung riêng.
+- `Icon_Front` trong `Button_Prev`/`Button_Next` đã tắt raycast và tắt Button con, để click đi tới nút cha.
+- `CollectionScreen` phủ kín toàn màn hình và có `CurrencyBar` riêng. Lúc đầu nó nằm lọt giữa Topbar/BottomBar của `MainUI`, nhưng UIManager tắt `MainUI` khi mở màn Character nên bị hở trắng trên/dưới. Giờ màn Character không phụ thuộc vào bất kỳ phần nào của Home.
 
 ## Quy tắc phạm vi (bắt buộc)
 

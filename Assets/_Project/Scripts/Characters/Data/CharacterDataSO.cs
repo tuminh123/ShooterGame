@@ -1,6 +1,15 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
+/// <summary>Độ hiếm của nhân vật, dùng cho nhãn trên màn Character. ID được lưu trong asset: loại mới thêm vào cuối, không đổi số cũ.</summary>
+public enum CharacterRarity
+{
+    Common = 0,
+    Rare = 1,
+    Epic = 2,
+    Legendary = 3
+}
+
 // * Template chỉ số, hình ảnh và danh sách skill vốn có, dùng chung cấu trúc cho player, enemy và boss.
 // ! Không lưu máu hiện tại, cooldown hoặc thay đổi trong trận trên asset; các trạng thái đó thuộc runtime riêng.
 [CreateAssetMenu(fileName = "CharacterData", menuName = "Shooter Game/Data/Character")]
@@ -19,6 +28,10 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private bool isBoss; // Đánh dấu boss để hiện HP/giáp; không thay đổi phe hoặc cách nhận sát thương.
     [Tooltip("Prefab ngoại hình, kích thước/offset hình ảnh, hitbox và bố cục thanh máu. Các phần được chỉnh độc lập.")]
     [SerializeField] private CharacterVisualSettings visualSettings = CharacterVisualSettings.Default;
+    [Tooltip("Ảnh chân dung trên màn Character (thẻ Collection và Detail). Chỉ cần cho nhân vật Player.")]
+    [SerializeField] private Sprite portrait;
+    [Tooltip("Độ hiếm hiển thị trên màn Character. Chỉ là thông tin hiển thị, không đổi chỉ số.")]
+    [SerializeField] private CharacterRarity rarity = CharacterRarity.Common;
 
     #region  Get
     
@@ -29,7 +42,11 @@ public sealed class CharacterDataSO : ScriptableObject
     public CharacterVisualSettings VisualSettings => visualSettings;
     public GameObject VisualPrefab => visualSettings.Prefab;
     public HitboxData Hitbox => visualSettings.Hitbox;
-    
+    /// <summary>Ảnh chân dung cho UI; null thì UI giữ ảnh mặc định của prefab.</summary>
+    public Sprite Portrait => portrait;
+    /// <summary>Độ hiếm chỉ để hiển thị.</summary>
+    public CharacterRarity Rarity => rarity;
+
     #endregion
 
     #endregion

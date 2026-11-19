@@ -29,6 +29,7 @@ public sealed class CharacterManager :
     ICharacterDeathEvents,
     IPlayerReader,
     IPlayerLifecycle,
+    IPlayerSelection,
     ICharacterCapacity,
     IInitializable,
     ITickable,
@@ -41,6 +42,7 @@ public sealed class CharacterManager :
     private readonly CharacterFactory factory;
     private readonly PlayerSystem players;
     private readonly EnemyVisibility enemyVisibility;
+    private readonly CharacterDataSO[] playableCharacters; // Dựng một lần từ database; màn Character chỉ đọc.
     private bool disposed;
 
     #endregion
@@ -74,6 +76,7 @@ public sealed class CharacterManager :
             factory = new CharacterFactory(characterPrefab, pools, registry, context);
             players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses);
             enemyVisibility = new EnemyVisibility(registry);
+            playableCharacters = BuildPlayableList(characterDatabase);
         }
         catch
         {
@@ -187,6 +190,38 @@ public sealed class CharacterManager :
 
     #endregion
 
+    #region IPlayerSelection
+
+    /// <inheritdoc/>
+    public IReadOnlyList<CharacterDataSO> PlayableCharacters => playableCharacters;
+
+    /// <inheritdoc/>
+    public CharacterType SelectedCharacterType => players.ActiveCharacterType;
+
+    /// <inheritdoc/>
+    public event Action<CharacterType> SelectionChanged;
+
+    /// <inheritdoc/>
+    public bool SelectCharacter(CharacterType type)
+    {
+        if (type == players.ActiveCharacterType) return true; // Không đổi gì nên không ghi file, không phát event.
+        bool saved = players.SelectCharacter(type);
+        // RAM đã đổi kể cả khi ghi file lỗi, nên UI vẫn cần vẽ lại.
+        SelectionChanged?.Invoke(type);
+        return saved;
+    }
+
+    // Lọc phe Player, giữ thứ tự asset để thẻ trên UI không nhảy chỗ giữa các lần mở.
+    private static CharacterDataSO[] BuildPlayableList(CharacterDatabaseSO database)
+    {
+        var list = new List<CharacterDataSO>();
+        foreach (CharacterDataSO character in database.Characters)
+            if (character != null && character.Team == CharacterTeam.Player) list.Add(character);
+        return list.ToArray();
+    }
+
+    #endregion
+
     #region Disposal
 
     /// <summary>
@@ -203,6 +238,7 @@ public sealed class CharacterManager :
     {
         if (disposed) return;
         disposed = true;
+        SelectionChanged = null;
         DisposeSafely(enemyVisibility);
         DisposeSafely(factory);
         DisposeSafely(players);

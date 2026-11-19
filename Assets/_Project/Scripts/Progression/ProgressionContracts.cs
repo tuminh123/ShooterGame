@@ -5,8 +5,8 @@ using System.Collections.Generic;
 // Mọi interface trong file này do ProgressionManager implement. Wallet, CharacterLevels, Loadout và StageProgress
 // nằm bên trong miền, không được bind vào Zenject.
 // Progression giữ dữ liệu còn lại giữa các lượt chơi (ví, level vĩnh viễn, trang bị, mốc vượt màn) và chỉ phụ thuộc Save.
-// Mỗi vai trò ứng với một nhóm nơi dùng thực tế; API chưa có ai dùng (nâng level vĩnh viễn, đổi trang bị)
-// vẫn nằm trên system bên trong và sẽ có vai trò riêng khi UI tương ứng ra đời.
+// Mỗi vai trò ứng với một nhóm nơi dùng thực tế. Nâng level/sao đi qua ICharacterUpgrades (màn Character);
+// API chưa có ai dùng (đổi trang bị) vẫn nằm trên system bên trong và sẽ có vai trò riêng khi UI tương ứng ra đời.
 // Xem Docs/Architecture/Refactor-Architecture.md.
 
 #region Wallet (Home UI, Run, Stage)
@@ -48,6 +48,71 @@ public interface IPermanentBonuses
 
     /// <summary>Level vĩnh viễn của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
     event Action BonusesChanged;
+}
+
+#endregion
+
+#region Character Upgrades (Character screen UI)
+
+/// <summary>Loại nâng cấp vĩnh viễn của một nhân vật. Mỗi loại ứng với một track trong ProgressionManager.</summary>
+public enum CharacterUpgradeKind { Level, Star }
+
+/// <summary>Lý do không nâng được; <see cref="None"/> nghĩa là nâng được.</summary>
+public enum UpgradeBlock { None, MaxReached, NotEnoughCurrency, NotAvailable }
+
+/// <summary>Một mục giá: loại tiền và số lượng.</summary>
+public readonly struct CurrencyCost
+{
+    public readonly CurrencyType Currency;
+    public readonly long Amount;
+
+    public CurrencyCost(CurrencyType currency, long amount)
+    {
+        Currency = currency;
+        Amount = amount;
+    }
+}
+
+/// <summary>
+/// Kết quả hỏi giá một lần nâng: cấp hiện tại/tối đa, danh sách giá và lý do bị chặn.
+/// Giá là danh sách để sau này một lần nâng có thể tốn hai loại tiền.
+/// </summary>
+public readonly struct UpgradeQuote
+{
+    public readonly int Current;
+    public readonly int Max;
+    public readonly IReadOnlyList<CurrencyCost> Costs;
+    public readonly UpgradeBlock Block;
+
+    /// <summary>True khi không có lý do nào chặn.</summary>
+    public bool CanUpgrade => Block == UpgradeBlock.None;
+
+    public UpgradeQuote(int current, int max, IReadOnlyList<CurrencyCost> costs, UpgradeBlock block)
+    {
+        Current = current;
+        Max = max;
+        Costs = costs ?? Array.Empty<CurrencyCost>();
+        Block = block;
+    }
+}
+
+/// <summary>
+/// Nâng cấp vĩnh viễn nhân vật (level, sao). Dùng bởi màn Character.
+/// <see cref="GetQuote"/> và <see cref="TryUpgrade"/> đi thành cặp: TryUpgrade luôn kiểm tra lại điều kiện.
+/// </summary>
+public interface ICharacterUpgrades
+{
+    /// <summary>Cấp hiện tại, cấp tối đa, giá và lý do bị chặn của một loại nâng cấp.</summary>
+    UpgradeQuote GetQuote(CharacterType type, CharacterUpgradeKind kind);
+
+    /// <summary>
+    /// Nâng một cấp nếu đủ điều kiện. Trả về đã nâng hay chưa; <paramref name="saved"/> là kết quả ghi file.
+    /// saved=false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
+    /// </summary>
+    bool TryUpgrade(CharacterType type, CharacterUpgradeKind kind, out bool saved);
+
+    /// <summary>Phát sau khi một lần nâng thành công (đã đổi RAM và đã thử lưu).</summary>
+    event Action<CharacterType, CharacterUpgradeKind> Upgraded;
 }
 
 #endregion

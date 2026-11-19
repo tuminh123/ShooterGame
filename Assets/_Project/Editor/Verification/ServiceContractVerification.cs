@@ -151,7 +151,7 @@ public static class ServiceContractVerification
             typeof(ISpatialQuery), typeof(ISpatialQueryBuilder), typeof(ISimulationCapacity));
         CheckDomainManager(container, typeof(CharacterManager), typeof(ICharacterSpawn), typeof(ICharacterDespawn),
             typeof(ICharacterRegistry), typeof(ICharacterDeathEvents), typeof(IPlayerReader), typeof(IPlayerLifecycle),
-            typeof(ICharacterCapacity));
+            typeof(IPlayerSelection), typeof(ICharacterCapacity));
         CheckDomainManager(container, typeof(WorldManager), typeof(IWorldMap));
         CheckDomainManager(container, typeof(StageManager), typeof(IStageRunLifecycle), typeof(IStageSelection),
             typeof(IStageResults), typeof(IStageSchedule));
@@ -161,7 +161,8 @@ public static class ServiceContractVerification
         Require(container.Resolve<IScreenTransition>() is ScreenTransitionController, "IScreenTransition must resolve to ScreenTransitionController.");
         Require(!container.HasBinding<ScreenTransitionController>(), "Unexpected concrete binding: ScreenTransitionController");
         CheckDomainManager(container, typeof(SaveManager), typeof(ISaveStore), typeof(ISaveMaintenance));
-        CheckDomainManager(container, typeof(ProgressionManager), typeof(IWallet), typeof(IPermanentBonuses), typeof(IStageProgress));
+        CheckDomainManager(container, typeof(ProgressionManager), typeof(IWallet), typeof(IPermanentBonuses), typeof(IStageProgress),
+            typeof(ICharacterUpgrades));
         CheckDomainManager(container, typeof(PoolManager), typeof(IGameObjectPool), typeof(IPoolPreparation), typeof(IPoolCleanup));
     }
 

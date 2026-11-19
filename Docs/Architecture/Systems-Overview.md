@@ -1,5 +1,7 @@
 # Tổng quan các hệ thống ShooterGame
 
+> **Trạng thái:** ⚠️ Hiện hành, có chỗ lệch · Kiểm tra với code: 2026-11-19. Link `Scripts/Interfaces/README.md` đã chết (thư mục không còn), và "interface tổng hợp" đã bị bỏ từ Giai đoạn 6. Bảng hệ thống và luồng khởi động vẫn đúng.
+
 Ngày ghi nhận theo code hiện tại: 2026-11-18 (cập nhật miền Stage sau Task 3.5).
 
 Tài liệu này là điểm bắt đầu để tìm code và tài liệu chi tiết. Một số tài liệu
@@ -55,6 +57,7 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | ↳ Loot | LootSystem, PickupView, LootDatabaseSO | Rơi EXP/vàng khi quái chết, nhặt theo bán kính ở LateTick; RunManager chuyển EXP → RunLevel, vàng → ví + thống kê. |
 | **Game** (kiến trúc mới) | **GameManager**, GameContracts, GameStateMachine, GamePause, GamePrewarm | Manager duy nhất được bind: loading → Home → trận → kết quả. UI dùng `IGameState`, `IGameFlow`, `IGamePause`, `ILoadingProgress`. |
 | UI | UIManager, ScreenTransitionController, RunUI, CharacterUI, PauseUI, SkillChoiceController | Panel là MonoBehaviour trong scene (tự inject). UIManager chọn panel theo GameState; chỉ ScreenTransitionController được bind (`UIContracts.cs`). Bảng chọn skill chỉ trình bày; logic nằm ở `ISkillChoice` (Run). |
+| ↳ Màn Character | CharacterScreenController, CharacterCollectionView, CharacterDetailView, CharacterScreenThemeSO (`UI/CharacterScreen/`) | Mở từ Home (nút sách). Controller gọi `IPlayerSelection` (Character), `ICharacterUpgrades` + `IPermanentBonuses` (Progression); View chỉ hiển thị. Chỉ số = `StatCalculator.Calculate(base, bonus vĩnh viễn)`. Demo: nâng level chưa trừ tiền, Stars là mockup. Xem [Character-Screen-Tasks](Character-Screen-Tasks.md). |
 | **Simulation** (kiến trúc mới) | **SimulationManager**, SimulationContracts, MovementSystem, SpatialSystem | Burst/Jobs với buffer dùng lại: cập nhật movement và truy vấn không gian. Miền khác chỉ dùng SimulationContracts.cs. |
 | **World** (kiến trúc mới) | **WorldManager**, WorldContracts, GroundChunks | Map nền theo key (Stage gọi `IWorldMap.SetMap`) và nền lặp theo vị trí Player. Cấu hình ở GameSceneInstaller > World. |
 

@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a1b316c67034794cbf7073e772ace50, type: 3}
+  m_Name: CharacterScreenTheme
+  m_EditorClassIdentifier: 
+  stats:
+  - stat: 0
+    icon: {fileID: 21300000, guid: ae898e04b74ec47d8bb33582fcf24b12, type: 3}
+    format: 0
+  - stat: 2
+    icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
+    format: 0
+  - stat: 1
+    icon: {fileID: 21300000, guid: 97aeaf017389e4efdb679f7db8867011, type: 3}
+    format: 0
+  - stat: 3
+    icon: {fileID: 21300000, guid: 75f85e7319b51fc4291f7f0de9bbb57e, type: 3}
+    format: 1
+  - stat: 4
+    icon: {fileID: 21300000, guid: 5864b32a142be4809ab2ccc225cae6bf, type: 3}
+    format: 2
+  - stat: 5
+    icon: {fileID: 21300000, guid: 9c5f1b7307f6ee545a3830c89966e310, type: 3}
+    format: 2
+  - stat: 6
+    icon: {fileID: 21300000, guid: ae4d1b1b5272e144d95859fab36be95c, type: 3}
+    format: 2
+  - stat: 7
+    icon: {fileID: 21300000, guid: 513ea8fe830927342a48b1c209618927, type: 3}
+    format: 2
+  rarities:
+  - rarity: 0
+    label: {fileID: 21300000, guid: 0eaf6715a248844b3b94a9d322d282c4, type: 3}
+    text: COMMON
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+  - rarity: 1
+    label: {fileID: 21300000, guid: e0387aa3821274a35b00020e1848abc5, type: 3}
+    text: RARE
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+  - rarity: 2
+    label: {fileID: 21300000, guid: fb3e8ff77824f466aa94f46ebe089001, type: 3}
+    text: EPIC
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+  - rarity: 3
+    label: {fileID: 21300000, guid: d96f1c6be6b8d42e7a8e1d30ba2f963f, type: 3}
+    text: LEGENDARY
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+  currencies:
+  - currency: 0
+    icon: {fileID: 21300000, guid: e3a3f6e5da08f46c895f632eccceb676, type: 3}
+  - currency: 1
+    icon: {fileID: 21300000, guid: cf2410e7bf3cc4958a916d3cce42b7d9, type: 3}

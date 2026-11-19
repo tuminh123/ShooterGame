@@ -11,6 +11,9 @@ public sealed class CharacterDatabaseSO : ScriptableObject
     [Tooltip("Danh sách template Player, Enemy và Boss. Mỗi CharacterType khác None xuất hiện tối đa một lần; không để phần tử trống.")]
     [SerializeField] private List<CharacterDataSO> characters = new List<CharacterDataSO>();  // * Mỗi nhân vật dùng type khác None, được khai báo duy nhất trong enum.
 
+    /// <summary>Danh sách theo đúng thứ tự trong asset; UI dùng để giữ thứ tự hiển thị ổn định (Dictionary không bảo đảm thứ tự).</summary>
+    public IReadOnlyList<CharacterDataSO> Characters => characters;
+
     #endregion
 
     #region Runtime Lookup Creation

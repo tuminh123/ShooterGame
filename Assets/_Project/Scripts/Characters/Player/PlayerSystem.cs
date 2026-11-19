@@ -55,6 +55,16 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         get { EnsureSelectionLoaded(); return selection.selectedCharacterType; }
     }
 
+    /// <summary>Nhân vật thực sự được spawn: lựa chọn trong save, hoặc loại mặc định khi save chưa chọn (None).</summary>
+    public CharacterType ActiveCharacterType
+    {
+        get
+        {
+            CharacterType type = SelectedCharacterType;
+            return type == CharacterType.None ? settings.DefaultType : type;
+        }
+    }
+
     #endregion
 
     public void Initialize()
@@ -112,9 +122,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
             throw new ObjectDisposedException(nameof(PlayerSystem));
         if (CurrentPlayer != null)
             return CurrentPlayer;
-        CharacterType type = SelectedCharacterType;
-        if (type == CharacterType.None)
-            type = settings.DefaultType;
+        CharacterType type = ActiveCharacterType;
         CharacterDataSO template = GetCharacter(type);
         if (template.Team != CharacterTeam.Player)
             throw new InvalidOperationException($"Selected character {type} must belong to the Player team.");

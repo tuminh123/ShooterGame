@@ -4,12 +4,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Home tạm thời: chỉ nút Play hoạt động; giữ bố cục có sẵn cho các tính năng nối sau.
+// Home tạm thời: nút Play và nút Character hoạt động; giữ bố cục có sẵn cho các tính năng nối sau.
 public sealed class HomeController : UIPanelController
 {
     #region References And Lifecycle
 
     [SerializeField] private Button playButton;
+    [Tooltip("Nút mở màn Character (MainUI/BottomBar_Menu/Button_02).")]
+    [SerializeField] private Button characterButton;
+    [SerializeField] private CharacterScreenController characterScreen;
     [Tooltip("Hiệu ứng nhún của nút Play; chạy xong mới bắt đầu trận, dùng unscaled time khi Home đang pause.")]
     [SerializeField] private SinglePanelPopupTween playTween;
     [Tooltip("Số vàng trong ví người chơi; đọc ví (IWallet của miền Progression), không dùng thống kê riêng của lượt chơi.")]
@@ -35,12 +38,14 @@ public sealed class HomeController : UIPanelController
     private void OnEnable()
     {
         if (playButton != null) playButton.onClick.AddListener(Play);
+        if (characterButton != null) characterButton.onClick.AddListener(OpenCharacterScreen);
         SubscribeWallet();
     }
 
     private void OnDisable()
     {
         if (playButton != null) playButton.onClick.RemoveListener(Play);
+        if (characterButton != null) characterButton.onClick.RemoveListener(OpenCharacterScreen);
         UnsubscribeWallet();
         starting = false;
         if (playTween != null) playTween.StopAndReset();
@@ -97,13 +102,21 @@ public sealed class HomeController : UIPanelController
         if (isActiveAndEnabled && game != null && game.State == GameState.Home) transition.StartRun();
     }
 
+    // Không mở khi đang chạy hiệu ứng bắt đầu trận.
+    private void OpenCharacterScreen()
+    {
+        if (starting || characterScreen == null) return;
+        characterScreen.Open();
+    }
+
     public override void SetVisible(bool visible)
     {
         gameObject.SetActive(visible);
         if (!visible) return;
         RefreshGold();
+        // Chỉ các nút đã có chức năng được bấm; phần còn lại của bố cục giữ nguyên nhưng tắt.
         foreach (Selectable control in GetComponentsInChildren<Selectable>(true))
-            control.interactable = control == playButton;
+            control.interactable = control == playButton || control == characterButton;
     }
 
     #endregion

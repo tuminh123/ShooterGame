@@ -13,12 +13,14 @@ using Zenject;
 /// ├── Wallet           ví vàng/kim cương (key currencies)
 /// ├── CharacterLevels  level vĩnh viễn theo nhân vật (key character_levels)
 /// ├── Loadout          trang bị đang mặc (key equipment)
-/// └── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
+/// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
+/// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
+/// └── StarTrack        nâng sao, chưa có hệ thống nên luôn NotAvailable
 /// </code>
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
-public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgress, IInitializable, IDisposable
+public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
 {
     #region Fields
 
@@ -26,6 +28,8 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
     private readonly CharacterLevels levels;
     private readonly Loadout loadout;
     private readonly StageProgress stages;
+    private readonly LevelTrack levelTrack;
+    private readonly StarTrack starTrack;
     private bool disposed;
 
     #endregion
@@ -41,6 +45,9 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
 
     /// <inheritdoc/>
     public event Action BonusesChanged;
+
+    /// <inheritdoc/>
+    public event Action<CharacterType, CharacterUpgradeKind> Upgraded;
 
     #endregion
 
@@ -58,6 +65,8 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
         levels = new CharacterLevels(saves, characterDatabase, levelDatabase);
         loadout = new Loadout(saves, equipmentDatabase);
         stages = new StageProgress(saves, wallet);
+        levelTrack = new LevelTrack(levels);
+        starTrack = new StarTrack();
 
         // Gộp hai nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
         levels.LevelChanged += OnLevelChanged;
@@ -82,6 +91,7 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
         levels.LevelChanged -= OnLevelChanged;
         loadout.EquipmentChanged -= OnBonusSourceChanged;
         BonusesChanged = null;
+        Upgraded = null;
         DisposeSafely(loadout);
         DisposeSafely(levels);
         wallet.Dispose();
@@ -120,6 +130,33 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
     /// <inheritdoc/>
     public bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards)
         => stages.GrantVictoryRewards(stageId, rewards);
+
+    #endregion
+
+    #region ICharacterUpgrades
+
+    /// <inheritdoc/>
+    public UpgradeQuote GetQuote(CharacterType type, CharacterUpgradeKind kind) => Track(kind).GetQuote(type);
+
+    /// <inheritdoc/>
+    public bool TryUpgrade(CharacterType type, CharacterUpgradeKind kind, out bool saved)
+    {
+        saved = false;
+        if (disposed || !Track(kind).TryUpgrade(type, out saved)) return false;
+        Upgraded?.Invoke(type, kind);
+        return true;
+    }
+
+    // Một switch duy nhất chọn track theo loại nâng cấp.
+    private IUpgradeTrack Track(CharacterUpgradeKind kind)
+    {
+        switch (kind)
+        {
+            case CharacterUpgradeKind.Level: return levelTrack;
+            case CharacterUpgradeKind.Star: return starTrack;
+            default: throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+    }
 
     #endregion
 

@@ -2222,6 +2222,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8035781347996780502}
   - component: {fileID: 8227932259520384282}
+  - component: {fileID: 6374878553509961002}
   m_Layer: 0
   m_Name: CharacterCard
   m_TagString: Untagged
@@ -2300,6 +2301,38 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &6374878553509961002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8444386603026263658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d657d149b79387408fb2363b2b600fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 8227932259520384282}
+  portrait: {fileID: 8664514303097362295}
+  nameText: {fileID: 5678216221964879632}
+  levelText: {fileID: 5052471887652228180}
+  stars:
+  - {fileID: 1831260137261991125}
+  - {fileID: 6537062702717942147}
+  - {fileID: 6254599231449059669}
+  - {fileID: 191977754916220562}
+  - {fileID: 2358645680177147209}
+  inUseLabel: {fileID: 5316148067148768129}
+  emptyIcon: {fileID: 3536872789487568660}
+  hiddenWhenEmpty:
+  - {fileID: 6835090221396547835}
+  - {fileID: 6542691459505405540}
+  - {fileID: 7264806020560641470}
+  - {fileID: 2065802730475178939}
+  - {fileID: 3039973230923499406}
+  - {fileID: 1931253646448925996}
+  - {fileID: 2189662445501818958}
 --- !u!1 &8487088431996073035
 GameObject:
   m_ObjectHideFlags: 0

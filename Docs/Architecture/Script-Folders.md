@@ -1,5 +1,7 @@
 # Cấu trúc thư mục script
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19. Mọi file `.cs` được nhắc tới đều tồn tại.
+
 Mã gameplay nằm trong `Assets/_Project/Scripts`, nhóm theo chức năng. Interface, factory và strategy của cùng hệ thống được đặt gần nhau.
 
 ```text
@@ -54,7 +56,7 @@ Scripts/
 │   ├── Bosses/                   BossSpawnDataSO, BossSpawnSystem, BossArena
 │   └── Data/                     StageDataSO, StageDatabaseSO
 ├── Camera/                       Camera bám Player
-└── UI/                           UIContracts.cs (IScreenTransition); UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI
+└── UI/                           UIContracts.cs (IScreenTransition); UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI (thanh máu world); CharacterScreen/ chứa toàn bộ màn Character (Controller, View, Theme, model)
 ```
 
 Asset của miền Stage vẫn nằm ở `Assets/_Project/DataSO/Spawning/` (giữ tên cũ để không phải dời

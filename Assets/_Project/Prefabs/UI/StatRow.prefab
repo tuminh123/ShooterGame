@@ -312,6 +312,7 @@ GameObject:
   - component: {fileID: 3593495996252507292}
   - component: {fileID: 8300754743408020583}
   - component: {fileID: 8948627002789479533}
+  - component: {fileID: 7875778587923989455}
   m_Layer: 0
   m_Name: StatRow
   m_TagString: Untagged
@@ -378,3 +379,17 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &7875778587923989455
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6849214346416944658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c90aaca511cb254981309a53877a6fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  icon: {fileID: 6345460051991394345}
+  value: {fileID: 8085011723703238873}

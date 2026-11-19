@@ -93,6 +93,25 @@ public interface IPlayerLifecycle
     void RemovePlayer();
 }
 
+/// <summary>Danh sách nhân vật Player và nhân vật đang chọn cho trận sau. Dùng bởi màn Character (UI).</summary>
+public interface IPlayerSelection
+{
+    /// <summary>Các template thuộc phe Player, giữ thứ tự trong Character Database.</summary>
+    IReadOnlyList<CharacterDataSO> PlayableCharacters { get; }
+
+    /// <summary>Nhân vật sẽ được spawn ở trận sau (save chưa chọn thì là nhân vật mặc định).</summary>
+    CharacterType SelectedCharacterType { get; }
+
+    /// <summary>
+    /// Chọn nhân vật cho trận sau, không đổi Player đang chơi. Trả về kết quả ghi file:
+    /// false nghĩa là lỗi IO, lựa chọn vẫn đã đổi trong RAM và chờ ghi lại.
+    /// </summary>
+    bool SelectCharacter(CharacterType type);
+
+    /// <summary>Phát sau khi lựa chọn đổi sang nhân vật khác.</summary>
+    event Action<CharacterType> SelectionChanged;
+}
+
 #endregion
 
 #region Target Search
