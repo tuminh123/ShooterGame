@@ -28,9 +28,9 @@ public sealed class EmergencyShieldSkill : Skill
     // Dùng cùng API shield của owner; chỉ kích hoạt khi HP đạt ngưỡng.
     public override bool TryExecute()
     {
-        if (!Owner.CanRun || data == null || Owner.Identity.CurrentHealth / Owner.Identity.FinalStats.maxHealth * 100f > data.healthThreshold)
+        if (!Owner.CanRun || data == null || Owner.Identity.CurrentHealth / Owner.Identity.FinalStats.maxHealth * 100f > data.HealthThreshold)
             return false;
-        Owner.Owner.GrantShield(data.shieldAmount);
+        Owner.Owner.GrantShield(data.ShieldAmount);
         return true;
     }
 

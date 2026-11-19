@@ -70,7 +70,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
     /// <summary>Lấy hình/Path từ Pattern và đặt lại thời gian cùng bộ đệm preview.</summary>
     private void LoadPattern()
     {
-        if (pattern != null) { shape = pattern.formation; path = pattern.type == EnemyPatternType.Area ? null : pattern.path; }
+        if (pattern != null) { shape = pattern.Formation; path = pattern.Type == EnemyPatternType.Area ? null : pattern.Path; }
         elapsed = 0f; playing = false; previewPlayerOffset = Vector2.zero; Rebuild();
     }
     #endregion
@@ -142,7 +142,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         }
         else if (tab == 1)
         {
-            if (pattern != null && pattern.type == EnemyPatternType.Area)
+            if (pattern != null && pattern.Type == EnemyPatternType.Area)
                 EditorGUILayout.HelpBox("Area bám tâm player và thu nhỏ, không sử dụng Path.", MessageType.Info);
             else
             {
@@ -190,10 +190,12 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         if (GUILayout.Button("Rebuild / Frame in Scene")) { Rebuild(); FramePreview(); }
         if (pattern != null && GUILayout.Button("Apply Shape / Path to Pattern"))
         {
-            Undo.RecordObject(pattern, "Assign pattern geometry");
-            pattern.formation = shape;
-            if (pattern.type != EnemyPatternType.Area) pattern.path = path;
-            EditorUtility.SetDirty(pattern); Rebuild();
+            // Field của SO là private: ghi qua SerializedObject để vẫn có Undo và đánh dấu dirty đúng cách.
+            var serialized = new SerializedObject(pattern);
+            serialized.FindProperty("formation").objectReferenceValue = shape;
+            if (pattern.Type != EnemyPatternType.Area) serialized.FindProperty("path").objectReferenceValue = path;
+            serialized.ApplyModifiedProperties();
+            Rebuild();
         }
         if (!string.IsNullOrEmpty(error)) EditorGUILayout.HelpBox(error, MessageType.Error);
     }
@@ -202,11 +204,11 @@ public sealed class EnemyFormationWorkbench : EditorWindow
     private void DrawTestSettings()
     {
         if (pattern == null) { EditorGUILayout.HelpBox("Chọn EnemyPatternSO để thử Formation, Path hoặc Area.", MessageType.Info); return; }
-        EditorGUILayout.LabelField("Preview Type", pattern.type.ToString());
+        EditorGUILayout.LabelField("Preview Type", pattern.Type.ToString());
         var data = new SerializedObject(pattern);
         data.Update();
         EditorGUI.BeginChangeCheck();
-        if (pattern.type == EnemyPatternType.Area)
+        if (pattern.Type == EnemyPatternType.Area)
         {
             EditorGUILayout.PropertyField(data.FindProperty("areaShrinkMode"));
             EditorGUILayout.PropertyField(data.FindProperty("shrinkDuration"));
@@ -220,14 +222,14 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         {
             EditorGUILayout.PropertyField(data.FindProperty("speed"));
             EditorGUILayout.PropertyField(data.FindProperty("passes"));
-            if (pattern.type == EnemyPatternType.SequentialPath)
+            if (pattern.Type == EnemyPatternType.SequentialPath)
             {
                 EditorGUILayout.PropertyField(data.FindProperty("spawnInterval"));
             }
         }
         if (EditorGUI.EndChangeCheck()) { data.ApplyModifiedProperties(); Rebuild(); }
         EditorGUILayout.LabelField("Geometry Slots / Enemies", slots.Length.ToString());
-        if (pattern.type == EnemyPatternType.Area && string.IsNullOrEmpty(error))
+        if (pattern.Type == EnemyPatternType.Area && string.IsNullOrEmpty(error))
         {
             var timing = pattern.ShrinkTiming;
             EditorGUILayout.LabelField("Total Area Duration", timing.TotalDuration.ToString("0.##") + " s");
@@ -301,11 +303,11 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         get
         {
             if (pattern == null) return 0f;
-            if (pattern.type == EnemyPatternType.Area) return pattern.ShrinkTiming.TotalDuration;
-            if (route == null || pattern.speed <= 0f) return 0f;
-            float duration = route.Length * pattern.passes / pattern.speed;
-            if (pattern.type == EnemyPatternType.SequentialPath)
-                duration += Mathf.Max(0, slots.Length - 1) * pattern.spawnInterval;
+            if (pattern.Type == EnemyPatternType.Area) return pattern.ShrinkTiming.TotalDuration;
+            if (route == null || pattern.Speed <= 0f) return 0f;
+            float duration = route.Length * pattern.Passes / pattern.Speed;
+            if (pattern.Type == EnemyPatternType.SequentialPath)
+                duration += Mathf.Max(0, slots.Length - 1) * pattern.SpawnInterval;
             return duration;
         }
     }
@@ -319,7 +321,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         {
             if (pattern != null) pattern.Validate();
             slots = shape == null ? Array.Empty<Vector2>() : FormationBuilder.Build(shape);
-            if (path != null && (pattern == null || pattern.type != EnemyPatternType.Area))
+            if (path != null && (pattern == null || pattern.Type != EnemyPatternType.Area))
                 route = new EnemyPathRoute(EnemyPathBuilder.Build(path, CameraPosition));
         }
         catch (Exception e) { error = e.Message; }
@@ -329,12 +331,12 @@ public sealed class EnemyFormationWorkbench : EditorWindow
     // Căn theo toàn bộ hình/đường thực tế, kể cả khi camera game ở xa gốc tọa độ.
     private Bounds GetPreviewBounds()
     {
-        Vector2 center = tab == 3 || (pattern != null && pattern.type == EnemyPatternType.Area) ? PreviewPlayer : CameraPosition;
+        Vector2 center = tab == 3 || (pattern != null && pattern.Type == EnemyPatternType.Area) ? PreviewPlayer : CameraPosition;
         var bounds = CameraPreviewBounds;
         if (tab == 3 && bossSpawn != null)
         {
-            bounds.Encapsulate((Vector3)(PreviewPlayer - bossSpawn.arenaSize * 0.5f));
-            bounds.Encapsulate((Vector3)(PreviewPlayer + bossSpawn.arenaSize * 0.5f));
+            bounds.Encapsulate((Vector3)(PreviewPlayer - bossSpawn.ArenaSize * 0.5f));
+            bounds.Encapsulate((Vector3)(PreviewPlayer + bossSpawn.ArenaSize * 0.5f));
         }
         else if (route != null)
         {
@@ -395,7 +397,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
                 }
             }
         }
-        if (tab == 1 && path != null && (pattern == null || pattern.type != EnemyPatternType.Area))
+        if (tab == 1 && path != null && (pattern == null || pattern.Type != EnemyPatternType.Area))
         {
             var data = new SerializedObject(path);
             var points = data.FindProperty("waypoints");
@@ -427,35 +429,35 @@ public sealed class EnemyFormationWorkbench : EditorWindow
         }
         if (tab == 3 && bossSpawn != null)
         {
-            Vector2 half = bossSpawn.arenaSize * 0.5f;
+            Vector2 half = bossSpawn.ArenaSize * 0.5f;
             Vector3 a = PreviewPlayer + new Vector2(-half.x, -half.y);
             Vector3 b = PreviewPlayer + new Vector2(-half.x, half.y);
             Vector3 c = PreviewPlayer + new Vector2(half.x, half.y);
             Vector3 d = PreviewPlayer + new Vector2(half.x, -half.y);
             Handles.color = Color.red;
             Handles.DrawLine(a, b); Handles.DrawLine(b, c); Handles.DrawLine(c, d); Handles.DrawLine(d, a);
-            Handles.Label(c, $"Boss Arena {bossSpawn.arenaSize.x:0.##} × {bossSpawn.arenaSize.y:0.##}");
+            Handles.Label(c, $"Boss Arena {bossSpawn.ArenaSize.x:0.##} × {bossSpawn.ArenaSize.y:0.##}");
         }
         Handles.color = Color.yellow;
-        if (pattern != null && pattern.type == EnemyPatternType.SequentialPath && route != null)
+        if (pattern != null && pattern.Type == EnemyPatternType.SequentialPath && route != null)
         {
             for (int i = 0; i < slots.Length; i++)
             {
-                float age = elapsed - i * pattern.spawnInterval;
-                if (age >= 0f && age * pattern.speed < route.Length * pattern.passes)
-                    Marker(route.Sample(age * pattern.speed, pattern.passes) + slots[i]);
+                float age = elapsed - i * pattern.SpawnInterval;
+                if (age >= 0f && age * pattern.Speed < route.Length * pattern.Passes)
+                    Marker(route.Sample(age * pattern.Speed, pattern.Passes) + slots[i]);
             }
         }
         else foreach (Vector2 slot in slots)
         {
-            if (pattern != null && pattern.type == EnemyPatternType.Area)
+            if (pattern != null && pattern.Type == EnemyPatternType.Area)
             {
                 if (elapsed < pattern.ShrinkTiming.TotalDuration) Marker(PreviewPlayer + slot * pattern.ShrinkTiming.GetScale(elapsed));
             }
             else if (route != null)
             {
-                float distance = pattern != null ? elapsed * pattern.speed : 0f;
-                int passes = pattern != null ? pattern.passes : 1;
+                float distance = pattern != null ? elapsed * pattern.Speed : 0f;
+                int passes = pattern != null ? pattern.Passes : 1;
                 if (distance < route.Length * passes) Marker(route.Sample(distance, passes) + slot);
             }
             else Marker(CameraPosition + slot);

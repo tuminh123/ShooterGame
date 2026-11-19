@@ -121,7 +121,7 @@ public sealed class HitboxEditorWindow : EditorWindow
             EditorGUILayout.HelpBox("Chọn Combat Assets đang dùng trong game.", MessageType.Info);
             return;
         }
-        BulletType[] types = combatAssets.BulletEntries.Select(entry => entry.type).Distinct()
+        BulletType[] types = combatAssets.BulletEntries.Select(entry => entry.Type).Distinct()
             .Where(type => type.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0).ToArray();
         if (types.Length == 0)
         {

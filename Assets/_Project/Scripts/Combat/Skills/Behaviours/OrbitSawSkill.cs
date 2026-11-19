@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -50,24 +51,24 @@ public sealed class OrbitSawSkill : Skill
         var next = configuration as OrbitSawData ?? throw new ArgumentException("OrbitSawSkill requires OrbitSawData.");
         next.Validate();
         revision++;
-        bool changedPrefab = data != null && data.visualPrefab != next.visualPrefab;
+        bool changedPrefab = data != null && data.VisualPrefab != next.VisualPrefab;
         for (int i = 0; i < blades.Length; i++)
         {
-            if (i < next.bladeCount && !changedPrefab) continue;
+            if (i < next.BladeCount && !changedPrefab) continue;
             if (blades[i] != null) Services.Pools.Despawn(blades[i].gameObject);
             blades[i] = null;
             nextHits[i].Clear();
         }
-        Array.Resize(ref blades, next.bladeCount);
-        Array.Resize(ref nextHits, next.bladeCount);
+        Array.Resize(ref blades, next.BladeCount);
+        Array.Resize(ref nextHits, next.BladeCount);
         for (int i = 0; i < nextHits.Length; i++)
         {
             if (nextHits[i] == null) nextHits[i] = new Dictionary<CharacterHandle, float>();
-            if (blades[i] != null) blades[i].SetRadius(next.bladeRadius);
+            if (blades[i] != null) blades[i].SetRadius(next.BladeRadius);
         }
         data = next;
-        effectSnapshot = next.effects.ToArray();
-        count = next.bladeCount;
+        effectSnapshot = next.Effects.ToArray();
+        count = next.BladeCount;
         hasPrevious = false;
     }
 
@@ -80,13 +81,13 @@ public sealed class OrbitSawSkill : Skill
         if (disposed || paused || !Owner.CanRun || deltaTime <= 0f) return;
         Vector2 center = Owner.Owner.HitPosition;
         if (!hasPrevious) previousCenter = center;
-        float turn = data.degreesPerSecond * deltaTime;
+        float turn = data.DegreesPerSecond * deltaTime;
         int currentRevision = revision;
         clock += deltaTime;
         // Query rộng một lần, rồi dùng hình học sweep cho từng lưỡi. Không dùng Physics2D.
         Vector2 middle = (center + previousCenter) * 0.5f;
         int found = Owner.Owner.Search.FindAll(middle,
-            data.orbitRadius + data.bladeRadius + Vector2.Distance(center, previousCenter) * 0.5f,
+            data.OrbitRadius + data.BladeRadius + Vector2.Distance(center, previousCenter) * 0.5f,
             CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
         try
         {
@@ -97,19 +98,19 @@ public sealed class OrbitSawSkill : Skill
                 float phase = 360f * blade / count;
                 // Chia cung quay thành đoạn <=15 độ, tránh chỉ đo hai đầu khiến cưa xuyên quái ở frame chậm.
                 int steps = Mathf.Clamp(Mathf.CeilToInt(turn / 15f), 1, 128);
-                Vector2 start = previousCenter + Direction(angle + phase) * data.orbitRadius;
+                Vector2 start = previousCenter + Direction(angle + phase) * data.OrbitRadius;
                 for (int step = 1; step <= steps && !disposed && Owner.CanRun && currentRevision == revision; step++)
                 {
                     float t = step / (float)steps;
-                    Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.orbitRadius;
+                    Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.OrbitRadius;
                     for (int i = 0; i < found && !disposed && Owner.CanRun && currentRevision == revision; i++)
                     {
                         CharacterHandle target = targets[i];
                         if (nextHits[blade].ContainsKey(target) || !target.TryGetCharacter(out CharacterView victim)) continue;
                         if (!SpatialGeometry.SweepCircle(new float2(start.x, start.y), new float2(end.x, end.y),
-                            data.bladeRadius, victim.GetSpatialEntity(), out _)) continue;
+                            data.BladeRadius, victim.GetSpatialEntity(), out _)) continue;
                         // Lịch riêng theo lưỡi + danh tính spawn. Ghi trước callback damage để chống gọi lồng nhau.
-                        nextHits[blade][target] = clock + data.hitInterval;
+                        nextHits[blade][target] = clock + data.HitInterval;
                         DamageResult hit = victim.ReceiveDamage(Owner.Identity.CreateDamage());
                         if (hit.Accepted && Services.Effects != null && Owner.CanRun)
                             foreach (IGameplayEffect effect in effectSnapshot)
@@ -121,7 +122,7 @@ public sealed class OrbitSawSkill : Skill
                     start = end;
                 }
                 if (!disposed && currentRevision == revision && blades[blade] != null)
-                    blades[blade].SetPose(Direction(angle + turn + phase) * data.orbitRadius, (angle + turn) * 3f);
+                    blades[blade].SetPose(Direction(angle + turn + phase) * data.OrbitRadius, (angle + turn) * 3f);
             }
         }
         finally { Array.Clear(targets, 0, targets.Length); }
@@ -137,8 +138,8 @@ public sealed class OrbitSawSkill : Skill
     private void EnsureBlade(int index)
     {
         if (blades[index] != null) return;
-        GameObject clone = Services.Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
-            beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, data.bladeRadius));
+        GameObject clone = Services.Pools.Spawn(data.VisualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
+            beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, data.BladeRadius));
         if (clone == null) throw new InvalidOperationException("Could not spawn saw visual.");
         blades[index] = clone.GetComponent<SkillAreaVisual>();
     }

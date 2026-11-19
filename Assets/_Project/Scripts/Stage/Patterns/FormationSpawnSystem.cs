@@ -53,8 +53,8 @@ internal sealed class FormationSpawnSystem
     public void Validate(EnemyPatternSO config)
     {
         config.Validate();
-        foreach (var enemy in config.enemies) spawner.ValidateCharacter(enemy);
-        if (config.type != EnemyPatternType.Area && spawner.FormationCamera == null)
+        foreach (var enemy in config.Enemies) spawner.ValidateCharacter(enemy);
+        if (config.Type != EnemyPatternType.Area && spawner.FormationCamera == null)
             throw new InvalidOperationException("Formation/SequentialPath cần Formation Camera hoặc Main Camera.");
     }
 

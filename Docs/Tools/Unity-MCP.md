@@ -19,14 +19,27 @@ Package khai báo Unity tối thiểu 2021.3; đã kiểm tra biên dịch bằn
    Cần Internet ở lần cài đầu. Không cần quyền quản trị; script không sửa PATH
    hay execution policy vĩnh viễn. `Bypass` chỉ áp dụng cho tiến trình này.
 
-3. Mỗi khi muốn dùng MCP, mở một terminal và chạy:
+3. Mỗi khi muốn dùng MCP, chọn **một** trong hai cách (không chạy cả hai cùng lúc vì cùng dùng cổng 8080):
+
+   **Cách A – bấm nút trong Unity (đơn giản nhất).** Mở cửa sổ MCP (bước 4), chọn
+   **HTTP Local** rồi bấm **Start Server**. `McpLocalEnvironment.cs` đã trỏ `uv`, cache
+   và thư mục tool (`UV_TOOL_DIR`) vào `.mcp-tools/`, nên nút này không đụng tới
+   `%APPDATA%\uv` của máy. Lần bấm đầu cần Internet để tải `mcpforunityserver==10.3.0`
+   từ PyPI (cùng bản v10.3.0 với commit đã ghim). Muốn server tự chạy mỗi khi mở Unity:
+   bật **Auto Start On Load** trong mục Advanced của cửa sổ MCP.
+
+   **Cách B – terminal riêng (dùng đúng môi trường đã khóa bằng `uv.lock`):**
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools/MCP/Start-Server.ps1
    ```
 
    Giữ terminal này mở. Server chỉ lắng nghe tại `127.0.0.1:8080`.
-   Dừng bằng Ctrl+C. Không chạy thêm server bằng nút Start Server trong Unity.
+   Dừng bằng Ctrl+C. Khi đã chạy cách này thì không bấm thêm nút Start Server trong Unity.
+
+   Nếu Console báo `failed to open file ...\uv\tools\.lock: Access is denied`, Unity đang chạy
+   `uvx` mà chưa nạp `McpLocalEnvironment` (ví dụ chưa chạy Setup). Chọn
+   **Shooter Game > MCP > Refresh Local Tools** rồi bấm Start Server lại.
 
 4. Mở dự án bằng Unity, đợi Package Manager tải package và biên dịch xong.
    Script Editor `Assets/_Project/Editor/McpLocalEnvironment.cs` tự thêm Python

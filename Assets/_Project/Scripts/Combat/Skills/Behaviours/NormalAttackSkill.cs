@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>Hành vi đánh thường: đánh mục tiêu gần nhất đang chạm hitbox, rồi áp effect nếu đòn trúng.</summary>
@@ -25,14 +26,14 @@ public sealed class NormalAttackSkill : Skill
     {
         data = configuration as NormalAttackData ?? throw new ArgumentException("NormalAttackSkill requires NormalAttackData.");
         data.Validate();
-        effects = data.effects.ToArray();
+        effects = data.Effects.ToArray();
     }
 
     // Chỉ tiêu cooldown khi hitbox chạm và mục tiêu nhận đòn.
     public override bool TryExecute()
     {
         if (!Owner.CanRun || data == null) return false;
-        CharacterHandle target = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.range,
+        CharacterHandle target = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.Range,
             CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
         if (!target.TryGetCharacter(out CharacterView victim) || !CharacterSearch.Overlaps(Owner.Owner, victim)) return false;
         DamageResult hit = Owner.Owner.DealDamage(target);

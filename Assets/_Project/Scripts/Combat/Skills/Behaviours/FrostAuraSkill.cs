@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>Hành vi aura băng: làm chậm mọi đối thủ trong bán kính, và áp effect khi chúng đi vào vùng.</summary>
@@ -50,15 +51,15 @@ public sealed class FrostAuraSkill : Skill
         next.Validate();
         revision++;
         ClearSlow();
-        if (visual != null && data != null && data.visualPrefab != next.visualPrefab)
+        if (visual != null && data != null && data.VisualPrefab != next.VisualPrefab)
         {
             Services.Pools.Despawn(visual.gameObject);
             visual = null;
         }
         data = next;
-        slowEffect = new SlowEffect(next.slowFraction);
-        radius = next.radius;
-        effectSnapshot = next.effects.ToArray();
+        slowEffect = new SlowEffect(next.SlowFraction);
+        radius = next.Radius;
+        effectSnapshot = next.Effects.ToArray();
         if (visual != null) visual.SetRadius(radius);
     }
 
@@ -71,7 +72,7 @@ public sealed class FrostAuraSkill : Skill
         if (disposed || paused || !Owner.CanRun || deltaTime <= 0f) return;
         if (visual == null)
         {
-            GameObject clone = Services.Pools.Spawn(data.visualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
+            GameObject clone = Services.Pools.Spawn(data.VisualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
                 beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, radius));
             if (clone == null) throw new InvalidOperationException("Could not spawn frost visual.");
             visual = clone.GetComponent<SkillAreaVisual>();

@@ -15,9 +15,14 @@ public sealed class MapDatabaseSO : ScriptableObject
     {
         // ! Key phân biệt chữ hoa/thường; dùng cùng một cách viết trong Level Data.
         [Tooltip("Khóa map phân biệt hoa/thường; phải khớp Map Key trong StageDataSO. Không để trống hoặc trùng.")]
-        public string key;
+        [SerializeField] private string key;
         [Tooltip("Sprite nền được gán cho các chunk của map. Kích thước lưới do WorldManager.Settings (Chunk Size) quyết định.")]
-        public Sprite sprite;  // * Ảnh nền được gán lên SpriteRenderer của chunk.
+        [SerializeField] private Sprite sprite;  // * Ảnh nền được gán lên SpriteRenderer của chunk.
+
+        /// <summary>Khóa map phân biệt hoa/thường; phải khớp Map Key trong StageDataSO. Không để trống hoặc trùng.</summary>
+        public string Key => key;
+        /// <summary>Sprite nền được gán cho các chunk của map. Kích thước lưới do WorldManager.Settings (Chunk Size) quyết định.</summary>
+        public Sprite Sprite => sprite;
     }
 
     [Tooltip("Danh mục key → sprite nền. Mỗi key chỉ xuất hiện một lần và phải có sprite.")]
@@ -38,7 +43,7 @@ public sealed class MapDatabaseSO : ScriptableObject
         bool found = false;
         foreach (MapEntry entry in maps)
         {
-            if (entry == null || !string.Equals(entry.key, key, StringComparison.Ordinal))
+            if (entry == null || !string.Equals(entry.Key, key, StringComparison.Ordinal))
                 continue;
 
             if (found)
@@ -48,7 +53,7 @@ public sealed class MapDatabaseSO : ScriptableObject
             }
 
             found = true;
-            sprite = entry.sprite;
+            sprite = entry.Sprite;
         }
 
         return sprite != null;
@@ -68,16 +73,16 @@ public sealed class MapDatabaseSO : ScriptableObject
         for (int i = 0; i < maps.Count; i++)
         {
             MapEntry entry = maps[i];
-            if (entry == null || string.IsNullOrWhiteSpace(entry.key))
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Key))
             {
                 Debug.LogWarning($"MapDatabase: entry {i} has an empty key.", this);
                 continue;
             }
 
-            if (!keys.Add(entry.key))
-                Debug.LogWarning($"MapDatabase: duplicate key '{entry.key}'.", this);
-            if (entry.sprite == null)
-                Debug.LogWarning($"MapDatabase: key '{entry.key}' has no sprite.", this);
+            if (!keys.Add(entry.Key))
+                Debug.LogWarning($"MapDatabase: duplicate key '{entry.Key}'.", this);
+            if (entry.Sprite == null)
+                Debug.LogWarning($"MapDatabase: key '{entry.Key}' has no sprite.", this);
         }
     }
 

@@ -8,8 +8,12 @@ public sealed class RegenerationData : SkillBehaviourData
 {
     #region Configuration
 
-    [Tooltip("Lượng HP hồi sau mỗi lần kích hoạt.")][Min(0f)] public float healAmount = 1f;
-    [Tooltip("Thời gian tối thiểu giữa hai lần hồi HP.")][Min(0f)] public float cooldown = 2f;
+    [SerializeField][Tooltip("Lượng HP hồi sau mỗi lần kích hoạt.")][Min(0f)] private float healAmount = 1f;
+    [SerializeField][Tooltip("Thời gian tối thiểu giữa hai lần hồi HP.")][Min(0f)] private float cooldown = 2f;
+
+    /// <summary>Lượng HP hồi sau mỗi lần kích hoạt.</summary>
+    public float HealAmount => healAmount;
+
     public override SkillBehaviourType Type => SkillBehaviourType.Regeneration;
     public override float Cooldown => cooldown;
 

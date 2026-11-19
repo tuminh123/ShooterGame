@@ -261,7 +261,7 @@ public static class ServiceContractVerification
     private static void CheckProjectile(DiContainer container, CharacterView player, CharacterView enemy)
     {
         float before = enemy.RuntimeData.CurrentHealth + enemy.RuntimeData.CurrentShield;
-        var data = new ProjectileSpawnData(container.Resolve<CombatAssetsSO>().BulletEntries[0].type,
+        var data = new ProjectileSpawnData(container.Resolve<CombatAssetsSO>().BulletEntries[0].Type,
             new DamageInfo(Mathf.Min(0.1f, before * 0.1f), CharacterTeam.Player), 50f, 1f,
             new StraightProjectileMove(), Array.Empty<IGameplayEffect>(), 0f);
         Vector2 direction = (enemy.HitPosition - player.HitPosition).normalized;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>Ba cách hoạt động dùng chung hệ thống Pattern.</summary>
@@ -64,35 +65,66 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
     #region Cấu hình quái và chuyển động
 
     [Tooltip("Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area tại Player. Hình Đặc/Rỗng lấy từ Formation asset.")]
-    public EnemyPatternType type;
+    [SerializeField] private EnemyPatternType type;
     [Tooltip("Mốc bắt đầu tính bằng giây từ đầu Stage, độc lập với Wave.")]
-    [Min(0f)] public float delay;
+    [SerializeField][Min(0f)] private float delay;
     [Tooltip("Danh sách quái riêng, không lấy từ Wave và không trừ spawnCount của Wave.")]
-    public CharacterDataSO[] enemies = Array.Empty<CharacterDataSO>();
+    [SerializeField] private CharacterDataSO[] enemies = Array.Empty<CharacterDataSO>();
     [Tooltip("Cấp của mọi thành viên trong lượt Pattern, từ 1 trở lên; độc lập số thứ tự wave vì Pattern chạy theo mốc giờ Stage.")]
-    [Min(1)] public int enemyLevel = 1;
+    [SerializeField][Min(1)] private int enemyLevel = 1;
     [Tooltip("Chỉ con chạm player nhận knockback qua EnemyController rồi đi tiếp độc lập, không về slot đội hình.")]
-    [Min(0f)] public float knockbackDistance = 0.35f;
+    [SerializeField][Min(0f)] private float knockbackDistance = 0.35f;
     [Tooltip("Thời gian đẩy lùi thành viên sau khi chạm Player, tính bằng giây gameplay; phải lớn hơn 0.")]
-    [Min(0.01f)] public float knockbackDuration = 0.2f;
+    [SerializeField][Min(0.01f)] private float knockbackDuration = 0.2f;
     [Tooltip("Hình học bắt buộc cho cả ba cách spawn: Đặc/Rỗng, Shape, Level, Size và Rotation. Số slot là số quái cần sinh.")]
-    public EnemyFormationSO formation;
+    [SerializeField] private EnemyFormationSO formation;
     [Tooltip("Chỉ dùng cho Formation và SequentialPath. Area không sử dụng Path.")]
-    public EnemyPathSO path;
+    [SerializeField] private EnemyPathSO path;
     [Tooltip("Tốc độ chung của nhóm trên Path. Con tách đội hình giữ tốc độ này để chạy nốt đường.")]
-    [Min(0.01f)] public float speed = 2.5f;
+    [SerializeField][Min(0.01f)] private float speed = 2.5f;
     [Tooltip("1: A → B. 2: A → B → A. Hết hành trình thu hồi, không chuyển sang chase.")]
-    [Range(1, 100)] public int passes = 1;
+    [SerializeField][Range(1, 100)] private int passes = 1;
     [Tooltip("Khoảng cách thời gian giữa hai con xuất hiện tại A, chỉ dùng cho SequentialPath.")]
-    [Min(0.01f)] public float spawnInterval = 0.3f;
+    [SerializeField][Min(0.01f)] private float spawnInterval = 0.3f;
     [Tooltip("Thu liên tục như cũ, hoặc thu theo đợt có khoảng nghỉ. Chỉ dùng cho Area.")]
-    public AreaShrinkMode areaShrinkMode;
+    [SerializeField] private AreaShrinkMode areaShrinkMode;
     [Tooltip("Tổng số giây thực sự thu Area về tâm, không tính các khoảng nghỉ. Hết toàn bộ tiến trình sẽ thu hồi quái còn lại.")]
-    [Min(0.01f)] public float shrinkDuration = 5f;
+    [SerializeField][Min(0.01f)] private float shrinkDuration = 5f;
     [Tooltip("Số giây thu mỗi đợt, sau đó dừng lại. Chỉ dùng khi chọn Thu theo đợt.")]
-    [Min(0.01f)] public float shrinkBurstDuration = 1f;
+    [SerializeField][Min(0.01f)] private float shrinkBurstDuration = 1f;
     [Tooltip("Số giây đứng nguyên bán kính giữa hai đợt thu. Vòng vẫn bám Player; 0 = không nghỉ. Không nghỉ sau đợt cuối.")]
-    [Min(0f)] public float shrinkPauseDuration = 1f;
+    [SerializeField][Min(0f)] private float shrinkPauseDuration = 1f;
+
+    /// <summary>Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area tại Player. Hình Đặc/Rỗng lấy từ Formation asset.</summary>
+    public EnemyPatternType Type => type;
+    /// <summary>Mốc bắt đầu tính bằng giây từ đầu Stage, độc lập với Wave.</summary>
+    public float Delay => delay;
+    /// <summary>Danh sách quái riêng, không lấy từ Wave và không trừ spawnCount của Wave.</summary>
+    public IReadOnlyList<CharacterDataSO> Enemies => enemies;
+    /// <summary>Cấp của mọi thành viên trong lượt Pattern, từ 1 trở lên; độc lập số thứ tự wave vì Pattern chạy theo mốc giờ Stage.</summary>
+    public int EnemyLevel => enemyLevel;
+    /// <summary>Chỉ con chạm player nhận knockback qua EnemyController rồi đi tiếp độc lập, không về slot đội hình.</summary>
+    public float KnockbackDistance => knockbackDistance;
+    /// <summary>Thời gian đẩy lùi thành viên sau khi chạm Player, tính bằng giây gameplay; phải lớn hơn 0.</summary>
+    public float KnockbackDuration => knockbackDuration;
+    /// <summary>Hình học bắt buộc cho cả ba cách spawn: Đặc/Rỗng, Shape, Level, Size và Rotation. Số slot là số quái cần sinh.</summary>
+    public EnemyFormationSO Formation => formation;
+    /// <summary>Chỉ dùng cho Formation và SequentialPath. Area không sử dụng Path.</summary>
+    public EnemyPathSO Path => path;
+    /// <summary>Tốc độ chung của nhóm trên Path. Con tách đội hình giữ tốc độ này để chạy nốt đường.</summary>
+    public float Speed => speed;
+    /// <summary>1: A → B. 2: A → B → A. Hết hành trình thu hồi, không chuyển sang chase.</summary>
+    public int Passes => passes;
+    /// <summary>Khoảng cách thời gian giữa hai con xuất hiện tại A, chỉ dùng cho SequentialPath.</summary>
+    public float SpawnInterval => spawnInterval;
+    /// <summary>Thu liên tục như cũ, hoặc thu theo đợt có khoảng nghỉ. Chỉ dùng cho Area.</summary>
+    public AreaShrinkMode AreaShrinkMode => areaShrinkMode;
+    /// <summary>Tổng số giây thực sự thu Area về tâm, không tính các khoảng nghỉ. Hết toàn bộ tiến trình sẽ thu hồi quái còn lại.</summary>
+    public float ShrinkDuration => shrinkDuration;
+    /// <summary>Số giây thu mỗi đợt, sau đó dừng lại. Chỉ dùng khi chọn Thu theo đợt.</summary>
+    public float ShrinkBurstDuration => shrinkBurstDuration;
+    /// <summary>Số giây đứng nguyên bán kính giữa hai đợt thu. Vòng vẫn bám Player; 0 = không nghỉ. Không nghỉ sau đợt cuối.</summary>
+    public float ShrinkPauseDuration => shrinkPauseDuration;
 
     #endregion
 

@@ -63,7 +63,7 @@ internal sealed class BossSpawnSystem
     public void Validate(BossSpawnDataSO config)
     {
         config.Validate();
-        foreach (BossSpawnDataSO.Entry entry in config.entries) spawner.ValidateCharacter(entry.character);
+        foreach (BossSpawnDataSO.Entry entry in config.Entries) spawner.ValidateCharacter(entry.Character);
     }
 
     #endregion
@@ -73,18 +73,18 @@ internal sealed class BossSpawnSystem
     /// <summary>Đăng ký các Elite theo StageTime và ghi nhận cấu hình điều kiện Boss.</summary>
     public void Execute(BossSpawnDataSO config)
     {
-        condition = config.bossAppearanceCondition;
-        foreach (BossSpawnDataSO.Entry entry in config.entries)
+        condition = config.BossAppearanceCondition;
+        foreach (BossSpawnDataSO.Entry entry in config.Entries)
         {
-            if (entry.type == SpecialEnemyType.Elite)
+            if (entry.Type == SpecialEnemyType.Elite)
             {
                 elites.Add(new EliteRun { entry = entry });
-                SpawnScheduled?.Invoke(StageSpawnWarning.Elite, entry.eliteStageTime);
+                SpawnScheduled?.Invoke(StageSpawnWarning.Elite, entry.EliteStageTime);
             }
             else
             {
                 boss = entry;
-                arenaSize = config.arenaSize;
+                arenaSize = config.ArenaSize;
                 if (condition == BossAppearanceCondition.AfterAllWavesSpawned && ScheduledWaveCompletion.HasValue)
                 {
                     bossSchedulePublished = true;
@@ -104,9 +104,9 @@ internal sealed class BossSpawnSystem
         if (deltaTime <= 0f) return;
         foreach (EliteRun elite in elites)
         {
-            if (elite.spawned || stageTime < elite.entry.eliteStageTime) continue;
-            var view = spawner.SpawnElite(elite.entry.character, elite.entry.enemyLevel,
-                spawner.ChoosePerimeterPoint(), elite.entry.eliteScale, elite.entry.eliteHealthMultiplier);
+            if (elite.spawned || stageTime < elite.entry.EliteStageTime) continue;
+            var view = spawner.SpawnElite(elite.entry.Character, elite.entry.EnemyLevel,
+                spawner.ChoosePerimeterPoint(), elite.entry.EliteScale, elite.entry.EliteHealthMultiplier);
             roster.Add(view);
             elite.spawned = true;
         }
@@ -119,7 +119,7 @@ internal sealed class BossSpawnSystem
             bossSchedulePublished = true;
             SpawnScheduled?.Invoke(StageSpawnWarning.Boss, stageTime);
         }
-        roster.Add(summon.Summon(boss.character, boss.enemyLevel, arenaSize));
+        roster.Add(summon.Summon(boss.Character, boss.EnemyLevel, arenaSize));
         bossSpawned = true;
     }
 

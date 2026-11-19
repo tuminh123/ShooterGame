@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>Hành vi bắn: tìm mục tiêu gần nhất rồi bắn một lượt đạn, chia hướng bằng <see cref="IShooter"/>.</summary>
@@ -33,10 +34,10 @@ public sealed class ShootingSkill : Skill
     {
         var next = configuration as ShootingData ?? throw new ArgumentException("ShootingSkill requires ShootingData.");
         next.Validate();
-        if (data == null || !SameShooter(data.shooter, next.shooter))
-            liveShooter = next.shooter.CreateRuntime(); // Bản sao riêng, để góc Spiral không dùng chung với template.
-        movement = next.projectileMove;
-        effectSnapshot = next.effects.ToArray();
+        if (data == null || !SameShooter(data.Shooter, next.Shooter))
+            liveShooter = next.Shooter.CreateRuntime(); // Bản sao riêng, để góc Spiral không dùng chung với template.
+        movement = next.ProjectileMove;
+        effectSnapshot = next.Effects.ToArray();
         data = next;
     }
 
@@ -53,19 +54,19 @@ public sealed class ShootingSkill : Skill
     {
         if (!Owner.CanRun || data == null) return false;
         CharacterHandle selected = default;
-        Vector2 position = (Vector2)Owner.Owner.HitPosition + data.muzzleOffset;
-        Vector2 direction = data.defaultDirection.normalized;
+        Vector2 position = (Vector2)Owner.Owner.HitPosition + data.MuzzleOffset;
+        Vector2 direction = data.DefaultDirection.normalized;
         // Đạn đuổi cần mục tiêu để bay, kể cả khi data cho phép bắn khi không có mục tiêu.
-        if (data.requiresTarget || movement.TracksTarget)
+        if (data.RequiresTarget || movement.TracksTarget)
         {
-            selected = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.range,
+            selected = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.Range,
                 CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
             if (selected.TryGetCharacter(out CharacterView target))
             {
                 Vector2 offset = (Vector2)target.HitPosition - position;
                 if (offset.sqrMagnitude > 0.000001f) direction = offset.normalized;
             }
-            else if (data.requiresTarget) return false;
+            else if (data.RequiresTarget) return false;
         }
         return ExecuteVolley(position, direction, selected) > 0;
     }
@@ -80,12 +81,12 @@ public sealed class ShootingSkill : Skill
         BaseStats stats = Owner.Identity.FinalStats;
         CharacterTeam team = Owner.Identity.Team;
         int spawned = 0;
-        for (int i = 0; i < shot.projectileCount; i++)
+        for (int i = 0; i < shot.ProjectileCount; i++)
         {
             if (!Owner.CanRun) break;
-            Vector2 direction = shooter.GetDirection(aim.normalized, i, shot.projectileCount);
-            var projectile = new ProjectileSpawnData(shot.bulletType, CharacterRuntimeData.CreateDamage(stats, team),
-                shot.speed, shot.lifetime, move, effects, stats.effectHit);
+            Vector2 direction = shooter.GetDirection(aim.normalized, i, shot.ProjectileCount);
+            var projectile = new ProjectileSpawnData(shot.BulletType, CharacterRuntimeData.CreateDamage(stats, team),
+                shot.Speed, shot.Lifetime, move, effects, stats.effectHit);
             if (Services.Projectiles.SpawnBullet(projectile, position, direction, target)) spawned++;
         }
         if (spawned > 0) shooter.OnShotCompleted();

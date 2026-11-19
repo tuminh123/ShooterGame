@@ -20,24 +20,40 @@ public sealed class CombatAssetsSO : ScriptableObject
     public struct BulletVisual
     {
         [Tooltip("Loại đạn được skill dùng để tra visual và hitbox. Mỗi BulletType chỉ khai báo một lần.")]
-        public BulletType type;
+        [SerializeField] private BulletType type;
         [Tooltip("Prefab hình ảnh con của đạn. Chỉnh màu, scale, sprite/animation/particle ngay trong prefab này; trục +X là hướng bay.")]
-        public GameObject visualPrefab;
+        [SerializeField] private GameObject visualPrefab;
         [Tooltip("Hiệu ứng hình ảnh khi đạn trúng mục tiêu; không phải hiệu ứng gameplay như cháy hoặc độc.")]
-        public EffectType impactEffect;
+        [SerializeField] private EffectType impactEffect;
         [Tooltip("Bán kính hitbox quét va chạm của đạn, theo world unit; phải lớn hơn 0, độc lập kích thước visual.")]
-        [Min(0.001f)] public float hitRadius;
+        [SerializeField][Min(0.001f)] private float hitRadius;
         [Tooltip("Tâm hitbox theo hướng bay: X phía trước, Y bên trái; world unit, không theo scale visual.")]
-        public Vector2 hitOffset;
+        [SerializeField] private Vector2 hitOffset;
+
+        /// <summary>Loại đạn được skill dùng để tra visual và hitbox. Mỗi BulletType chỉ khai báo một lần.</summary>
+        public BulletType Type => type;
+        /// <summary>Prefab hình ảnh con của đạn. Chỉnh màu, scale, sprite/animation/particle ngay trong prefab này; trục +X là hướng bay.</summary>
+        public GameObject VisualPrefab => visualPrefab;
+        /// <summary>Hiệu ứng hình ảnh khi đạn trúng mục tiêu; không phải hiệu ứng gameplay như cháy hoặc độc.</summary>
+        public EffectType ImpactEffect => impactEffect;
+        /// <summary>Bán kính hitbox quét va chạm của đạn, theo world unit; phải lớn hơn 0, độc lập kích thước visual.</summary>
+        public float HitRadius => hitRadius;
+        /// <summary>Tâm hitbox theo hướng bay: X phía trước, Y bên trái; world unit, không theo scale visual.</summary>
+        public Vector2 HitOffset => hitOffset;
     }
 
     [Serializable]
     public struct EffectEntry
     {
         [Tooltip("ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.")]
-        public EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
+        [SerializeField] private EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
         [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.")]
-        public GameObject visualPrefab;
+        [SerializeField] private GameObject visualPrefab;
+
+        /// <summary>ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.</summary>
+        public EffectType Type => type;
+        /// <summary>Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.</summary>
+        public GameObject VisualPrefab => visualPrefab;
     }
 
     [Tooltip("Vỏ ProjectileView dùng chung cho mọi loại đạn, không chứa SpriteRenderer.")]
@@ -57,7 +73,7 @@ public sealed class CombatAssetsSO : ScriptableObject
     public BulletVisual GetBullet(BulletType type)
     {
         foreach (BulletVisual bullet in bullets)
-            if (bullet.type == type) return bullet;
+            if (bullet.Type == type) return bullet;
         throw new InvalidOperationException($"Missing bullet visual: {type} in {name}.");
     }
 
@@ -65,7 +81,7 @@ public sealed class CombatAssetsSO : ScriptableObject
     {
         if (type == EffectType.None) return default;
         foreach (EffectEntry effect in effects)
-            if (effect.type == type) return effect;
+            if (effect.Type == type) return effect;
         throw new InvalidOperationException($"Missing effect prefab: {type} in {name}.");
     }
 
@@ -75,18 +91,18 @@ public sealed class CombatAssetsSO : ScriptableObject
             throw new InvalidOperationException($"Assign combat resources: {name}.");
         var effectTypes = new HashSet<EffectType>();
         foreach (EffectEntry effect in effects)
-            if (effect.type == EffectType.None || !Enum.IsDefined(typeof(EffectType), effect.type) || effect.visualPrefab == null ||
-                effect.visualPrefab.GetComponent<IEffectVisual>() == null || !effectTypes.Add(effect.type))
+            if (effect.Type == EffectType.None || !Enum.IsDefined(typeof(EffectType), effect.Type) || effect.VisualPrefab == null ||
+                effect.VisualPrefab.GetComponent<IEffectVisual>() == null || !effectTypes.Add(effect.Type))
                 throw new InvalidOperationException($"Missing or duplicate effect in {name}.");
         var bulletTypes = new HashSet<BulletType>();
         foreach (BulletVisual bullet in bullets)
         {
-            if (!Enum.IsDefined(typeof(BulletType), bullet.type) || !bulletTypes.Add(bullet.type) ||
-                bullet.visualPrefab == null || !(bullet.hitRadius > 0f) || float.IsInfinity(bullet.hitRadius) ||
-                float.IsNaN(bullet.hitOffset.x) || float.IsInfinity(bullet.hitOffset.x) ||
-                float.IsNaN(bullet.hitOffset.y) || float.IsInfinity(bullet.hitOffset.y) ||
-                (bullet.impactEffect != EffectType.None && !effectTypes.Contains(bullet.impactEffect)))
-                throw new InvalidOperationException($"Invalid bullet visual: {bullet.type} in {name}.");
+            if (!Enum.IsDefined(typeof(BulletType), bullet.Type) || !bulletTypes.Add(bullet.Type) ||
+                bullet.VisualPrefab == null || !(bullet.HitRadius > 0f) || float.IsInfinity(bullet.HitRadius) ||
+                float.IsNaN(bullet.HitOffset.x) || float.IsInfinity(bullet.HitOffset.x) ||
+                float.IsNaN(bullet.HitOffset.y) || float.IsInfinity(bullet.HitOffset.y) ||
+                (bullet.ImpactEffect != EffectType.None && !effectTypes.Contains(bullet.ImpactEffect)))
+                throw new InvalidOperationException($"Invalid bullet visual: {bullet.Type} in {name}.");
         }
     }
 }

@@ -10,11 +10,18 @@ public sealed class EquipmentDatabaseSO : ScriptableObject
     private sealed class EquipmentEntry
     {
         [Tooltip("ID ổn định được lưu trong save; phân biệt hoa/thường, không để trống hoặc trùng. Đổi ID có thể làm mất liên kết trang bị đã lưu.")]
-        public string id;
+        [SerializeField] private string id;
         [Tooltip("Tên hiển thị của trang bị; độc lập ID nên có thể đổi mà không thay khóa save.")]
-        public string displayName;
+        [SerializeField] private string displayName;
         [Tooltip("Bonus cộng vào chỉ số nhân vật khi trang bị được chọn. Các tỷ lệ dùng điểm phần trăm; dữ liệu này không giữ trạng thái đã trang bị.")]
-        public StatBonus bonus;
+        [SerializeField] private StatBonus bonus;
+
+        /// <summary>ID ổn định được lưu trong save; phân biệt hoa/thường, không để trống hoặc trùng. Đổi ID có thể làm mất liên kết trang bị đã lưu.</summary>
+        public string Id => id;
+        /// <summary>Tên hiển thị của trang bị; độc lập ID nên có thể đổi mà không thay khóa save.</summary>
+        public string DisplayName => displayName;
+        /// <summary>Bonus cộng vào chỉ số nhân vật khi trang bị được chọn. Các tỷ lệ dùng điểm phần trăm; dữ liệu này không giữ trạng thái đã trang bị.</summary>
+        public StatBonus Bonus => bonus;
     }
 
     [Tooltip("Danh mục trang bị theo ID. Mỗi entry khai báo tên và bonus riêng; không để phần tử trống.")]
@@ -25,11 +32,11 @@ public sealed class EquipmentDatabaseSO : ScriptableObject
         var lookup = new Dictionary<string, StatBonus>(StringComparer.Ordinal);
         foreach (EquipmentEntry item in items)
         {
-            if (item == null || string.IsNullOrWhiteSpace(item.id))
+            if (item == null || string.IsNullOrWhiteSpace(item.Id))
                 throw new InvalidOperationException("Equipment database contains a missing item or empty ID.");
-            if (lookup.ContainsKey(item.id))
-                throw new InvalidOperationException($"Duplicate equipment ID: {item.id}.");
-            lookup.Add(item.id, item.bonus);
+            if (lookup.ContainsKey(item.Id))
+                throw new InvalidOperationException($"Duplicate equipment ID: {item.Id}.");
+            lookup.Add(item.Id, item.Bonus);
         }
         return lookup;
     }

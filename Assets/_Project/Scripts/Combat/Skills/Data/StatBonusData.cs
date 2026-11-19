@@ -8,9 +8,17 @@ public sealed class StatBonusData : SkillBehaviourData
 {
     #region Configuration
 
-    [Tooltip("Chỉ số nhân vật sẽ bị thay đổi.")] public StatType stat = StatType.Defense;
-    [Tooltip("Add cộng trực tiếp; Percent thay đổi theo phần trăm.")] public StatOperation operation;
-    [Tooltip("Giá trị cộng hoặc tỷ lệ phần trăm; số âm tạo debuff.")] public float value = 2f;
+    [SerializeField][Tooltip("Chỉ số nhân vật sẽ bị thay đổi.")] private StatType stat = StatType.Defense;
+    [SerializeField][Tooltip("Add cộng trực tiếp; Percent thay đổi theo phần trăm.")] private StatOperation operation;
+    [SerializeField][Tooltip("Giá trị cộng hoặc tỷ lệ phần trăm; số âm tạo debuff.")] private float value = 2f;
+
+    /// <summary>Chỉ số nhân vật sẽ bị thay đổi.</summary>
+    public StatType Stat => stat;
+    /// <summary>Add cộng trực tiếp; Percent thay đổi theo phần trăm.</summary>
+    public StatOperation Operation => operation;
+    /// <summary>Giá trị cộng hoặc tỷ lệ phần trăm; số âm tạo debuff.</summary>
+    public float Value => value;
+
     public StatModifier Modifier => new StatModifier(stat, operation, value);
     public override SkillBehaviourType Type => SkillBehaviourType.StatBuff;
 

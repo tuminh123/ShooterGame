@@ -28,8 +28,8 @@ public sealed class RegenerationSkill : Skill
     // HP được phép cộng vượt giá trị ban đầu; runtime tăng max/current và thông báo UI trong cùng thao tác.
     public override bool TryExecute()
     {
-        if (!Owner.CanRun || data == null || data.healAmount <= 0f) return false;
-        Owner.Owner.ChangeHealth(data.healAmount);
+        if (!Owner.CanRun || data == null || data.HealAmount <= 0f) return false;
+        Owner.Owner.ChangeHealth(data.HealAmount);
         return true;
     }
 

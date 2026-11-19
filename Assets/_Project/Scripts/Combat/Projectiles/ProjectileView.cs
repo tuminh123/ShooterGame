@@ -97,13 +97,13 @@ public sealed class ProjectileView : MonoBehaviour
         projectileMovement = projectileData.Movement;
         movementSpeed = projectileData.Speed;
         lifetime = projectileData.Lifetime;
-        hitRadius = bulletVisual.hitRadius;
-        hitOffset = bulletVisual.hitOffset;
-        impactEffect = bulletVisual.impactEffect;
+        hitRadius = bulletVisual.HitRadius;
+        hitOffset = bulletVisual.HitOffset;
+        impactEffect = bulletVisual.ImpactEffect;
         FaceFlightDirection();
 
         // Gắn visual con và giữ đúng transform local đã cấu hình trong prefab visual.
-        GameObject prefab = bulletVisual.visualPrefab;
+        GameObject prefab = bulletVisual.VisualPrefab;
         visualObject = context.Pools.Spawn(prefab, transform.position, transform.rotation, PoolGroup.Other, transform);
         if (visualObject == null) throw new System.InvalidOperationException("Could not spawn projectile visual.");
         visualObject.transform.localPosition = prefab.transform.localPosition;

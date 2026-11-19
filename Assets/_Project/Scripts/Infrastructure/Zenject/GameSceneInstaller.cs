@@ -124,9 +124,9 @@ public sealed class GameSceneInstaller : MonoInstaller
 
         // Combat nhận hai MemoryPool của Zenject để dựng pool runtime effect (kèm số lượng tạo sẵn).
         Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>()
-            .WithInitialSize(poolPrewarmSettings.slowRuntimes);
+            .WithInitialSize(poolPrewarmSettings.SlowRuntimes);
         Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>()
-            .WithInitialSize(poolPrewarmSettings.damageOverTimeRuntimes);
+            .WithInitialSize(poolPrewarmSettings.DamageOverTimeRuntimes);
         Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy();       // Combat: skill, đạn, effect, VFX
 
         Container.BindInterfacesTo<StageManager>().AsSingle().WithArguments(stage).NonLazy(); // Stage: wave, đội hình, boss

@@ -49,7 +49,7 @@ public sealed class EnemyPatternEditor : Editor
             {
                 var data = (EnemyPatternSO)item;
                 data.Validate();
-                EditorGUILayout.HelpBox($"Hình {data.formation.FillMode}, Level {data.formation.Level}: {data.Count} slot/quái. Số lượng này dùng cho mọi cách spawn.", MessageType.Info);
+                EditorGUILayout.HelpBox($"Hình {data.Formation.FillMode}, Level {data.Formation.Level}: {data.Count} slot/quái. Số lượng này dùng cho mọi cách spawn.", MessageType.Info);
             }
             catch (Exception e) { EditorGUILayout.HelpBox(e.Message, MessageType.Error); }
         }

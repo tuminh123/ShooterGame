@@ -82,8 +82,8 @@ internal sealed class StageRewards
     {
         foreach (StageDataSO.CurrencyReward reward in rewards)
         {
-            totals.TryGetValue(reward.type, out long previous);
-            totals[reward.type] = checked(previous + reward.amount);
+            totals.TryGetValue(reward.Type, out long previous);
+            totals[reward.Type] = checked(previous + reward.Amount);
         }
     }
 

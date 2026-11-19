@@ -40,6 +40,11 @@ namespace ShooterGame.Editor
             PrependPath(uvDirectory);
             PrependPath(pythonDirectory);
             Environment.SetEnvironmentVariable("UV_CACHE_DIR", Path.Combine(tools, "cache"));
+            // Nút Start Server trong cửa sổ MCP gọi `uvx`; mặc định uvx khóa thư mục tool toàn cục
+            // %APPDATA%\uv\tools và lỗi "Access is denied" nếu file .lock ở đó bị chặn quyền.
+            // Giữ thư mục tool trong .mcp-tools (đã gitignore) để không phụ thuộc trạng thái máy.
+            Environment.SetEnvironmentVariable("UV_TOOL_DIR", Path.Combine(tools, "tools"));
+            Environment.SetEnvironmentVariable("UV_TOOL_BIN_DIR", Path.Combine(tools, "tools", "bin"));
             Environment.SetEnvironmentVariable("UV_PYTHON_INSTALL_DIR", Path.Combine(tools, "python"));
             Environment.SetEnvironmentVariable("UNITY_MCP_DISABLE_TELEMETRY", "true");
             return true;

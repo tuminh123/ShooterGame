@@ -67,40 +67,40 @@ public sealed class GamePrewarm
         if (IsReady) return;
         settings.Validate();
         var plan = new Dictionary<GameObject, int>();
-        Add(plan, characterPrefab.gameObject, settings.characterShells);
-        Add(plan, combat.BulletPrefab.gameObject, settings.bullets);
-        Add(plan, loot.PickupPrefab != null ? loot.PickupPrefab.gameObject : null, settings.pickups);
+        Add(plan, characterPrefab.gameObject, settings.CharacterShells);
+        Add(plan, combat.BulletPrefab.gameObject, settings.Bullets);
+        Add(plan, loot.PickupPrefab != null ? loot.PickupPrefab.gameObject : null, settings.Pickups);
         foreach (CharacterDataSO definition in characters.CreateLookup().Values)
         {
-            int count = definition.Team == CharacterTeam.Player ? settings.playerVisuals :
-                definition.IsBoss ? settings.bossVisuals : settings.enemyVisuals;
+            int count = definition.Team == CharacterTeam.Player ? settings.PlayerVisuals :
+                definition.IsBoss ? settings.BossVisuals : settings.EnemyVisuals;
             Add(plan, definition.VisualPrefab, count);
         }
         foreach (CombatAssetsSO.EffectEntry effect in combat.EffectEntries)
         {
-            Add(plan, combat.EffectPrefab.gameObject, settings.effectShells);
-            Add(plan, effect.visualPrefab, settings.effectShells);
+            Add(plan, combat.EffectPrefab.gameObject, settings.EffectShells);
+            Add(plan, effect.VisualPrefab, settings.EffectShells);
         }
         // Vỏ và visual là hai object có pool riêng; làm nóng cả visual để không Instantiate lúc bắn.
         foreach (CombatAssetsSO.BulletVisual bullet in combat.BulletEntries)
-            Add(plan, bullet.visualPrefab, settings.bullets);
-        foreach (PoolPrewarmSettingsSO.PrefabEntry entry in settings.additionalPrefabs)
-            Add(plan, entry.prefab, entry.count);
+            Add(plan, bullet.VisualPrefab, settings.Bullets);
+        foreach (PoolPrewarmSettingsSO.PrefabEntry entry in settings.AdditionalPrefabs)
+            Add(plan, entry.Prefab, entry.Count);
         int totalObjects = 0;
         foreach (int count in plan.Values) totalObjects = checked(totalObjects + count);
         objects.ReserveActiveCapacity(totalObjects);
 
-        characterRuntimes.PrewarmRuntimes(settings.characterRuntimes);
-        combatCapacity.PrewarmCapacity(settings.slowRuntimes, settings.damageOverTimeRuntimes, settings.bullets);
+        characterRuntimes.PrewarmRuntimes(settings.CharacterRuntimes);
+        combatCapacity.PrewarmCapacity(settings.SlowRuntimes, settings.DamageOverTimeRuntimes, settings.Bullets);
         // Tạo sẵn cả vùng nhớ job: chỉ prewarm GameObject sẽ vẫn bị resize buffer trong trận đầu.
         simulationCapacity.PrewarmCapacity(
-            movers: checked(settings.characterShells + settings.bullets + settings.pickups),
-            hitboxes: settings.characterShells);
+            movers: checked(settings.CharacterShells + settings.Bullets + settings.Pickups),
+            hitboxes: settings.CharacterShells);
 
         PreparedObjectCount = 0;
         foreach (KeyValuePair<GameObject, int> entry in plan)
         {
-            await objects.PrewarmAsync(entry.Key, entry.Value, settings.objectsPerFrame, count =>
+            await objects.PrewarmAsync(entry.Key, entry.Value, settings.ObjectsPerFrame, count =>
             {
                 PreparedObjectCount += count;
                 Progress = totalObjects == 0 ? 1f : (float)PreparedObjectCount / totalObjects;

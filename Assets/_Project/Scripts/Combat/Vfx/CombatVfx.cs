@@ -41,7 +41,7 @@ public sealed class CombatVfx : IDisposable
             beforeActivate: pooledObject =>
             {
                 EffectView view = pooledObject.GetComponent<EffectView>();
-                view.Initialize(this, pools, entry.visualPrefab);
+                view.Initialize(this, pools, entry.VisualPrefab);
                 activeEffects.Add(view);
             });
     }

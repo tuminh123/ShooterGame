@@ -14,9 +14,14 @@ public sealed class StageDataSO : ScriptableObject
     public sealed class CurrencyReward
     {
         [Tooltip("Loại tiền được cộng khi hoàn tất kết quả tương ứng.")]
-        public CurrencyType type;
+        [SerializeField] private CurrencyType type;
         [Tooltip("Số tiền thưởng, phải từ 0 trở lên. Các dòng cùng loại tiền được cộng lại.")]
-        public long amount;
+        [SerializeField] private long amount;
+
+        /// <summary>Loại tiền được cộng khi hoàn tất kết quả tương ứng.</summary>
+        public CurrencyType Type => type;
+        /// <summary>Số tiền thưởng, phải từ 0 trở lên. Các dòng cùng loại tiền được cộng lại.</summary>
+        public long Amount => amount;
     }
 
     [Tooltip("ID ổn định dùng lưu tiến trình vượt màn và thưởng lần đầu; không đổi sau khi đã phát hành save.")]
@@ -71,11 +76,11 @@ public sealed class StageDataSO : ScriptableObject
         foreach (var asset in spawnData)
             if (asset is BossSpawnDataSO special)
             {
-                if (bossCondition.HasValue && bossCondition.Value != special.bossAppearanceCondition)
+                if (bossCondition.HasValue && bossCondition.Value != special.BossAppearanceCondition)
                     throw new InvalidOperationException("Các entry đặc biệt trong Stage phải dùng cùng điều kiện xuất hiện Boss.");
-                bossCondition = special.bossAppearanceCondition;
-                foreach (BossSpawnDataSO.Entry entry in special.entries)
-                    if (entry.type == SpecialEnemyType.Boss) bossEntries++;
+                bossCondition = special.BossAppearanceCondition;
+                foreach (BossSpawnDataSO.Entry entry in special.Entries)
+                    if (entry.Type == SpecialEnemyType.Boss) bossEntries++;
             }
         if (bossEntries > 1) throw new InvalidOperationException("Một Stage chỉ được cấu hình một Boss.");
         bool hasWaveData = false;
@@ -92,7 +97,7 @@ public sealed class StageDataSO : ScriptableObject
     {
         if (rewards == null) throw new InvalidOperationException("Missing stage reward list.");
         foreach (var reward in rewards)
-            if (reward == null || !Enum.IsDefined(typeof(CurrencyType), reward.type) || reward.amount < 0)
+            if (reward == null || !Enum.IsDefined(typeof(CurrencyType), reward.Type) || reward.Amount < 0)
                 throw new InvalidOperationException("Stage rewards need valid currency types and non-negative amounts.");
     }
     #endregion

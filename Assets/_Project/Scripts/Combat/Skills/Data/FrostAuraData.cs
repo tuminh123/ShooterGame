@@ -9,10 +9,20 @@ public sealed class FrostAuraData : SkillBehaviourData
 {
     #region Configuration
 
-    [Tooltip("Prefab hiển thị vùng aura quanh chủ nhân.")] public SkillAreaVisual visualPrefab;
-    [Tooltip("Bán kính tác động của aura ở cấp này.")][Min(0.01f)] public float radius = 1f;
-    [Tooltip("Tỷ lệ giảm tốc độ mục tiêu trong vùng, từ 0 đến 1.")][Range(0f, 1f)] public float slowFraction = 0.3f;
-    [Tooltip("Các hiệu ứng áp dụng khi mục tiêu đi vào vùng aura.")][SerializeReference] public List<IGameplayEffect> effects = new List<IGameplayEffect>();
+    [SerializeField][Tooltip("Prefab hiển thị vùng aura quanh chủ nhân.")] private SkillAreaVisual visualPrefab;
+    [SerializeField][Tooltip("Bán kính tác động của aura ở cấp này.")][Min(0.01f)] private float radius = 1f;
+    [SerializeField][Tooltip("Tỷ lệ giảm tốc độ mục tiêu trong vùng, từ 0 đến 1.")][Range(0f, 1f)] private float slowFraction = 0.3f;
+    [Tooltip("Các hiệu ứng áp dụng khi mục tiêu đi vào vùng aura.")][SerializeReference] private List<IGameplayEffect> effects = new List<IGameplayEffect>();
+
+    /// <summary>Prefab hiển thị vùng aura quanh chủ nhân.</summary>
+    public SkillAreaVisual VisualPrefab => visualPrefab;
+    /// <summary>Bán kính tác động của aura ở cấp này.</summary>
+    public float Radius => radius;
+    /// <summary>Tỷ lệ giảm tốc độ mục tiêu trong vùng, từ 0 đến 1.</summary>
+    public float SlowFraction => slowFraction;
+    /// <summary>Các hiệu ứng áp dụng khi mục tiêu đi vào vùng aura.</summary>
+    public IReadOnlyList<IGameplayEffect> Effects => effects;
+
     public override SkillBehaviourType Type => SkillBehaviourType.SlowAura;
 
     #endregion
