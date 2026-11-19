@@ -1,5 +1,7 @@
 # Pickup sprite generation
 
+> **Trạng thái:** 📜 Lịch sử (prompt tạo ảnh) · Kiểm tra với code: 2026-11-19. Các file PNG được nhắc tới không còn trong project.
+
 Generated with the built-in image_gen tool, transparent background enabled. The originals were copied into the project; Unity imports them as single sprites with Point filtering, no texture compression and a 64-pixel maximum texture size.
 
 - Gold: `Assets/_Project/Graphic/Pickups/GoldPile.png`

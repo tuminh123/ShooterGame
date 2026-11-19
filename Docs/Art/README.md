@@ -1,5 +1,7 @@
 # Art: Pickup / Mockup
 
+> **Trạng thái:** ⚠️ Lỗi thời một phần · Kiểm tra với code: 2026-11-19. `Assets/_Project/Graphic/Pickups/` và các sprite liệt kê bên dưới không còn trong project; mockup SVG trong `Docs/Art/Mockups` vẫn còn.
+
 Thư mục này chứa ảnh và bản vẽ minh họa do AI tạo bằng code (môi trường không có `image_gen`).
 
 ## Sprite nằm trong Unity (`Assets/_Project/Graphic/Pickups/`)

@@ -1,5 +1,7 @@
 # Kiến trúc mới: Data-driven có khung OOP
 
+> **Trạng thái:** ✅ Hiện hành, là nguồn sự thật cho kiến trúc · Kiểm tra với code: 2026-11-19.
+
 Ngày chốt: 2026-11-18. Trạng thái: **refactor xong (Giai đoạn 0–7)**. Mọi miền đã chuyển; tài liệu này
 là nguồn sự thật cho kiến trúc. `Systems-Overview.md` là bản đồ hệ thống → class để tra nhanh.
 

@@ -1,5 +1,7 @@
 # Kiểm tra kiến trúc và binding
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19. Cả 3 menu `Shooter Game > Verification` đều tồn tại.
+
 Dự án không có bước build/lint bằng CLI. Sau mỗi thay đổi về contract, binding hoặc MonoBehaviour/SO, chạy các bước dưới đây
 trong Unity Editor (có thể chạy qua Unity MCP, xem [Unity-MCP.md](Unity-MCP.md)).
 

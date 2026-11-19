@@ -1,5 +1,7 @@
 # Character visual events
 
+> **Trạng thái:** ⚠️ Hiện hành, có chỗ lệch · Kiểm tra với code: 2026-11-19. `ICharacterVisualEventSource` không còn: `CharacterVisualHandle.Bind(CharacterPresentation)` nhận event trực tiếp, và việc phát Idle/Move nằm trong `CharacterPresentation` chứ không phải `CharacterView.Move`. Các phần còn lại (bảng state, playback, Win/Lose) vẫn đúng.
+
 Gameplay publishes `CharacterVisualState` through `ICharacterVisualEventSource`.
 `CharacterView` implements the interface; the `CharacterVisualHandle` on each
 visual prefab subscribes during spawn and unsubscribes before pool return.

@@ -1,5 +1,7 @@
 # MCP cho Unity 2022.3
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 Dự án dùng **MCP for Unity 10.3.0** từ kho gốc
 [CoplayDev/unity-mcp](https://github.com/CoplayDev/unity-mcp/tree/aa5fc638d623f56178d50329d9ad8c541a57fe66).
 Đây là phần mềm cộng đồng, không phải package do Unity Technologies phát hành.

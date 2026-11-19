@@ -1,5 +1,7 @@
 # Skill theo cấp và nguồn
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 ## Cấu trúc
 
 SkillDataSO chứa display/source, cấp cấu hình ban đầu, Levels[] và danh sách mẫu ISkill[].

@@ -1,5 +1,7 @@
 # Visual cố định trên CharacterView và prefab visual riêng
 
+> **Trạng thái:** 📐 Đề xuất, chưa triển khai · Kiểm tra với code: 2026-11-19. Code vẫn lấy prefab visual từ pool và gắn làm con của `CharacterView`.
+
 Ngày ghi nhận: 2026-11-06.
 
 > Đây là phương án thiết kế để cân nhắc chuyển đổi. Code hiện tại vẫn lấy prefab

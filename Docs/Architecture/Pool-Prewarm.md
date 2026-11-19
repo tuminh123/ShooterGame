@@ -1,5 +1,7 @@
 # Pool preparation before gameplay
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 `GameSceneInstaller.poolPrewarmSettings` points to
 `Assets/_Project/DataSO/Databases/PoolPrewarmSettings.asset`.
 

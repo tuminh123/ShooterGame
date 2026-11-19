@@ -1,5 +1,7 @@
 # Stage spawn architecture
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 ## Stage: one direct asset list
 
 StageDataSO stores List<ScriptableObject> spawnData. Every assigned asset must

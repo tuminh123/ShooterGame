@@ -1,5 +1,7 @@
 # [LỊCH SỬ] Báo cáo cấu trúc spawn cuối cùng
 
+> **Trạng thái:** 📜 Lịch sử · Kiểm tra với code: 2026-11-19.
+
 > 📜 **TÀI LIỆU LỊCH SỬ — KHÔNG mô tả code hiện tại.** Chỉ giữ để tra lại quá trình refactor; tên class,
 > interface và đường dẫn bên dưới có thể đã đổi hoặc bị xóa. Kiến trúc hiện tại: [Refactor-Architecture](Refactor-Architecture.md), [Systems-Overview](Systems-Overview.md), [Script-Folders](Script-Folders.md).
 

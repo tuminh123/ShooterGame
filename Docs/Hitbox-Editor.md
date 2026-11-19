@@ -1,5 +1,7 @@
 # Chỉnh hitbox
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 Mở **Tools → Shooter Game → Hitbox Editor** ngoài Play Mode. Chọn dữ liệu ngay trong cửa sổ, không cần mở từng asset trong Project.
 
 - **Nhân vật:** tìm tên, chọn nhân vật, dùng tab **Hitbox** của preview để kéo tâm và cạnh hộp. Có thể chỉnh visual và thanh máu trong cùng cửa sổ. **Khớp hitbox với hình ảnh** lấy bounds của sprite làm hộp ban đầu.

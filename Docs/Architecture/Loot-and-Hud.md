@@ -1,5 +1,7 @@
 # Enemy drops and run HUD
 
+> **Trạng thái:** ⚠️ Hiện hành, có chỗ lệch · Kiểm tra với code: 2026-11-19. `ICurrencyWallet` đã đổi tên thành `IWallet` (`Progression/ProgressionContracts.cs`). Sprite `ExperienceGem.png` và `Graphic/Pickups/` không còn trong project.
+
 ## Gameplay
 
 > Từ Giai đoạn 4, rơi/nhặt loot thuộc miền Run: `RunManager` tự tạo `LootSystem`, `RunLevel`, `RunClock` và `RunStatistics` (`Assets/_Project/Scripts/Run/`). Xem `Docs/Architecture/Refactor-Architecture.md`.

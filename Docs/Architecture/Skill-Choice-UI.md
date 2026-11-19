@@ -1,5 +1,7 @@
 # Bảng chọn skill khi lên cấp
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 ## Scene và trách nhiệm
 
 ```text

@@ -1,5 +1,7 @@
 # Skill and shooting pipeline
 
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19.
+
 See [Skill Run Progression](Skill-Run-Progression.md) for the current model.
 
 SkillDataSO stores complete per-level behavior data and a separate ISkill template
