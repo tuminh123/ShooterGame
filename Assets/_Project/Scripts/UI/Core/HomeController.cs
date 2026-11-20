@@ -4,82 +4,158 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Home tạm thời: nút Play và nút Character hoạt động; giữ bố cục có sẵn cho các tính năng nối sau.
+// Home tạm thời: nút Play hoạt động, giữa màn hiện nhân vật đang chọn; giữ bố cục có sẵn cho các tính năng nối sau.
+// Thanh bar dưới (mở màn Character, về Home) do HomeNavigationBar quản lý, nằm ngoài MainUI để hiện cả ở màn Character.
+// Số tiền ở Topbar do CurrencyBarView (gắn trên Topbar/Group_ResourceBar) hiển thị, cùng component với màn Character.
 public sealed class HomeController : UIPanelController
 {
-    #region References And Lifecycle
+    #region References
 
     [SerializeField] private Button playButton;
-    [Tooltip("Nút mở màn Character (MainUI/BottomBar_Menu/Button_02).")]
-    [SerializeField] private Button characterButton;
-    [SerializeField] private CharacterScreenController characterScreen;
     [Tooltip("Hiệu ứng nhún của nút Play; chạy xong mới bắt đầu trận, dùng unscaled time khi Home đang pause.")]
     [SerializeField] private SinglePanelPopupTween playTween;
-    [Tooltip("Số vàng trong ví người chơi; đọc ví (IWallet của miền Progression), không dùng thống kê riêng của lượt chơi.")]
-    [SerializeField] private TMP_Text goldText;
+
+    [Header("Nhân vật đang chọn (giữa Home)")]
+    [Tooltip("Khung đặt nhân vật UI (Middle/Character); ảnh của nó là ảnh dự phòng khi nhân vật chưa có prefab UI.")]
+    [SerializeField] private Image characterFrame;
+    [SerializeField] private TMP_Text characterName;
+    [Tooltip("Thanh EXP nâng cấp của cấp hiện tại, cùng nghĩa với thanh ở màn Detail.")]
+    [SerializeField] private Slider levelSlider;
+    [SerializeField] private TMP_Text levelValueText;
+    [SerializeField] private TMP_Text levelText;
+    [SerializeField] private string maxLevelText = "MAX";
+
+    #endregion
+
+    #region Dependencies And State
+
     private IGameState game;
-    private IWallet currencies;
     private IScreenTransition transition;
+    private IPlayerSelection selection;
+    private ICharacterUpgrades upgrades;
+    private CharacterPreviewSlot preview;
     private bool starting;
+    private bool subscribed;
+    // Home bị ẩn vì mở màn khác trong menu (màn Character) chứ không phải vì vào trận: chỉ trường hợp này mới trượt.
+    private bool hiddenByMenu;
+
+    #endregion
+
+    #region Lifecycle
 
     [Inject]
-    public void Construct(
-        IGameState gameState,
-        IScreenTransition screenTransition,
-        IWallet wallet)
+    public void Construct(IGameState gameState, IScreenTransition screenTransition,
+        IPlayerSelection playerSelection, ICharacterUpgrades characterUpgrades)
     {
-        UnsubscribeWallet();
-        this.game = gameState;
-        this.transition = screenTransition;
-        this.currencies = wallet;
-        if (isActiveAndEnabled) SubscribeWallet();
+        Unsubscribe();
+        game = gameState;
+        transition = screenTransition;
+        selection = playerSelection;
+        upgrades = characterUpgrades;
+        if (isActiveAndEnabled) Subscribe();
     }
 
     private void OnEnable()
     {
         if (playButton != null) playButton.onClick.AddListener(Play);
-        if (characterButton != null) characterButton.onClick.AddListener(OpenCharacterScreen);
-        SubscribeWallet();
+        Subscribe();
     }
 
     private void OnDisable()
     {
         if (playButton != null) playButton.onClick.RemoveListener(Play);
-        if (characterButton != null) characterButton.onClick.RemoveListener(OpenCharacterScreen);
-        UnsubscribeWallet();
+        Unsubscribe();
         starting = false;
         if (playTween != null) playTween.StopAndReset();
     }
 
+    // Đổi nhân vật hoặc nâng cấp ở màn Character thì giữa Home cập nhật theo (Home có thể đang trượt về).
+    private void Subscribe()
+    {
+        if (subscribed || selection == null) return;
+        subscribed = true;
+        selection.SelectionChanged += OnSelectionChanged;
+        upgrades.Upgraded += OnUpgraded;
+        DrawCharacter();
+    }
+
+    private void Unsubscribe()
+    {
+        if (!subscribed) return;
+        subscribed = false;
+        selection.SelectionChanged -= OnSelectionChanged;
+        upgrades.Upgraded -= OnUpgraded;
+    }
+
+    private void OnSelectionChanged(CharacterType type) => DrawCharacter();
+    private void OnUpgraded(CharacterType type, CharacterUpgradeKind kind) => DrawCharacter();
+
     #endregion
 
-    #region Wallet Presentation
+    #region Visibility
 
-    // Đọc lại số dư khi mở Home để nhận cả vàng kiếm được lúc HUD Main đang ẩn.
-    private void SubscribeWallet()
+    // Chỉ trượt khi đổi qua lại với màn Character (UIManager gọi hai bên cùng lúc nên hai màn đẩy nhau).
+    // Vào trận / từ trận về Home thì bật/tắt ngay như cũ: ScreenTransition đã làm màn tối dần.
+    public override void SetVisible(bool visible)
     {
-        if (currencies == null) return;
-        currencies.BalanceChanged -= OnBalanceChanged;
-        currencies.BalanceChanged += OnBalanceChanged;
-        RefreshGold();
+        bool hasSlide = TryGetComponent(out SlideTransition slide);
+        if (!visible)
+        {
+            // Lúc này state đã đổi nếu là vào trận; còn Home nghĩa là vừa mở màn Character.
+            hiddenByMenu = game != null && game.State == GameState.Home;
+            if (hasSlide && hiddenByMenu) slide.PlayOut();
+            else if (hasSlide) slide.SetVisibleInstant(false);
+            else gameObject.SetActive(false);
+            return;
+        }
+        if (hasSlide && hiddenByMenu) slide.PlayIn();
+        else if (hasSlide) slide.SetVisibleInstant(true);
+        else gameObject.SetActive(true);
+        hiddenByMenu = false;
+        // Chỉ các nút đã có chức năng được bấm; phần còn lại của bố cục giữ nguyên nhưng tắt.
+        foreach (Selectable control in GetComponentsInChildren<Selectable>(true))
+            control.interactable = control == playButton;
+        DrawCharacter();
     }
 
-    private void UnsubscribeWallet()
+    #endregion
+
+    #region Selected Character
+
+    // Scene inject trước ProgressionManager.Initialize; chỉ đọc tiến trình khi đã tới Home.
+    private void DrawCharacter()
     {
-        if (currencies != null) currencies.BalanceChanged -= OnBalanceChanged;
+        if (selection == null || game == null || game.State != GameState.Home || !isActiveAndEnabled) return;
+        CharacterDataSO character = FindSelected();
+        if (character == null) return;
+
+        if (characterFrame != null)
+        {
+            preview ??= new CharacterPreviewSlot(characterFrame);
+            preview.Show(character.UIVisualPrefab, character.Portrait);
+        }
+        if (characterName != null) characterName.text = character.DisplayName;
+
+        UpgradeQuote level = upgrades.GetQuote(character.CharacterType, CharacterUpgradeKind.Level);
+        bool maxed = level.ProgressRequired <= 0;
+        if (levelText != null) levelText.text = level.Current.ToString(CultureInfo.InvariantCulture);
+        if (levelSlider != null)
+        {
+            levelSlider.minValue = 0f;
+            levelSlider.maxValue = maxed ? 1f : level.ProgressRequired;
+            levelSlider.value = maxed ? 1f : level.Progress;
+        }
+        if (levelValueText != null)
+            levelValueText.text = maxed
+                ? maxLevelText
+                : level.Progress.ToString(CultureInfo.InvariantCulture) + "/" + level.ProgressRequired.ToString(CultureInfo.InvariantCulture);
     }
 
-    private void RefreshGold()
+    private CharacterDataSO FindSelected()
     {
-        // Scene inject trước ProgressionManager.Initialize; chỉ đọc ví sau khi tới Home.
-        if (currencies != null && game != null && game.State == GameState.Home)
-            OnBalanceChanged(CurrencyType.Gold, currencies.GetBalance(CurrencyType.Gold));
-    }
-
-    private void OnBalanceChanged(CurrencyType type, long balance)
-    {
-        if (type == CurrencyType.Gold && goldText != null)
-            goldText.text = balance.ToString("N0", CultureInfo.InvariantCulture);
+        foreach (CharacterDataSO character in selection.PlayableCharacters)
+            if (character.CharacterType == selection.SelectedCharacterType) return character;
+        return null;
     }
 
     #endregion
@@ -95,28 +171,12 @@ public sealed class HomeController : UIPanelController
     }
 
     // Callback bị hủy khi Home đóng; không để tween cũ tự khởi động một lượt khác.
+    // Thanh bar không trượt lúc vào trận: nó tắt ngay cùng Home khi màn đã tối (xem HomeNavigationBar.Refresh).
     private void CompletePlay()
     {
         if (!starting) return;
         starting = false;
         if (isActiveAndEnabled && game != null && game.State == GameState.Home) transition.StartRun();
-    }
-
-    // Không mở khi đang chạy hiệu ứng bắt đầu trận.
-    private void OpenCharacterScreen()
-    {
-        if (starting || characterScreen == null) return;
-        characterScreen.Open();
-    }
-
-    public override void SetVisible(bool visible)
-    {
-        gameObject.SetActive(visible);
-        if (!visible) return;
-        RefreshGold();
-        // Chỉ các nút đã có chức năng được bấm; phần còn lại của bố cục giữ nguyên nhưng tắt.
-        foreach (Selectable control in GetComponentsInChildren<Selectable>(true))
-            control.interactable = control == playButton || control == characterButton;
     }
 
     #endregion

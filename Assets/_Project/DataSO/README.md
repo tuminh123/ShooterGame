@@ -7,7 +7,7 @@
 | Loại | Script | Trách nhiệm |
 |---|---|---|
 | Template nhân vật | CharacterDataSO | Type làm khóa, tên hiển thị, chỉ số gốc và skill mẫu |
-| Level vĩnh viễn | CharacterLevelConfigSO | Bonus cố định mỗi cấp và công thức chi phí tài nguyên |
+| Level vĩnh viễn | CharacterLevelConfigSO | Bonus cố định mỗi cấp và thanh EXP nâng cấp bằng nguyên liệu |
 | Level trong trận | RunLevelConfigSO | Công thức EXP tuyến tính và một bộ bonus cố định mỗi cấp |
 | Danh mục nhân vật | CharacterDatabaseSO | Tất cả template nhân vật, kiểm tra ID khi dựng dictionary |
 | Danh mục level | LevelDatabaseSO | Danh sách config vĩnh viễn có type và config trận dùng chung |
@@ -40,7 +40,7 @@ Khi thêm nhân vật mới:
 
 1. Thêm giá trị vào CharacterType với số mới chưa dùng. Không đổi số hoặc tái sử dụng số của nhân vật đã có save.
 2. Tạo CharacterDataSO, chọn type đó và nhập Display Name.
-3. Tạo CharacterLevelConfigSO cùng type, cấu hình bonus và chi phí.
+3. Tạo CharacterLevelConfigSO cùng type, cấu hình bonus và thanh EXP nâng cấp.
 4. Thêm template vào CharacterDatabaseSO và config vào LevelDatabaseSO.
 
 Không cần thêm string ID hoặc sửa thuật toán ghép. Enum chỉ khai báo loại nhân vật; vẫn cần tạo và đăng ký dữ liệu của nhân vật mới.
@@ -69,7 +69,7 @@ Bonus hiện chỉ cộng thẳng. Có thể nhập số âm nếu cần thiết
 
 Khi có nhiều nguồn, cộng các StatBonus trước rồi ApplyTo một lần lên chỉ số gốc. Không ApplyTo lặp lại trên kết quả cũ khi tính lại chỉ số.
 
-## 4. Level vĩnh viễn: bonus cố định, chi phí tăng theo công thức
+## 4. Level vĩnh viễn: bonus cố định, thanh EXP nâng cấp bằng nguyên liệu
 
 Mỗi nhân vật có thể có CharacterLevelConfigSO riêng. Một config chứa:
 
@@ -78,8 +78,11 @@ Mỗi nhân vật có thể có CharacterLevelConfigSO riêng. Một config ch�
 | Character Type | Nhân vật cụ thể dùng config này, khớp type trên template | BlessedGladiator |
 | Max Level | Level vĩnh viễn tối đa | 10 |
 | Bonus Per Level | Một bộ chỉ số cộng thêm cho mỗi lần lên cấp | +20 HP, +2 damage, ... |
-| Initial Upgrade Cost | Tài nguyên cần nâng từ level 1 lên 2 | 100 |
-| Upgrade Cost Multiplier | Hệ số tăng chi phí mỗi cấp | 1.2 |
+| Initial Required | Nguyên liệu cần để đầy thanh từ level 1 lên 2 (hệ số A) | 100 |
+| Required Increase Per Level | Lượng cần tăng thêm mỗi cấp (hệ số B) | 50 |
+| Amount Per Upgrade | Nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade (1:1) | 25 |
+
+Enemy/Boss cũng dùng CharacterLevelConfigSO nhưng chỉ đọc Max Level và Bonus Per Level (bonus theo wave); ba field EXP nâng cấp bỏ qua với quái.
 
 Không còn danh sách Element 0/1/2. Level 1 dùng chỉ số gốc, nên:
 
@@ -90,31 +93,29 @@ Chỉ số nhân vật = chỉ số gốc + bonus tích lũy
 
 Ví dụ HP gốc 100, bonus mỗi cấp 20: level 1 có 100 HP; level 2 có 120; level 5 có 180; level 10 có 280. Mỗi nhân vật có thể dùng bonus khác nhau, cùng công thức.
 
-Chi phí nâng cấp vĩnh viễn:
+Nâng cấp vĩnh viễn dùng **cùng cơ chế với thanh EXP trong trận**, chỉ thay EXP bằng nguyên liệu:
 
 ```text
-Chi phí từ level L lên L+1
-    = ceil(Initial Upgrade Cost × Upgrade Cost Multiplier^(L − 1))
+Nguyên liệu cần để đầy thanh từ level L lên L+1
+    = Initial Required + Required Increase Per Level × (L − 1)
+Mỗi lần bấm Upgrade: tiêu Amount Per Upgrade → nạp đúng lượng đó vào thanh
+Đầy thanh → lên cấp, phần dư chuyển sang thanh cấp sau (có thể lên nhiều cấp một lần)
 ```
 
-ceil là làm tròn lên, chỉ làm tròn kết quả cuối, không làm tròn sau mỗi lần nhân.
+| Chuyển cấp | Cần (A = 100, B = 50) | Số lần bấm (25 mỗi lần) |
+|---|---:|---:|
+| 1 → 2 | 100 | 4 |
+| 2 → 3 | 150 | 6 |
+| 3 → 4 | 200 | 8 |
+| 9 → 10 | 500 | 20 |
 
-| Chuyển cấp | Chi phí với giá đầu 100, hệ số 1.2 |
-|---|---:|
-| 1 → 2 | 100 |
-| 2 → 3 | 120 |
-| 3 → 4 | 144 |
-| 4 → 5 | 173 |
-| 5 → 6 | 208 |
-| 9 → 10 | 430 |
+Giá mỗi lần bấm không đổi; cấp cao đắt hơn vì thanh dài hơn. B = 0 thì mọi cấp cần cùng lượng. Lần bấm chạm Max Level chỉ tốn đúng phần còn thiếu (không làm mất nguyên liệu của người chơi). Demo tạm dùng Gold, **chưa kiểm tra số dư và chưa trừ tiền** (TODO trong `LevelTrack`). Tham số phải thỏa MaxLevel >= 1, Initial Required >= 1, Increase >= 0, Amount Per Upgrade >= 1; overflow int sẽ báo lỗi thay vì trả số âm.
 
-Hệ số 1 giữ nguyên chi phí, lớn hơn 1 khiến cấp cao đắt hơn. Đây là chi phí tài nguyên, không phải EXP trong trận. Chưa chọn loại tiền/vật phẩm và chưa có ví hoặc logic trừ tài nguyên. TryGetUpgradeCost(currentLevel, out long cost) chỉ trả giá, false khi đã đạt trần hoặc level không hợp lệ.
-
-Code dùng phép nhân decimal để hạn chế sai số trước khi làm tròn, trả long; cấu hình khiến chi phí vượt phạm vi số sẽ báo overflow, không âm thầm trả giá âm hoặc miễn phí. Các tham số phải hữu hạn, MaxLevel >= 1, giá đầu >= 1, hệ số >= 1.
+Asset cũ: field Initial Required nhận lại giá trị Initial Upgrade Cost cũ (`FormerlySerializedAs`); Upgrade Cost Multiplier không còn dùng.
 
 GetTotalBonus(level) tính tổng bằng phép nhân struct, không duyệt bảng. Nếu save cao hơn MaxLevel mới, chỉ tính bonus tới trần hiện tại, không tự sửa level trong save. Level dưới 1 bị từ chối.
 
-Save vẫn chỉ giữ permanentLevel cho từng CharacterType. Không thêm EXP vĩnh viễn vì cơ chế này dùng chi phí tài nguyên. Sau này ví tài nguyên của người chơi có thể được bổ sung vào PlayerSaveData độc lập.
+Save giữ `permanentLevel` và `upgradePoints` (nguyên liệu đã nạp vào thanh của cấp hiện tại) cho từng CharacterType. Save cũ không có `upgradePoints` được đọc là 0. Khi load, nếu config bị chỉnh khiến điểm đã lưu vượt thanh hiện tại thì điểm được ép về trong thanh (ở trần thì về 0) thay vì báo lỗi.
 
 ## 5. Level trong trận: bonus cố định và EXP tuyến tính
 
@@ -208,8 +209,8 @@ Gameplay/UI
 ```
 
 Miền khác chỉ thấy level vĩnh viễn qua `IPermanentBonuses.GetBonus(type)` (level vĩnh viễn + trang bị, dùng bởi PlayerSystem)
-và `BonusesChanged`. Các API dưới đây nằm trên `CharacterLevels` bên trong ProgressionManager; chưa có UI nâng cấp nên
-chưa có vai trò (interface) công khai — sẽ thêm vào `ProgressionContracts.cs` khi UI đó ra đời.
+và `BonusesChanged`. Màn Character nâng cấp qua `ICharacterUpgrades` (`GetQuote`/`TryUpgrade`, trong `ProgressionContracts.cs`);
+`UpgradeQuote` mang cả tiến độ thanh (`Progress`/`ProgressRequired`). Các API dưới đây nằm trên `CharacterLevels` bên trong ProgressionManager.
 
 ### API level vĩnh viễn (trên CharacterLevels)
 
@@ -218,9 +219,11 @@ chưa có vai trò (interface) công khai — sẽ thêm vào `ProgressionContra
 | GetConfig(type) | Tra config vĩnh viễn |
 | GetLevel(type) | Đọc level vĩnh viễn |
 | GetTotalBonus(type) | Tính tổng bonus vĩnh viễn |
-| TryGetUpgradeCost(type, out cost) | Giá lần nâng tiếp theo; false khi đạt trần |
-| TryIncreaseLevel(type, out saved) | Tăng một cấp, thử ghi save và phát LevelChanged |
-| SaveProgress() | Thử lưu lại hồ sơ, không tăng thêm cấp |
+| GetUpgradePoints(type) | Nguyên liệu đã nạp vào thanh của cấp hiện tại |
+| TryGetRequiredPoints(type, out required) | Lượng cần để đầy thanh cấp hiện tại; false khi đạt trần |
+| GetPointsToMaxLevel(type) | Tổng còn thiếu để chạm trần (giới hạn giá lần bấm cuối) |
+| TryAddUpgradePoints(type, amount, out saved) | Nạp điểm, lên cấp khi đầy thanh, ghi level + điểm trong một lần save; phát LevelChanged chỉ khi lên cấp |
+| SaveProgress() | Thử lưu lại hồ sơ, không nạp thêm điểm |
 
 Chỉ gọi API đọc/thay đổi save sau ProgressionManager.Initialize. Không đọc tiến trình trong constructor của class khác.
 

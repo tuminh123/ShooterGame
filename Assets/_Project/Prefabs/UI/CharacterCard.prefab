@@ -581,6 +581,7 @@ GameObject:
   - component: {fileID: 1060566904992928796}
   - component: {fileID: 9122124293743109458}
   - component: {fileID: 8979455424950573017}
+  - component: {fileID: 2831743450056116193}
   m_Layer: 0
   m_Name: Button (2)
   m_TagString: Untagged
@@ -690,6 +691,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2831743450056116193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2251411750020293757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c378d5bf6822b7a438d5d42a071e4bd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pressScale: 0.9
+  peakScale: 1.08
+  growDuration: 0.12
+  settleDuration: 0.12
 --- !u!1 &2358645680177147209
 GameObject:
   m_ObjectHideFlags: 0
@@ -1087,6 +1104,7 @@ GameObject:
   - component: {fileID: 7307474572306579454}
   - component: {fileID: 2453536095591183546}
   - component: {fileID: 8278214687904093771}
+  - component: {fileID: 1090301220934564751}
   m_Layer: 0
   m_Name: Button (1)
   m_TagString: Untagged
@@ -1196,6 +1214,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1090301220934564751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5147965733334826422}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c378d5bf6822b7a438d5d42a071e4bd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pressScale: 0.9
+  peakScale: 1.08
+  growDuration: 0.12
+  settleDuration: 0.12
 --- !u!1 &5316148067148768129
 GameObject:
   m_ObjectHideFlags: 0
@@ -2103,6 +2137,7 @@ GameObject:
   - component: {fileID: 5491416342231106812}
   - component: {fileID: 7311139834513687728}
   - component: {fileID: 7225804788220517755}
+  - component: {fileID: 1344280119180281540}
   m_Layer: 0
   m_Name: Button
   m_TagString: Untagged
@@ -2212,6 +2247,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1344280119180281540
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8282566144753817564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c378d5bf6822b7a438d5d42a071e4bd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pressScale: 0.9
+  peakScale: 1.08
+  growDuration: 0.12
+  settleDuration: 0.12
 --- !u!1 &8444386603026263658
 GameObject:
   m_ObjectHideFlags: 0
@@ -2223,6 +2274,7 @@ GameObject:
   - component: {fileID: 8035781347996780502}
   - component: {fileID: 8227932259520384282}
   - component: {fileID: 6374878553509961002}
+  - component: {fileID: 1522095152016835126}
   m_Layer: 0
   m_Name: CharacterCard
   m_TagString: Untagged
@@ -2323,6 +2375,8 @@ MonoBehaviour:
   - {fileID: 6254599231449059669}
   - {fileID: 191977754916220562}
   - {fileID: 2358645680177147209}
+  filledStarColor: {r: 1, g: 1, b: 1, a: 1}
+  emptyStarColor: {r: 0.25, g: 0.25, b: 0.3, a: 0.6}
   inUseLabel: {fileID: 5316148067148768129}
   emptyIcon: {fileID: 3536872789487568660}
   hiddenWhenEmpty:
@@ -2333,6 +2387,22 @@ MonoBehaviour:
   - {fileID: 3039973230923499406}
   - {fileID: 1931253646448925996}
   - {fileID: 2189662445501818958}
+--- !u!114 &1522095152016835126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8444386603026263658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c378d5bf6822b7a438d5d42a071e4bd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pressScale: 0.9
+  peakScale: 1.08
+  growDuration: 0.12
+  settleDuration: 0.12
 --- !u!1 &8487088431996073035
 GameObject:
   m_ObjectHideFlags: 0

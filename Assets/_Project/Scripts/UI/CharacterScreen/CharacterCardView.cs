@@ -13,8 +13,12 @@ public sealed class CharacterCardView : MonoBehaviour
     [SerializeField] private Image portrait;
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text levelText;
-    [Tooltip("5 ô sao theo thứ tự; bật đúng số sao hiện có.")]
+    [Tooltip("5 ô sao theo thứ tự; luôn hiện đủ, sao đã có tô màu Filled, sao chưa có tô màu Empty.")]
     [SerializeField] private GameObject[] stars = Array.Empty<GameObject>();
+    [Tooltip("Màu Image của sao đã có (trắng = giữ nguyên sprite vàng).")]
+    [SerializeField] private Color filledStarColor = Color.white;
+    [Tooltip("Màu Image của sao chưa có; project không có sprite sao xám nên làm mờ sprite vàng bằng màu.")]
+    [SerializeField] private Color emptyStarColor = new Color(0.25f, 0.25f, 0.3f, 0.6f);
     [Tooltip("Nhãn IN USE, chỉ bật khi thẻ là nhân vật đang chọn.")]
     [SerializeField] private GameObject inUseLabel;
     [Tooltip("Icon thẻ trống, chỉ bật ở trạng thái Empty.")]
@@ -54,8 +58,19 @@ public sealed class CharacterCardView : MonoBehaviour
         if (model.Portrait != null) portrait.sprite = model.Portrait;
         nameText.text = model.Name;
         levelText.text = model.Level.ToString(CultureInfo.InvariantCulture);
+        BindStars(model.Stars);
+    }
+
+    // Luôn hiện đủ ô để người chơi thấy còn bao nhiêu sao chưa mở; chỉ đổi màu theo số sao hiện có.
+    private void BindStars(int count)
+    {
         for (int i = 0; i < stars.Length; i++)
-            if (stars[i] != null) stars[i].SetActive(i < model.Stars);
+        {
+            if (stars[i] == null) continue;
+            stars[i].SetActive(true);
+            if (stars[i].TryGetComponent(out Image image))
+                image.color = i < count ? filledStarColor : emptyStarColor;
+        }
     }
 
     private void OnClick() => Clicked?.Invoke();

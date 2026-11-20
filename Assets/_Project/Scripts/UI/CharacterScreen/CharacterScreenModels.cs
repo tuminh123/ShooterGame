@@ -51,11 +51,13 @@ public readonly struct StatRowModel
 {
     public readonly Sprite Icon;
     public readonly string Value;
+    public readonly float Amount; // Giá trị số chưa định dạng, để View biết chỉ số tăng hay giảm.
 
-    public StatRowModel(Sprite icon, string value)
+    public StatRowModel(Sprite icon, string value, float amount)
     {
         Icon = icon;
         Value = value;
+        Amount = amount;
     }
 }
 
@@ -91,17 +93,21 @@ public readonly struct UpgradeButtonModel
 public readonly struct CharacterDetailModel
 {
     // Header
+    public readonly CharacterType Type; // Nhận ra đổi nhân vật (←/→) để không coi chênh lệch số giữa hai nhân vật là "tăng".
     public readonly Sprite RarityLabel;
     public readonly string RarityText;
     public readonly Color RarityTextColor;
     public readonly string Name;
-    public readonly Sprite Portrait;
+    public readonly Sprite Portrait;            // Ảnh dự phòng khi chưa có nhân vật UI.
+    public readonly CharacterUIVisual UIVisual; // Prefab nhân vật UI (Idle); null thì hiện Portrait.
     public readonly int Stars;
 
     // Tab Level
     public readonly CharacterScreenTab Tab;
     public readonly int Level;
     public readonly int MaxLevel;
+    public readonly int LevelProgress;          // Nguyên liệu đã nạp vào thanh của cấp hiện tại.
+    public readonly int LevelProgressRequired;  // Cần để đầy thanh; 0 nghĩa là đã ở cấp tối đa.
     public readonly IReadOnlyList<StatRowModel> Stats;
     public readonly IReadOnlyList<Sprite> SkillIcons;
 
@@ -110,19 +116,25 @@ public readonly struct CharacterDetailModel
     public readonly UpgradeButtonModel Upgrade;
 
     public CharacterDetailModel(
-        Sprite rarityLabel, string rarityText, Color rarityTextColor, string name, Sprite portrait, int stars,
-        CharacterScreenTab tab, int level, int maxLevel, IReadOnlyList<StatRowModel> stats, IReadOnlyList<Sprite> skillIcons,
+        CharacterType type, Sprite rarityLabel, string rarityText, Color rarityTextColor, string name, Sprite portrait,
+        CharacterUIVisual uiVisual, int stars,
+        CharacterScreenTab tab, int level, int maxLevel, int levelProgress, int levelProgressRequired,
+        IReadOnlyList<StatRowModel> stats, IReadOnlyList<Sprite> skillIcons,
         bool isSelected, UpgradeButtonModel upgrade)
     {
+        Type = type;
         RarityLabel = rarityLabel;
         RarityText = rarityText;
         RarityTextColor = rarityTextColor;
         Name = name;
         Portrait = portrait;
+        UIVisual = uiVisual;
         Stars = stars;
         Tab = tab;
         Level = level;
         MaxLevel = maxLevel;
+        LevelProgress = levelProgress;
+        LevelProgressRequired = levelProgressRequired;
         Stats = stats ?? Array.Empty<StatRowModel>();
         SkillIcons = skillIcons ?? Array.Empty<Sprite>();
         IsSelected = isSelected;

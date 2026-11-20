@@ -33,25 +33,34 @@ public sealed class CharacterLevelsSaveData
     {
         public CharacterType characterType;
         public int permanentLevel = 1;
+        public int upgradePoints; // Nguyên liệu đã nạp vào thanh của cấp hiện tại; save cũ không có field này nên đọc ra 0.
+        public int stars; // Số sao đã mở; save cũ không có field này nên đọc ra 0.
     }
     public List<Entry> characters = new List<Entry>();
     public CharacterLevelsSaveData Clone()
     {
         var copy = new CharacterLevelsSaveData();
         foreach (Entry entry in characters)
-            copy.characters.Add(new Entry { characterType = entry.characterType, permanentLevel = entry.permanentLevel });
+            copy.characters.Add(new Entry
+            {
+                characterType = entry.characterType,
+                permanentLevel = entry.permanentLevel,
+                upgradePoints = entry.upgradePoints,
+                stars = entry.stars
+            });
         return copy;
     }
 
-    /// <summary>Mỗi nhân vật xuất hiện tối đa một lần, type đã định nghĩa (khác None) và level dương.</summary>
+    /// <summary>Mỗi nhân vật xuất hiện tối đa một lần, type đã định nghĩa (khác None), level dương, điểm thanh và số sao không âm.</summary>
     public static void Validate(CharacterLevelsSaveData value)
     {
         if (value == null || value.characters == null) throw new InvalidOperationException("Missing character level data.");
         var types = new HashSet<CharacterType>();
         foreach (Entry entry in value.characters)
             if (entry == null || entry.characterType == CharacterType.None ||
-                !Enum.IsDefined(typeof(CharacterType), entry.characterType) || entry.permanentLevel < 1 || !types.Add(entry.characterType))
-                throw new InvalidOperationException("Character progress must have unique defined types and positive levels.");
+                !Enum.IsDefined(typeof(CharacterType), entry.characterType) || entry.permanentLevel < 1 || entry.upgradePoints < 0 || entry.stars < 0 ||
+                !types.Add(entry.characterType))
+                throw new InvalidOperationException("Character progress must have unique defined types, positive levels and non-negative upgrade points and stars.");
     }
 }
 

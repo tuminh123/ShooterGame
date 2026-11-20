@@ -39,6 +39,9 @@ public abstract class ProjectDataSOEditor : Editor
             Section("VISUAL / HITBOX / HEALTH BAR", "Hình ảnh, hitbox và thanh máu có kích thước riêng. Mở công cụ để căn chỉnh trực tiếp trong Scene.",
                 DataInspectorTone.Visual, "visualSettings");
             if (GUILayout.Button("Mở công cụ chỉnh Visual / Hitbox")) HitboxEditorWindow.Open();
+            Section("CHARACTER SCREEN (UI)", "Ảnh thẻ Collection và nhân vật dạng UI cho màn Detail. Character UI Exporter tự xuất và gán hai field này.",
+                DataInspectorTone.Visual, "rarity", "portrait", "uiVisualPrefab");
+            if (GUILayout.Button("Mở Character UI Exporter")) CharacterUIExporter.Open();
             Section("BASE STATS", "Chỉ số cấp 1 trước bonus. Defense là giáp tiêu hao; các tỷ lệ dùng thang 100 = 100%.",
                 DataInspectorTone.Stats, "baseStats");
             Section("INNATE SKILLS", "Skill vốn có của nhân vật. Cấp ban đầu đọc từ từng SkillDataSO; skill nhận trong màn nằm ở Skill Database.",
@@ -51,8 +54,8 @@ public abstract class ProjectDataSOEditor : Editor
         {
             Section("CHARACTER GROWTH", "Cấp 1 chưa có bonus; cấp L nhận Bonus Per Level × (L - 1), giới hạn ở Max Level.",
                 DataInspectorTone.Stats, "characterType", "maxLevel", "bonusPerLevel");
-            Section("PERMANENT UPGRADE COST", "Chi phí = làm tròn lên(Initial Cost × Multiplier^(cấp hiện tại - 1)). Chỉ dùng nâng vĩnh viễn, không phải EXP trận.",
-                DataInspectorTone.Rewards, "initialUpgradeCost", "upgradeCostMultiplier");
+            Section("PERMANENT UPGRADE EXP", "Thanh cấp L cần Initial Required + Increase Per Level × (L - 1) nguyên liệu. Mỗi lần bấm tiêu và nạp Amount Per Upgrade (1:1); đầy thanh thì lên cấp, phần dư chuyển sang cấp sau. Chỉ dùng cho Player, không phải EXP trận.",
+                DataInspectorTone.Rewards, "initialRequired", "requiredIncreasePerLevel", "amountPerUpgrade");
         }
         else if (target is RunLevelConfigSO)
         {

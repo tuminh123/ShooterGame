@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>Level vĩnh viễn theo nhân vật Player: đọc/ghi key <c>character_levels</c>, bonus, chi phí nâng cấp.</summary>
+/// <summary>
+/// Level vĩnh viễn theo nhân vật Player: đọc/ghi key <c>character_levels</c>, bonus, và thanh EXP nâng cấp
+/// (nạp nguyên liệu → đầy thanh thì lên cấp, phần dư chuyển sang cấp sau — giống EXP trong trận).
+/// </summary>
 /// <remarks>
 /// Do <see cref="ProgressionManager"/> tạo; thay cho CharacterLevelService + LevelManager cũ.
-/// Miền khác chỉ thấy tổng bonus qua <see cref="IPermanentBonuses"/>; API nâng cấp sẽ có vai trò riêng khi có UI nâng cấp.
+/// Miền khác chỉ thấy tổng bonus qua <see cref="IPermanentBonuses"/>; màn Character nâng cấp qua <see cref="ICharacterUpgrades"/>.
 /// </remarks>
 public sealed class CharacterLevels : IDisposable
 {
@@ -24,13 +27,34 @@ public sealed class CharacterLevels : IDisposable
     {
         if (!saves.IsLoaded || progress != null) return;
         progress = saves.Load(GameConstants.SaveKeys.CharacterLevels, new CharacterLevelsSaveData(), CharacterLevelsSaveData.Validate);
-        foreach (CharacterLevelsSaveData.Entry entry in progress.characters) progressLookup.Add(entry.characterType, entry);
+        foreach (CharacterLevelsSaveData.Entry entry in progress.characters)
+        {
+            progressLookup.Add(entry.characterType, entry);
+            ClampUpgradePoints(entry);
+        }
+    }
+
+    // Config có thể bị chỉnh A/B sau khi người chơi đã lưu: ép điểm về trong thanh hiện tại thay vì báo lỗi,
+    // để save không bị hỏng. Chỉ sửa RAM; lần lưu kế tiếp sẽ ghi giá trị đã ép.
+    private void ClampUpgradePoints(CharacterLevelsSaveData.Entry entry)
+    {
+        if (!levelConfigs.TryGetValue(entry.characterType, out CharacterLevelConfigSO config)) return;
+        entry.upgradePoints = config.TryGetRequired(entry.permanentLevel, out int required)
+            ? Math.Min(entry.upgradePoints, required - 1)
+            : 0;
     }
 
     private int ReadLevel(CharacterType type)
+        => TryReadEntry(type, out CharacterLevelsSaveData.Entry entry) ? entry.permanentLevel : 1;
+
+    private int ReadUpgradePoints(CharacterType type)
+        => TryReadEntry(type, out CharacterLevelsSaveData.Entry entry) ? entry.upgradePoints : 0;
+
+    // Nhân vật chưa có bản ghi là level 1, thanh rỗng; việc đọc không tự thêm bản ghi.
+    private bool TryReadEntry(CharacterType type, out CharacterLevelsSaveData.Entry entry)
     {
         if (progress == null || !saves.IsLoaded) throw new InvalidOperationException("Character level data has not loaded.");
-        return progressLookup.TryGetValue(type, out CharacterLevelsSaveData.Entry entry) ? entry.permanentLevel : 1;
+        return progressLookup.TryGetValue(type, out entry);
     }
 
     #region Progress Notifications
@@ -97,11 +121,32 @@ public sealed class CharacterLevels : IDisposable
         return config.GetTotalBonus(ReadLevel(characterType));
     }
 
-    // * Lấy chi phí cấp tiếp theo; false nếu đã đạt hoặc vượt trần config.
-    public bool TryGetUpgradeCost(CharacterType characterType, out long cost)
+    /// <summary>Nguyên liệu đã nạp vào thanh của cấp hiện tại.</summary>
+    public int GetUpgradePoints(CharacterType characterType)
+    {
+        GetConfig(characterType);
+        return ReadUpgradePoints(characterType);
+    }
+
+    /// <summary>Nguyên liệu cần để đầy thanh của cấp hiện tại; false nếu đã đạt hoặc vượt trần config.</summary>
+    public bool TryGetRequiredPoints(CharacterType characterType, out int required)
     {
         CharacterLevelConfigSO config = GetConfig(characterType);
-        return config.TryGetUpgradeCost(ReadLevel(characterType), out cost);
+        return config.TryGetRequired(ReadLevel(characterType), out required);
+    }
+
+    /// <summary>
+    /// Tổng nguyên liệu còn thiếu để chạm level tối đa; 0 khi đã ở trần.
+    /// Dùng để lần nạp cuối chỉ tốn đúng phần còn thiếu, không làm mất tiền thật của người chơi.
+    /// </summary>
+    public long GetPointsToMaxLevel(CharacterType characterType)
+    {
+        CharacterLevelConfigSO config = GetConfig(characterType);
+        int level = ReadLevel(characterType);
+        long remaining = -ReadUpgradePoints(characterType);
+        for (int current = level; config.TryGetRequired(current, out int required); current++)
+            remaining += required;
+        return Math.Max(0L, remaining);
     }
 
     // * Đọc config để UI hiển thị trần, bonus mỗi cấp và công thức giá.
@@ -126,14 +171,22 @@ public sealed class CharacterLevels : IDisposable
         return saves.Save(GameConstants.SaveKeys.CharacterLevels, progress.Clone());
     }
 
-    // * Tăng một cấp rồi gọi save; true nghĩa là level đã tăng, saved cho biết đã ghi file thành công hay chưa.
-    // Bên gọi kiểm tra điều kiện/thanh toán qua Wallet; system này chỉ thay đổi level.
-    // ! Nếu saved=false, chỉ thử save lại, không gọi tăng cấp lại để tránh nhận thêm một cấp ngoài ý muốn.
-    public bool TryIncreaseLevel(CharacterType characterType, out bool saved)
+    /// <summary>
+    /// Nạp <paramref name="amount"/> nguyên liệu vào thanh: đầy thanh thì lên cấp và chuyển phần dư sang cấp sau
+    /// (có thể lên nhiều cấp một lần), chạm trần thì bỏ phần dư. Level và điểm được ghi trong <b>một lần save</b>.
+    /// True nghĩa là đã nạp; <paramref name="saved"/> cho biết đã ghi file thành công hay chưa.
+    /// </summary>
+    /// <remarks>
+    /// Bên gọi kiểm tra điều kiện/thanh toán; system này chỉ đổi tiến trình. <see cref="LevelChanged"/> chỉ phát khi thật sự lên cấp.
+    /// Nếu saved=false, chỉ thử save lại, không nạp lại để tránh nhận thêm điểm ngoài ý muốn.
+    /// </remarks>
+    public bool TryAddUpgradePoints(CharacterType characterType, int amount, out bool saved)
     {
         EnsureAvailable();
         if (changingLevel)
             throw new InvalidOperationException("Cannot change permanent level from a level notification callback.");
+        if (amount < 1)
+            throw new ArgumentOutOfRangeException(nameof(amount));
         saved = false;
         CharacterLevelConfigSO config = GetConfig(characterType);
         int previousLevel = ReadLevel(characterType);
@@ -143,17 +196,22 @@ public sealed class CharacterLevels : IDisposable
         changingLevel = true;
         try
         {
-            int newLevel = previousLevel + 1;
-            if (!progressLookup.TryGetValue(characterType, out CharacterLevelsSaveData.Entry entry))
+            // Cùng thuật toán với RunLevelProgress.AddExperience: trừ dần yêu cầu từng cấp cho tới khi không đủ.
+            long remaining = (long)ReadUpgradePoints(characterType) + amount;
+            int newLevel = previousLevel;
+            while (config.TryGetRequired(newLevel, out int required) && remaining >= required)
             {
-                entry = new CharacterLevelsSaveData.Entry { characterType = characterType };
-                progressLookup.Add(characterType, entry);
-                progress.characters.Add(entry);
+                remaining -= required;
+                newLevel++;
             }
+
+            CharacterLevelsSaveData.Entry entry = GetOrAddEntry(characterType);
             entry.permanentLevel = newLevel;
+            entry.upgradePoints = newLevel >= config.MaxLevel ? 0 : (int)remaining;
             saved = SaveProgress();
             Exception saveError = saves.LastError;
-            LevelChanged?.Invoke(characterType, previousLevel, newLevel);
+            if (newLevel != previousLevel)
+                LevelChanged?.Invoke(characterType, previousLevel, newLevel);
             if (!saved)
                 SaveFailed?.Invoke(characterType, newLevel, saveError);
             return true;
@@ -162,6 +220,47 @@ public sealed class CharacterLevels : IDisposable
         {
             changingLevel = false;
         }
+    }
+
+    #endregion
+
+    #region Stars
+
+    /// <summary>Số sao đã mở; nhân vật chưa có bản ghi là 0.</summary>
+    public int GetStars(CharacterType characterType)
+    {
+        GetConfig(characterType);
+        return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) ? entry.stars : 0;
+    }
+
+    /// <summary>
+    /// Mở thêm một sao nếu chưa tới <paramref name="maxStars"/> rồi save; true nghĩa là đã tăng,
+    /// <paramref name="saved"/> cho biết đã ghi file chưa. Bên gọi kiểm tra điều kiện/thanh toán.
+    /// </summary>
+    // Lưu cùng key với level vì system này là chủ duy nhất của character_levels (hai chủ cùng ghi một key sẽ đè nhau).
+    public bool TryAddStar(CharacterType characterType, int maxStars, out bool saved)
+    {
+        EnsureAvailable();
+        saved = false;
+        if (GetStars(characterType) >= maxStars) return false;
+        GetOrAddEntry(characterType).stars++;
+        saved = SaveProgress();
+        if (!saved) SaveFailed?.Invoke(characterType, ReadLevel(characterType), saves.LastError);
+        return true;
+    }
+
+    #endregion
+
+    #region Private Helpers
+
+    // Bản ghi chỉ được tạo khi có thay đổi thật, để việc đọc không làm phình save.
+    private CharacterLevelsSaveData.Entry GetOrAddEntry(CharacterType characterType)
+    {
+        if (progressLookup.TryGetValue(characterType, out CharacterLevelsSaveData.Entry entry)) return entry;
+        entry = new CharacterLevelsSaveData.Entry { characterType = characterType };
+        progressLookup.Add(characterType, entry);
+        progress.characters.Add(entry);
+        return entry;
     }
 
     #endregion

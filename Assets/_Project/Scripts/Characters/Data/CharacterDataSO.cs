@@ -28,8 +28,10 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private bool isBoss; // Đánh dấu boss để hiện HP/giáp; không thay đổi phe hoặc cách nhận sát thương.
     [Tooltip("Prefab ngoại hình, kích thước/offset hình ảnh, hitbox và bố cục thanh máu. Các phần được chỉnh độc lập.")]
     [SerializeField] private CharacterVisualSettings visualSettings = CharacterVisualSettings.Default;
-    [Tooltip("Ảnh chân dung trên màn Character (thẻ Collection và Detail). Chỉ cần cho nhân vật Player.")]
+    [Tooltip("Ảnh chân dung trên màn Character (thẻ Collection). Xuất bằng Tools/Shooter Game/Character UI Exporter.")]
     [SerializeField] private Sprite portrait;
+    [Tooltip("Nhân vật dạng UI (Image theo bộ phận, đứng Idle) cho màn Detail. Xuất bằng Tools/Shooter Game/Character UI Exporter.")]
+    [SerializeField] private CharacterUIVisual uiVisualPrefab;
     [Tooltip("Độ hiếm hiển thị trên màn Character. Chỉ là thông tin hiển thị, không đổi chỉ số.")]
     [SerializeField] private CharacterRarity rarity = CharacterRarity.Common;
 
@@ -44,6 +46,8 @@ public sealed class CharacterDataSO : ScriptableObject
     public HitboxData Hitbox => visualSettings.Hitbox;
     /// <summary>Ảnh chân dung cho UI; null thì UI giữ ảnh mặc định của prefab.</summary>
     public Sprite Portrait => portrait;
+    /// <summary>Prefab nhân vật dạng UI cho màn Detail; null khi chưa xuất.</summary>
+    public CharacterUIVisual UIVisualPrefab => uiVisualPrefab;
     /// <summary>Độ hiếm chỉ để hiển thị.</summary>
     public CharacterRarity Rarity => rarity;
 

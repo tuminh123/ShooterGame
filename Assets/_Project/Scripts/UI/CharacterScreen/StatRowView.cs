@@ -12,14 +12,30 @@ public sealed class StatRowView : MonoBehaviour
 
     #endregion
 
+    #region State
+
+    private TextPunch punch; // Tạo khi bind lần đầu: lúc đó text đã ở dáng gốc trong prefab.
+
+    #endregion
+
     #region Presentation
 
-    /// <summary>Đặt icon và chữ của ô.</summary>
-    public void Bind(StatRowModel model)
+    /// <summary>
+    /// Đặt icon và chữ của ô. <paramref name="animate"/> = true khi vẫn là nhân vật cũ (vừa nâng cấp),
+    /// lúc đó số tăng sẽ nhảy lên; đổi nhân vật thì truyền false.
+    /// </summary>
+    public void Bind(StatRowModel model, bool animate)
     {
         icon.sprite = model.Icon;
-        value.text = model.Value;
+        punch ??= new TextPunch(value);
+        punch.Set(model.Value, model.Amount, animate);
     }
+
+    #endregion
+
+    #region Lifecycle
+
+    private void OnDisable() => punch?.Reset();
 
     #endregion
 }

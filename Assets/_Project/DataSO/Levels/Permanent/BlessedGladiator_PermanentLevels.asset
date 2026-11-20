@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e32cc6a14ad4bff85efb0e8b74d9538, type: 3}
   m_Name: BlessedGladiator_PermanentLevels
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   characterType: 1
   maxLevel: 10
   bonusPerLevel:
@@ -23,5 +23,6 @@ MonoBehaviour:
     critDamageMultiplier: 5
     effectResistance: 1
     effectHit: 1
-  initialUpgradeCost: 100
-  upgradeCostMultiplier: 1.2
+  initialRequired: 100
+  requiredIncreasePerLevel: 50
+  amountPerUpgrade: 25

@@ -9,7 +9,8 @@ using Zenject;
 /// gọi service, dựng model rồi đẩy xuống View. View chỉ hiển thị và phát event.
 /// </summary>
 /// <remarks>
-/// Mở từ Home qua <see cref="Open"/>; UIManager hiện màn này đè lên Home và Back ở Collection trả về Home.
+/// Mở/đóng từ thanh bar Home (<see cref="HomeNavigationBar"/>) qua <see cref="Open"/> / <see cref="Close"/>;
+/// UIManager hiện màn này đè lên Home. Thanh bar nghe <see cref="NavigationChanged"/> để chọn nút nổi và ẩn ở Detail.
 /// Dữ liệu được vẽ lại khi có event (đổi lựa chọn, đổi bonus, nâng cấp), không polling.
 /// Chỉ số hiển thị dùng đúng <see cref="StatCalculator"/> của gameplay, không có công thức thứ hai.
 /// </remarks>
@@ -43,6 +44,19 @@ public sealed class CharacterScreenController : UIPanelController
     private CharacterScreenPage page = CharacterScreenPage.Collection;
     private CharacterScreenTab tab = CharacterScreenTab.Level;
     private int viewingIndex; // Chỉ số trong IPlayerSelection.PlayableCharacters.
+
+    #endregion
+
+    #region Navigation State (HomeNavigationBar)
+
+    /// <summary>Màn đang mở theo yêu cầu điều hướng (đổi ngay khi mở/đóng, không chờ hiệu ứng trượt xong).</summary>
+    public bool IsShown => WantsVisible;
+
+    /// <summary>Đang ở trang Detail (thanh bar Home ẩn để không che footer của Detail).</summary>
+    public bool IsOnDetail => page == CharacterScreenPage.Detail;
+
+    /// <summary>Phát khi màn mở/đóng hoặc đổi trang Collection ↔ Detail; thanh bar đọc lại hai thuộc tính trên.</summary>
+    public event Action NavigationChanged;
 
     #endregion
 
@@ -91,7 +105,6 @@ public sealed class CharacterScreenController : UIPanelController
         upgrades.Upgraded += OnUpgraded;
 
         collection.CardClicked += OnCardClicked;
-        collection.BackClicked += OnCollectionBack;
         detail.PrevClicked += OnPrev;
         detail.NextClicked += OnNext;
         detail.BackClicked += OnDetailBack;
@@ -109,7 +122,6 @@ public sealed class CharacterScreenController : UIPanelController
         upgrades.Upgraded -= OnUpgraded;
 
         collection.CardClicked -= OnCardClicked;
-        collection.BackClicked -= OnCollectionBack;
         detail.PrevClicked -= OnPrev;
         detail.NextClicked -= OnNext;
         detail.BackClicked -= OnDetailBack;
@@ -131,11 +143,24 @@ public sealed class CharacterScreenController : UIPanelController
     }
 
     /// <inheritdoc/>
+    // Cả màn trượt vào/ra (SlideTransition trên CharacterScreen). UIManager gọi Home.SetVisible cùng lúc,
+    // nên Home trượt ra khi màn này trượt vào và ngược lại.
     public override void SetVisible(bool visible)
     {
-        gameObject.SetActive(visible);
-        if (visible) Redraw();
+        NavigationChanged?.Invoke();
+        if (!visible)
+        {
+            PlayOut(this);
+            return;
+        }
+        PlayIn(this);
+        // Mở ở trang Collection thì Detail phải tắt (lần trước có thể bị ẩn giữa chừng khi đang ở Detail).
+        if (page == CharacterScreenPage.Collection) detail.gameObject.SetActive(false);
+        Redraw();
     }
+
+    /// <summary>Đóng màn về Home (nút Battle của thanh bar); hiệu ứng trượt ra do <see cref="SetVisible"/> lo.</summary>
+    public void Close() => RequestVisibility(false);
 
     #endregion
 
@@ -146,15 +171,38 @@ public sealed class CharacterScreenController : UIPanelController
         if (index < 0 || index >= selection.PlayableCharacters.Count) return;
         viewingIndex = index;
         page = CharacterScreenPage.Detail;
+        // Detail tự bật và trượt vào đè lên Collection (Collection luôn bật làm nền nên không cần chờ trượt xong).
+        PlayIn(detail);
         Redraw();
+        NavigationChanged?.Invoke(); // Thanh bar trượt xuống cùng lúc Detail trượt vào.
     }
 
-    private void OnCollectionBack() => RequestVisibility(false);
-
+    // Detail trượt ra rồi tự tắt, lộ Collection đã vẽ lại bên dưới.
     private void OnDetailBack()
     {
         page = CharacterScreenPage.Collection;
         Redraw();
+        PlayOut(detail);
+        NavigationChanged?.Invoke(); // Thanh bar trượt lên lại cùng lúc.
+    }
+
+    // Bật kèm trượt vào. View chưa gắn SlideTransition thì bật ngay, để màn vẫn chạy khi thiếu component.
+    // Bấm liên tục khi đang trượt chỉ làm tween mới thay tween cũ (giật nhẹ), không cần khóa thao tác.
+    private static void PlayIn(MonoBehaviour view)
+    {
+        if (view.TryGetComponent(out SlideTransition slide)) slide.PlayIn();
+        else view.gameObject.SetActive(true);
+    }
+
+    // Trượt ra rồi tắt; onComplete chạy sau khi đã tắt (dùng để báo UIManager đóng màn).
+    private static void PlayOut(MonoBehaviour view, Action onComplete = null)
+    {
+        if (view.TryGetComponent(out SlideTransition slide)) slide.PlayOut(onComplete);
+        else
+        {
+            view.gameObject.SetActive(false);
+            onComplete?.Invoke();
+        }
     }
 
     // ←/→ đi vòng tròn và giữ nguyên tab đang mở.
@@ -187,9 +235,15 @@ public sealed class CharacterScreenController : UIPanelController
     private void OnUpgrade()
     {
         if (!TryGetViewing(out CharacterDataSO character)) return;
-        if (upgrades.TryUpgrade(character.CharacterType, KindOf(tab), out bool saved) && !saved)
+        CharacterUpgradeKind kind = KindOf(tab);
+        // Một lần bấm Level chỉ nạp điểm; chỉ ăn mừng khi cấp (hoặc sao) thật sự tăng.
+        int before = upgrades.GetQuote(character.CharacterType, kind).Current;
+        bool upgraded = upgrades.TryUpgrade(character.CharacterType, kind, out bool saved);
+        if (upgraded && !saved)
             Debug.LogWarning($"Upgrade of {character.CharacterType} was applied but not saved yet; it will be retried.", this);
-        // Vẽ lại qua Upgraded.
+        // Vẽ lại qua Upgraded (đã chạy xong bên trong TryUpgrade).
+        if (upgraded && upgrades.GetQuote(character.CharacterType, kind).Current > before)
+            detail.Celebrate();
     }
 
     #endregion
@@ -208,8 +262,9 @@ public sealed class CharacterScreenController : UIPanelController
     {
         if (!themeValid || selection == null || !isActiveAndEnabled) return;
         bool showDetail = page == CharacterScreenPage.Detail && TryGetViewing(out _);
-        collection.gameObject.SetActive(!showDetail);
-        detail.gameObject.SetActive(showDetail);
+        // Collection luôn bật làm nền khi màn mở; Detail đè lên và tự bật/tắt bằng hiệu ứng trượt (PlayIn/PlayOut).
+        // Không giữ cờ "đang trượt" nên không thể kẹt thao tác.
+        collection.gameObject.SetActive(true);
         if (showDetail) DrawDetail();
         else DrawCollection();
     }
@@ -244,8 +299,10 @@ public sealed class CharacterScreenController : UIPanelController
 
         detail.SetNavigationVisible(selection.PlayableCharacters.Count > 1);
         detail.Bind(new CharacterDetailModel(
-            rarity.Label, rarity.Text, rarity.TextColor, character.DisplayName, character.Portrait, star.Current,
-            tab, level.Current, level.Max, BuildStats(character), BuildSkillIcons(character),
+            type, rarity.Label, rarity.Text, rarity.TextColor, character.DisplayName, character.Portrait,
+            character.UIVisualPrefab, star.Current,
+            tab, level.Current, level.Max, level.Progress, level.ProgressRequired,
+            BuildStats(character), BuildSkillIcons(character),
             type == selection.SelectedCharacterType,
             BuildUpgradeButton(tab == CharacterScreenTab.Level ? level : star)));
     }
@@ -258,8 +315,10 @@ public sealed class CharacterScreenController : UIPanelController
         IReadOnlyList<CharacterScreenThemeSO.StatEntry> entries = theme.Stats;
         var rows = new StatRowModel[entries.Count];
         for (int i = 0; i < entries.Count; i++)
-            rows[i] = new StatRowModel(entries[i].Icon,
-                CharacterScreenThemeSO.FormatValue(final.Get(entries[i].Stat), entries[i].Format));
+        {
+            float amount = final.Get(entries[i].Stat);
+            rows[i] = new StatRowModel(entries[i].Icon, CharacterScreenThemeSO.FormatValue(amount, entries[i].Format), amount);
+        }
         return rows;
     }
 

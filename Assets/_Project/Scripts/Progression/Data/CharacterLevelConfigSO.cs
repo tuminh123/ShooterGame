@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
-// * Bonus theo cấp dùng chung cho player và enemy. Chi phí nâng cấp chỉ dùng cho player.
+// * Bonus theo cấp dùng chung cho player và enemy. Phần EXP nâng cấp (nguyên liệu) chỉ dùng cho player.
 [CreateAssetMenu(fileName = "CharacterLevelConfig", menuName = "Shooter Game/Levels/Character Level Config")]
 public sealed class CharacterLevelConfigSO : ScriptableObject
 {
@@ -20,32 +21,36 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #endregion
 
-    #region Upgrade Resource Cost
+    #region Upgrade Experience
 
-    [Tooltip("Chi phí nâng vĩnh viễn từ cấp 1 lên 2; không phải EXP trong trận.")]
-    [SerializeField, Min(1)] private int initialUpgradeCost = 100;           // * Tài nguyên cần để nâng từ level 1 lên 2; không phải EXP trong trận.
-    [Tooltip("Chi phí từ cấp L lên L+1 = làm tròn lên(Initial Cost × hệ số^(L - 1)). 1.2 tăng khoảng 20% mỗi cấp; tối thiểu 1.")]
-    [SerializeField, Min(1f)] private double upgradeCostMultiplier = 1.2d;  // * Mỗi cấp nhân chi phí với hệ số này; 1 = không tăng, 1.2 = tăng khoảng 20%.
+    [Tooltip("Nguyên liệu (EXP vĩnh viễn) cần để lên từ cấp 1 lên 2; không phải EXP trong trận.")]
+    [FormerlySerializedAs("initialUpgradeCost")]
+    [SerializeField, Min(1)] private int initialRequired = 100;  // * Hệ số A; nhận lại giá trị Initial Upgrade Cost cũ trong asset.
+    [Tooltip("Nguyên liệu cần từ cấp L lên L+1 = Initial Required + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng.")]
+    [SerializeField, Min(0)] private int requiredIncreasePerLevel = 50;  // * Hệ số B; thanh của cấp sau dài hơn nên cần bấm nhiều lần hơn.
+    [Tooltip("Lượng nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade (tỉ lệ 1:1).")]
+    [SerializeField, Min(1)] private int amountPerUpgrade = 25;  // * Một lần bấm = một lần tiêu = một lần cộng EXP, giống nhặt EXP trong trận.
 
-    public int InitialUpgradeCost => initialUpgradeCost;              // * Chi phí lần nâng cấp đầu tiên.
-    public double UpgradeCostMultiplier => upgradeCostMultiplier;     // * Quyết định chi phí tăng nhanh đến đâu ở cấp cao.
+    /// <summary>Hệ số A của công thức A + B × (level - 1).</summary>
+    public int InitialRequired => initialRequired;
+    /// <summary>Hệ số B của công thức A + B × (level - 1).</summary>
+    public int RequiredIncreasePerLevel => requiredIncreasePerLevel;
+    /// <summary>Lượng nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade.</summary>
+    public int AmountPerUpgrade => amountPerUpgrade;
 
-    // * Tính ceil(chi phí đầu × hệ số^(level hiện tại - 1)); false nếu level không hợp lệ hoặc đã đạt trần.
-    // ! Chỉ trả chi phí, chưa chọn loại tiền, kiểm tra ví hoặc trừ tài nguyên; vượt phạm vi long/decimal sẽ báo overflow.
-    public bool TryGetUpgradeCost(int currentLevel, out long cost)
+    /// <summary>
+    /// Nguyên liệu cần từ <paramref name="currentLevel"/> lên cấp kế tiếp = A + B × (L - 1);
+    /// false nếu level không hợp lệ hoặc đã đạt trần. Cùng dạng công thức với EXP trong trận (RunLevelConfigSO).
+    /// </summary>
+    // ! Trả yêu cầu riêng của một cấp, không phải tổng tích lũy; overflow int sẽ báo lỗi thay vì thành số âm.
+    public bool TryGetRequired(int currentLevel, out int required)
     {
-        cost = 0;
+        required = 0;
         ValidateConfiguration();
         if (currentLevel < 1 || currentLevel >= maxLevel)
             return false;
 
-        // * Dùng decimal cho phép nhân chi phí để hạn chế sai số nhị phân làm ceil(120) thành 121.
-        decimal value = initialUpgradeCost;
-        decimal multiplier = (decimal)upgradeCostMultiplier;
-        for (int i = 1; i < currentLevel; i++)
-            value *= multiplier;
-
-        cost = checked((long)decimal.Ceiling(value));
+        required = checked((int)(initialRequired + (long)requiredIncreasePerLevel * (currentLevel - 1)));
         return true;
     }
 
@@ -67,14 +72,12 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #region Configuration Validation
 
-    // * Chặn cấu hình cấp/chi phí không hợp lệ trước khi tính; không tự sửa asset trong runtime.
+    // * Chặn cấu hình cấp/EXP nâng cấp không hợp lệ trước khi tính; không tự sửa asset trong runtime.
     private void ValidateConfiguration()
     {
         bonusPerLevel.Validate();
-        if (maxLevel < 1 || initialUpgradeCost < 1 ||
-            double.IsNaN(upgradeCostMultiplier) || double.IsInfinity(upgradeCostMultiplier) ||
-            upgradeCostMultiplier < 1d)
-            throw new InvalidOperationException("Character level config requires MaxLevel >= 1, cost >= 1 and a finite multiplier >= 1.");
+        if (maxLevel < 1 || initialRequired < 1 || requiredIncreasePerLevel < 0 || amountPerUpgrade < 1)
+            throw new InvalidOperationException("Character level config requires MaxLevel >= 1, initial required >= 1, increase >= 0 and amount per upgrade >= 1.");
     }
 
     #endregion

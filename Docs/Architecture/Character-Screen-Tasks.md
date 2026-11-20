@@ -1,6 +1,52 @@
 # Màn Character (Collection + Detail) — kế hoạch task bản demo
 
-> **Trạng thái:** ✅ Đã triển khai Task 1–5 (2026-11-19), chờ người dùng play test theo checklist cuối file · Ngày lập: 2026-11-19
+> **Trạng thái:** ✅ Đã triển khai Task 1–5 (2026-11-19) + thanh EXP nâng cấp (2026-11-20), chờ người dùng play test theo checklist cuối file · Ngày lập: 2026-11-19
+
+## Thay đổi 2026-11-20: thanh bar Home dùng chung (người dùng duyệt)
+
+- `BottomBar_Menu` tách khỏi `MainUI`, nằm dưới object luôn bật `HomeNavigation` (ngay sau `CharacterScreen`), do
+  `UI/Core/HomeNavigationBar.cs` quản lý. Lý do: UIManager tắt MainUI khi mở màn Character, mà thanh bar phải còn để bấm về Home.
+- Nút Battle (`Button_03` / `Button_03_Focus`) về Home; nút Heroes (`Button_02` / `Button_02_Focus`, chữ "HEROES") mở màn Character.
+  Nút của màn đang mở **nổi lên** (bật bản Focus). Các nút chưa có chức năng (`Button_01/04/05`) bị khóa.
+- Vào **Detail** thì thanh bar trượt xuống ẩn (SlideTransition hướng Down), Back về Collection thì trượt lên.
+- `MainUI/Background` tách thành nền dùng chung `HomeBackground` (hiện suốt trạng thái Home) để lúc trượt không lộ bản đồ.
+- **Bỏ nút Back của Collection** (về Home bằng thanh bar). `CharacterScreenController` có `Close()`, `IsShown`, `IsOnDetail`, event `NavigationChanged`.
+- Hướng trượt chỉnh trong Inspector: `SlideTransition` (Enter From / Exit To) cho màn và thanh bar; `CharacterDetailView.Tab Slide Forward` cho tab.
+
+## Thay đổi 2026-11-20: UX — tween nút, trượt màn/tab, số nhảy, Canvas lồng (người dùng duyệt)
+
+- **Nút:** `ButtonClickTween` (cùng thông số nút Play: 0.9 → 1.08 → 1, unscaled) trên mọi nút. Gắn hàng loạt bằng
+  **Tools/Shooter Game/UI/Add Click Tween To All Buttons** (bỏ qua nút đã có `PopupTweenBase`, ví dụ nút Play). Thêm nút mới thì chạy lại menu.
+- **Trượt:** `SlideTransition` (enum 4 hướng `SlideDirection`) trên `CollectionScreen`, `DetailScreen`, `LevelTab`, `StarTab`.
+  Mở màn: Collection trượt vào; bấm thẻ: Detail trượt vào đè Collection; Back: trượt ra rồi mới đóng. Đổi tab: tab cũ ra một phía, tab mới vào từ phía đối diện.
+  Trong lúc trượt, panel không nhận click và controller bỏ qua thao tác chuyển trang mới.
+- **Số nhảy:** `TextPunch` (lớp thuần) cho 8 ô chỉ số, huy hiệu level, chữ thanh tiến độ: chỉ nhảy khi giá trị **tăng** và vẫn là nhân vật cũ.
+- **Canvas lồng:** `LevelTab/Content/Stats`, `LevelTab/Slider_Level`, `Header/Portrait` (nhân vật UI chuyển động mỗi frame) và prefab `CurrencyBar`,
+  để phần thay đổi không làm dựng lại Canvas chính. Không dùng `CanvasDynamic` (sorting 0 nằm dưới Canvas chính, tách khỏi panel cha).
+
+## Thay đổi 2026-11-20: nhân vật UI cho thẻ và màn Detail (người dùng duyệt)
+
+- Tool **Tools/Shooter Game/Character UI Exporter** (`Editor/CharacterUIExporter.cs`) đọc `CharacterDatabaseSO`, xuất
+  (1) ảnh PNG nền trong suốt → `Graphic/Portraits/{Type}_Portrait.png`, gán vào `CharacterDataSO.portrait` (thẻ Collection);
+  (2) prefab `CharacterUIVisual` → `Prefabs/UI/Characters/UI_{Type}.prefab`, gán vào `CharacterDataSO.uiVisualPrefab` (màn Detail).
+  Không phụ thuộc pack CharacterMaker (chỉ đọc Transform/SpriteRenderer/Animator).
+- Prefab UI = **Rig** (xương rỗng, cùng đường dẫn nên chạy clip gốc) + **Layers** (Image xếp theo sortingOrder);
+  `CharacterUIVisual` chép tư thế xương sang Image trong `LateUpdate`. Lý do: UI vẽ theo hierarchy, gameplay vẽ theo sortingOrder.
+- Animator UI dùng `Animations/UI/UI_CharacterController.controller` (Idle mặc định; trigger `Celebrate` → Victory một lần → Idle),
+  dùng lại clip gốc, chạy unscaled time.
+- Màn Detail: nhân vật UI đặt vừa khung `Image_Portrait` (ảnh tĩnh chỉ là dự phòng). Ăn mừng khi **level hoặc sao thật sự tăng**
+  (bấm nạp điểm chưa đủ thanh thì không ăn mừng).
+
+## Thay đổi 2026-11-20: thanh level thành thanh EXP nâng cấp (người dùng duyệt)
+
+Trước đây mỗi lần bấm UPGRADE là +1 level ngay và thanh hiện `level/max`. Giờ dùng **cùng cơ chế với thanh EXP trong trận**:
+mỗi lần bấm tiêu `AmountPerUpgrade` nguyên liệu và nạp đúng lượng đó vào thanh (1:1). Thanh của cấp L cần
+`A + B × (L − 1)`; đầy thanh thì lên cấp và phần dư chuyển sang cấp sau. Lần bấm chạm trần chỉ tốn phần còn thiếu.
+
+- Theo `Refactor-Architecture.md` §1 và §8 (Simple trước; "code lặp đến lần thứ 3 mới tách"): **không** tách struct dùng chung với `RunLevelProgress`. Hai nơi dùng là hai khái niệm khác miền; công thức nằm trong `CharacterLevelConfigSO`, vòng lặp nằm trong `CharacterLevels`. Có nơi dùng thứ 3 thì mới tách.
+- File đã sửa (ngoài danh sách ban đầu, người dùng duyệt): `CharacterLevelConfigSO.cs`, `CharacterLevels.cs`, `CharacterUpgradeTracks.cs`, `ProgressionContracts.cs` (`UpgradeQuote.Progress/ProgressRequired`), `SaveSections.cs` (`upgradePoints`), `CharacterScreenModels.cs`, `CharacterScreenController.cs`, `CharacterDetailView.cs`, `Editor/ProjectDataSOEditor.cs`. Không đụng miền Run.
+- Save cũ không có `upgradePoints` nên đọc ra 0; không cần migration. Field `initialRequired` nhận lại giá trị `initialUpgradeCost` cũ qua `FormerlySerializedAs`.
+- Vẫn **chưa trừ tiền** (TODO trong `LevelTrack`).
 
 ## Khác biệt so với kế hoạch (người dùng duyệt 2026-11-19)
 
@@ -200,7 +246,7 @@ UI/Canvas/CharacterScreen
 - [ ] 8 chỉ số khớp chỉ số Player khi vào trận.
 - [ ] 3 ô skill hiện đúng icon skill của nhân vật.
 - [ ] Bấm Chọn rồi vào trận thì spawn đúng nhân vật. Tắt và mở lại game vẫn nhớ lựa chọn.
-- [ ] Nút UPGRADE: còn cấp thì sáng; bấm thì level +1, chỉ số và thanh level cập nhật, **tiền chưa bị trừ** (đúng với demo). Hết cấp hiện "MAX". Tab Stars hiện 5 dòng perk mockup; nút UPGRADE ở tab này bị tắt (`NotAvailable`).
+- [ ] Nút UPGRADE: còn cấp thì sáng và hiện giá 25. Mỗi lần bấm thanh tăng 25 (chữ `25/100`, `50/100`…); bấm lần thứ 4 thì lên level 2, huy hiệu đổi, chỉ số tăng, thanh về `0/150`. **Tiền chưa bị trừ** (đúng với demo). Tắt rồi mở lại game vẫn giữ đúng level và vị trí thanh. Hết cấp thì thanh đầy, hiện "MAX". Tab Stars hiện 5 dòng perk mockup; nút UPGRADE ở tab này bị tắt (`NotAvailable`).
 - [ ] Vào trận sau khi nâng: chỉ số Player tăng đúng theo level mới.
 - [ ] CurrencyBar hiện đúng số vàng và kim cương.
 - [ ] Back: Detail về Collection, rồi Collection về Home. Không có lỗi trong Console.

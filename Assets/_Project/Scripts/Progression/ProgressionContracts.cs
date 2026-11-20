@@ -74,23 +74,30 @@ public readonly struct CurrencyCost
 }
 
 /// <summary>
-/// Kết quả hỏi giá một lần nâng: cấp hiện tại/tối đa, danh sách giá và lý do bị chặn.
+/// Kết quả hỏi giá một lần nâng: cấp hiện tại/tối đa, tiến độ thanh của cấp hiện tại, danh sách giá và lý do bị chặn.
 /// Giá là danh sách để sau này một lần nâng có thể tốn hai loại tiền.
 /// </summary>
 public readonly struct UpgradeQuote
 {
     public readonly int Current;
     public readonly int Max;
+    /// <summary>Điểm đã nạp vào thanh của cấp hiện tại; 0 với loại nâng cấp không có thanh.</summary>
+    public readonly int Progress;
+    /// <summary>Điểm cần để đầy thanh; 0 khi đã ở trần hoặc loại nâng cấp không có thanh.</summary>
+    public readonly int ProgressRequired;
     public readonly IReadOnlyList<CurrencyCost> Costs;
     public readonly UpgradeBlock Block;
 
     /// <summary>True khi không có lý do nào chặn.</summary>
     public bool CanUpgrade => Block == UpgradeBlock.None;
 
-    public UpgradeQuote(int current, int max, IReadOnlyList<CurrencyCost> costs, UpgradeBlock block)
+    public UpgradeQuote(int current, int max, int progress, int progressRequired,
+        IReadOnlyList<CurrencyCost> costs, UpgradeBlock block)
     {
         Current = current;
         Max = max;
+        Progress = progress;
+        ProgressRequired = progressRequired;
         Costs = costs ?? Array.Empty<CurrencyCost>();
         Block = block;
     }

@@ -6,8 +6,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// View màn Collection: lưới thẻ nhân vật và nút Back. Tự sinh và tái dùng thẻ từ prefab,
-/// thêm thẻ trống cho đủ hàng. Không gọi service.
+/// View màn Collection: lưới thẻ nhân vật. Tự sinh và tái dùng thẻ từ prefab,
+/// thêm thẻ trống cho đủ hàng. Không gọi service. Về Home bằng thanh bar dưới (<see cref="HomeNavigationBar"/>).
 /// </summary>
 public sealed class CharacterCollectionView : MonoBehaviour
 {
@@ -18,7 +18,6 @@ public sealed class CharacterCollectionView : MonoBehaviour
     [SerializeField] private RectTransform content;
     [Tooltip("Chữ \"đã có/tổng\".")]
     [SerializeField] private TMP_Text countText;
-    [SerializeField] private Button backButton;
     [Tooltip("Số cột của lưới; thẻ trống được thêm cho đủ hàng cuối.")]
     [SerializeField, Min(1)] private int columns = 3;
 
@@ -29,17 +28,7 @@ public sealed class CharacterCollectionView : MonoBehaviour
     /// <summary>Chạm vào thẻ thứ <c>index</c> (theo thứ tự model truyền vào).</summary>
     public event Action<int> CardClicked;
 
-    /// <summary>Bấm Back để về Home.</summary>
-    public event Action BackClicked;
-
     private readonly List<CharacterCardView> cards = new List<CharacterCardView>(); // Thẻ đã sinh, tái dùng giữa các lần Bind.
-
-    #endregion
-
-    #region Lifecycle
-
-    private void OnEnable() => backButton.onClick.AddListener(OnBack);
-    private void OnDisable() => backButton.onClick.RemoveListener(OnBack);
 
     #endregion
 
@@ -72,8 +61,6 @@ public sealed class CharacterCollectionView : MonoBehaviour
             cards.Add(card);
         }
     }
-
-    private void OnBack() => BackClicked?.Invoke();
 
     #endregion
 }

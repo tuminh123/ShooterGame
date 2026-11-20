@@ -11,11 +11,11 @@ using Zenject;
 /// <code>
 /// ProgressionManager
 /// ├── Wallet           ví vàng/kim cương (key currencies)
-/// ├── CharacterLevels  level vĩnh viễn theo nhân vật (key character_levels)
+/// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels)
 /// ├── Loadout          trang bị đang mặc (key equipment)
 /// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
 /// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
-/// └── StarTrack        nâng sao, chưa có hệ thống nên luôn NotAvailable
+/// └── StarTrack        nâng sao (dùng CharacterLevels); tạm miễn phí để test, giá mảnh làm ở Task S2
 /// </code>
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
@@ -66,7 +66,7 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
         loadout = new Loadout(saves, equipmentDatabase);
         stages = new StageProgress(saves, wallet);
         levelTrack = new LevelTrack(levels);
-        starTrack = new StarTrack();
+        starTrack = new StarTrack(levels);
 
         // Gộp hai nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
         levels.LevelChanged += OnLevelChanged;
