@@ -7,7 +7,7 @@ using Zenject;
 /// <summary>
 /// Home tạm thời: nút Play hoạt động, giữa màn hiện nhân vật đang chọn; giữ bố cục có sẵn cho các tính năng nối sau.
 /// Thanh bar dưới (mở màn Character, về Home) do HomeNavigationBar quản lý, nằm ngoài MainUI để hiện cả ở màn Character.
-/// Số tiền ở Topbar do CurrencyBarView (gắn trên Topbar/Group_ResourceBar) hiển thị, cùng component với màn Character.
+/// Số tiền do CurrencyBarView trên Topbar dùng chung hiển thị (Topbar nằm ngoài MainUI, HomeNavigationBar bật/tắt).
 /// </summary>
 public sealed class HomeController : UIPanelController
 {

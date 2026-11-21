@@ -76,6 +76,23 @@ public readonly struct UpgradeButtonModel
     }
 }
 
+/// <summary>Một dòng perk trên tab Stars.</summary>
+public readonly struct StarPerkModel
+{
+    public readonly int Star; // Sao mở perk này, bắt đầu từ 1.
+    public readonly Sprite Icon; // null thì giữ icon mặc định của dòng.
+    public readonly string Description;
+    public readonly StarPerkState State;
+
+    public StarPerkModel(int star, Sprite icon, string description, StarPerkState state)
+    {
+        Star = star;
+        Icon = icon;
+        Description = description;
+        State = state;
+    }
+}
+
 /// <summary>Toàn bộ dữ liệu màn Detail của một nhân vật.</summary>
 public readonly struct CharacterDetailModel
 {
@@ -98,6 +115,9 @@ public readonly struct CharacterDetailModel
     public readonly IReadOnlyList<StatRowModel> Stats;
     public readonly IReadOnlyList<Sprite> SkillIcons;
 
+    // Tab Stars
+    public readonly IReadOnlyList<StarPerkModel> StarPerks;
+
     // Footer
     public readonly bool IsSelected;
     public readonly UpgradeButtonModel Upgrade;
@@ -106,7 +126,7 @@ public readonly struct CharacterDetailModel
         CharacterType type, Sprite rarityLabel, string rarityText, Color rarityTextColor, string name, Sprite portrait,
         CharacterUIVisual uiVisual, int stars,
         CharacterScreenTab tab, int level, int maxLevel, int levelProgress, int levelProgressRequired,
-        IReadOnlyList<StatRowModel> stats, IReadOnlyList<Sprite> skillIcons,
+        IReadOnlyList<StatRowModel> stats, IReadOnlyList<Sprite> skillIcons, IReadOnlyList<StarPerkModel> starPerks,
         bool isSelected, UpgradeButtonModel upgrade)
     {
         Type = type;
@@ -124,6 +144,7 @@ public readonly struct CharacterDetailModel
         LevelProgressRequired = levelProgressRequired;
         Stats = stats ?? Array.Empty<StatRowModel>();
         SkillIcons = skillIcons ?? Array.Empty<Sprite>();
+        StarPerks = starPerks ?? Array.Empty<StarPerkModel>();
         IsSelected = isSelected;
         Upgrade = upgrade;
     }

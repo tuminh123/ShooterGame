@@ -11,7 +11,7 @@ using UnityEngine.UI;
 /// View màn Detail của một nhân vật: header, tab Level/Stars và footer.
 /// Chỉ hiện <see cref="CharacterDetailModel"/> và phát event khi người dùng bấm; không gọi service.
 /// Khung nhân vật hiện prefab <see cref="CharacterUIVisual"/> (Idle, ăn mừng qua <see cref="Celebrate"/>), thiếu thì hiện ảnh tĩnh.
-/// Tab Stars là mockup tĩnh trong demo: View chỉ bật/tắt nó. Vuốt ngang trên màn để đổi nhân vật (như ←/→).
+/// Tab Stars hiện 5 perk sao (StarPerkRowView). Vuốt ngang trên màn để đổi nhân vật (như ←/→).
 /// </summary>
 public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -48,9 +48,12 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     [SerializeField] private Button starsTabButton;
     [SerializeField] private GameObject levelTab;
     [SerializeField] private GameObject starTab;
-    [Tooltip("Màu nút tab đang mở và tab còn lại.")]
-    [SerializeField] private Color activeTabColor = Color.white;
-    [SerializeField] private Color inactiveTabColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+    [Tooltip("5 dòng perk trên tab Stars theo thứ tự sao 1→5.")]
+    [SerializeField] private StarPerkRowView[] perkRows = Array.Empty<StarPerkRowView>();
+    [Tooltip("Sprite nút tab đang mở (ví dụ nhãn xanh). Đổi sprite thay vì tô màu vì sprite gốc đã có màu riêng.")]
+    [SerializeField] private Sprite activeTabSprite;
+    [Tooltip("Sprite nút tab còn lại (ví dụ nhãn xám).")]
+    [SerializeField] private Sprite inactiveTabSprite;
     [Tooltip("Hướng nội dung lướt đi khi sang tab Stars (tab bên phải). Quay về Level thì lướt ngược lại.")]
     [SerializeField] private SlideDirection tabSlideForward = SlideDirection.Left;
 
@@ -163,6 +166,7 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         BindHeader(model);
         BindTabs(model.Tab);
         BindLevelTab(model, sameCharacter);
+        BindStarPerks(model.StarPerks);
         BindFooter(model);
     }
 
@@ -187,6 +191,14 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     /// <summary>Phát animation ăn mừng (Victory) một lần rồi tự về Idle; không có nhân vật UI thì bỏ qua.</summary>
     public void Celebrate() => preview?.Celebrate();
 
+    /// <summary>Dòng perk của sao <paramref name="star"/> (tính từ 1) nảy lên báo vừa mở; gọi sau Bind.</summary>
+    public void PlayPerkUnlocked(int star)
+    {
+        int index = star - 1;
+        if (index >= 0 && index < perkRows.Length && perkRows[index] != null && perkRows[index].isActiveAndEnabled)
+            perkRows[index].PlayUnlock();
+    }
+
     // Luôn hiện đủ ô để người chơi thấy còn bao nhiêu sao chưa mở; chỉ đổi màu theo số sao hiện có.
     private void BindStars(int count)
     {
@@ -199,11 +211,23 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         }
     }
 
+    // Mỗi dòng ứng với một sao; sao chưa có perk trong config thì ẩn dòng.
+    private void BindStarPerks(IReadOnlyList<StarPerkModel> perks)
+    {
+        for (int i = 0; i < perkRows.Length; i++)
+        {
+            if (perkRows[i] == null) continue;
+            bool visible = i < perks.Count;
+            perkRows[i].gameObject.SetActive(visible);
+            if (visible) perkRows[i].Bind(perks[i]);
+        }
+    }
+
     private void BindTabs(CharacterScreenTab tab)
     {
         bool level = tab == CharacterScreenTab.Level;
-        levelTabButton.image.color = level ? activeTabColor : inactiveTabColor;
-        starsTabButton.image.color = level ? inactiveTabColor : activeTabColor;
+        levelTabButton.image.sprite = level ? activeTabSprite : inactiveTabSprite;
+        starsTabButton.image.sprite = level ? inactiveTabSprite : activeTabSprite;
         if (hasShownTab && shownTab == tab) return; // Vẽ lại cùng tab: không đụng tới tab đang hiện.
 
         GameObject next = level ? levelTab : starTab;

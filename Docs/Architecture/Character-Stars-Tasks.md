@@ -1,6 +1,57 @@
 # Hệ thống Sao nhân vật (nâng bằng mảnh) — kế hoạch task
 
-> **Trạng thái:** 🚧 Đang làm · S1 ✅ code xong (2026-11-20) · S2a ✅ mở nút nâng sao để test (2026-11-20) · S2–S3 chưa làm · Ngày lập: 2026-11-20
+> **Trạng thái:** 🚧 Đang làm · S1 ✅ code xong (2026-11-20) · S2a ✅ mở nút nâng sao để test (2026-11-20) · S2b ✅ perk sao cộng chỉ số thật (2026-11-21) · S3 ✅ tab Stars bind perk (2026-11-21) · S2 phần giá mảnh chưa làm · S4 📝 yêu cầu đã ghi, chưa thiết kế · Ngày lập: 2026-11-20
+
+## S4 — perk sao nối với skill + perk gắn với data nhân vật (người dùng yêu cầu 2026-11-21, CHƯA LÀM)
+
+> Mới ghi lại yêu cầu. **Chưa thiết kế, chưa code.** Phải chốt thiết kế với người dùng trước khi bắt đầu.
+
+**Yêu cầu của người dùng:**
+1. Nâng sao không chỉ cộng chỉ số mà còn **kết nối với skill của nhân vật** (ví dụ mở/nâng cấp một skill của chính nhân vật đó).
+2. **Thiết kế lại chỗ đặt dữ liệu nâng cấp sao**: nâng cấp phải truy cập được data của nhân vật (`CharacterDataSO`: skill, chỉ số gốc...)
+   hoặc được kéo thả vào từ data nhân vật, thay vì chỉ nằm rời trong `CharacterLevelConfigSO` như hiện tại.
+
+**Hiện trạng (để so sánh khi thiết kế):**
+- Perk nằm trong `CharacterLevelConfigSO.starPerks` (asset `DataSO/Levels/Permanent/<Tên>_PermanentLevels.asset`), mỗi perk chỉ có
+  mô tả, icon và `StatBonus`. Config ghép với nhân vật bằng `CharacterType`, không tham chiếu `CharacterDataSO`.
+- Bonus sao đi qua `CharacterLevels.GetTotalBonus` → `IPermanentBonuses.GetBonus` → `PlayerSystem` (StatSheet).
+- Skill có sẵn của nhân vật nằm trong `CharacterDataSO.Skills` (`SkillDataSO`, dữ liệu theo từng cấp), do `CharacterSkills` (miền Character / Combat)
+  quản lý; hiện không có khái niệm "cấp skill vĩnh viễn" từ Progression.
+
+**Hướng người dùng đang cân nhắc (2026-11-21, CHƯA THỐNG NHẤT — thảo luận sau):**
+
+*Nâng sao:*
+- Nâng sao sẽ **nâng cấp skill** hoặc **mở khóa skill** của nhân vật (chưa chọn một trong hai, có thể cả hai).
+- **Quy hết perk sao về skill**: hệ thống skill đã có loại tăng chỉ số (`SkillBehaviourType.StatBuff`, cộng qua `StatSheet.AddSource`),
+  nên thay vì giữ `StatBonus` riêng trong `StarPerk`, tạo **skill tăng chỉ số riêng cho Player** (`SkillDataSO` kiểu StatBuff).
+  Khi đó mọi perk sao đều là "skill": cộng chỉ số = một skill StatBuff, mở/nâng skill = skill thường. Lợi ích: một đường dữ liệu và
+  một đường áp dụng duy nhất (DRY), tab Stars hiển thị bằng icon/mô tả của skill.
+  Cần kiểm tra khi thiết kế: StatBuff hiện là skill trong trận (có thời gian, cooldown?) hay có thể là bonus vĩnh viễn ngay từ lúc spawn.
+- Chọn loại perk bằng **enum** + một switch (người dùng đã chọn enum, không dùng strategy `[SerializeReference]`).
+
+*Nâng level (hai phương án, chưa chọn):*
+1. Lên level chỉ tăng chỉ số (như hiện tại: `bonusPerLevel`).
+2. Lên level **vừa tăng chỉ số vừa mở khóa skill** ở một số mốc level.
+
+*Tab Level — ô skill:*
+- Số ô skill = **đúng số skill của nhân vật** (hiện cố định 3 ô `SkillSlots = 3` trong `CharacterScreenController`, ô thừa để trống).
+- **Bấm vào ô skill thì hiện thông tin skill** (tên, mô tả, cấp...). Skill chưa mở khóa có thể hiện trạng thái khóa (chờ chốt hướng trên).
+
+**Câu hỏi còn mở:**
+- Nâng sao: nâng cấp skill, mở khóa skill, hay cả hai? Level có mở khóa skill không (phương án 1 hay 2)?
+- Dữ liệu perk đặt ở đâu: ngay trong `CharacterDataSO` (kéo skill của chính nhân vật vào), hay SO riêng tham chiếu `CharacterDataSO`?
+  Nếu chuyển chỗ thì migrate 5 perk hiện có của BlessedGladiator (thành 5 skill StatBuff) và giữ `.meta` GUID.
+- **Contract Progression → skill (người dùng thấy chưa rõ, cần giải thích khi thảo luận):** số sao/level được **lưu** ở Progression
+  (`CharacterLevels`), còn skill được **dựng** ở miền Character/Combat (`CharacterSkills`, `SkillFactory`) khi spawn Player.
+  Hai miền chỉ nói chuyện qua interface trong `XxxContracts.cs`, nên Combat cần một vai trò đọc được kiểu
+  "nhân vật X đã mở skill nào, mỗi skill cấp mấy" (ví dụ thêm hàm vào `IPermanentBonuses` hoặc một interface mới trong
+  `ProgressionContracts.cs`). `PlayerSystem` hiện đã làm y hệt với chỉ số (đọc `IPermanentBonuses.GetBonus` lúc spawn), nên skill sẽ đi theo cùng mẫu.
+  **Người dùng đồng ý (2026-11-21):** skill vĩnh viễn đi qua interface trong `ProgressionContracts.cs` như mọi giao tiếp giữa miền; tên hàm/vai trò chốt khi thiết kế.
+- Tab Stars hiển thị perk skill thế nào (icon skill, mô tả cấp mới); popup thông tin skill dùng chung cho tab Level và tab Stars?
+
+## S2b + S3 — perk sao (làm 2026-11-21)
+
+Perk nằm ngay trong `CharacterLevelConfigSO.starPerks` (tối đa 5 `StarPerk`: mô tả, icon, `StatBonus`) thay vì tách `CharacterStarConfigSO`, vì mỗi nhân vật vẫn chỉ có một asset cấu hình tăng trưởng (Simple). `CharacterLevels.GetTotalBonus` = bonus level + `GetStarBonus(stars)`, nên Player và màn Character dùng cùng con số qua `IPermanentBonuses`. Nâng sao phát `BonusesChanged`. Tab Stars: `StarPerkRowView` trên `PerkRow_1..5` (đã mở / kế tiếp / khóa), dữ liệu qua `ICharacterUpgrades.GetStarPerks`. BlessedGladiator: +60 HP, +8 Damage, +10 Defense, +5% Crit, +25% Crit Damage. **Còn lại của S2:** giá mảnh (`CurrencyType.Shard`) và xóa `FreeUpgradesForTesting`.
 
 ## S2a — mở nút nâng sao để test (người dùng yêu cầu 2026-11-20)
 
@@ -34,6 +85,6 @@ Làm trước một phần của S2 để test UI: số sao lưu thật (`Charac
 | **S2** | `CurrencyType.Shard`; mảnh theo nhân vật trong ví; `CharacterStarConfigSO`; `stars` trong save; `StarTrack` thật; bonus sao vào `IPermanentBonuses`; nút debug "+10 mảnh". | Mới: `Progression/Data/CharacterStarConfigSO.cs`, `UI/Debug/AddShardsButton.cs`. Sửa: `Progression/CurrencyType.cs`, `Progression/Wallet.cs`, `Progression/ProgressionContracts.cs`, `Progression/ProgressionManager.cs`, `Progression/CharacterLevels.cs`, `Progression/CharacterUpgradeTracks.cs`, `Progression/Data/LevelDatabaseSO.cs`, `Save/Data/SaveSections.cs`, `Editor/ProjectDataSOEditor.cs`. Asset: `BlessedGladiator_Stars.asset`, `LevelDatabase.asset`, icon mảnh trong `CharacterScreenTheme`. |
 | **S3** | Tab Stars bind perk thật: `StarPerkRowView` trên `PerkRow_1..5` (icon, mô tả; trạng thái đã mở / kế tiếp / khóa); nút UPGRADE tab Stars hiện giá mảnh. | Mới: `UI/CharacterScreen/StarPerkRowView.cs`. Sửa: `CharacterScreenModels.cs`, `CharacterScreenController.cs`, `CharacterDetailView.cs`. Scene: gắn component lên `PerkRow_1..5`. |
 | L1 (hỏi lại sau S2) | Level trừ vàng thật bằng cùng cơ chế ghi một lần, xóa TODO trong `LevelTrack`. | `CharacterUpgradeTracks.cs`, `Wallet.cs` |
-| S4 (kế hoạch riêng) | Perk SkillLevel: cần contract đưa cấp skill vĩnh viễn từ Progression sang `CharacterSkills` (miền Character). | — |
+| S4 📝 (chưa thiết kế) | Perk sao nối với skill nhân vật + dữ liệu perk truy cập / kéo từ data nhân vật. Xem mục **S4** ở trên. | Chốt thiết kế trước |
 
 Mỗi task: compile sạch, Check Service Contracts, Zenject Validate; báo người dùng trước khi sang task kế tiếp. Người dùng play test.

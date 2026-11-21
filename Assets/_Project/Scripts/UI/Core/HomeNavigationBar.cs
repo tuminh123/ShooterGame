@@ -4,13 +4,14 @@ using UnityEngine.UI;
 using Zenject;
 
 /// <summary>
-/// Thanh bar dưới dùng chung của Home và màn Character: nút Battle (về Home) và nút Heroes (mở màn Character).
-/// Nút của màn đang mở "nổi lên" bằng cách bật bản Focus và tắt bản thường, giống mặc định ở menu.
+/// Hai thanh dùng chung của các màn chính (Home, Heroes, sau này Shop, Map...): thanh dưới (nút Battle về Home,
+/// nút Heroes mở màn Character) và thanh trên (tiền tệ, nút menu). Nút của màn đang mở "nổi lên" bằng cách bật bản Focus.
 /// </summary>
 /// <remarks>
-/// Nằm ngoài MainUI (sau CharacterScreen trong hierarchy) vì UIManager tắt MainUI khi mở màn Character,
-/// mà thanh bar phải còn để bấm về Home. Ở trang Detail thanh bar trượt xuống ẩn để không che footer của Detail.
-/// Component đặt trên object luôn bật (HomeNavigation); bản thân thanh bar được bật/tắt bằng SlideTransition.
+/// Cả hai nằm ngoài MainUI và CharacterScreen (sau chúng trong hierarchy) vì UIManager tắt MainUI khi mở màn Character,
+/// mà hai thanh phải đứng yên khi đổi giữa các màn chính. Màn con như Detail thì có header/footer riêng,
+/// nên cả hai thanh cùng ẩn: thanh dưới trượt xuống đáy, thanh trên trượt lên đỉnh; quay lại thì trượt về chỗ cũ.
+/// Component đặt trên object luôn bật (HomeNavigation); hai thanh được bật/tắt bằng SlideTransition.
 /// </remarks>
 public sealed class HomeNavigationBar : MonoBehaviour
 {
@@ -42,6 +43,8 @@ public sealed class HomeNavigationBar : MonoBehaviour
 
     [Tooltip("Thanh bar (BottomBar_Menu); cần SlideTransition để trượt xuống/lên.")]
     [SerializeField] private SlideTransition bar;
+    [Tooltip("Thanh trên (Topbar: tiền tệ, nút menu); cần SlideTransition hướng Up để trượt lên ẩn / trượt xuống hiện.")]
+    [SerializeField] private SlideTransition topBar;
     [Tooltip("Nền dùng chung của Home và màn Character; hiện suốt trạng thái Home để lúc trượt không lộ bản đồ.")]
     [SerializeField] private GameObject sharedBackground;
     [SerializeField] private NavTab battleTab;
@@ -129,17 +132,25 @@ public sealed class HomeNavigationBar : MonoBehaviour
         // Chỉ trượt khi vẫn ở trong menu (vào/ra Detail).
         bool instant = home != wasHome;
         wasHome = home;
-        SetBarShown(home && !(heroesOpen && characterScreen.IsOnDetail), instant);
+        SetBarsShown(home && !(heroesOpen && characterScreen.IsOnDetail), instant);
     }
 
-    private void SetBarShown(bool show, bool instant)
+    // Hai thanh luôn hiện/ẩn cùng nhau; hướng trượt do SlideTransition của từng thanh quyết định.
+    private void SetBarsShown(bool show, bool instant)
     {
         if (barInitialized && show == barShown) return;
-        if (!barInitialized || instant) bar.SetVisibleInstant(show);
-        else if (show) bar.PlayIn();
-        else bar.PlayOut();
+        bool snap = !barInitialized || instant;
+        Apply(bar, show, snap);
+        Apply(topBar, show, snap);
         barInitialized = true;
         barShown = show;
+    }
+
+    private static void Apply(SlideTransition slide, bool show, bool snap)
+    {
+        if (snap) slide.SetVisibleInstant(show);
+        else if (show) slide.PlayIn();
+        else slide.PlayOut();
     }
 
     #endregion

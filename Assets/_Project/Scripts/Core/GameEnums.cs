@@ -238,6 +238,9 @@ public enum SlideDirection
     Down
 }
 
+/// <summary>Trạng thái một perk sao trên tab Stars: đã mở, sao kế tiếp sẽ mở, hoặc còn khóa.</summary>
+public enum StarPerkState { Unlocked, Next, Locked }
+
 /// <summary>Cách hiện một con số chỉ số trên màn Character (CharacterScreenThemeSO).</summary>
 public enum StatFormat
 {

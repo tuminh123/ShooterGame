@@ -38,7 +38,7 @@ public interface IWallet
 #region Permanent Bonuses (PlayerSystem)
 
 /// <summary>
-/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + trang bị. Dùng bởi PlayerSystem.
+/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + perk sao + trang bị. Dùng bởi PlayerSystem.
 /// </summary>
 /// <remarks>PlayerSystem chỉ cần một con số tổng, nên vai trò này gộp sẵn thay vì lộ hai system riêng.</remarks>
 public interface IPermanentBonuses
@@ -46,7 +46,7 @@ public interface IPermanentBonuses
     /// <summary>Bonus cộng thẳng của <paramref name="type"/>; type không có cấu hình level thì ném lỗi.</summary>
     StatBonus GetBonus(CharacterType type);
 
-    /// <summary>Level vĩnh viễn của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
+    /// <summary>Level, sao của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
     event Action BonusesChanged;
 }
 
@@ -114,6 +114,9 @@ public interface ICharacterUpgrades
 
     /// <summary>Phát sau khi một lần nâng thành công (đã đổi RAM và đã thử lưu).</summary>
     event Action<CharacterType, CharacterUpgradeKind> Upgraded;
+
+    /// <summary>Perk theo thứ tự sao (phần tử 0 mở ở sao 1) để tab Stars hiển thị.</summary>
+    IReadOnlyList<StarPerk> GetStarPerks(CharacterType type);
 }
 
 #endregion

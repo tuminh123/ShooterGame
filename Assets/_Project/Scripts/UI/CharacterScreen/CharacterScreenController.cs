@@ -242,8 +242,11 @@ public sealed class CharacterScreenController : UIPanelController
         if (upgraded && !saved)
             Debug.LogWarning($"Upgrade of {character.CharacterType} was applied but not saved yet; it will be retried.", this);
         // Vẽ lại qua Upgraded (đã chạy xong bên trong TryUpgrade).
-        if (upgraded && upgrades.GetQuote(character.CharacterType, kind).Current > before)
-            detail.Celebrate();
+        int after = upgrades.GetQuote(character.CharacterType, kind).Current;
+        if (!upgraded || after <= before) return;
+        detail.Celebrate();
+        // Sao mới mở perk cùng số: dòng perk đó nảy lên để người chơi thấy vừa nhận gì.
+        if (kind == CharacterUpgradeKind.Star) detail.PlayPerkUnlocked(after);
     }
 
     #endregion
@@ -302,12 +305,12 @@ public sealed class CharacterScreenController : UIPanelController
             type, rarity.Label, rarity.Text, rarity.TextColor, character.DisplayName, character.Portrait,
             character.UIVisualPrefab, star.Current,
             tab, level.Current, level.Max, level.Progress, level.ProgressRequired,
-            BuildStats(character), BuildSkillIcons(character),
+            BuildStats(character), BuildSkillIcons(character), BuildStarPerks(type, star.Current),
             type == selection.SelectedCharacterType,
             BuildUpgradeButton(tab == CharacterScreenTab.Level ? level : star)));
     }
 
-    // Chỉ số cuối = chỉ số gốc + bonus vĩnh viễn (level + trang bị), cùng công thức với Player khi vào trận.
+    // Chỉ số cuối = chỉ số gốc + bonus vĩnh viễn (level + perk sao + trang bị), cùng công thức với Player khi vào trận.
     private StatRowModel[] BuildStats(CharacterDataSO character)
     {
         StatBonus bonus = bonuses.GetBonus(character.CharacterType);
@@ -320,6 +323,23 @@ public sealed class CharacterScreenController : UIPanelController
             rows[i] = new StatRowModel(entries[i].Icon, CharacterScreenThemeSO.FormatValue(amount, entries[i].Format), amount);
         }
         return rows;
+    }
+
+    // Perk i mở ở sao i+1: đã có đủ sao thì Unlocked, sao kế tiếp là Next, còn lại Locked.
+    private StarPerkModel[] BuildStarPerks(CharacterType type, int stars)
+    {
+        IReadOnlyList<StarPerk> perks = upgrades.GetStarPerks(type);
+        var models = new StarPerkModel[perks.Count];
+        for (int i = 0; i < perks.Count; i++)
+        {
+            int star = i + 1;
+            StarPerkState state = star <= stars ? StarPerkState.Unlocked
+                : star == stars + 1 ? StarPerkState.Next
+                : StarPerkState.Locked;
+            StarPerk perk = perks[i];
+            models[i] = new StarPerkModel(star, perk?.Icon, perk != null ? perk.Description : string.Empty, state);
+        }
+        return models;
     }
 
     private static Sprite[] BuildSkillIcons(CharacterDataSO character)

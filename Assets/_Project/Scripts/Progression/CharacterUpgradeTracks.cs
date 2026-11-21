@@ -71,12 +71,12 @@ internal sealed class LevelTrack : IUpgradeTrack
 
 /// <summary>
 /// Sao vĩnh viễn: đọc/ghi số sao qua <see cref="CharacterLevels"/>. Mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>.
-/// Giá bằng mảnh nhân vật và perk của từng sao làm ở Task S2/S3 (Docs/Architecture/Character-Stars-Tasks.md).
+/// Mỗi sao mở một perk (CharacterLevelConfigSO.StarPerks). Giá bằng mảnh nhân vật làm ở Task S2 (Docs/Architecture/Character-Stars-Tasks.md).
 /// </summary>
 internal sealed class StarTrack : IUpgradeTrack
 {
     /// <summary>Số sao tối đa, khớp 5 ô sao trên UI.</summary>
-    public const int MaxStars = 5;
+    public const int MaxStars = CharacterLevelConfigSO.MaxStars;
 
     // Lưu ý: CỜ TEST TẠM: true = nâng sao miễn phí để test UI và save trước khi có mảnh nhân vật.
     // Task S2 thay bằng giá mảnh thật (CurrencyType.Shard) và xóa cờ này; đặt false để khóa lại nút nâng sao.

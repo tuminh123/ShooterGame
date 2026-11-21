@@ -145,9 +145,15 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     {
         saved = false;
         if (disposed || !Track(kind).TryUpgrade(type, out saved)) return false;
+        // Sao mới mở một perk: Player và màn Character cần tính lại chỉ số.
+        // Level chỉ đổi bonus khi thật sự lên cấp, đã báo qua CharacterLevels.LevelChanged.
+        if (kind == CharacterUpgradeKind.Star) OnBonusSourceChanged();
         Upgraded?.Invoke(type, kind);
         return true;
     }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<StarPerk> GetStarPerks(CharacterType type) => levels.GetStarPerks(type);
 
     // Một switch duy nhất chọn track theo loại nâng cấp.
     private IUpgradeTrack Track(CharacterUpgradeKind kind)

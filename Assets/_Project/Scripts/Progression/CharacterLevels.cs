@@ -114,12 +114,15 @@ public sealed class CharacterLevels : IDisposable
         return ReadLevel(characterType);
     }
 
-    // Tính tổng bonus vĩnh viễn từ level hiện tại, không sửa template hoặc chỉ số runtime.
+    // Tổng bonus vĩnh viễn = bonus theo level + perk của các sao đã mở; tính lại từ config, không sửa template.
     public StatBonus GetTotalBonus(CharacterType characterType)
     {
         CharacterLevelConfigSO config = GetConfig(characterType);
-        return config.GetTotalBonus(ReadLevel(characterType));
+        return config.GetTotalBonus(ReadLevel(characterType)) + config.GetStarBonus(GetStars(characterType));
     }
+
+    /// <summary>Perk theo thứ tự sao của nhân vật (đọc từ config).</summary>
+    public IReadOnlyList<StarPerk> GetStarPerks(CharacterType characterType) => GetConfig(characterType).StarPerks;
 
     /// <summary>Nguyên liệu đã nạp vào thanh của cấp hiện tại.</summary>
     public int GetUpgradePoints(CharacterType characterType)

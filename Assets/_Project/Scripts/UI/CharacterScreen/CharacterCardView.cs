@@ -21,6 +21,8 @@ public sealed class CharacterCardView : MonoBehaviour
     [SerializeField] private Color emptyStarColor = new Color(0.25f, 0.25f, 0.3f, 0.6f);
     [Tooltip("Nhãn IN USE, chỉ bật khi thẻ là nhân vật đang chọn.")]
     [SerializeField] private GameObject inUseLabel;
+    [Tooltip("Viền xanh quanh thẻ; chỉ bật cho nhân vật đang được sử dụng.")]
+    [SerializeField] private GameObject selectedBorder;
     [Tooltip("Icon thẻ trống, chỉ bật ở trạng thái Empty.")]
     [SerializeField] private GameObject emptyIcon;
     [Tooltip("Các phần tắt khi thẻ trống để thẻ tối như mockup (Gradient, Glow, Bottom, ảnh, sao, level, tên).")]
@@ -51,7 +53,9 @@ public sealed class CharacterCardView : MonoBehaviour
         foreach (GameObject part in hiddenWhenEmpty)
             if (part != null) part.SetActive(!empty);
         if (emptyIcon != null) emptyIcon.SetActive(empty);
-        if (inUseLabel != null) inUseLabel.SetActive(model.State == CharacterCardState.Selected);
+        bool selected = model.State == CharacterCardState.Selected;
+        if (inUseLabel != null) inUseLabel.SetActive(selected);
+        if (selectedBorder != null) selectedBorder.SetActive(selected);
         button.interactable = !empty;
         if (empty) return;
 
