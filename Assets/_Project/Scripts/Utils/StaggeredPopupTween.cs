@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
 
-// Tween nhiều phần tử theo thứ tự, dùng cho thẻ lựa chọn, phần thưởng hoặc bất kỳ danh sách popup nào.
-// Số phần tử không cố định là ba; UI truyền số mục đang hiển thị trong lần mở hiện tại.
+/// <summary>
+/// Tween nhiều phần tử theo thứ tự, dùng cho thẻ lựa chọn, phần thưởng hoặc bất kỳ danh sách popup nào.
+/// Số phần tử không cố định là ba; UI truyền số mục đang hiển thị trong lần mở hiện tại.
+/// </summary>
 public sealed class StaggeredPopupTween : PopupTweenBase
 {
     #region Ordered Item Settings
@@ -15,7 +17,7 @@ public sealed class StaggeredPopupTween : PopupTweenBase
 
     #region Initialization
 
-    // UI cấp danh sách bằng code; hoặc gán Items trong Inspector để dùng PlayOpen không tham số count.
+    /// <summary>UI cấp danh sách bằng code; hoặc gán Items trong Inspector để dùng PlayOpen không tham số count.</summary>
     public void Initialize(Transform[] targets)
     {
         InitializeTargets(targets);
@@ -38,7 +40,7 @@ public sealed class StaggeredPopupTween : PopupTweenBase
         return PlayOpen(TargetCount, onComplete);
     }
 
-    // Mở count mục đầu tiên; các mục ngoài count phải được UI ẩn theo dữ liệu của popup.
+    /// <summary>Mở count mục đầu tiên; các mục ngoài count phải được UI ẩn theo dữ liệu của popup.</summary>
     public float PlayOpen(int count, Action onComplete = null)
     {
         EnsureInitialized();

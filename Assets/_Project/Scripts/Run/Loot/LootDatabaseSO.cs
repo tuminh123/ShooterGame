@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Catalog loot dùng chung: asset chỉ giữ cấu hình, không lưu vật phẩm đang rơi hoặc vàng của trận.
+/// <summary>Catalog loot dùng chung: asset chỉ giữ cấu hình, không lưu vật phẩm đang rơi hoặc vàng của trận.</summary>
 [CreateAssetMenu(fileName = "LootDatabase", menuName = "Shooter Game/Data/Loot Database")]
 public sealed class LootDatabaseSO : ScriptableObject
 {
     #region Drop Entries
 
+    /// <summary>Cấu hình rơi của một loại loot: sprite, lượng thưởng và xác suất rơi.</summary>
     [Serializable]
     public sealed class LootEntry
     {
@@ -20,9 +21,13 @@ public sealed class LootDatabaseSO : ScriptableObject
         [Tooltip("Xác suất rơi khi Enemy chết, thang 0..1: 0 = không rơi, 0.25 = 25%, 1 = luôn rơi.")]
         [SerializeField, Range(0f, 1f)] private float dropChance = 1f; // 1: luôn rơi; 0: không rơi.
 
+        /// <summary>Loại phần thưởng; là khóa tra cứu trong catalog.</summary>
         public PickupType Type => type;
+        /// <summary>Sprite gán vào vỏ PickupView khi vật phẩm rơi.</summary>
         public Sprite Sprite => sprite;
+        /// <summary>Lượng EXP hoặc tiền của một vật phẩm.</summary>
         public int Amount => amount;
+        /// <summary>Xác suất rơi khi Enemy chết, thang 0..1.</summary>
         public float DropChance => dropChance;
     }
 
@@ -38,14 +43,16 @@ public sealed class LootDatabaseSO : ScriptableObject
     [Tooltip("Khoảng cách nhặt tính từ tâm Player đến vật phẩm, theo world unit; phải dương.")]
     [SerializeField, Min(0.01f)] private float pickupRadius = 0.25f; // Bán kính nhặt tính từ tâm Player, theo world unit.
 
+    /// <summary>Vỏ pickup dùng chung cho mọi loại loot.</summary>
     public PickupView PickupPrefab => pickupPrefab;
+    /// <summary>Bán kính nhặt tính từ tâm Player, theo world unit.</summary>
     public float PickupRadius => pickupRadius;
 
     #endregion
 
     #region Runtime Lookup Creation
 
-    // Tạo dictionary cho manager, giống database Character/Equipment; không cache trạng thái lên asset.
+    /// <summary>Tạo dictionary cho manager, giống database Character/Equipment; không cache trạng thái lên asset.</summary>
     public Dictionary<PickupType, LootEntry> CreateLookup()
     {
         if (pickupPrefab == null || !(pickupRadius > 0f) || float.IsInfinity(pickupRadius))

@@ -24,7 +24,9 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
     private readonly float speed, shrinkDuration, knockbackDistance, knockbackDuration;
     private readonly AreaShrinkTiming shrinkTiming;
     private readonly int passes;
-    private readonly Func<Vector2> playerCenter;
+    // Area: tâm vòng tròn chốt một lần lúc tạo nhóm (vị trí Player khi spawn). Sau đó vòng đứng yên trong world,
+    // không đi theo Player; Player chạy ra khỏi vòng thì phải tự né, đúng ý đồ của pattern bao vây.
+    private readonly Vector2 areaCenter;
     private readonly Action<CharacterView> despawn;
     private float age, groupTravelled;
     private bool sealedGroup;
@@ -48,17 +50,21 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #region Khởi tạo và nhận thành viên
 
-    /// <summary>Chốt thông số, tạo offset và ghi tâm ban đầu; chưa sinh nhân vật.</summary>
-    public EnemyFormationRuntime(EnemyPatternSO data, EnemyPathRoute route, Func<Vector2> playerCenter,
+    /// <summary>
+    /// Chốt thông số, tạo offset và ghi tâm ban đầu; chưa sinh nhân vật.
+    /// <paramref name="areaCenter"/> chỉ dùng cho Area: vị trí Player lúc tạo nhóm, giữ cố định suốt đời nhóm.
+    /// </summary>
+    public EnemyFormationRuntime(EnemyPatternSO data, EnemyPathRoute route, Vector2 areaCenter,
         Action<CharacterView> despawn)
-        : this(data.CreateRuntimeData(), route, playerCenter, despawn) { }
+        : this(data.CreateRuntimeData(), route, areaCenter, despawn) { }
 
-    public EnemyFormationRuntime(EnemyPatternSO.RuntimeData data, EnemyPathRoute route, Func<Vector2> playerCenter,
+    /// <summary>Bản nhận dữ liệu runtime đã chốt; xem constructor nhận <see cref="EnemyPatternSO"/>.</summary>
+    public EnemyFormationRuntime(EnemyPatternSO.RuntimeData data, EnemyPathRoute route, Vector2 areaCenter,
         Action<CharacterView> despawn)
     {
         if (data.Type != EnemyPatternType.Area && route == null)
             throw new ArgumentNullException(nameof(route), "Hai chế độ Path cần route runtime.");
-        type = data.Type; this.route = route; this.playerCenter = playerCenter;
+        type = data.Type; this.route = route; this.areaCenter = areaCenter;
         this.despawn = despawn;
         speed = data.Speed;
         knockbackDistance = data.KnockbackDistance; knockbackDuration = data.KnockbackDuration;
@@ -71,11 +77,11 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
     /// <summary>Số slot hình học đã chốt, dùng chung cho cả ba cách spawn.</summary>
     public int SlotCount => offsets.Length;
 
-    /// <summary>Area cộng slot vào tâm Player; hai kiểu Path cộng slot vào điểm đầu đường.</summary>
+    /// <summary>Area cộng slot vào tâm đã chốt; hai kiểu Path cộng slot vào điểm đầu đường.</summary>
     public Vector2 GetSpawnPosition(int memberIndex)
     {
         if (memberIndex < 0 || memberIndex >= offsets.Length) throw new ArgumentOutOfRangeException(nameof(memberIndex));
-        return type == EnemyPatternType.Area ? playerCenter() + offsets[memberIndex] : route.Sample(0f, passes) + offsets[memberIndex];
+        return type == EnemyPatternType.Area ? areaCenter + offsets[memberIndex] : route.Sample(0f, passes) + offsets[memberIndex];
     }
 
     /// <summary>Nhận thành viên theo chỉ số ổn định; con chết không làm dồn vị trí hình.</summary>
@@ -124,7 +130,8 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
             }
             if (type == EnemyPatternType.Area)
             {
-                Vector2 destination = playerCenter() + member.offset * shrinkTiming.GetScale(age);
+                // Thu nhỏ về tâm cố định; anchorDelta của Area luôn bằng 0 nên vòng không trôi theo Player.
+                Vector2 destination = areaCenter + member.offset * shrinkTiming.GetScale(age);
                 member.target = Vector2.MoveTowards((Vector2)member.handle.View.transform.position + anchorDelta, destination,
                     Mathf.Max(0.01f, member.offset.magnitude / shrinkDuration) * shrinkStep);
             }
@@ -203,8 +210,8 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
         return moved;
     }
 
-    /// <summary>Lấy offset camera cho Path hoặc vị trí player cho Area.</summary>
-    private Vector2 CurrentAnchor => route != null ? route.AnchorOffset : playerCenter();
+    /// <summary>Offset camera cho Path; Area dùng tâm cố định nên không có dịch chuyển nào để bù.</summary>
+    private Vector2 CurrentAnchor => route != null ? route.AnchorOffset : areaCenter;
 
     #endregion
 

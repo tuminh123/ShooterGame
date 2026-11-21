@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-// Điều phối luồng giữa các UI; controller giữ logic nghiệp vụ riêng và gửi yêu cầu mở/đóng.
+/// <summary>
+/// Điều phối luồng giữa các UI; controller giữ logic nghiệp vụ riêng và gửi yêu cầu mở/đóng.
+/// Không bind vào Zenject (không ai inject nó); SceneContext vẫn tự inject Construct vì nó nằm trong scene.
+/// </summary>
 [AddComponentMenu("Shooter Game/UI/UI Manager")]
-// Không bind vào Zenject (không ai inject nó); SceneContext vẫn tự inject Construct vì nó nằm trong scene.
 public sealed class UIManager : MonoBehaviour
 {
     #region Scene References
@@ -15,8 +17,10 @@ public sealed class UIManager : MonoBehaviour
     [Serializable]
     private sealed class StatePanelRoute
     {
-        public GameState state; // Trạng thái game mà route này trình bày.
-        public UIPanelController panel; // UI gốc cho trạng thái đó; null nghĩa là đóng UI hiện tại.
+        /// <summary>Trạng thái game mà route này trình bày.</summary>
+        public GameState state;
+        /// <summary>UI gốc cho trạng thái đó; null nghĩa là đóng UI hiện tại.</summary>
+        public UIPanelController panel;
     }
     [SerializeField] private StatePanelRoute[] statePanels = Array.Empty<StatePanelRoute>(); // Mapping trạng thái → UI, không quyết định luồng game.
 
@@ -31,7 +35,8 @@ public sealed class UIManager : MonoBehaviour
     private bool visible = true; // Ẩn toàn bộ UI vẫn bảo toàn lịch sử để tiếp tục khi hiện lại.
     private bool subscribed; // Chống đăng ký sự kiện lặp khi OnEnable và API điều hướng cùng chạy.
     private bool listeningToGame; // Tách khỏi `subscribed`: OnEnable có thể chạy trước Construct, lúc đó chưa có `game` để nghe.
-    public UIPanelController ActivePanel => activePanel; // Chỉ đọc panel hiện tại để các hệ thống quan sát luồng UI.
+    /// <summary>Chỉ đọc panel hiện tại để các hệ thống quan sát luồng UI.</summary>
+    public UIPanelController ActivePanel => activePanel;
 
     #endregion
 
@@ -45,7 +50,7 @@ public sealed class UIManager : MonoBehaviour
         if (game != null) ApplyGameState(game.State);
     }
 
-    // Zenject cung cấp nguồn state; UI chỉ đọc state để chọn màn hình, không tự chuyển state.
+    /// <summary>Zenject cung cấp nguồn state; UI chỉ đọc state để chọn màn hình, không tự chuyển state.</summary>
     [Inject]
     public void Construct(IGameState gameState)
     {
@@ -126,7 +131,7 @@ public sealed class UIManager : MonoBehaviour
         else ClosePanel(panel);
     }
 
-    // Đưa một panel đã đăng ký lên đầu luồng, tạm ẩn panel trước và giữ vị trí để quay lại.
+    /// <summary>Đưa một panel đã đăng ký lên đầu luồng, tạm ẩn panel trước và giữ vị trí để quay lại.</summary>
     public void OpenPanel(UIPanelController panel)
     {
         Subscribe();
@@ -139,7 +144,7 @@ public sealed class UIManager : MonoBehaviour
         RefreshFlow();
     }
 
-    // Đóng một bước trong luồng; nếu là panel đang hiện thì phục hồi bước trước hoặc gốc luồng hiện tại.
+    /// <summary>Đóng một bước trong luồng; nếu là panel đang hiện thì phục hồi bước trước hoặc gốc luồng hiện tại.</summary>
     public void ClosePanel(UIPanelController panel)
     {
         Subscribe();
@@ -149,14 +154,16 @@ public sealed class UIManager : MonoBehaviour
         RefreshFlow();
     }
 
-    // Quay về UI trước thông qua cùng chính sách điều hướng; không tự bỏ queue nghiệp vụ của panel.
+    /// <summary>Quay về UI trước thông qua cùng chính sách điều hướng; không tự bỏ queue nghiệp vụ của panel.</summary>
     public void Back()
     {
         if (activePanel != null && activePanel != rootPanel) ClosePanel(activePanel);
     }
 
-    // Chuyển gốc khi state game đổi: bỏ lịch sử cũ, không tự chọn màn hình hoặc giữ default panel.
-    // Truyền null để đóng mọi panel khi trạng thái chưa có UI tương ứng.
+    /// <summary>
+    /// Chuyển gốc khi state game đổi: bỏ lịch sử cũ, không tự chọn màn hình hoặc giữ default panel.
+    /// Truyền null để đóng mọi panel khi trạng thái chưa có UI tương ứng.
+    /// </summary>
     public void SetRootPanel(UIPanelController panel)
     {
         Subscribe();
@@ -189,7 +196,7 @@ public sealed class UIManager : MonoBehaviour
 
     #region Global Visibility
 
-    // Tạm ẩn/hiện toàn bộ luồng; không xóa lịch sử hay phần thưởng đang chờ của controller.
+    /// <summary>Tạm ẩn/hiện toàn bộ luồng; không xóa lịch sử hay phần thưởng đang chờ của controller.</summary>
     public void SetVisible(bool value)
     {
         Subscribe();

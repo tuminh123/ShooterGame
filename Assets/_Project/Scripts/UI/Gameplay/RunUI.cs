@@ -1,7 +1,7 @@
 using UnityEngine;
 using Zenject;
 
-// UI tiến trình trận tự đăng ký dữ liệu; UIManager chỉ giữ/kết nối các UI.
+/// <summary>UI tiến trình trận tự đăng ký dữ liệu; UIManager chỉ giữ/kết nối các UI.</summary>
 public sealed class RunUI : MonoBehaviour
 {
     #region References And Dependencies
@@ -18,6 +18,7 @@ public sealed class RunUI : MonoBehaviour
 
     #region Injection And Subscription
 
+    /// <summary>SceneContext inject nguồn dữ liệu tiến trình trận.</summary>
     [Inject]
     public void Construct(IRunReader runReader)
     {

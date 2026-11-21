@@ -23,6 +23,7 @@ using Zenject;
 /// Miền khác chỉ thấy các interface trong <c>CharacterContracts.cs</c>.
 /// </remarks>
 public sealed class CharacterManager :
+    DomainManager,
     ICharacterSpawn,
     ICharacterDespawn,
     ICharacterRegistry,
@@ -33,8 +34,25 @@ public sealed class CharacterManager :
     ICharacterCapacity,
     IInitializable,
     ITickable,
+    ILateTickable,
     IDisposable
 {
+    #region Settings
+
+    /// <summary>Cấu hình của miền Character, installer gán từ Inspector.</summary>
+    public sealed class Settings
+    {
+        /// <summary>Prefab vỏ dùng chung cho Player, quái và boss.</summary>
+        public readonly CharacterView CharacterPrefab;
+
+        public Settings(CharacterView characterPrefab)
+        {
+            CharacterPrefab = characterPrefab != null ? characterPrefab : throw new ArgumentNullException(nameof(characterPrefab));
+        }
+    }
+
+    #endregion
+
     #region Owned Systems
 
     private readonly CharacterRuntimePool runtimes;
@@ -50,9 +68,8 @@ public sealed class CharacterManager :
     #region Construction
 
     /// <summary>Dựng miền Character. Thứ tự tạo đi theo chiều phụ thuộc: system nào được dùng thì phải tạo trước.</summary>
-    /// <param name="characterPrefab">Prefab vỏ dùng chung cho Player, quái và boss (installer truyền vào).</param>
     public CharacterManager(
-        CharacterView characterPrefab,
+        Settings settings,
         IGameObjectPool pools,
         IMovementRegistration movementRegistration,
         IMovementCommand movementCommand,
@@ -73,7 +90,7 @@ public sealed class CharacterManager :
             var search = new CharacterSearch(new CharacterSearchFactory(spatialResolution, spatialQuery, queryBuilder));
             var context = new CharacterContext(movementRegistration, movementCommand, spatialRegistration,
                 pools, search, runtimes);
-            factory = new CharacterFactory(characterPrefab, pools, registry, context);
+            factory = new CharacterFactory(settings.CharacterPrefab, pools, registry, context);
             players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses);
             enemyVisibility = new EnemyVisibility(registry);
             playableCharacters = BuildPlayableList(characterDatabase);
@@ -91,17 +108,24 @@ public sealed class CharacterManager :
     #region Lifecycle
 
     /// <summary>Đọc nhân vật đang chọn từ save. Chạy sau SaveManager (xem ExecutionOrder).</summary>
-    public void Initialize()
+    public override void Initialize()
     {
         if (disposed) return;
         players.Initialize();
     }
 
     /// <summary>Tick mọi nhân vật (controller rồi skill vốn có). Chạy sau Combat và Stage trong frame.</summary>
-    public void Tick()
+    public override void Tick()
     {
         if (disposed) return;
         registry.Tick();
+    }
+
+    /// <summary>Cập nhật animation visual của mọi nhân vật, sau khi di chuyển đã áp dụng (xem Lifecycle Order).</summary>
+    public override void LateTick()
+    {
+        if (disposed) return;
+        registry.LateTick();
     }
 
     #endregion
@@ -131,6 +155,8 @@ public sealed class CharacterManager :
     /// <inheritdoc/>
     public IReadOnlyDictionary<CharacterView, CharacterDataSO> Characters => registry.Characters;
 
+    // Event chuyển tiếp: đăng ký vào event của Manager thực chất là đăng ký thẳng vào system con
+    // (add/remove), Manager không giữ danh sách listener riêng.
     /// <inheritdoc/>
     public event Action<CharacterView, CharacterDataSO> CharacterAdded
     {
@@ -234,7 +260,7 @@ public sealed class CharacterManager :
     /// </list>
     /// Mỗi bước được cô lập để lỗi của một system không chặn việc dọn các system còn lại.
     /// </summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;

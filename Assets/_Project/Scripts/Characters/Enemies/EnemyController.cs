@@ -19,7 +19,7 @@ public sealed class EnemyController : CharacterControllerBase
         [Min(0.01f)] public float scanInterval = 0.1f; // * Số giây game giữa hai lần quét; không quét lại trong mọi Update.
     }
 
-    // Recoil is movement configuration. Attack behavior and cooldown come from the skill asset/manager.
+    // Độ giật là cấu hình di chuyển; hành vi tấn công và cooldown lấy từ asset/manager của skill.
     [System.Serializable]
     public sealed class RecoilSettings
     {
@@ -84,6 +84,10 @@ public sealed class EnemyController : CharacterControllerBase
 
     #region Chase & Separation Movement
 
+    /// <summary>
+    /// Một bước di chuyển của quái. Đọc từ trên xuống theo thứ tự ưu tiên:
+    /// chết → pause → phản lực → hết Path → không có Player → đội hình (Pattern) hoặc đuổi Player.
+    /// </summary>
     protected override void TickMovement(CharacterView view, CharacterRuntimeData runtime)
     {
         // * Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
@@ -92,55 +96,81 @@ public sealed class EnemyController : CharacterControllerBase
             characters.Despawn(view);
             return;
         }
-        if (paused || Time.deltaTime <= 0f)
-        {
-            return;
-        }
+
+        if (paused || Time.deltaTime <= 0f) return;
+
         AdvanceScanClock(view, Time.deltaTime);
-        // * Phản lực đang chạy có ưu tiên hơn đuổi/tách; hai lệnh không triệt tiêu nhau.
-        // * Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết.
-        if (ApplyKnockback(view))
-        {
-            if (remainingPath != null) pathAnchorOffset = remainingPath.AnchorOffset;
-            return;
-        }
+
+        if (TickKnockback(view)) return;
+
         if (pathFinished)
         {
             characters.Despawn(view);
             return;
         }
+
         CharacterView target = players.CurrentPlayer;
-        if (target == null || target.RuntimeData == null || !target.RuntimeData.IsAlive)
+        if (!IsAliveTarget(target))
         {
-            separationDirection = Vector2.zero;
-            view.Move(Vector2.zero, 0f);
+            StopMoving(view);
             return;
         }
 
-        if (formation != null)
+        if (formation != null) MoveInFormation(view, target);
+        else ChasePlayer(view, runtime, target);
+    }
+
+    // * Phản lực đang chạy có ưu tiên hơn đuổi/tách; hai lệnh không triệt tiêu nhau.
+    // * Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết. Trả true nếu frame này đang lùi.
+    private bool TickKnockback(CharacterView view)
+    {
+        if (!ApplyKnockback(view)) return false;
+        if (remainingPath != null) pathAnchorOffset = remainingPath.AnchorOffset;
+        return true;
+    }
+
+    private static bool IsAliveTarget(CharacterView target)
+        => target != null && target.RuntimeData != null && target.RuntimeData.IsAlive;
+
+    // Không còn Player để đuổi: đứng yên và bỏ lực tách cũ.
+    private void StopMoving(CharacterView view)
+    {
+        separationDirection = Vector2.zero;
+        view.Move(Vector2.zero, 0f);
+    }
+
+    // Quái thuộc Pattern: đi theo slot của nhóm, hoặc đi nốt Path sau khi tách. Không bao giờ chuyển sang đuổi Player.
+    private void MoveInFormation(CharacterView view, CharacterView target)
+    {
+        // Cho skill tiếp xúc xử lý damage trước khi bắt đầu phản lực cá thể.
+        if (CharacterSearch.Overlaps(view, target)) pendingPatternContact = formation;
+        else patternTouching = false;
+
+        if (remainingPath != null)
         {
-            // Cho skill tiếp xúc xử lý damage trước khi bắt đầu phản lực cá thể.
-            if (CharacterSearch.Overlaps(view, target)) pendingPatternContact = formation;
-            else patternTouching = false;
-            if (remainingPath != null)
-            {
-                MoveRemainingPath(view);
-                return;
-            }
-            if (formation.TryGetTarget(formationMemberIndex, out Vector2 destination))
-            {
-                Vector2 delta = destination - (Vector2)view.transform.position;
-                view.Move(delta, delta.magnitude / Time.deltaTime, delta.magnitude);
-            }
-            else view.Move(Vector2.zero, 0f);
-            return; // Pattern enemies never fall back to chasing.
+            MoveRemainingPath(view);
+            return;
         }
+
+        if (formation.TryGetTarget(formationMemberIndex, out Vector2 destination))
+        {
+            Vector2 delta = destination - (Vector2)view.transform.position;
+            view.Move(delta, delta.magnitude / Time.deltaTime, delta.magnitude);
+        }
+        else view.Move(Vector2.zero, 0f);
+    }
+
+    // Quái thường: đuổi Player, cộng lực tách để không chồng lên nhau trong đám đông.
+    private void ChasePlayer(CharacterView view, CharacterRuntimeData runtime, CharacterView target)
+    {
         UpdateSeparation(view);
         Vector2 toPlayer = target.transform.position - view.transform.position;
+
         // * Hướng đuổi luôn được đọc mới mỗi frame; hướng tách chỉ cập nhật khi đến lịch quét.
         // * Giữ độ lớn nhỏ hơn 1 khi hai hướng triệt tiêu một phần để quái có thể chậm lại trong đám đông.
         Vector2 direction = Vector2.ClampMagnitude(
             toPlayer.normalized + separationDirection * separationStrength, 1f);
+
         // * MovementSystem chuẩn hóa hướng: nhân tốc độ với độ lớn để giữ mức giảm tốc ở trên.
         // * Tổng tốc độ không vượt moveSpeed; giới hạn bước đi vẫn ngăn chạy vượt khoảng cách đến Player.
         // * Hướng nhìn vẫn theo Player, không bị lực tách làm flip ngược lúc quái phải lùi ra xa hàng xóm.

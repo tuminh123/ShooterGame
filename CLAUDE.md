@@ -33,6 +33,9 @@ The project was moved (phases 0–7, all done) to a **data-driven architecture w
 - There are about 10 domain Managers. Each Manager creates its own systems with `new`, and only Managers are bound in Zenject. Calls between domains go through the Manager's role interfaces, all of which live in one `XxxContracts.cs` file per domain. Communication back up the dependency chain uses C# `event` only (no static bus, no SignalBus).
 - Create interfaces only for domain boundaries or strategy families (2+ interchangeable behaviours). Pick variants with an enum plus one switch inside the family's factory.
 - ScriptableObject fields are `[SerializeField] private` with getters only. Data holds parameters; any flag that changes control flow becomes a strategy.
+- **All enums of game code live in `Scripts/Core/GameEnums.cs`**, grouped by domain region. Assets store enums as numbers: add new values at the end (or give explicit numbers) and never renumber existing ones. Editor-only enums stay in the Editor assembly.
+- Manager configuration always goes through the manager's own `Settings` class bound with `BindInstance`; never `WithArguments` (Zenject matches those by type, so a new parameter of the same type can be filled silently with the wrong value).
+- Pools of plain C# objects are plain C# (`Stack<T>`), created with `new` by their manager; no Zenject `MemoryPool`. Pooled prefabs have no `[Inject]` and `PoolManager` does not inject clones: the owning manager passes what a view needs (`beforeActivate` / `Initialize`).
 - Comments are in Vietnamese. Public and internal members get a `/// <summary>`, and comments explain *why*. Use `#region` to group a class into logical sections when it has two or more.
 - Keep `.meta` GUIDs when moving MonoBehaviours or SOs. Work one task at a time, the game must compile after each task, and report to the user before starting the next task.
 
@@ -44,10 +47,11 @@ Start with `Docs/Architecture/Systems-Overview.md`, which maps systems to classe
 ScriptableObject config → service/factory (creates objects, wires them, owns lifecycle) → per-instance runtime state → View/UI. **Never write runtime state into a shared SO asset.** HP, cooldowns and temporary bonuses belong in runtime objects such as `CharacterRuntimeData` and `SkillRuntime`.
 
 ### Zenject composition (`Scripts/Infrastructure/Zenject/`)
-`GameSceneInstaller` is a single (non-partial) MonoInstaller:
-- `BindDomainManagers()`: one `BindInterfacesTo<XxxManager>()` line per domain, ordered bottom-up by dependency. Concrete types are never exposed. The only other binding is `ScreenTransitionController` (shared UI service, `UI/UIContracts.cs`); UI panels are scene MonoBehaviours injected automatically.
-- *Lifecycle Order* region: holds **all** Initialize, Tick, LateTick and Dispose ordering in one place. A new manager with lifecycle needs an entry here. Initialize order: SaveManager (-200, migration runs inside) → ProgressionManager (-160) → CharacterManager (-150) → WorldManager (50) → GameManager (100). Dispose order is the reverse, from higher numbers to lower.
-- Managers are plain Zenject `ITickable` classes, not MonoBehaviours.
+Two MonoInstallers on the SceneContext, in this order:
+- `GameSceneInstaller`: `BindDomainManagers()` has one `BindInterfacesTo<XxxManager>()` line per domain, ordered bottom-up by dependency. Concrete types are never exposed. Its *Lifecycle Order* region holds four ordered lists (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): read top to bottom = run order, and `ConfigureLifecycleOrder` turns list positions into Zenject numbers. Never write order numbers by hand; a new manager with lifecycle gets a line in the right list. Initialize: Save → Progression → Character → World → Game.
+- `UIInstaller`: the UI layer's own bindings: `ScreenTransitionController` (`UI/UIContracts.cs`) and the two UI controllers that need LateTick (`SkillChoiceController`, `GameplayController`), ordered after every manager. Other UI panels are scene MonoBehaviours injected automatically.
+- Managers are plain classes that inherit `DomainManager` (`Core/DomainManager.cs`, virtual Initialize/Tick/LateTick/Dispose) and implement the Zenject lifecycle interfaces; they are not MonoBehaviours.
+- **No code registers itself with `TickableManager`.** Views in the scene or pool (camera, character visuals, skill area visuals, VFX) are ticked by their manager (`WorldManager`, `CharacterManager`, `CombatManager`). **Check Service Contracts** rejects any field holding `TickableManager`.
 
 ### Service contracts
 - **All domains are migrated** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Run, Game): the Manager is the only binding (`BindInterfacesTo<XxxManager>()`), and every cross-domain role lives in `XxxContracts.cs` beside it. Strategy interfaces live beside their family. Stage lives in `Scripts/Stage/` (contracts, rewards, spawn systems). Run lives in `Scripts/Run/` (clock, statistics, run level, loot).
@@ -111,6 +115,9 @@ Dự án đã được chuyển (giai đoạn 0–7, đã xong) sang kiến trú
 - Có khoảng 10 Manager theo miền. Mỗi Manager tự `new` các System của mình, và chỉ Manager được bind vào Zenject. Giữa các miền chỉ giao tiếp qua interface vai trò của Manager, toàn bộ nằm trong một file `XxxContracts.cs` cho mỗi miền. Giao tiếp chiều ngược chỉ dùng C# `event` (không dùng static bus, không dùng SignalBus).
 - Chỉ tạo interface cho ranh giới miền hoặc cho họ strategy (từ 2 hành vi thay được cho nhau trở lên). Chọn biến thể bằng enum + một switch trong factory của họ đó.
 - Field của ScriptableObject là `[SerializeField] private` và chỉ có getter. Data chỉ chứa tham số; cờ nào làm thay đổi luồng xử lý thì chuyển thành strategy.
+- **Mọi enum của code game nằm trong `Scripts/Core/GameEnums.cs`**, chia vùng theo miền. Asset lưu enum bằng số: thêm giá trị mới ở cuối (hoặc gán số rõ ràng), không đổi số của giá trị đã dùng. Enum chỉ dùng trong Editor ở lại assembly Editor.
+- Cấu hình của Manager luôn đi qua class `Settings` riêng của Manager đó, bind bằng `BindInstance`; không dùng `WithArguments` (Zenject ghép theo kiểu, thêm một tham số cùng kiểu có thể bị ghép nhầm mà không báo lỗi).
+- Pool cho object C# thuần viết bằng C# thuần (`Stack<T>`), do Manager sở hữu `new`; không dùng `MemoryPool` của Zenject. Prefab trong pool không có `[Inject]` và `PoolManager` không inject clone: Manager sở hữu truyền dữ liệu view cần qua `beforeActivate` / `Initialize`.
 - Comment bằng tiếng Việt. Member public/internal có `/// <summary>`, comment giải thích *tại sao*. Dùng `#region` để chia class thành các nhóm logic khi có từ hai nhóm trở lên.
 - Giữ GUID trong file `.meta` khi di chuyển MonoBehaviour hoặc SO. Làm từng task một, game phải biên dịch được sau mỗi task, và báo người dùng trước khi sang task tiếp theo.
 
@@ -122,10 +129,11 @@ Bắt đầu từ `Docs/Architecture/Systems-Overview.md`: file này có bản �
 ScriptableObject cấu hình → service/factory (tạo object, kết nối và quản lý vòng đời) → trạng thái runtime riêng của từng cá thể → View/UI. **Không bao giờ ghi trạng thái runtime vào asset SO dùng chung.** HP, cooldown và bonus tạm thời phải nằm trong các object runtime như `CharacterRuntimeData` và `SkillRuntime`.
 
 ### Khởi tạo bằng Zenject (`Scripts/Infrastructure/Zenject/`)
-`GameSceneInstaller` là một MonoInstaller duy nhất (không còn partial):
-- `BindDomainManagers()`: mỗi miền một dòng `BindInterfacesTo<XxxManager>()`, xếp từ dưới lên theo chiều phụ thuộc. Không bao giờ công khai kiểu concrete. Binding khác duy nhất là `ScreenTransitionController` (dịch vụ UI dùng chung, `UI/UIContracts.cs`); các panel UI là MonoBehaviour trong scene, được inject tự động.
-- Vùng *Lifecycle Order*: chứa **toàn bộ** thứ tự Initialize, Tick, LateTick và Dispose ở một chỗ. Manager mới có vòng đời thì phải thêm thứ tự vào đây. Thứ tự Initialize: SaveManager (-200, migration chạy bên trong) → ProgressionManager (-160) → CharacterManager (-150) → WorldManager (50) → GameManager (100). Dispose chạy ngược lại, từ số lớn đến số nhỏ.
-- Các manager là class Zenject `ITickable` thuần, không phải MonoBehaviour.
+SceneContext có hai MonoInstaller, chạy theo thứ tự:
+- `GameSceneInstaller`: `BindDomainManagers()` có mỗi miền một dòng `BindInterfacesTo<XxxManager>()`, xếp từ dưới lên theo chiều phụ thuộc. Không bao giờ công khai kiểu concrete. Vùng *Lifecycle Order* chứa bốn danh sách (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): đọc từ trên xuống là thứ tự chạy, `ConfigureLifecycleOrder` đổi vị trí trong danh sách thành số của Zenject. Không bao giờ viết số thứ tự tay; Manager mới có vòng đời thì thêm một dòng vào đúng danh sách. Initialize: Save → Progression → Character → World → Game.
+- `UIInstaller`: binding riêng của tầng UI: `ScreenTransitionController` (`UI/UIContracts.cs`) và hai controller UI cần LateTick (`SkillChoiceController`, `GameplayController`), chạy sau mọi Manager. Các panel UI khác là MonoBehaviour trong scene, được inject tự động.
+- Các manager là class thuần kế thừa `DomainManager` (`Core/DomainManager.cs`, Initialize/Tick/LateTick/Dispose là virtual) và implement interface vòng đời của Zenject; không phải MonoBehaviour.
+- **Không code nào tự đăng ký với `TickableManager`.** View trong scene hoặc pool (camera, visual nhân vật, visual vùng skill, VFX) do Manager của nó tick hộ (`WorldManager`, `CharacterManager`, `CombatManager`). **Check Service Contracts** báo lỗi nếu có field giữ `TickableManager`.
 
 ### Service contract
 - **Mọi miền đã chuyển** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Run, Game): Manager là binding duy nhất (`BindInterfacesTo<XxxManager>()`), mọi vai trò giữa các miền nằm trong `XxxContracts.cs` cạnh nó. Interface strategy nằm cạnh họ của chúng. Miền Stage nằm trong `Scripts/Stage/` (contracts, rewards, các spawn system). Miền Run nằm trong `Scripts/Run/` (đồng hồ, thống kê, level trận, loot).

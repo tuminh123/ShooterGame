@@ -118,7 +118,7 @@ public sealed class CurrencySaveData
 [Serializable]
 public sealed class StageProgressSaveData
 {
-    // StageId -> true once the first victory reward has been granted.
+    // StageId -> true khi đã trao thưởng thắng lần đầu.
     public Dictionary<string, bool> firstClearStages = new Dictionary<string, bool>(StringComparer.Ordinal);
 
     public StageProgressSaveData Clone() => new StageProgressSaveData

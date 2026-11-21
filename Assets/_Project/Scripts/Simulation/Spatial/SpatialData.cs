@@ -45,9 +45,6 @@ public struct SpatialEntity
 
 #region Query Input & Result
 
-/// <summary>Loại truy vấn: bỏ qua, gần nhất, quét đường bay, lấy mọi hitbox trong vòng tròn.</summary>
-public enum SpatialQueryType : byte { None, Nearest, Sweep, AllInCircle }
-
 /// <summary>Dữ liệu một truy vấn gửi vào job (chỉ số, không tham chiếu Unity). Tạo qua ISpatialQueryBuilder để luôn hợp lệ.</summary>
 public struct SpatialQuery
 {

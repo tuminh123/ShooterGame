@@ -66,37 +66,68 @@ public sealed class GamePrewarm
     {
         if (IsReady) return;
         settings.Validate();
+
+        Dictionary<GameObject, int> plan = BuildObjectPlan(out int totalObjects);
+        objects.ReserveActiveCapacity(totalObjects);
+        PrewarmRuntimeCapacity();
+        await PrewarmObjectsAsync(plan, totalObjects, cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        IsReady = true; // Chỉ mở trạng thái sẵn sàng sau khi toàn bộ kế hoạch thành công.
+        Progress = 1f;
+        ProgressChanged?.Invoke(Progress);
+        Debug.Log($"[PoolPrewarm] Ready: {PreparedObjectCount} objects, " +
+            $"{characterRuntimes.AvailableRuntimes} character runtimes; player can spawn.");
+    }
+
+    // Kế hoạch prefab → số bản sao cần tạo sẵn, gom từ settings và các database. Trả kèm tổng số object.
+    private Dictionary<GameObject, int> BuildObjectPlan(out int totalObjects)
+    {
         var plan = new Dictionary<GameObject, int>();
         Add(plan, characterPrefab.gameObject, settings.CharacterShells);
         Add(plan, combat.BulletPrefab.gameObject, settings.Bullets);
         Add(plan, loot.PickupPrefab != null ? loot.PickupPrefab.gameObject : null, settings.Pickups);
+
         foreach (CharacterDataSO definition in characters.CreateLookup().Values)
         {
             int count = definition.Team == CharacterTeam.Player ? settings.PlayerVisuals :
                 definition.IsBoss ? settings.BossVisuals : settings.EnemyVisuals;
             Add(plan, definition.VisualPrefab, count);
         }
+
+        // Mỗi loại VFX cộng thêm EffectShells vỏ dùng chung, để nhiều loại có thể phát cùng lúc.
         foreach (CombatAssetsSO.EffectEntry effect in combat.EffectEntries)
         {
             Add(plan, combat.EffectPrefab.gameObject, settings.EffectShells);
             Add(plan, effect.VisualPrefab, settings.EffectShells);
         }
+
         // Vỏ và visual là hai object có pool riêng; làm nóng cả visual để không Instantiate lúc bắn.
         foreach (CombatAssetsSO.BulletVisual bullet in combat.BulletEntries)
             Add(plan, bullet.VisualPrefab, settings.Bullets);
         foreach (PoolPrewarmSettingsSO.PrefabEntry entry in settings.AdditionalPrefabs)
             Add(plan, entry.Prefab, entry.Count);
-        int totalObjects = 0;
-        foreach (int count in plan.Values) totalObjects = checked(totalObjects + count);
-        objects.ReserveActiveCapacity(totalObjects);
 
+        totalObjects = 0;
+        foreach (int count in plan.Values) totalObjects = checked(totalObjects + count);
+        return plan;
+    }
+
+    // Tạo sẵn object C# thuần và vùng nhớ job (không phải GameObject): runtime nhân vật, effect, buffer di chuyển.
+    private void PrewarmRuntimeCapacity()
+    {
         characterRuntimes.PrewarmRuntimes(settings.CharacterRuntimes);
         combatCapacity.PrewarmCapacity(settings.SlowRuntimes, settings.DamageOverTimeRuntimes, settings.Bullets);
         // Tạo sẵn cả vùng nhớ job: chỉ prewarm GameObject sẽ vẫn bị resize buffer trong trận đầu.
         simulationCapacity.PrewarmCapacity(
             movers: checked(settings.CharacterShells + settings.Bullets + settings.Pickups),
             hitboxes: settings.CharacterShells);
+    }
 
+    // Tạo bản sao theo kế hoạch, chia nhiều frame để màn Loading vẫn vẽ được thanh tiến độ.
+    private async UniTask PrewarmObjectsAsync(Dictionary<GameObject, int> plan, int totalObjects,
+        CancellationToken cancellationToken)
+    {
         PreparedObjectCount = 0;
         foreach (KeyValuePair<GameObject, int> entry in plan)
         {
@@ -108,12 +139,6 @@ public sealed class GamePrewarm
             }, cancellationToken);
             await UniTask.NextFrame(cancellationToken: cancellationToken);
         }
-        cancellationToken.ThrowIfCancellationRequested();
-        IsReady = true; // Chỉ mở trạng thái sẵn sàng sau khi toàn bộ kế hoạch thành công.
-        Progress = 1f;
-        ProgressChanged?.Invoke(Progress);
-        Debug.Log($"[PoolPrewarm] Ready: {PreparedObjectCount} objects, " +
-            $"{characterRuntimes.AvailableRuntimes} character runtimes; player can spawn.");
     }
 
     private static void Add(Dictionary<GameObject, int> plan, GameObject prefab, int count)

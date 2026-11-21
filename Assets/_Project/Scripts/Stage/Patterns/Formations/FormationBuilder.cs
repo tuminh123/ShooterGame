@@ -2,19 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>ID hình được lưu trong asset; giữ nguyên giá trị để không lệch dữ liệu cũ.</summary>
-public enum FormationType
-{
-    [InspectorName("Chữ nhật / Vuông")] FilledSquare = 0,
-    [InspectorName("Tròn / Elip")] FilledCircle = 2,
-    [InspectorName("Hàng ngang")] HorizontalLine = 4,
-    [InspectorName("Hàng dọc")] VerticalLine = 5,
-    [InspectorName("Tam giác")] Triangle = 6,
-    [InspectorName("Hình thoi")] Diamond = 7,
-    [InspectorName("Lục giác")] Hexagon = 8,
-    [InspectorName("Custom / Tự tạo")] Custom = 9
-}
-
 /// <summary>Sinh offset đội hình xác định từ hình chuẩn hoặc các điểm Custom.</summary>
 public static class FormationBuilder
 {

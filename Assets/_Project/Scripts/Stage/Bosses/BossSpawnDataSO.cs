@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum SpecialEnemyType { Elite, Boss }
-public enum BossAppearanceCondition { AfterAllWavesSpawned, AfterFinalWaveCleared }
-
 /// <summary>Cấu hình một Elite hoặc Boss bằng dữ liệu nhân vật có sẵn.</summary>
 [CreateAssetMenu(fileName = "BossSpawn", menuName = "Shooter Game/Enemy/Special Spawn")]
 public sealed class BossSpawnDataSO : ScriptableObject, IStageSpawnData

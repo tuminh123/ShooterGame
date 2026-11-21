@@ -1,15 +1,6 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-/// <summary>Độ hiếm của nhân vật, dùng cho nhãn trên màn Character. ID được lưu trong asset: loại mới thêm vào cuối, không đổi số cũ.</summary>
-public enum CharacterRarity
-{
-    Common = 0,
-    Rare = 1,
-    Epic = 2,
-    Legendary = 3
-}
-
 // * Template chỉ số, hình ảnh và danh sách skill vốn có, dùng chung cấu trúc cho player, enemy và boss.
 // ! Không lưu máu hiện tại, cooldown hoặc thay đổi trong trận trên asset; các trạng thái đó thuộc runtime riêng.
 [CreateAssetMenu(fileName = "CharacterData", menuName = "Shooter Game/Data/Character")]

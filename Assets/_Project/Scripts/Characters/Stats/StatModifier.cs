@@ -1,15 +1,5 @@
 using System;
 
-/// <summary>Các chỉ số của nhân vật. Giữ nguyên thứ tự tám giá trị đầu: asset buff lưu số, đổi thứ tự sẽ đổi chỉ số bị buff.</summary>
-public enum StatType
-{
-    MaxHealth, Damage, Defense, MoveSpeed, CritChance,
-    CritDamageMultiplier, EffectResistance, EffectHit
-}
-
-/// <summary>Percent là phần trăm tương đối; Add trên chỉ số % là cộng điểm phần trăm.</summary>
-public enum StatOperation { Add, Percent }
-
 /// <summary>Một tác động lên một chỉ số; thời hạn và mục tiêu thuộc skill/effect sở hữu modifier.</summary>
 [Serializable]
 public struct StatModifier

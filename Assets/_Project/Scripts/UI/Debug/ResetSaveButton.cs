@@ -3,6 +3,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Zenject;
 
+/// <summary>Nút debug: xóa save rồi tải lại scene để thử luồng người chơi mới.</summary>
 [RequireComponent(typeof(Button))]
 public sealed class ResetSaveButton : MonoBehaviour
 {
@@ -15,6 +16,7 @@ public sealed class ResetSaveButton : MonoBehaviour
 
     #region Injection And Initialization
 
+    /// <summary>SceneContext inject service bảo trì save.</summary>
     [Inject]
     public void Construct(ISaveMaintenance saveMaintenance) => this.saves = saveMaintenance;
 

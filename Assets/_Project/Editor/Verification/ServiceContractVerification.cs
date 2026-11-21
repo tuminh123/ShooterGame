@@ -30,7 +30,28 @@ public static class ServiceContractVerification
             // vai trò trong XxxContracts.cs. Chặn để kiểu cũ không quay lại.
             Require(!isFacade, contract.Name + " is an aggregate facade; expose roles in the domain's XxxContracts.cs instead.");
         }
-        Debug.Log($"[ServiceContracts] PASS: {interfaces.Length} public contracts.");
+        CheckNoSelfTickRegistration(assembly);
+        Debug.Log($"[ServiceContracts] PASS: {interfaces.Length} public contracts, no self tick registration.");
+    }
+
+    // Mọi thứ tự frame nằm ở installer (GameSceneInstaller/UIInstaller). Code game giữ TickableManager nghĩa là
+    // đang tự AddLate(this, số) với số tự nghĩ ra; Manager tick hộ View thay vì để View tự đăng ký.
+    private static void CheckNoSelfTickRegistration(Assembly assembly)
+    {
+        const BindingFlags allFields = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public |
+            BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        var offenders = new List<string>();
+        foreach (Type type in assembly.GetTypes())
+            foreach (FieldInfo field in type.GetFields(allFields))
+            {
+                Type fieldType = field.FieldType;
+                bool holdsTickables = fieldType == typeof(TickableManager) ||
+                    (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(LazyInject<>) &&
+                     fieldType.GetGenericArguments()[0] == typeof(TickableManager));
+                if (holdsTickables) offenders.Add(type.Name + "." + field.Name);
+            }
+        Require(offenders.Count == 0, "Self tick registration (declare the order in an installer instead): " +
+            string.Join(", ", offenders));
     }
 
     [MenuItem("Shooter Game/Verification/Report Missing Scripts")]

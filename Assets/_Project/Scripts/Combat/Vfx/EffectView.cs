@@ -86,6 +86,17 @@ public sealed class EffectView : MonoBehaviour
 
     #endregion
 
+    #region Frame
+
+    /// <summary>Chuyển frame xuống visual con; <see cref="CombatVfx"/> gọi ở LateTick cho mọi VFX đang phát.</summary>
+    internal void Advance(float deltaTime)
+    {
+        if (owner == null || visual == null || !isActiveAndEnabled) return;
+        visual.Advance(deltaTime);
+    }
+
+    #endregion
+
     #region Cleanup
 
     /// <summary>

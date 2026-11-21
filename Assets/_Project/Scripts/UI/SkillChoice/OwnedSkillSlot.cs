@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
-// View của một ô skill; prefab được PoolManager cấp khi có skill và thu hồi khi panel đóng/reset.
+/// <summary>View của một ô skill; prefab được PoolManager cấp khi có skill và thu hồi khi panel đóng/reset.</summary>
 public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerMoveHandler
 {
     #region Prefab References
@@ -22,7 +22,7 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
 
     #region Presentation
 
-    // Ghi đè toàn bộ nội dung khi lấy từ pool hoặc nâng cấp; không giữ icon/sao của skill trước.
+    /// <summary>Ghi đè toàn bộ nội dung khi lấy từ pool hoặc nâng cấp; không giữ icon/sao của skill trước.</summary>
     public void Show(SkillRuntime skill)
     {
         currentSkill = skill;
@@ -53,7 +53,7 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
         }
     }
 
-    // Xóa dữ liệu trước khi trả pool; không dùng OnDisable vì panel cha có thể chỉ đang tạm ẩn.
+    /// <summary>Xóa dữ liệu trước khi trả pool; không dùng OnDisable vì panel cha có thể chỉ đang tạm ẩn.</summary>
     public void Clear()
     {
         HideTooltip();
@@ -64,6 +64,7 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
         foreach (Transform gem in gemsOn) gem.gameObject.SetActive(false);
     }
 
+    /// <summary>Ghi nhận con trỏ vào ô và hiện tooltip của skill.</summary>
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
@@ -72,12 +73,14 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
         ShowTooltip();
     }
 
+    /// <summary>Cho tooltip đi theo con trỏ khi đang hiện.</summary>
     public void OnPointerMove(PointerEventData eventData)
     {
         pointerPosition = eventData.position;
         if (hovered && tooltip != null && tooltip.gameObject.activeSelf) PositionTooltip();
     }
 
+    /// <summary>Ẩn tooltip khi con trỏ rời ô.</summary>
     public void OnPointerExit(PointerEventData eventData) => HideTooltip();
 
     // Đọc mô tả cùng nguồn với thẻ nâng cấp, nhưng dùng cấp đang sở hữu.

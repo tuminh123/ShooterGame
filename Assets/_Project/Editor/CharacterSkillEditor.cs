@@ -25,8 +25,8 @@ public sealed class CharacterSkillEditor : Editor
         DrawSection($"LEVEL DATA     MAX LEVEL: {serializedObject.FindProperty("levels").arraySize}",
             "Mỗi phần tử là cấu hình của một cấp. Chỉ các Behaviour Data có trong cấp mới được kích hoạt ở cấp đó.",
             () => DrawLevels(serializedObject.FindProperty("levels")));
-        DrawSection("BEHAVIOUR TEMPLATES", "Mẫu quyết định cách từng hành vi chạy. Thông số riêng theo cấp nằm trong Level Data.",
-            () => DrawReferences(serializedObject.FindProperty("behaviours"), "Template", StrategySelector.GetTypes<ISkill>()));
+        DrawSection("BEHAVIOURS", "Loại hành vi skill chạy, mỗi loại tối đa một lần. Thông số riêng theo cấp nằm trong Level Data.",
+            () => DrawProperty("behaviourTypes"));
         serializedObject.ApplyModifiedProperties();
         try { ((SkillDataSO)target).Validate(); }
         catch (Exception exception) { EditorGUILayout.HelpBox(exception.Message, MessageType.Error); }

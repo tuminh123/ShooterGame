@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine.Serialization;
 using Zenject;
 
-// Gắn trên GameplayUI luôn hoạt động; chỉ bật/tắt panel con để controller giữ đúng vòng đời.
+/// <summary>Gắn trên GameplayUI luôn hoạt động; chỉ bật/tắt panel con để controller giữ đúng vòng đời.</summary>
 public sealed class GameplayController : UIPanelController, ILateTickable
 {
     #region Scene References
@@ -38,35 +38,31 @@ public sealed class GameplayController : UIPanelController, ILateTickable
 
     #region Injection & Frame Registration
     private IStageSchedule stage;
-    private LazyInject<TickableManager> tickables;
-    private bool registeredForTicks, gameplayVisible, subscribed, warningActive;
+    private bool gameplayVisible, subscribed, warningActive;
     private StageSpawnWarning currentWarning;
     private Sequence warningAnimation;
     private Vector2 warningRestPosition;
     private bool warningPoseCached;
     private struct ScheduledWarning
     {
+        /// <summary>Loại cảnh báo cần hiện.</summary>
         public StageSpawnWarning Kind;
+        /// <summary>Mốc thời gian Stage sẽ spawn, dùng để tính lúc hiện cảnh báo.</summary>
         public float SpawnAt;
     }
     private readonly List<ScheduledWarning> pendingWarnings = new List<ScheduledWarning>();
 
+    /// <summary>
+    /// SceneContext inject lịch spawn của Stage. LateTick do Zenject gọi: UIInstaller bind controller này
+    /// làm ILateTickable với thứ tự sau mọi Manager, nên không tự đăng ký tick.
+    /// </summary>
     [Inject]
-    public void Construct(IStageSchedule stageSchedule, LazyInject<TickableManager> tickables)
+    public void Construct(IStageSchedule stageSchedule)
     {
         Unsubscribe();
         this.stage = stageSchedule;
-        this.tickables = tickables;
         ClearWarnings();
         if (isActiveAndEnabled) Subscribe();
-    }
-
-    // Đăng ký sau khi container đã dựng xong; toàn bộ hiệu ứng dùng LateUpdate của Zenject.
-    private void Start()
-    {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.AddLate(this, 700);
-        registeredForTicks = true;
     }
 
     private void Subscribe()
@@ -91,8 +87,6 @@ public sealed class GameplayController : UIPanelController, ILateTickable
     {
         Unsubscribe();
         ClearWarnings();
-        if (registeredForTicks) tickables.Value.RemoveLate(this);
-        registeredForTicks = false;
     }
 
     #endregion
@@ -142,6 +136,7 @@ public sealed class GameplayController : UIPanelController, ILateTickable
         AnimateWarning(hold);
     }
 
+    /// <summary>Kiểm tra popup pause đã đóng và xử lý cảnh báo spawn sau khi gameplay đã tick.</summary>
     public void LateTick()
     {
         if (!isActiveAndEnabled) return;

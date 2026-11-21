@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-// * Level trong trận: một bộ bonus cố định mỗi cấp, EXP tính theo công thức; asset không giữ tiến trình lượt chơi.
+/// <summary>Level trong trận: một bộ bonus cố định mỗi cấp, EXP tính theo công thức; asset không giữ tiến trình lượt chơi.</summary>
 [CreateAssetMenu(fileName = "RunLevelConfig", menuName = "Shooter Game/Levels/Run Level Config")]
 public sealed class RunLevelConfigSO : ScriptableObject
 {
@@ -12,8 +12,10 @@ public sealed class RunLevelConfigSO : ScriptableObject
     [Tooltip("Bonus cộng cố định mỗi lần lên cấp trong trận; để 0 nếu chỉ muốn nhận thưởng từ bảng chọn skill. Không bao gồm bonus skill được chọn.")]
     [SerializeField] private StatBonus bonusPerLevel;   // * Mỗi lần lên cấp nhận đúng bộ bonus này; để 0 nếu chỉ thưởng qua lựa chọn nâng cấp.
 
-    public int MaxLevel => maxLevel;                  // * Tới cấp này thì RunLevelProgress bỏ EXP dư.
-    public StatBonus BonusPerLevel => bonusPerLevel;  // * Trả bản sao bonus cố định mỗi lần lên cấp.
+    /// <summary>Tới cấp này thì RunLevelProgress bỏ EXP dư.</summary>
+    public int MaxLevel => maxLevel;
+    /// <summary>Trả bản sao bonus cố định mỗi lần lên cấp.</summary>
+    public StatBonus BonusPerLevel => bonusPerLevel;
 
     #endregion
 
@@ -24,11 +26,15 @@ public sealed class RunLevelConfigSO : ScriptableObject
     [Tooltip("EXP yêu cầu từ cấp L lên L+1 = Initial Experience + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng EXP.")]
     [SerializeField, Min(0)] private int experienceIncreasePerLevel = 5;  // * EXP yêu cầu tăng thêm mỗi cấp; 0 nghĩa là chi phí EXP không đổi.
 
-    public int InitialExperience => initialExperience;                    // * Hệ số A của công thức A + B × (level - 1).
-    public int ExperienceIncreasePerLevel => experienceIncreasePerLevel;  // * Hệ số B, độc lập với chi phí nâng level vĩnh viễn.
+    /// <summary>Hệ số A của công thức A + B × (level - 1).</summary>
+    public int InitialExperience => initialExperience;
+    /// <summary>Hệ số B, độc lập với chi phí nâng level vĩnh viễn.</summary>
+    public int ExperienceIncreasePerLevel => experienceIncreasePerLevel;
 
-    // * EXP từ level L lên L+1 = A + B × (L - 1); false khi cấp không hợp lệ hoặc đạt trần.
-    // ! Trả yêu cầu riêng cho lần lên cấp, không phải tổng EXP cả trận; overflow int sẽ được báo thay vì đổi thành số âm.
+    /// <summary>
+    /// EXP từ level L lên L+1 = A + B × (L - 1); false khi cấp không hợp lệ hoặc đạt trần.
+    /// Lưu ý: Trả yêu cầu riêng cho lần lên cấp, không phải tổng EXP cả trận; overflow int sẽ được báo thay vì đổi thành số âm.
+    /// </summary>
     public bool TryGetNextLevel(int currentLevel, out int experienceRequired, out StatBonus bonus)
     {
         experienceRequired = 0;
@@ -46,7 +52,7 @@ public sealed class RunLevelConfigSO : ScriptableObject
 
     #region Cumulative Stat Growth
 
-    // * Tổng thưởng cố định = bonus mỗi cấp × (level - 1); không bao gồm phần thưởng được chọn qua UI.
+    /// <summary>Tổng thưởng cố định = bonus mỗi cấp × (level - 1); không bao gồm phần thưởng được chọn qua UI.</summary>
     public StatBonus GetTotalBonus(int level)
     {
         ValidateConfiguration();

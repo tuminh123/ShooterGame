@@ -2,23 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Cách phân bố slot hình học, độc lập với cách spawn theo Path hoặc Area.</summary>
-public enum FormationFillMode
-{
-    [InspectorName("Đặc")] Solid = 0,
-    [InspectorName("Rỗng")] Hollow = 1
-}
-
-/// <summary>Các cách nhân đối xứng điểm Custom quanh trục hoặc tâm.</summary>
-public enum FormationSymmetry
-{
-    [InspectorName("Tự do")] None,
-    [InspectorName("Trái / phải")] MirrorHorizontal,
-    [InspectorName("Trên / dưới")] MirrorVertical,
-    [InspectorName("Cả hai trục")] BothAxes,
-    [InspectorName("Qua tâm")] AroundCenter
-}
-
 /// <summary>Dữ liệu hình học đội hình; không giữ nhân vật hoặc tiến trình runtime.</summary>
 [CreateAssetMenu(fileName = "EnemyFormation", menuName = "Shooter Game/Enemy/Formation")]
 public sealed class EnemyFormationSO : ScriptableObject

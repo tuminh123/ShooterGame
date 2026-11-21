@@ -1,62 +1,73 @@
 using System;
 using System.Collections.Generic;
-using Zenject;
 
 /// <summary>
-/// Pool runtime của effect gameplay, tra theo kiểu runtime. Cấu hình effect tự chọn kiểu runtime
-/// (<see cref="IGameplayEffect.RentRuntime"/>), nên EffectSystem không phải switch theo loại effect.
+/// Pool runtime của effect gameplay: mỗi loại runtime một Stack, thuê bằng hàm có kiểu rõ ràng.
 /// </summary>
-/// <remarks>Do <see cref="CombatManager"/> tạo; không bind vào Zenject.</remarks>
+/// <remarks>
+/// Do <see cref="CombatManager"/> tạo bằng <c>new</c>; không bind vào Zenject.
+/// Thêm loại runtime mới = thêm một Stack, một hàm Rent và một nhánh trong <see cref="Return"/>.
+/// Burn và Poison dùng chung <see cref="DamageOverTimeEffectRuntime"/> vì cùng kiểu hành vi.
+/// </remarks>
 public sealed class EffectRuntimePool
 {
-    #region Pool Registry
+    #region Pools
 
-    private readonly Dictionary<Type, IMemoryPool> pools; // Mỗi loại class runtime có một pool đã bind trong installer.
-
-    #endregion
-
-    #region Initialization
-
-    // Burn/Poison dùng chung pool DamageOverTimeEffectRuntime vì cùng kiểu hành vi runtime.
-    public EffectRuntimePool(ClassPool<SlowEffectRuntime> slowPool,        ClassPool<DamageOverTimeEffectRuntime> periodicDamagePool)    {
-        pools = new Dictionary<Type, IMemoryPool>
-        {
-            { typeof(SlowEffectRuntime), slowPool },
-            { typeof(DamageOverTimeEffectRuntime), periodicDamagePool }
-        };
-    }
+    private readonly Stack<SlowEffectRuntime> slowPool = new Stack<SlowEffectRuntime>();
+    private readonly Stack<DamageOverTimeEffectRuntime> damageOverTimePool = new Stack<DamageOverTimeEffectRuntime>();
 
     #endregion
 
-    #region Rent And Prewarm
+    #region Rent
 
-    // Chỉ thuê object; cấu hình gán thông số riêng, manager gán context và kích hoạt sau đó.
-    public T Rent<T>() where T : EffectRuntime
+    /// <summary>Thuê runtime làm chậm; cấu hình gán thông số, EffectSystem gán context và kích hoạt sau đó.</summary>
+    public SlowEffectRuntime RentSlow() => slowPool.Count > 0 ? slowPool.Pop() : new SlowEffectRuntime();
+
+    /// <summary>Thuê runtime sát thương theo thời gian (burn, poison).</summary>
+    public DamageOverTimeEffectRuntime RentDamageOverTime()
+        => damageOverTimePool.Count > 0 ? damageOverTimePool.Pop() : new DamageOverTimeEffectRuntime();
+
+    #endregion
+
+    #region Prewarm
+
+    /// <summary>Bảo đảm có sẵn ít nhất số runtime rảnh cho mỗi loại; chỉ tạo thêm phần còn thiếu.</summary>
+    public void Prewarm(int slowCount, int damageOverTimeCount)
     {
-        if (!pools.TryGetValue(typeof(T), out IMemoryPool pool))
-            throw new InvalidOperationException($"Register a runtime pool for {typeof(T).Name}.");
-        return ((IMemoryPool<T>)pool).Spawn();
+        Fill(slowPool, slowCount);
+        Fill(damageOverTimePool, damageOverTimeCount);
     }
 
-    // Bảo đảm có ít nhất count runtime đang rảnh; chỉ mở rộng phần thiếu, không thu hồi runtime đang chạy.
-    public void Prewarm<T>(int count) where T : EffectRuntime
+    private static void Fill<T>(Stack<T> pool, int count) where T : new()
     {
         if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
-        if (!pools.TryGetValue(typeof(T), out IMemoryPool pool))
-            throw new InvalidOperationException($"Register a runtime pool for {typeof(T).Name}.");
-        int additional = count - pool.NumInactive;
-        if (additional > 0) pool.ExpandBy(additional);
+        while (pool.Count < count) pool.Push(new T());
     }
 
     #endregion
 
-    #region Return And Reset
+    #region Return
 
-    // Manager phải gọi Remove trước. Reset xóa context rồi trả đúng pool theo kiểu runtime thực tế.
+    /// <summary>
+    /// Xóa state rồi trả runtime về đúng Stack theo kiểu thực tế. EffectSystem phải gọi Remove trước.
+    /// Trả một runtime hai lần là lỗi logic (hai effect sẽ dùng chung một object), nên báo ngay.
+    /// </summary>
     public void Return(EffectRuntime runtime)
     {
+        if (runtime == null) throw new ArgumentNullException(nameof(runtime));
         runtime.Reset();
-        pools[runtime.GetType()].Despawn(runtime);
+        switch (runtime)
+        {
+            case SlowEffectRuntime slow: Push(slowPool, slow); break;
+            case DamageOverTimeEffectRuntime damageOverTime: Push(damageOverTimePool, damageOverTime); break;
+            default: throw new InvalidOperationException($"No runtime pool for {runtime.GetType().Name}.");
+        }
+    }
+
+    private static void Push<T>(Stack<T> pool, T runtime)
+    {
+        if (pool.Contains(runtime)) throw new InvalidOperationException("Effect runtime was returned twice.");
+        pool.Push(runtime);
     }
 
     #endregion

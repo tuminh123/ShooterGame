@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Hiển thị tiến độ thật của prewarm; GameManager quyết định khi nào được vào Home.
+/// <summary>Hiển thị tiến độ thật của prewarm; GameManager quyết định khi nào được vào Home.</summary>
 public sealed class LoadingController : UIPanelController
 {
     #region Scene References
@@ -17,6 +17,7 @@ public sealed class LoadingController : UIPanelController
 
     #region Progress And Visibility
 
+    /// <summary>SceneContext inject nguồn tiến độ prewarm và trạng thái game.</summary>
     [Inject]
     public void Construct(ILoadingProgress loadingProgress, IGameState gameState)
     {

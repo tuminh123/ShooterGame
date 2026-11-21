@@ -133,7 +133,7 @@ public abstract class ProjectDataSOEditor : Editor
 
     private void DrawFormation()
     {
-        using (DataInspectorGUI.Section("FORMATION GEOMETRY", "Đặc/Rỗng là cách bố trí hình học, độc lập với cả khối Path, tuần tự Path hoặc Area tại Player.", DataInspectorTone.Visual))
+        using (DataInspectorGUI.Section("FORMATION GEOMETRY", "Đặc/Rỗng là cách bố trí hình học, độc lập với cả khối Path, tuần tự Path hoặc Area quanh Player lúc spawn.", DataInspectorTone.Visual))
             DataInspectorGUI.FormationShapeFields(serializedObject);
         var shape = serializedObject.FindProperty("shape");
         if (shape.hasMultipleDifferentValues) return;

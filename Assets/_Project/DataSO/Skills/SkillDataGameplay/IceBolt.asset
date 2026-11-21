@@ -17,6 +17,7 @@ MonoBehaviour:
   displayName: Ice Bolt
   description: Automatically fires the configured projectile pattern.
   icon: {fileID: 21300000, guid: f75b2793525a349f38a2bd9966b0e931, type: 3}
+  shootingVisualState: 3
   levels:
   - description: Fire 1 bolts that apply slow to enemies.
     behaviours:
@@ -38,15 +39,10 @@ MonoBehaviour:
     behaviours:
     - rid: 1014
     - rid: 1015
-  behaviours:
-  - rid: 1001
-  - rid: 1005
+  behaviourTypes: 0100000006000000
   references:
     version: 2
     RefIds:
-    - rid: 1001
-      type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
-      data: 
     - rid: 1003
       type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
       data: 
@@ -57,9 +53,6 @@ MonoBehaviour:
         applicationChance: 100
         useEffectStats: 1
         slowFraction: 0.3
-    - rid: 1005
-      type: {class: StatBonusSkill, ns: , asm: Assembly-CSharp}
-      data: 
     - rid: 1006
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:

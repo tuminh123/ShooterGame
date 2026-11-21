@@ -84,7 +84,7 @@ public sealed class SlowEffect : GameplayEffectData
     // Cùng cấu hình có thể tạo nhiều runtime cho các mục tiêu/nguồn aura khác nhau.
     public override EffectRuntime RentRuntime(EffectRuntimePool pool)
     {
-        SlowEffectRuntime runtime = pool.Rent<SlowEffectRuntime>();
+        SlowEffectRuntime runtime = pool.RentSlow();
         runtime.SlowFraction = slowFraction;
         return runtime;
     }
@@ -122,7 +122,7 @@ public abstract class DamageOverTimeEffect : GameplayEffectData
     // Runtime chụp damage; manager đọc TickInterval từ cấu hình để đăng ký nhịp riêng.
     public override EffectRuntime RentRuntime(EffectRuntimePool pool)
     {
-        DamageOverTimeEffectRuntime runtime = pool.Rent<DamageOverTimeEffectRuntime>();
+        DamageOverTimeEffectRuntime runtime = pool.RentDamageOverTime();
         runtime.DamagePerTick = damagePerTick;
         return runtime;
     }

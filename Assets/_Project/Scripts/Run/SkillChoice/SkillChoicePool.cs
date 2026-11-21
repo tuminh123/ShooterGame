@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
 
-// Một lựa chọn là CẤP KẾ TIẾP của một skill, không phải một cấp ngẫu nhiên trong toàn bộ bảng.
+/// <summary>Một lựa chọn là CẤP KẾ TIẾP của một skill, không phải một cấp ngẫu nhiên trong toàn bộ bảng.</summary>
 public readonly struct SkillChoiceOffer
 {
     #region Offer Snapshot
 
+    /// <summary>Skill được đề xuất.</summary>
     public readonly SkillDataSO Definition;
+    /// <summary>Cấp skill lúc roll (0 nếu chưa sở hữu); dùng để từ chối offer đã cũ.</summary>
     public readonly int CurrentLevel;
+    /// <summary>Cấp sẽ nhận nếu chọn, luôn bằng CurrentLevel + 1.</summary>
     public readonly int OfferedLevel;
+    /// <summary>Trần cấp của offer, dùng để hiển thị số sao.</summary>
     public readonly int MaxLevel;
 
+    /// <summary>Chụp trạng thái skill tại thời điểm roll.</summary>
     internal SkillChoiceOffer(SkillDataSO definition, int current, int offered, int max)
     { Definition = definition; CurrentLevel = current; OfferedLevel = offered; MaxLevel = max; }
 
@@ -18,7 +23,7 @@ public readonly struct SkillChoiceOffer
 
     #region Validation And Application
 
-    // Chỉ áp dụng nếu runtime vẫn ở đúng cấp lúc roll; offer cũ không được tiêu phần thưởng.
+    /// <summary>Chỉ áp dụng nếu runtime vẫn ở đúng cấp lúc roll; offer cũ không được tiêu phần thưởng.</summary>
     public bool TryApply(ISkillGrant manager, IOwnedSkillReader reader, CharacterView owner)
     {
         if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return false;
@@ -30,23 +35,26 @@ public readonly struct SkillChoiceOffer
     #endregion
 }
 
+/// <summary>Roll các lựa chọn skill cho một bảng thưởng, không lặp skill trong cùng bảng.</summary>
 public sealed class SkillChoicePool
 {
     #region Candidate State
 
-    public const int StarLimit = 5; // UI hiện chỉ mở 5 cấp, chưa đưa tiến hóa level 6 vào phần thưởng.
+    /// <summary>UI hiện chỉ mở 5 cấp, chưa đưa tiến hóa level 6 vào phần thưởng.</summary>
+    public const int StarLimit = 5;
     private readonly List<SkillChoiceOffer> candidates = new List<SkillChoiceOffer>();
     private readonly HashSet<SkillDataSO> unique = new HashSet<SkillDataSO>();
     private readonly HashSet<SkillDataSO> previous = new HashSet<SkillDataSO>();
     private readonly Random random;
 
+    /// <summary>Nhận Random từ bên ngoài để test có thể cố định seed; mặc định tạo Random mới.</summary>
     public SkillChoicePool(Random random = null) => this.random = random ?? new Random();
 
     #endregion
 
     #region Offer Generation
 
-    // Roll không lặp trong một bảng; bỏ skill max và các asset bị controller chặn sau exception.
+    /// <summary>Roll không lặp trong một bảng; bỏ skill max và các asset bị controller chặn sau exception.</summary>
     public void Build(
         IReadOnlyList<SkillDataSO> catalog,
         IOwnedSkillReader manager,
@@ -89,26 +97,27 @@ public sealed class SkillChoicePool
     #endregion
 }
 
-// Một lần nhận EXP có thể tăng nhiều cấp: giữ đủ lượt chọn và roll lại SAU mỗi lần người chơi chọn.
+/// <summary>Một lần nhận EXP có thể tăng nhiều cấp: giữ đủ lượt chọn và roll lại SAU mỗi lần người chơi chọn.</summary>
 public sealed class SkillChoiceProgress
 {
     #region Reward Queue
 
-    public int Pending { get; private set; } // Số lượt chưa tiêu; không phụ thuộc trạng thái panel.
+    /// <summary>Số lượt chưa tiêu; không phụ thuộc trạng thái panel.</summary>
+    public int Pending { get; private set; }
 
-    // Cộng đúng chênh lệch level, bỏ qua sự kiện không tăng cấp.
+    /// <summary>Cộng đúng chênh lệch level, bỏ qua sự kiện không tăng cấp.</summary>
     public void AddLevels(int previous, int current)
     {
         if (current > previous) Pending = checked(Pending + current - previous);
     }
-    // Chỉ gọi khi nhận/nâng thành công; queue rỗng không được âm.
+    /// <summary>Chỉ gọi khi nhận/nâng thành công; queue rỗng không được âm.</summary>
     public bool Consume()
     {
         if (Pending == 0) return false;
         Pending--;
         return true;
     }
-    // Hủy thưởng khi kết thúc/reset vòng đời owner hoặc khi mọi skill đã max.
+    /// <summary>Hủy thưởng khi kết thúc/reset vòng đời owner hoặc khi mọi skill đã max.</summary>
     public void Clear() => Pending = 0;
 
     #endregion

@@ -13,32 +13,11 @@ using Zenject;
 /// </remarks>
 public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTickable
 {
-    #region Zenject Tick Registration
+    #region Frame
 
-    private Zenject.LazyInject<Zenject.TickableManager> tickables;
-    private bool registeredForTicks;
-    private int activationFrame = -1;
-
-    [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
-
-    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
-    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
-    private void StartFrameUpdates()
-    {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.AddLate(this, 700);
-        registeredForTicks = true;
-    }
-
-    private void StopFrameUpdates()
-    {
-        if (!registeredForTicks) return;
-        tickables.Value.RemoveLate(this);
-        registeredForTicks = false;
-    }
-
-    private void Start() => StartFrameUpdates();
+    // LateTick do Zenject gọi: UIInstaller bind controller này làm ILateTickable với thứ tự sau mọi Manager,
+    // nên bảng chọn skill luôn mở SAU khi RunManager đã xử lý xong loot/lên cấp trong cùng frame.
+    private int activationFrame = -1; // Bỏ qua frame vừa bật để không xử lý ngay trong frame panel được bật lại.
 
     #endregion
 
@@ -150,7 +129,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     #region Presentation
 
-    // Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng miền Run giữ lượt để retry.
+    /// <summary>Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng miền Run giữ lượt để retry.</summary>
     public void LateTick()
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
@@ -278,7 +257,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     #region Cleanup
 
     // Gỡ toàn bộ subscription và token pause khi root controller hoặc Canvas ngừng hoạt động.
-    private void OnDestroy() { StopFrameUpdates(); OnDisable(); }
+    private void OnDestroy() => OnDisable();
 
     // Canvas bị tắt giữa trận: hủy lượt chờ như trước đây (miền Run bỏ qua nếu scene đang dọn).
     private void OnDisable()

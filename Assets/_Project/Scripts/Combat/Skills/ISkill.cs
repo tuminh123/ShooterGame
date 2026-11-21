@@ -4,8 +4,8 @@ using System;
 /// Strategy của một <b>hành vi skill</b> (bắn, cưa xoay, aura làm chậm, hồi máu…).
 /// </summary>
 /// <remarks>
-/// Mỗi class hành vi được lưu trong <see cref="SkillDataSO"/> bằng <c>[SerializeReference]</c>,
-/// nên chính asset chọn hành vi nào chạy, không cần switch. <see cref="SkillRuntime"/> gọi các hàm
+/// <see cref="SkillDataSO"/> chỉ lưu loại hành vi (<see cref="SkillBehaviourType"/>); <see cref="SkillFactory"/>
+/// tạo đúng class bằng một switch duy nhất. <see cref="SkillRuntime"/> gọi các hàm
 /// theo thứ tự: <see cref="ApplyData"/> khi mở hoặc lên cấp → mỗi frame <see cref="Tick"/> rồi
 /// <see cref="TryExecute"/> khi hết cooldown → <see cref="IDisposable.Dispose"/> khi skill kết thúc.
 ///

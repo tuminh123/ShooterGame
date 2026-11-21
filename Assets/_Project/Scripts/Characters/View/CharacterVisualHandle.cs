@@ -2,38 +2,15 @@ using System;
 using UnityEngine;
 
 /// <summary>Một đầu mối quay mặt và animation trên prefab ngoại hình. Không gây damage hoặc điều khiển movement.</summary>
-public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
+/// <remarks>
+/// Vỏ thụ động: không tự đăng ký tick. CharacterManager gọi <see cref="LateTick"/> qua registry
+/// (CharacterView.LateTickFrame), nên thứ tự frame chỉ nằm ở installer.
+/// </remarks>
+public sealed class CharacterVisualHandle : MonoBehaviour
 {
-    #region Zenject Tick Registration
-
-    private Zenject.LazyInject<Zenject.TickableManager> tickables;
-    private bool registeredForTicks;
-    private int activationFrame = -1;
-
-    [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
-
-    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
-    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
-    private void StartFrameUpdates()
-    {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.AddLate(this, 400);
-        registeredForTicks = true;
-    }
-
-    private void StopFrameUpdates()
-    {
-        if (!registeredForTicks) return;
-        tickables.Value.RemoveLate(this);
-        registeredForTicks = false;
-    }
-
-    private void Start() => StartFrameUpdates();
-
-    #endregion
-
     #region Configuration & Playback State
+
+    private int activationFrame = -1; // Bỏ qua frame vừa bật để Animator của visual tái sử dụng không đọc state cũ.
     [Header("References")]
     [SerializeField] private Transform facingRoot;
     [SerializeField] private Animator animator;
@@ -83,7 +60,7 @@ public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
 
     private static int Hash(string name) => string.IsNullOrWhiteSpace(name) ? 0 : Animator.StringToHash(name);
 
-    // Capture the scale after CharacterView applies the template's visual settings.
+    // Chụp scale sau khi CharacterView đã áp cấu hình hình ảnh của template.
     public void CaptureFacingScale() => originalFacingScale = facingRoot.localScale;
 
     public void Bind(CharacterPresentation eventSource)
@@ -229,7 +206,11 @@ public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
         animator.Play(hash, 0, 0f);
     }
 
-    public void LateTick()
+    /// <summary>
+    /// Kiểm tra animation hành động/kết thúc đã chạy hết chưa để về lại trạng thái di chuyển hoặc báo hoàn tất.
+    /// CharacterManager gọi ở LateTick, sau khi Simulation đã áp di chuyển của frame.
+    /// </summary>
+    internal void LateTick()
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (source == null || !animator.isActiveAndEnabled ||
@@ -277,6 +258,6 @@ public sealed class CharacterVisualHandle : MonoBehaviour, Zenject.ILateTickable
         return true;
     }
 
-    private void OnDestroy() { StopFrameUpdates(); Unbind(); }
+    private void OnDestroy() => Unbind();
     #endregion
 }

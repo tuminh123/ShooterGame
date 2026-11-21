@@ -4,7 +4,7 @@ using PrimeTween;
 using UnityEngine;
 using Zenject;
 
-// Che UI trước khi đổi lượt; giữ pause đến khi màn mới đã hiện hoàn toàn.
+/// <summary>Che UI trước khi đổi lượt; giữ pause đến khi màn mới đã hiện hoàn toàn.</summary>
 public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransition
 {
     #region Presentation Settings
@@ -26,8 +26,10 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     private Func<bool> pendingCommand;
     private Tween fade;
     private int version;
+    /// <summary>Đang trong một lượt chuyển màn (đang giữ token pause).</summary>
     public bool IsTransitioning => pauseLease != null;
 
+    /// <summary>SceneContext inject trạng thái, luồng game và pause, rồi đưa overlay về trạng thái ẩn.</summary>
     [Inject]
     public void Construct(IGameState gameState, IGameFlow gameFlow, IGamePause gamePause)
     {
@@ -41,8 +43,11 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
 
     #region Navigation Commands
 
+    /// <summary>Che màn rồi bắt đầu lượt chơi; chỉ hợp lệ khi đang ở Home.</summary>
     public bool StartRun() => gameState != null && gameState.State == GameState.Home && Begin(runCommands.StartRun);
+    /// <summary>Che màn rồi chơi lại lượt hiện tại; chỉ hợp lệ khi đang Playing.</summary>
     public bool RestartRun() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.RestartRun);
+    /// <summary>Che màn rồi về Home; chỉ hợp lệ khi đang Playing.</summary>
     public bool ReturnHome() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.ReturnHome);
 
     // Overlay chặn raycast ngay khi nhận lệnh; token riêng không làm mất pause của popup/Home.

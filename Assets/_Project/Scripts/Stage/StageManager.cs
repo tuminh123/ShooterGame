@@ -11,7 +11,7 @@ using Zenject;
 /// Chọn system theo loại data bằng một switch duy nhất (<see cref="Validate(IStageSpawnData)"/>, <see cref="Execute"/>).
 /// Ba system không thay thế được cho nhau (mỗi cái nhận một loại data riêng), nên không dùng interface chung.
 /// </remarks>
-public sealed class StageManager : ITickable, ILateTickable, IDisposable, IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule
+public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDisposable, IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule
 {
     #region Dependency, system và trạng thái
 
@@ -172,7 +172,7 @@ public sealed class StageManager : ITickable, ILateTickable, IDisposable, IStage
     #region Cập nhật và kết thúc màn
 
     /// <summary>Cập nhật Stage và chuyển ngoại lệ sang luồng xử lý lỗi.</summary>
-    public void Tick()
+    public override void Tick()
     {
         try { TickStage(); }
         catch (Exception exception) { FailStage(exception); }
@@ -219,7 +219,7 @@ public sealed class StageManager : ITickable, ILateTickable, IDisposable, IStage
     /// Chạy ở LateTick 200, sau khi Simulation đã áp di chuyển (LateTick 0). Trước đây EnemySpawnManager
     /// tự đăng ký LateTick chỉ để phát event cho hàm này; giờ Zenject gọi thẳng.
     /// </summary>
-    public void LateTick()
+    public override void LateTick()
     {
         if (disposed || !started || Time.deltaTime <= 0f || !CanContinue) return;
         try { formations.LateTick(); }
@@ -282,7 +282,7 @@ public sealed class StageManager : ITickable, ILateTickable, IDisposable, IStage
     }
 
     /// <summary>Gỡ event giữa các system và callback scene, rồi thu hồi quái của lượt đang chạy.</summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;

@@ -6,25 +6,24 @@ using UnityEngine;
 
 /// <summary>Hành vi cưa xoay: các lưỡi cưa quay quanh chủ nhân, gây sát thương và effect lên quái chạm phải.</summary>
 /// <remarks>Hành vi liên tục (chạy trong Tick). Mỗi lưỡi có nhịp đánh lại riêng cho từng mục tiêu. Data: <see cref="OrbitSawData"/>.</remarks>
-[Serializable]
 public sealed class OrbitSawSkill : Skill
 {
     #region Runtime State
 
-    [NonSerialized] private OrbitSawData data; // Cấu hình cấp đang hoạt động.
-    [NonSerialized] private IGameplayEffect[] effectSnapshot; // Effect riêng của cưa.
-    [NonSerialized] private SkillAreaVisual[] blades; // Visual đang thuê từ pool.
-    [NonSerialized] private Dictionary<CharacterHandle, float>[] nextHits; // Lịch hit riêng của mỗi lưỡi.
-    [NonSerialized] private List<CharacterHandle> expired; // Buffer dọn mục tiêu hết cooldown/đã despawn.
-    [NonSerialized] private CharacterHandle[] targets; // Buffer query, không cấp phát mỗi frame.
-    [NonSerialized] private int count; // Số lưỡi đang chạy.
-    [NonSerialized] private float angle; // Góc hiện tại, giữ khi nâng cấp.
-    [NonSerialized] private float clock; // Thời gian phục vụ lịch hit.
-    [NonSerialized] private Vector2 previousCenter; // Tâm ở bước trước để sweep chuyển động.
-    [NonSerialized] private bool hasPrevious; // Không tạo sweep giả khi đổi số lưỡi.
-    [NonSerialized] private bool paused; // Trạng thái visual và cập nhật.
-    [NonSerialized] private bool disposed; // Cleanup một lần.
-    [NonSerialized] private int revision; // Callback đổi data vô hiệu hóa vòng Tick cũ.
+    private OrbitSawData data; // Cấu hình cấp đang hoạt động.
+    private IGameplayEffect[] effectSnapshot; // Effect riêng của cưa.
+    private SkillAreaVisual[] blades; // Visual đang thuê từ pool.
+    private Dictionary<CharacterHandle, float>[] nextHits; // Lịch hit riêng của mỗi lưỡi.
+    private List<CharacterHandle> expired; // Buffer dọn mục tiêu hết cooldown/đã despawn.
+    private CharacterHandle[] targets; // Buffer query, không cấp phát mỗi frame.
+    private int count; // Số lưỡi đang chạy.
+    private float angle; // Góc hiện tại, giữ khi nâng cấp.
+    private float clock; // Thời gian phục vụ lịch hit.
+    private Vector2 previousCenter; // Tâm ở bước trước để sweep chuyển động.
+    private bool hasPrevious; // Không tạo sweep giả khi đổi số lưỡi.
+    private bool paused; // Trạng thái visual và cập nhật.
+    private bool disposed; // Cleanup một lần.
+    private int revision; // Callback đổi data vô hiệu hóa vòng Tick cũ.
     public override SkillBehaviourType Type => SkillBehaviourType.OrbitSaw;
 
     #endregion
@@ -79,57 +78,78 @@ public sealed class OrbitSawSkill : Skill
     public override void Tick(float deltaTime)
     {
         if (disposed || paused || !Owner.CanRun || deltaTime <= 0f) return;
+
         Vector2 center = Owner.Owner.HitPosition;
         if (!hasPrevious) previousCenter = center;
         float turn = data.DegreesPerSecond * deltaTime;
-        int currentRevision = revision;
+        int tickRevision = revision; // Callback damage có thể đổi data (revision++) giữa chừng: khi đó dừng vòng này.
         clock += deltaTime;
-        // Query rộng một lần, rồi dùng hình học sweep cho từng lưỡi. Không dùng Physics2D.
-        Vector2 middle = (center + previousCenter) * 0.5f;
-        int found = Owner.Owner.Search.FindAll(middle,
-            data.OrbitRadius + data.BladeRadius + Vector2.Distance(center, previousCenter) * 0.5f,
-            CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
+
+        int found = FindTargetsAroundSweep(center);
         try
         {
-            for (int blade = 0; blade < count && !disposed && Owner.CanRun && currentRevision == revision; blade++)
-            {
-                EnsureBlade(blade);
-                Prune(nextHits[blade]);
-                float phase = 360f * blade / count;
-                // Chia cung quay thành đoạn <=15 độ, tránh chỉ đo hai đầu khiến cưa xuyên quái ở frame chậm.
-                int steps = Mathf.Clamp(Mathf.CeilToInt(turn / 15f), 1, 128);
-                Vector2 start = previousCenter + Direction(angle + phase) * data.OrbitRadius;
-                for (int step = 1; step <= steps && !disposed && Owner.CanRun && currentRevision == revision; step++)
-                {
-                    float t = step / (float)steps;
-                    Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.OrbitRadius;
-                    for (int i = 0; i < found && !disposed && Owner.CanRun && currentRevision == revision; i++)
-                    {
-                        CharacterHandle target = targets[i];
-                        if (nextHits[blade].ContainsKey(target) || !target.TryGetCharacter(out CharacterView victim)) continue;
-                        if (!SpatialGeometry.SweepCircle(new float2(start.x, start.y), new float2(end.x, end.y),
-                            data.BladeRadius, victim.GetSpatialEntity(), out _)) continue;
-                        // Lịch riêng theo lưỡi + danh tính spawn. Ghi trước callback damage để chống gọi lồng nhau.
-                        nextHits[blade][target] = clock + data.HitInterval;
-                        DamageResult hit = victim.ReceiveDamage(Owner.Identity.CreateDamage());
-                        if (hit.Accepted && Services.Effects != null && Owner.CanRun)
-                            foreach (IGameplayEffect effect in effectSnapshot)
-                            {
-                                if (!Owner.CanRun || disposed || currentRevision != revision) break;
-                                Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
-                            }
-                    }
-                    start = end;
-                }
-                if (!disposed && currentRevision == revision && blades[blade] != null)
-                    blades[blade].SetPose(Direction(angle + turn + phase) * data.OrbitRadius, (angle + turn) * 3f);
-            }
+            for (int blade = 0; blade < count && StillValid(tickRevision); blade++)
+                SweepBlade(blade, center, turn, found, tickRevision);
         }
         finally { Array.Clear(targets, 0, targets.Length); }
-        if (disposed || currentRevision != revision) return;
+
+        if (disposed || tickRevision != revision) return;
         angle = Mathf.Repeat(angle + turn, 360f);
         previousCenter = center;
         hasPrevious = true;
+    }
+
+    // Skill vẫn chạy đúng lượt data của frame này: chưa dispose, chủ còn hoạt động, data chưa bị thay.
+    private bool StillValid(int tickRevision) => !disposed && Owner.CanRun && tickRevision == revision;
+
+    // Query rộng một lần quanh đoạn chủ vừa đi, rồi dùng hình học sweep cho từng lưỡi. Không dùng Physics2D.
+    private int FindTargetsAroundSweep(Vector2 center)
+    {
+        Vector2 middle = (center + previousCenter) * 0.5f;
+        float radius = data.OrbitRadius + data.BladeRadius + Vector2.Distance(center, previousCenter) * 0.5f;
+        return Owner.Owner.Search.FindAll(middle, radius,
+            CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
+    }
+
+    // Quét một lưỡi theo cung quay của frame, chia đoạn <= 15 độ để frame chậm không làm cưa xuyên qua quái.
+    private void SweepBlade(int blade, Vector2 center, float turn, int found, int tickRevision)
+    {
+        EnsureBlade(blade);
+        Prune(nextHits[blade]);
+        float phase = 360f * blade / count;
+        int steps = Mathf.Clamp(Mathf.CeilToInt(turn / 15f), 1, 128);
+        Vector2 start = previousCenter + Direction(angle + phase) * data.OrbitRadius;
+
+        for (int step = 1; step <= steps && StillValid(tickRevision); step++)
+        {
+            float t = step / (float)steps;
+            Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.OrbitRadius;
+            for (int i = 0; i < found && StillValid(tickRevision); i++)
+                TryHitTarget(blade, start, end, targets[i], tickRevision);
+            start = end;
+        }
+
+        if (!disposed && tickRevision == revision && blades[blade] != null)
+            blades[blade].SetPose(Direction(angle + turn + phase) * data.OrbitRadius, (angle + turn) * 3f);
+    }
+
+    // Đoạn quét của lưỡi chạm mục tiêu và mục tiêu đã hết nhịp đánh lại: gây damage rồi áp effect của cấp.
+    private void TryHitTarget(int blade, Vector2 start, Vector2 end, CharacterHandle target, int tickRevision)
+    {
+        if (nextHits[blade].ContainsKey(target) || !target.TryGetCharacter(out CharacterView victim)) return;
+        if (!SpatialGeometry.SweepCircle(new float2(start.x, start.y), new float2(end.x, end.y),
+            data.BladeRadius, victim.GetSpatialEntity(), out _)) return;
+
+        // Lịch riêng theo lưỡi + danh tính spawn. Ghi trước callback damage để chống gọi lồng nhau.
+        nextHits[blade][target] = clock + data.HitInterval;
+        DamageResult hit = victim.ReceiveDamage(Owner.Identity.CreateDamage());
+        if (!hit.Accepted || Services.Effects == null || !Owner.CanRun) return;
+
+        foreach (IGameplayEffect effect in effectSnapshot)
+        {
+            if (!StillValid(tickRevision)) break;
+            Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
+        }
     }
 
     private static Vector2 Direction(float degrees)
@@ -139,7 +159,7 @@ public sealed class OrbitSawSkill : Skill
     {
         if (blades[index] != null) return;
         GameObject clone = Services.Pools.Spawn(data.VisualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
-            beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, data.BladeRadius));
+            beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, data.BladeRadius, Services.AreaVisuals));
         if (clone == null) throw new InvalidOperationException("Could not spawn saw visual.");
         blades[index] = clone.GetComponent<SkillAreaVisual>();
     }

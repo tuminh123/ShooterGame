@@ -3,12 +3,11 @@ using UnityEngine;
 
 /// <summary>Hành vi khiên khẩn cấp: khi HP xuống dưới ngưỡng phần trăm, cấp một lượng khiên cho chủ nhân.</summary>
 /// <remarks>HP còn trên ngưỡng thì không tiêu cooldown. Data: <see cref="EmergencyShieldData"/>.</remarks>
-[Serializable]
 public sealed class EmergencyShieldSkill : Skill
 {
     #region Runtime Configuration
 
-    [NonSerialized] private EmergencyShieldData data; // Data của cấp đang chạy.
+    private EmergencyShieldData data; // Data của cấp đang chạy.
     public override SkillBehaviourType Type => SkillBehaviourType.EmergencyShield;
 
     // Runtime mới không giữ data của bản template.

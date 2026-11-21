@@ -39,7 +39,7 @@ public sealed class GameStateMachine
     // có thể khiến các panel khác kẹt ở state cũ.
     private void Publish(GameState previous, GameState next)
     {
-        Action<GameState, GameState> handlers = StateChanged; // Chụp danh sách để listener tự gỡ khi đang phát vẫn an toàn.
+        Action<GameState, GameState> handlers = StateChanged;
         if (handlers == null) return;
         foreach (Action<GameState, GameState> handler in handlers.GetInvocationList())
         {

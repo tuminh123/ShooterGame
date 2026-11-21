@@ -4,56 +4,37 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Lean.Pool;
 using UnityEngine;
-using Zenject;
 
 /// <summary>
-/// Nhóm của object đang hoạt động: chọn holder trong Hierarchy, và quyết định object có bị thu hồi khi rời gameplay không
-/// (xem <see cref="PoolManager.DespawnGameplayClones"/>). Không quyết định hành vi của prefab.
-/// </summary>
-public enum PoolGroup
-{
-    Enemies,
-    Bullets,
-    World, // Nền map: tồn tại cả ở Home, không bị thu hồi khi rời gameplay.
-    Other,
-    UI     // Phần tử UI dùng pool (ô skill…): UI tự quản lý, không bị thu hồi khi rời gameplay.
-}
-
-/// <summary>
-/// Manager của miền Pool: bọc LeanPool, gom object vào holder theo <see cref="PoolGroup"/> và inject clone mới trước OnEnable.
+/// Manager của miền Pool: bọc LeanPool và gom object vào holder theo <see cref="PoolGroup"/>.
 /// Đây là class <b>duy nhất</b> của Pool được bind vào Zenject; miền khác chỉ thấy <c>PoolContracts.cs</c>.
 /// </summary>
 /// <remarks>
 /// API gọi từ main thread; pool tự tạo dùng OnEnable/OnDisable thay cho thông báo IPoolable.
+/// Clone KHÔNG được Zenject inject: prefab trong pool (nhân vật, đạn, VFX, loot, ô skill) không có [Inject];
+/// dữ liệu cần thiết do Manager sở hữu truyền vào qua <c>beforeActivate</c> hoặc hàm Initialize của view.
 /// Bước prewarm (kế hoạch số lượng của mọi miền) không nằm ở đây: nó cần Character/Combat/Simulation, mà các miền đó
 /// lại phụ thuộc Pool, nên đặt trong Pool sẽ tạo vòng phụ thuộc. Xem GamePrewarm (miền Game).
 /// </remarks>
-public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation, IPoolCleanup
+public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, IPoolPreparation, IPoolCleanup
 {
 
     #region Pool State & Holders
 
-    private readonly DiContainer container;  // * Container scene cung cấp dependency cho object mới.
     private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>(); // * Tra pool theo prefab, dùng lại qua các lượt spawn.
     private readonly HashSet<LeanGameObjectPool> ownedPools = new HashSet<LeanGameObjectPool>();  // * Chỉ hủy pool tự tạo.
-    private readonly HashSet<GameObject> injectedClones = new HashSet<GameObject>();  // * Inject một lần mỗi bản sao.
     // * Clone đang hoạt động → nhóm lúc spawn. Nhóm dùng để biết clone nào là của trận khi rời gameplay.
     private readonly Dictionary<GameObject, PoolGroup> activeClones = new Dictionary<GameObject, PoolGroup>();
     private readonly List<GameObject> sweepBuffer = new List<GameObject>(); // Dùng lại giữa các lần quét; Despawn sửa activeClones.
     private readonly Transform[] holders = new Transform[5];  // * Holder theo thứ tự PoolGroup.
     private Transform root;           // * Gốc Pool Holders với transform mặc định.
     private Transform poolsHolder;    // * Chứa pool và các object đã thu hồi.
-    private Transform stagingHolder;  // * Nhánh tắt trong lúc chuẩn bị injection.
+    private Transform stagingHolder;  // * Nhánh tắt: clone được chuẩn bị ở đây trước khi OnEnable chạy.
     private bool disposed;            // * Ngăn spawn sau khi dịch vụ được giải phóng.
 
     #endregion
 
     #region Initialization & Holder Access
-
-    // * Nhận container; chỉ tạo holder khi có lần sử dụng đầu tiên.
-    public PoolManager(DiContainer container)    {
-        this.container = container;
-    }
 
     // * Trả holder theo nhóm, dùng chung cho enemy, đạn, boss hoặc object khác. Chỉ dùng bên trong miền Pool.
     private Transform GetHolder(PoolGroup group)
@@ -75,7 +56,7 @@ public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation
         activeClones.EnsureCapacity(count);
     }
 
-    // Chuẩn bị đủ clone rảnh và inject trước gameplay, không gọi Initialize/OnEnable của nhân vật/đạn.
+    // Chuẩn bị đủ clone rảnh trước gameplay, không gọi Initialize/OnEnable của nhân vật/đạn.
     public async UniTask PrewarmAsync(GameObject prefab, int count, int batchSize,
         Action<int> reportPrepared, CancellationToken cancellationToken)
     {
@@ -103,11 +84,6 @@ public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation
                 GameObject clone = LeanPool.Spawn(prefab, Vector3.zero, Quaternion.identity, stagingHolder);
                 if (clone == null) throw new InvalidOperationException($"Could not prewarm {prefab.name}.");
                 prepared.Add(clone);
-                if (!injectedClones.Contains(clone))
-                {
-                    container.InjectGameObject(clone);
-                    injectedClones.Add(clone);
-                }
                 reportPrepared?.Invoke(1);
                 // Giữ các clone đã lấy để batch sau không lấy lại chúng; nhường frame cho Loading vẽ.
                 if ((index + 1) % batchSize == 0)
@@ -141,11 +117,6 @@ public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation
             return null;
         try
         {
-            if (!injectedClones.Contains(clone))
-            {
-                container.InjectGameObject(clone);
-                injectedClones.Add(clone);
-            }
             activeClones[clone] = group;
             // * Gán runtime/controller khi clone còn ở Preparing; không để OnEnable nhìn thấy trạng thái cũ.
             beforeActivate?.Invoke(clone);
@@ -275,7 +246,7 @@ public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation
     #region Scene Cleanup
 
     // * Thu hồi clone đang quản lý và hủy pool tự tạo; không DespawnAll toàn cục.
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed)
             return;
@@ -292,7 +263,6 @@ public sealed class PoolManager : IDisposable, IGameObjectPool, IPoolPreparation
                 pool.DespawnAll(true);
         pools.Clear();
         ownedPools.Clear();
-        injectedClones.Clear();
         if (root == null)
             return;
         root.gameObject.SetActive(false);

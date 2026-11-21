@@ -13,12 +13,21 @@ public sealed class CharacterRegistry : IDisposable, ICharacterRegistry, ICharac
 
     private readonly List<CharacterHandle> tickSnapshot = new List<CharacterHandle>(128);
 
-    /// <summary>Tick mọi nhân vật. CharacterManager gọi mỗi frame.</summary>
-    public void Tick()
+    // Delegate tĩnh dùng lại mỗi frame, không cấp phát closure.
+    private static readonly Action<CharacterView> TickStep = view => view.TickFrame(Time.deltaTime);
+    private static readonly Action<CharacterView> LateTickStep = view => view.LateTickFrame();
+
+    /// <summary>Tick mọi nhân vật (controller, feedback). CharacterManager gọi ở Tick.</summary>
+    public void Tick() => ForEachCurrent(TickStep);
+
+    /// <summary>Cập nhật animation visual của mọi nhân vật. CharacterManager gọi ở LateTick.</summary>
+    public void LateTick() => ForEachCurrent(LateTickStep);
+
+    // Chụp danh sách trước: một bước có thể spawn/thu hồi nhân vật khác (chết, triệu hồi, callback animation chết).
+    // Handle giữ đúng lượt spawn, nên vỏ vừa bị thu hồi rồi spawn lại trong frame không bị gọi nhầm.
+    private void ForEachCurrent(Action<CharacterView> step)
     {
         if (disposed) return;
-        // Chụp danh sách trước: tick một nhân vật có thể spawn/thu hồi nhân vật khác (chết, triệu hồi).
-        // Handle giữ đúng lượt spawn, nên vỏ vừa bị thu hồi rồi spawn lại trong frame không bị tick nhầm.
         tickSnapshot.Clear();
         foreach (var view in characters.Keys)
             if (view != null && view.RuntimeData != null)
@@ -29,7 +38,7 @@ public sealed class CharacterRegistry : IDisposable, ICharacterRegistry, ICharac
             {
                 if (disposed) break;
                 if (!handle.IsCurrent || !characters.ContainsKey(handle.View)) continue;
-                try { handle.View.TickFrame(Time.deltaTime); }
+                try { step(handle.View); }
                 catch (Exception exception) { Debug.LogException(exception, handle.View); }
             }
         }

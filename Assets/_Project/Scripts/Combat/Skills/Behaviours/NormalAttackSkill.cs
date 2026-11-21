@@ -5,13 +5,12 @@ using UnityEngine;
 
 /// <summary>Hành vi đánh thường: đánh mục tiêu gần nhất đang chạm hitbox, rồi áp effect nếu đòn trúng.</summary>
 /// <remarks>Data: <see cref="NormalAttackData"/>.</remarks>
-[Serializable]
 public sealed class NormalAttackSkill : Skill
 {
     #region Runtime State
 
-    [NonSerialized] private NormalAttackData data; // Cấu hình cấp hiện tại.
-    [NonSerialized] private IGameplayEffect[] effects; // Snapshot effect riêng của hành vi.
+    private NormalAttackData data; // Cấu hình cấp hiện tại.
+    private IGameplayEffect[] effects; // Snapshot effect riêng của hành vi.
     public override SkillBehaviourType Type => SkillBehaviourType.NormalAttack;
 
     #endregion

@@ -1,9 +1,6 @@
 using System;
 using UnityEngine;
 
-/// <summary>Loại phản hồi hình ảnh mà controller báo cho view (nháy trắng khi trúng đòn, màu của trạng thái).</summary>
-public enum CharacterFeedbackKind { Hit, Poison, Burn, Slow }
-
 /// <summary>
 /// Strategy <b>hành vi của một nhân vật</b>: cách di chuyển (input hay AI), cách nhận/gây sát thương và phản ứng khi chết.
 /// </summary>

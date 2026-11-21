@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Nhân vật quản lý HP/giáp và áp dụng layout theo cấu hình riêng của từng loại.
+/// <summary>Nhân vật quản lý HP/giáp và áp dụng layout theo cấu hình riêng của từng loại.</summary>
 [RequireComponent(typeof(CharacterView))]
 public sealed class CharacterUI : MonoBehaviour
 {
@@ -16,8 +16,10 @@ public sealed class CharacterUI : MonoBehaviour
 
     #region Binding & Lifecycle
 
+    /// <summary>Canvas World Space chứa thanh máu/giáp; CharacterView bật/tắt nó theo trạng thái hiển thị.</summary>
     public RectTransform VitalsRoot => vitalsRoot;
 
+    /// <summary>Áp vị trí, scale và kích thước thanh máu theo cấu hình visual của loại nhân vật.</summary>
     public void ApplyLayout(CharacterVisualSettings settings)
     {
         if (vitalsRoot != null)

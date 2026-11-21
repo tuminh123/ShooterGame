@@ -4,34 +4,11 @@ using UnityEngine;
 /// <summary>VFX phát một ParticleSystem (kể cả các hệ con) và báo hoàn tất khi mọi hạt đã tắt.</summary>
 /// <remarks>Không đổi tên class: prefab tham chiếu script qua GUID.</remarks>
 [RequireComponent(typeof(ParticleSystem))]
-public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual, Zenject.ILateTickable
+public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
 {
-    #region Zenject Tick Registration
+    #region Frame
 
-    private Zenject.LazyInject<Zenject.TickableManager> tickables;
-    private bool registeredForTicks;
-    private int activationFrame = -1;
-
-    [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
-
-    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
-    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
-    private void StartFrameUpdates()
-    {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.AddLate(this, 500);
-        registeredForTicks = true;
-    }
-
-    private void StopFrameUpdates()
-    {
-        if (!registeredForTicks) return;
-        tickables.Value.RemoveLate(this);
-        registeredForTicks = false;
-    }
-
-    private void Start() => StartFrameUpdates();
+    private int activationFrame = -1; // Bỏ qua frame vừa bật: vỏ pool tái sử dụng không đọc trạng thái cũ.
 
     private void OnEnable() => activationFrame = Time.frameCount;
 
@@ -60,7 +37,8 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual, Zenject
         playing = true;
     }
 
-    public void LateTick()
+    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): kiểm tra đã phát xong để báo Completed.</summary>
+    public void Advance(float deltaTime)
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         if (!playing || particles == null || particles.IsAlive(true)) return;
@@ -75,7 +53,7 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual, Zenject
         if (particles != null) particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
     }
 
-    private void OnDestroy() { StopFrameUpdates(); StopAndReset(); }
+    private void OnDestroy() => StopAndReset();
 
     private void OnDisable()
     {

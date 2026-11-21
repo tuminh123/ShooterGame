@@ -5,14 +5,18 @@ using Unity.Mathematics;
 
 #region Grid Construction
 
+/// <summary>Job Burst dựng lưới không gian: chèn mỗi entity hợp lệ vào ô chứa tâm của nó.</summary>
 [BurstCompile]
 internal struct BuildSpatialGridJob : IJobParallelFor
 {
-    [ReadOnly] public NativeArray<SpatialEntity> Entities; // Các hitbox đã chụp trên main thread.
-    public NativeMultiHashMap<int2, int>.ParallelWriter Grid; // Nhiều worker chèn đối tượng vào ô tương ứng.
-    public float CellSize; // Chiều dài cạnh ô theo world unit.
+    /// <summary>Các hitbox đã chụp trên main thread.</summary>
+    [ReadOnly] public NativeArray<SpatialEntity> Entities;
+    /// <summary>Nhiều worker chèn đối tượng vào ô tương ứng.</summary>
+    public NativeMultiHashMap<int2, int>.ParallelWriter Grid;
+    /// <summary>Chiều dài cạnh ô theo world unit.</summary>
+    public float CellSize;
 
-    // Chèn một đối tượng hợp lệ; không truy cập CharacterView/Transform trong job.
+    /// <summary>Chèn một đối tượng hợp lệ; không truy cập CharacterView/Transform trong job.</summary>
     public void Execute(int index)
     {
         SpatialEntity entity = Entities[index];
@@ -25,18 +29,26 @@ internal struct BuildSpatialGridJob : IJobParallelFor
 
 #region Single Hit Queries
 
+/// <summary>Job Burst xử lý song song các query lấy một mục tiêu tốt nhất cho một loại query.</summary>
 [BurstCompile]
 internal struct SpatialQueryJob : IJobParallelFor
 {
-    public SpatialQueryType SupportedType; // Strategy chọn loại cần xử lý; các query khác giữ nguyên kết quả.
-    [ReadOnly] public NativeArray<SpatialEntity> Entities; // Hình học để kiểm tra chính xác sau khi lọc ứng viên.
-    [ReadOnly] public NativeMultiHashMap<int2, int> Grid; // Danh sách ứng viên theo tọa độ ô.
-    [ReadOnly] public NativeArray<SpatialQuery> Queries; // Yêu cầu tìm đã được factory/manager kiểm tra.
-    public NativeArray<SpatialHit> Results; // Mỗi worker chỉ ghi kết quả ở index của mình.
-    public float CellSize; // Dùng cùng kích thước ô với bước dựng grid.
-    public float2 MaxHalfSize; // Nới vùng lấy ứng viên để bao cả hộp có tâm nằm ngoài vùng query.
+    /// <summary>Strategy chọn loại cần xử lý; các query khác giữ nguyên kết quả.</summary>
+    public SpatialQueryType SupportedType;
+    /// <summary>Hình học để kiểm tra chính xác sau khi lọc ứng viên.</summary>
+    [ReadOnly] public NativeArray<SpatialEntity> Entities;
+    /// <summary>Danh sách ứng viên theo tọa độ ô.</summary>
+    [ReadOnly] public NativeMultiHashMap<int2, int> Grid;
+    /// <summary>Yêu cầu tìm đã được factory/manager kiểm tra.</summary>
+    [ReadOnly] public NativeArray<SpatialQuery> Queries;
+    /// <summary>Mỗi worker chỉ ghi kết quả ở index của mình.</summary>
+    public NativeArray<SpatialHit> Results;
+    /// <summary>Dùng cùng kích thước ô với bước dựng grid.</summary>
+    public float CellSize;
+    /// <summary>Nới vùng lấy ứng viên để bao cả hộp có tâm nằm ngoài vùng query.</summary>
+    public float2 MaxHalfSize;
 
-    // Xử lý một query: tìm ứng viên, kiểm tra hình học và chọn điểm số tốt nhất.
+    /// <summary>Xử lý một query: tìm ứng viên, kiểm tra hình học và chọn điểm số tốt nhất.</summary>
     public void Execute(int index)
     {
         SpatialQuery query = Queries[index];
@@ -78,7 +90,7 @@ internal struct SpatialQueryJob : IJobParallelFor
         Results[index] = result;
     }
 
-    // Lọc trạng thái, phe và chính đối tượng bị loại trừ trước khi tính hình học.
+    /// <summary>Lọc trạng thái, phe và chính đối tượng bị loại trừ trước khi tính hình học.</summary>
     internal static bool Matches(SpatialQuery query, SpatialEntity entity)
         => entity.Active != 0 && entity.Team == query.TargetTeam &&
            !(entity.Index == query.ExcludeIndex && entity.Version == query.ExcludeVersion);
@@ -88,17 +100,24 @@ internal struct SpatialQueryJob : IJobParallelFor
 
 #region Multiple Hit Queries
 
+/// <summary>Job Burst lấy mọi mục tiêu trong vùng tròn của một query.</summary>
 [BurstCompile]
 internal struct SpatialFindAllJob : IJob
 {
-    [ReadOnly] public NativeArray<SpatialEntity> Entities; // Snapshot hitbox dùng chung.
-    [ReadOnly] public NativeMultiHashMap<int2, int> Grid; // Chỉ duyệt các ô gần vùng tròn.
-    public NativeList<SpatialHit> Results; // Đủ chỗ cho mọi entity; không tăng dung lượng trong job.
-    public SpatialQuery Query; // Một yêu cầu lấy tất cả mục tiêu.
-    public float CellSize; // Kích thước ô của grid hiện tại.
-    public float2 MaxHalfSize; // Nới vùng ứng viên theo kích thước hitbox lớn nhất.
+    /// <summary>Snapshot hitbox dùng chung.</summary>
+    [ReadOnly] public NativeArray<SpatialEntity> Entities;
+    /// <summary>Chỉ duyệt các ô gần vùng tròn.</summary>
+    [ReadOnly] public NativeMultiHashMap<int2, int> Grid;
+    /// <summary>Đủ chỗ cho mọi entity; không tăng dung lượng trong job.</summary>
+    public NativeList<SpatialHit> Results;
+    /// <summary>Một yêu cầu lấy tất cả mục tiêu.</summary>
+    public SpatialQuery Query;
+    /// <summary>Kích thước ô của grid hiện tại.</summary>
+    public float CellSize;
+    /// <summary>Nới vùng ứng viên theo kích thước hitbox lớn nhất.</summary>
+    public float2 MaxHalfSize;
 
-    // Thu mọi hitbox giao vòng tròn; mỗi entity ở một ô nên không lặp kết quả.
+    /// <summary>Thu mọi hitbox giao vòng tròn; mỗi entity ở một ô nên không lặp kết quả.</summary>
     public void Execute()
     {
         float2 extent = MaxHalfSize + Query.Radius; // Bao cả hitbox to có tâm ngoài vòng tròn.

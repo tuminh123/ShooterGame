@@ -2,12 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Loại hình ảnh đạn. Giá trị đã serialize trong asset: chỉ thêm ở cuối.</summary>
-public enum BulletType { Holy, Fire, Ice, Poison }
-
-/// <summary>Loại VFX chạy một lần. Giá trị số đã serialize trong asset, không được đổi số của giá trị cũ.</summary>
-public enum EffectType { None = 0, HolyImpact = 1, FireImpact = 2, IceImpact = 3, PoisonImpact = 4, LightningImpact = 5, WindImpact = 6 }
-
 /// <summary>
 /// Catalog hình ảnh của combat: prefab vỏ đạn, visual và hitbox theo <see cref="BulletType"/>,
 /// prefab vỏ VFX và visual theo <see cref="EffectType"/>.

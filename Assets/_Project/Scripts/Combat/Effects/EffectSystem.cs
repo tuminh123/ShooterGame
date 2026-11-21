@@ -14,7 +14,7 @@ using UnityEngine;
 public sealed class EffectSystem : IDisposable
 {
     #region Dependencies And Runtime State
-    private readonly EffectRuntimePool poolEffectRuntimeLease; // Thuê/trả class runtime; không quản lý prefab VFX.
+    private readonly EffectRuntimePool runtimePool; // Thuê/trả class runtime; không quản lý prefab VFX.
     private readonly List<(EffectRuntime Runtime, ulong Version)> tickSnapshot = new List<(EffectRuntime, ulong)>(64);
     private readonly List<EffectRuntime> activeEffects = new List<EffectRuntime>(64); // Các effect còn hiệu lực; thêm khi Apply, gỡ khi kết thúc.
     private readonly Dictionary<(CharacterRuntimeData, IGameplayEffect), EffectRuntime> lookup =
@@ -22,8 +22,8 @@ public sealed class EffectSystem : IDisposable
     private readonly Dictionary<CharacterRuntimeData, List<EffectRuntime>> targetEffects =
         new Dictionary<CharacterRuntimeData, List<EffectRuntime>>(); // Pause/clear chỉ duyệt các effect thuộc mục tiêu đó.
     private readonly Stack<List<EffectRuntime>> freeTargetLists = new Stack<List<EffectRuntime>>(); // Tái sử dụng list sau khi mục tiêu hết effect.
-    private readonly List<EffectRuntime> pendingReturns = new List<EffectRuntime>(16); // Effect đã ngừng hoạt động, chờ callback kết thúc mới Remove/Reset/trả poolEffectRuntimeLease.
-    private int operationDepth; // Hoãn trả poolEffectRuntimeLease khi Apply/Tick còn đang chạy qua callback damage hoặc stats.
+    private readonly List<EffectRuntime> pendingReturns = new List<EffectRuntime>(16); // Effect đã ngừng hoạt động, chờ callback kết thúc mới Remove/Reset/trả về pool.
+    private int operationDepth; // Hoãn trả về pool khi Apply/Tick còn đang chạy qua callback damage hoặc stats.
     private bool disposed; // Chặn yêu cầu mới ngay khi bắt đầu dọn manager.
 
     #endregion
@@ -33,7 +33,7 @@ public sealed class EffectSystem : IDisposable
     // CombatManager cấp pool runtime và gọi Tick; mỗi runtime tự giữ duration và pha tác động riêng.
     public EffectSystem(EffectRuntimePool effectRuntimePool)
     {
-        this.poolEffectRuntimeLease = effectRuntimePool ?? throw new ArgumentNullException(nameof(effectRuntimePool));
+        this.runtimePool = effectRuntimePool ?? throw new ArgumentNullException(nameof(effectRuntimePool));
     }
 
     #endregion
@@ -61,7 +61,7 @@ public sealed class EffectSystem : IDisposable
         return handle;
     }
 
-    // Kiểm tra cả manager sở hữu và phiên bản thuê; handle cũ không trỏ sang lượt dùng mới của poolEffectRuntimeLease.
+    // Kiểm tra cả manager sở hữu và phiên bản thuê; handle cũ không trỏ sang lượt dùng mới của runtime trong pool.
     public bool IsActive(EffectHandle handle)
         => handle.Runtime != null && ReferenceEquals(handle.Runtime.Manager, this) &&
             handle.Runtime.Version == handle.Version && handle.Runtime.IsActive;
@@ -121,7 +121,7 @@ public sealed class EffectSystem : IDisposable
         EffectRuntime created = null;
         try
         {
-            created = configuration.RentRuntime(poolEffectRuntimeLease);
+            created = configuration.RentRuntime(runtimePool);
             created.Initialize(configuration, character, sourceTeam);
             created.Manager = this;
             created.IsMaintained = maintained;
@@ -290,7 +290,7 @@ public sealed class EffectSystem : IDisposable
         runtime.Owner.NotifyEffectFeedback(runtime.Target, kind, active);
     }
 
-    // Chỉ thao tác ngoài cùng được trả poolEffectRuntimeLease, tránh callback lồng nhau tái sử dụng runtime còn đang chạy.
+    // Chỉ thao tác ngoài cùng được trả về pool, tránh callback lồng nhau tái sử dụng runtime còn đang chạy.
     private void EndOperation()
     {
         if (--operationDepth != 0) return;
@@ -304,7 +304,7 @@ public sealed class EffectSystem : IDisposable
                 pendingReturns.RemoveAt(last);
                 try { runtime.Remove(); }
                 catch (Exception exception) { Debug.LogException(exception); }
-                finally { poolEffectRuntimeLease.Return(runtime); }
+                finally { runtimePool.Return(runtime); }
             }
         }
         finally { operationDepth--; }
@@ -325,7 +325,7 @@ public sealed class EffectSystem : IDisposable
         finally { EndOperation(); }
     }
 
-    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về poolEffectRuntimeLease.
+    // Kết thúc scene/trận: ngừng nhận effect, dọn mọi runtime rồi trả chúng về runtimePool.
     public void Dispose()
     {
         if (disposed) return;

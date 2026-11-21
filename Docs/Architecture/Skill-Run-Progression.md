@@ -4,7 +4,8 @@
 
 ## Cấu trúc
 
-SkillDataSO chứa display/source, cấp cấu hình ban đầu, Levels[] và danh sách mẫu ISkill[].
+SkillDataSO chứa display/source, cấp cấu hình ban đầu, Levels[] và danh sách loại hành vi `SkillBehaviourType[]`.
+SkillFactory tạo class hành vi bằng `new` qua một switch duy nhất (`SkillFactory.New`), mỗi nhân vật một object riêng.
 Mỗi cấp chứa mô tả và danh sách SkillBehaviourData đầy đủ. Số cấp là Levels.Length;
 không còn MaxLevel riêng hoặc ShootingLevelTable.
 

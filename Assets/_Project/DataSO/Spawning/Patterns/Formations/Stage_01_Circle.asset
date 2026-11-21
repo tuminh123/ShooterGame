@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   shape: 2
   fillMode: 1
-  level: 1
+  level: 3
   size: {x: 6, y: 6}
   rotation: 0
   customPoints:

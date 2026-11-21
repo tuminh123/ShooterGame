@@ -18,5 +18,11 @@ public interface IEffectVisual
     void Play(); // Phát lại từ đầu, không mang trạng thái của lượt dùng trước.
     void StopAndReset(); // Dừng và xóa trạng thái hiển thị trước khi trả về pool.
 
+    /// <summary>
+    /// Kiểm tra đã phát xong chưa; xong thì phát <see cref="Completed"/>. CombatVfx gọi mỗi frame ở LateTick
+    /// (qua EffectView), nên visual không tự đăng ký tick. <paramref name="deltaTime"/> = 0 khi game pause.
+    /// </summary>
+    void Advance(float deltaTime);
+
     #endregion
 }

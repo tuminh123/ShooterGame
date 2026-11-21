@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Nút pause tự quản lý click; không để UIManager xử lý hành vi của từng nút.
+/// <summary>Nút pause tự quản lý click; không để UIManager xử lý hành vi của từng nút.</summary>
 public sealed class PauseUI : MonoBehaviour
 {
     #region References And Pause State
@@ -27,6 +27,7 @@ public sealed class PauseUI : MonoBehaviour
 
     #region Injection And Lifecycle
 
+    /// <summary>SceneContext inject các service pause và luồng game cho nút pause.</summary>
     [Inject]
     public void Construct(
         IGamePause gamePause,
@@ -94,7 +95,7 @@ public sealed class PauseUI : MonoBehaviour
         transition.ReturnHome();
     }
 
-    // Cleanup tức thời cho đổi state/tắt HUD; hủy tween cũ và trả scale gốc trước khi ẩn popup.
+    /// <summary>Cleanup tức thời cho đổi state/tắt HUD; hủy tween cũ và trả scale gốc trước khi ẩn popup.</summary>
     public void Resume()
     {
         closing = false;
@@ -105,7 +106,7 @@ public sealed class PauseUI : MonoBehaviour
         if (popup != null) popup.SetActive(false);
     }
 
-    // GameplayController gọi trong LateTick: đóng popup từ ngoài cũng phải trả đúng token pause.
+    /// <summary>GameplayController gọi trong LateTick: đóng popup từ ngoài cũng phải trả đúng token pause.</summary>
     internal void CheckPopupClosed()
     {
         if (pauseLease != null && (popup == null || !popup.activeInHierarchy)) Resume();

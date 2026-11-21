@@ -20,7 +20,7 @@ using Zenject;
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
-public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
+public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
 {
     #region Fields
 
@@ -36,6 +36,8 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
 
     #region Events
 
+    // Event chuyển tiếp: đăng ký vào event của Manager thực chất là đăng ký thẳng vào system con
+    // (add/remove), Manager không giữ danh sách listener riêng.
     /// <inheritdoc/>
     public event Action<CurrencyType, long> BalanceChanged
     {
@@ -74,7 +76,7 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
     }
 
     /// <summary>Đọc mọi section sau SaveManager (-200) và trước CharacterManager (-150), xem ExecutionOrder.</summary>
-    public void Initialize()
+    public override void Initialize()
     {
         if (disposed) return;
         wallet.Load();
@@ -84,7 +86,7 @@ public sealed class ProgressionManager : IWallet, IPermanentBonuses, IStageProgr
     }
 
     /// <summary>Gỡ listener rồi dọn từng system; lỗi một system không chặn các system còn lại.</summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;

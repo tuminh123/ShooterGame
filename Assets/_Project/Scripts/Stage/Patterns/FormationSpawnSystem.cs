@@ -18,7 +18,7 @@ internal sealed class FormationSpawnSystem
     }
     private readonly EnemySpawner spawner; // Tạo/thu hồi quái, vùng sinh; do StageManager tạo và dùng chung cho mọi system.
     private readonly IPlayerReader players;
-    private readonly ISpatialInvalidation spatialSpatialInvalidation;
+    private readonly ISpatialInvalidation spatialInvalidation;
     private readonly StageSpawnRoster roster;
     private readonly List<Run> runs = new List<Run>();
     #endregion
@@ -41,7 +41,7 @@ internal sealed class FormationSpawnSystem
     {
         this.spawner = spawner ?? throw new ArgumentNullException(nameof(spawner));
         this.players = playerReader;
-        this.spatialSpatialInvalidation = spatialInvalidation; // SimulationManager (SimulationContracts.cs).
+        this.spatialInvalidation = spatialInvalidation; // SimulationManager (SimulationContracts.cs).
         roster = new StageSpawnRoster(spawner);
     }
 
@@ -74,15 +74,15 @@ internal sealed class FormationSpawnSystem
         });
     }
 
-    /// <summary>Tạo runtime tại thời điểm bắt đầu để lấy đúng camera và tâm player hiện tại.</summary>
+    /// <summary>Tạo runtime tại thời điểm bắt đầu để lấy đúng camera và chốt tâm Area tại vị trí Player hiện tại.</summary>
     private void StartRun(Run run)
     {
         var config = run.config;
         var camera = spawner.FormationCamera;
         var route = config.CreateRoute(camera != null ? camera.transform : null);
-        run.group = new EnemyFormationRuntime(config, route,
-                () => players.CurrentPlayer != null ? (Vector2)players.CurrentPlayer.transform.position : Vector2.zero,
-                spawner.Despawn);
+        // Area lấy Player làm tâm chỉ ở thời điểm spawn; sau đó vòng đứng yên trong world.
+        Vector2 areaCenter = players.CurrentPlayer != null ? (Vector2)players.CurrentPlayer.transform.position : Vector2.zero;
+        run.group = new EnemyFormationRuntime(config, route, areaCenter, spawner.Despawn);
         roster.Add(run.group);
         if (config.Type == EnemyPatternType.SequentialPath) SpawnMember(run);
         else while (run.spawned < run.total) SpawnMember(run);
@@ -128,12 +128,12 @@ internal sealed class FormationSpawnSystem
         }
     }
 
-    /// <summary>Bù dịch chuyển camera/player và báo spatialSpatialInvalidation khi vị trí nhóm thay đổi.</summary>
+    /// <summary>Bù dịch chuyển camera/player và báo spatialInvalidation khi vị trí nhóm thay đổi.</summary>
     public void LateTick()
     {
         bool moved = false;
         foreach (var run in runs) if (run.group != null) moved |= run.group.ApplyCameraMotion();
-        if (moved) spatialSpatialInvalidation.Invalidate();
+        if (moved) spatialInvalidation.Invalidate();
     }
 
     #endregion

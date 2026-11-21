@@ -1,26 +1,13 @@
 using System;
 using UnityEngine;
-using Zenject;
 
 /// <summary>VFX hiển thị một object/sprite tĩnh trong một khoảng thời gian cố định rồi báo hoàn tất.</summary>
 /// <remarks>Không cần Animator hay ParticleSystem. Không đổi tên class: prefab tham chiếu script qua GUID.</remarks>
-public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual, ITickable
+public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual
 {
-    #region Zenject Tick Registration
+    #region Frame
 
-    private LazyInject<TickableManager> tickables;
-    private bool registeredForTicks;
-    private int activationFrame = -1;
-
-    [Inject]
-    public void ConstructTickables(LazyInject<TickableManager> tickables)=> this.tickables = tickables;
-
-    private void Start()
-    {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.Add(this, -200);
-        registeredForTicks = true;
-    }
+    private int activationFrame = -1; // Frame bắt đầu phát; không trừ thời gian ngay trong frame đó.
 
     #endregion
 
@@ -42,10 +29,11 @@ public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual, ITickable
         gameObject.SetActive(true);
     }
 
-    public void Tick()
+    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): đếm ngược thời gian hiển thị; pause (deltaTime = 0) thì đứng yên.</summary>
+    public void Advance(float deltaTime)
     {
-        if (!playing || !isActiveAndEnabled || Time.frameCount <= activationFrame || Time.deltaTime <= 0f) return;
-        remaining = Mathf.Max(0f, remaining - Time.deltaTime);
+        if (!playing || !isActiveAndEnabled || Time.frameCount <= activationFrame || deltaTime <= 0f) return;
+        remaining = Mathf.Max(0f, remaining - deltaTime);
         if (remaining > 0f) return;
         StopAndReset();
         Completed?.Invoke();
@@ -60,11 +48,7 @@ public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual, ITickable
     }
 
     private void OnDisable() => StopAndReset();
-    private void OnDestroy()
-    {
-        if (registeredForTicks) { tickables.Value.Remove(this); registeredForTicks = false; }
-        StopAndReset();
-    }
+    private void OnDestroy() => StopAndReset();
 
     #endregion
 }

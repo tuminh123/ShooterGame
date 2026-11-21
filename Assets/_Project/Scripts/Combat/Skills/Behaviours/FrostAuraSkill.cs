@@ -5,23 +5,22 @@ using UnityEngine;
 
 /// <summary>Hành vi aura băng: làm chậm mọi đối thủ trong bán kính, và áp effect khi chúng đi vào vùng.</summary>
 /// <remarks>Hành vi liên tục. Slow là effect duy trì, gỡ ngay khi mục tiêu rời vùng. Data: <see cref="FrostAuraData"/>.</remarks>
-[Serializable]
 public sealed class FrostAuraSkill : Skill
 {
     #region Runtime State
 
-    [NonSerialized] private FrostAuraData data; // Cấu hình đang hoạt động.
-    [NonSerialized] private IGameplayEffect[] effectSnapshot; // Danh sách effect của đúng cấp.
-    [NonSerialized] private Dictionary<CharacterHandle, EffectHandle> slowed; // Handle runtime riêng của từng mục tiêu trong vùng.
-    [NonSerialized] private SlowEffect slowEffect; // Cấu hình slow dùng chung; manager sở hữu runtime.
-    [NonSerialized] private HashSet<CharacterHandle> inside; // Mục tiêu được query trong bước này.
-    [NonSerialized] private List<CharacterHandle> leaving; // Buffer gỡ effect không còn trong vùng.
-    [NonSerialized] private CharacterHandle[] targets; // Buffer query dùng lại.
-    [NonSerialized] private SkillAreaVisual visual; // Visual đang thuê pool.
-    [NonSerialized] private float radius; // Bán kính được dùng khi query.
-    [NonSerialized] private bool paused; // Pause phải gỡ slow duy trì.
-    [NonSerialized] private bool disposed; // Cleanup một lần.
-    [NonSerialized] private int revision; // Chặn vòng Tick cũ sau callback thay data.
+    private FrostAuraData data; // Cấu hình đang hoạt động.
+    private IGameplayEffect[] effectSnapshot; // Danh sách effect của đúng cấp.
+    private Dictionary<CharacterHandle, EffectHandle> slowed; // Handle runtime riêng của từng mục tiêu trong vùng.
+    private SlowEffect slowEffect; // Cấu hình slow dùng chung; manager sở hữu runtime.
+    private HashSet<CharacterHandle> inside; // Mục tiêu được query trong bước này.
+    private List<CharacterHandle> leaving; // Buffer gỡ effect không còn trong vùng.
+    private CharacterHandle[] targets; // Buffer query dùng lại.
+    private SkillAreaVisual visual; // Visual đang thuê pool.
+    private float radius; // Bán kính được dùng khi query.
+    private bool paused; // Pause phải gỡ slow duy trì.
+    private bool disposed; // Cleanup một lần.
+    private int revision; // Chặn vòng Tick cũ sau callback thay data.
     public override SkillBehaviourType Type => SkillBehaviourType.SlowAura;
 
     #endregion
@@ -70,45 +69,17 @@ public sealed class FrostAuraSkill : Skill
     public override void Tick(float deltaTime)
     {
         if (disposed || paused || !Owner.CanRun || deltaTime <= 0f) return;
-        if (visual == null)
-        {
-            GameObject clone = Services.Pools.Spawn(data.VisualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
-                beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, radius));
-            if (clone == null) throw new InvalidOperationException("Could not spawn frost visual.");
-            visual = clone.GetComponent<SkillAreaVisual>();
-        }
+
+        EnsureVisual();
         int found = Owner.Owner.Search.FindAll(Owner.Owner.HitPosition, radius,
             CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
         inside.Clear();
-        int currentRevision = revision;
+        int tickRevision = revision; // Callback stats/damage có thể đổi data (revision++) giữa chừng: khi đó dừng vòng này.
         try
         {
-            for (int i = 0; i < found && !disposed && !paused && Owner.CanRun && currentRevision == revision; i++)
-            {
-                CharacterHandle target = targets[i];
-                if (!target.TryGetCharacter(out _)) continue;
-                inside.Add(target);
-                if (slowed.ContainsKey(target)) continue;
-                EffectHandle handle = Services.Effects.ApplyMaintained(slowEffect, target, Owner.Identity.Team);
-                // Stats callback có thể vừa thu hồi chính chủ aura/mục tiêu.
-                if (disposed || paused || !Owner.CanRun || currentRevision != revision || !target.TryGetCharacter(out _))
-                {
-                    Services.Effects.Remove(handle);
-                    continue;
-                }
-                slowed.Add(target, handle);
-                // Chỉ áp dụng lúc vào vùng; không spam hoặc gia hạn duration mỗi frame.
-                if (Services.Effects != null)
-                    foreach (IGameplayEffect effect in effectSnapshot)
-                    {
-                        if (!Owner.CanRun || disposed || currentRevision != revision) break;
-                        Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
-                    }
-            }
-            leaving.Clear();
-            foreach (CharacterHandle target in slowed.Keys)
-                if (!inside.Contains(target) || !target.TryGetCharacter(out _)) leaving.Add(target);
-            foreach (CharacterHandle target in leaving) RemoveSlow(target);
+            for (int i = 0; i < found && StillValid(tickRevision); i++)
+                TryEnterAura(targets[i], tickRevision);
+            RemoveTargetsThatLeft();
         }
         finally
         {
@@ -116,6 +87,53 @@ public sealed class FrostAuraSkill : Skill
             inside.Clear();
             leaving.Clear();
         }
+    }
+
+    // Aura vẫn chạy đúng lượt data của frame này: chưa dispose/pause, chủ còn hoạt động, data chưa bị thay.
+    private bool StillValid(int tickRevision) => !disposed && !paused && Owner.CanRun && tickRevision == revision;
+
+    // Thuê visual vùng băng lần đầu Tick; visual tự bám theo chủ qua SkillAreaVisuals.
+    private void EnsureVisual()
+    {
+        if (visual != null) return;
+        GameObject clone = Services.Pools.Spawn(data.VisualPrefab.gameObject, Owner.Owner.HitPosition, Quaternion.identity,
+            beforeActivate: item => item.GetComponent<SkillAreaVisual>().Initialize(Owner.Owner, radius, Services.AreaVisuals));
+        if (clone == null) throw new InvalidOperationException("Could not spawn frost visual.");
+        visual = clone.GetComponent<SkillAreaVisual>();
+    }
+
+    // Mục tiêu đang trong vùng: ghi nhận, và nếu vừa bước vào thì gắn slow duy trì + effect một lần.
+    private void TryEnterAura(CharacterHandle target, int tickRevision)
+    {
+        if (!target.TryGetCharacter(out _)) return;
+        inside.Add(target);
+        if (slowed.ContainsKey(target)) return;
+
+        EffectHandle handle = Services.Effects.ApplyMaintained(slowEffect, target, Owner.Identity.Team);
+        // Stats callback có thể vừa thu hồi chính chủ aura/mục tiêu.
+        if (!StillValid(tickRevision) || !target.TryGetCharacter(out _))
+        {
+            Services.Effects.Remove(handle);
+            return;
+        }
+        slowed.Add(target, handle);
+
+        // Chỉ áp dụng lúc vào vùng; không spam hoặc gia hạn duration mỗi frame.
+        if (Services.Effects == null) return;
+        foreach (IGameplayEffect effect in effectSnapshot)
+        {
+            if (!Owner.CanRun || disposed || tickRevision != revision) break;
+            Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
+        }
+    }
+
+    // Gỡ slow của mục tiêu không còn trong vùng hoặc đã bị thu hồi.
+    private void RemoveTargetsThatLeft()
+    {
+        leaving.Clear();
+        foreach (CharacterHandle target in slowed.Keys)
+            if (!inside.Contains(target) || !target.TryGetCharacter(out _)) leaving.Add(target);
+        foreach (CharacterHandle target in leaving) RemoveSlow(target);
     }
 
     private void RemoveSlow(CharacterHandle target)

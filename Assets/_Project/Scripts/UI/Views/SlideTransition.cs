@@ -2,15 +2,6 @@ using System;
 using PrimeTween;
 using UnityEngine;
 
-/// <summary>Hướng trượt của <see cref="SlideTransition"/>: phía màn hình mà panel trượt vào từ đó hoặc trượt ra về đó.</summary>
-public enum SlideDirection
-{
-    Left,
-    Right,
-    Up,
-    Down
-}
-
 /// <summary>
 /// Trượt một panel vào/ra khỏi khung cha bằng anchoredPosition (cùng cách với banner cảnh báo enemy).
 /// Dùng chung cho chuyển màn (Collection/Detail) và chuyển tab (Level/Stars).

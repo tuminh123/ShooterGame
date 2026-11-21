@@ -3,12 +3,11 @@ using UnityEngine;
 
 /// <summary>Hành vi hồi máu: mỗi lần hết cooldown thì hồi một lượng HP cố định cho chủ nhân.</summary>
 /// <remarks>Data: <see cref="RegenerationData"/>.</remarks>
-[Serializable]
 public sealed class RegenerationSkill : Skill
 {
     #region Runtime Configuration
 
-    [NonSerialized] private RegenerationData data; // Data cấp hiện tại.
+    private RegenerationData data; // Data cấp hiện tại.
     public override SkillBehaviourType Type => SkillBehaviourType.Regeneration;
 
     // Bản clone không dùng cấu hình đang gắn ở instance khác.

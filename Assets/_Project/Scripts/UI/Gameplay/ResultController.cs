@@ -1,10 +1,14 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Zenject;
 
-// Chung cho thắng/thua; UIManager chọn lúc hiện, tween hiện có quản lý hiệu ứng scale.
+/// <summary>
+/// Chung cho thắng/thua; UIManager chọn lúc hiện, tween hiện có quản lý hiệu ứng scale.
+/// Nút của popup Victory đưa người chơi về Home; nút của popup Defeat bắt đầu lại trận mới.
+/// </summary>
 public sealed class ResultController : UIPanelController
 {
 
@@ -12,21 +16,28 @@ public sealed class ResultController : UIPanelController
     [Serializable]
     private sealed class ResultPanel
     {
+        /// <summary>Gốc của popup kết quả.</summary>
         public GameObject panel;
+        /// <summary>Tween mở lần lượt các phần tử của popup.</summary>
         public StaggeredPopupTween popupTween;
-        public Button continueButton;
+        /// <summary>Nút hành động của popup (Victory: về Home, Defeat: chơi lại); khóa cho tới khi tween mở xong.</summary>
+        [FormerlySerializedAs("continueButton")] public Button actionButton;
+        /// <summary>Text hiển thị vàng nhận được.</summary>
         public TMP_Text goldText;
+        /// <summary>Text hiển thị kim cương nhận được.</summary>
         public TMP_Text diamondText;
 
+        /// <summary>Ném lỗi sớm nếu Inspector thiếu reference.</summary>
         public void Validate()
         {
-            if (panel == null || popupTween == null || continueButton == null || goldText == null || diamondText == null)
-                throw new InvalidOperationException("Assign result panel, popup tween, Continue button and currency texts.");
+            if (panel == null || popupTween == null || actionButton == null || goldText == null || diamondText == null)
+                throw new InvalidOperationException("Assign result panel, popup tween, action button and currency texts.");
         }
 
+        /// <summary>Ẩn ngay popup: khóa nút, dừng tween và tắt panel.</summary>
         public void Hide()
         {
-            continueButton.interactable = false;
+            actionButton.interactable = false;
             popupTween.StopAndReset();
             panel.SetActive(false);
         }
@@ -49,6 +60,7 @@ public sealed class ResultController : UIPanelController
 
     #region Initialization
 
+    /// <summary>SceneContext inject trạng thái, luồng game, dữ liệu trận và kết quả Stage.</summary>
     [Inject]
     public void Construct(
         IGameState gameState,
@@ -70,8 +82,8 @@ public sealed class ResultController : UIPanelController
 
     private void OnEnable()
     {
-        victory.continueButton.onClick.AddListener(RestartRun);
-        defeat.continueButton.onClick.AddListener(RestartRun);
+        victory.actionButton.onClick.AddListener(ReturnHome);
+        defeat.actionButton.onClick.AddListener(PlayAgain);
     }
 
     #endregion
@@ -107,20 +119,26 @@ public sealed class ResultController : UIPanelController
         next.popupTween.PlayOpen(() =>
         {
             if (activePanel == next && version == presentationVersion)
-                next.continueButton.interactable = true;
+                next.actionButton.interactable = true;
         });
     }
 
-    private void RestartRun()
+    // Thắng: kết thúc lượt và về Home (ReturnHome tự dọn trận, UIManager mở Home theo state).
+    private void ReturnHome() => RunResultCommand(victory, runCommands.ReturnHome);
+
+    // Thua: vào ngay trận mới (StartRun tự dọn/reset trận, spawn Player và đưa UI về Playing).
+    private void PlayAgain() => RunResultCommand(defeat, runCommands.StartRun);
+
+    // Chỉ nhận click của đúng popup đang hiện; khóa nút trước khi chạy lệnh để không nhận click lặp.
+    // Lệnh thất bại (đang chuyển state) thì mở lại nút để người chơi bấm lại.
+    private void RunResultCommand(ResultPanel panel, Func<bool> command)
     {
-        ResultPanel panel = activePanel;
-        if (panel == null || !panel.continueButton.interactable || gameState == null ||
+        if (panel == null || activePanel != panel || !panel.actionButton.interactable || gameState == null ||
             (gameState.State != GameState.Won && gameState.State != GameState.Lost)) return;
-        panel.continueButton.interactable = false;
-        // StartRun tự dọn/reset trận, spawn Player và đưa UI về Playing.
-        if (!runCommands.StartRun() && activePanel == panel &&
+        panel.actionButton.interactable = false;
+        if (!command() && activePanel == panel &&
             (gameState.State == GameState.Won || gameState.State == GameState.Lost))
-            panel.continueButton.interactable = true;
+            panel.actionButton.interactable = true;
     }
 
     #endregion
@@ -129,8 +147,8 @@ public sealed class ResultController : UIPanelController
 
     private void OnDisable()
     {
-        victory.continueButton.onClick.RemoveListener(RestartRun);
-        defeat.continueButton.onClick.RemoveListener(RestartRun);
+        victory.actionButton.onClick.RemoveListener(ReturnHome);
+        defeat.actionButton.onClick.RemoveListener(PlayAgain);
         SetVisible(false);
     }
 

@@ -54,12 +54,6 @@ public interface IPermanentBonuses
 
 #region Character Upgrades (Character screen UI)
 
-/// <summary>Loại nâng cấp vĩnh viễn của một nhân vật. Mỗi loại ứng với một track trong ProgressionManager.</summary>
-public enum CharacterUpgradeKind { Level, Star }
-
-/// <summary>Lý do không nâng được; <see cref="None"/> nghĩa là nâng được.</summary>
-public enum UpgradeBlock { None, MaxReached, NotEnoughCurrency, NotAvailable }
-
 /// <summary>Một mục giá: loại tiền và số lượng.</summary>
 public readonly struct CurrencyCost
 {

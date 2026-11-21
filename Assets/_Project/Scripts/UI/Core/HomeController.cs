@@ -4,9 +4,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
 
-// Home tạm thời: nút Play hoạt động, giữa màn hiện nhân vật đang chọn; giữ bố cục có sẵn cho các tính năng nối sau.
-// Thanh bar dưới (mở màn Character, về Home) do HomeNavigationBar quản lý, nằm ngoài MainUI để hiện cả ở màn Character.
-// Số tiền ở Topbar do CurrencyBarView (gắn trên Topbar/Group_ResourceBar) hiển thị, cùng component với màn Character.
+/// <summary>
+/// Home tạm thời: nút Play hoạt động, giữa màn hiện nhân vật đang chọn; giữ bố cục có sẵn cho các tính năng nối sau.
+/// Thanh bar dưới (mở màn Character, về Home) do HomeNavigationBar quản lý, nằm ngoài MainUI để hiện cả ở màn Character.
+/// Số tiền ở Topbar do CurrencyBarView (gắn trên Topbar/Group_ResourceBar) hiển thị, cùng component với màn Character.
+/// </summary>
 public sealed class HomeController : UIPanelController
 {
     #region References
@@ -43,6 +45,7 @@ public sealed class HomeController : UIPanelController
 
     #region Lifecycle
 
+    /// <summary>SceneContext inject các service cần cho màn Home.</summary>
     [Inject]
     public void Construct(IGameState gameState, IScreenTransition screenTransition,
         IPlayerSelection playerSelection, ICharacterUpgrades characterUpgrades)

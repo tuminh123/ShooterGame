@@ -44,8 +44,6 @@ public sealed class CharacterSearchFactory
 
     #endregion
 }
-/// <summary>Các cách tìm mục tiêu ở tầng gameplay; độc lập với loại job ở tầng Spatial.</summary>
-public enum CharacterSearchType { Nearest, AllInCircle, FirstOnPath }
 
 /// <summary>Yêu cầu trên main thread; strategy tự tạo query hình học, không truyền CharacterView vào job.</summary>
 public readonly struct CharacterSearchRequest

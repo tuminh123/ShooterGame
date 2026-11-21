@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Config cấp theo CharacterType dùng chung cho player/enemy và một config EXP trong trận của player.
+/// <summary>Config cấp theo CharacterType dùng chung cho player/enemy và một config EXP trong trận của player.</summary>
 [CreateAssetMenu(fileName = "LevelDatabase", menuName = "Shooter Game/Levels/Level Database")]
 public sealed class LevelDatabaseSO : ScriptableObject
 {
@@ -18,13 +18,14 @@ public sealed class LevelDatabaseSO : ScriptableObject
     [Tooltip("Công thức EXP và bonus cấp dùng chung cho Player trong trận; tiến trình được tạo riêng và reset theo lượt chơi.")]
     [SerializeField] private RunLevelConfigSO runLevelConfig;  // * Công thức EXP và bonus chung cho người chơi trong trận, không gắn vào template nhân vật.
 
-    public RunLevelConfigSO RunLevelConfig => runLevelConfig;  // * Service tạo trạng thái riêng từ config dùng chung này.
+    /// <summary>Service tạo trạng thái riêng từ config dùng chung này.</summary>
+    public RunLevelConfigSO RunLevelConfig => runLevelConfig;
 
     #endregion
 
     #region Runtime Lookup Creation
 
-    // * Vòng duyệt thứ nhất dựng type → config; service tiếp tục duyệt danh sách nhân vật để ghép theo type.
+    /// <summary>Vòng duyệt thứ nhất dựng type → config; service tiếp tục duyệt danh sách nhân vật để ghép theo type.</summary>
     public Dictionary<CharacterType, CharacterLevelConfigSO> CreateTypeLookup()
     {
         var lookup = new Dictionary<CharacterType, CharacterLevelConfigSO>(characterLevels.Count);

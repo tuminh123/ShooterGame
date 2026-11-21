@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// Một Graphic có material gán sẵn trong prefab, không cần Image/sprite hay object tạo lúc chạy.
+/// <summary>Một Graphic có material gán sẵn trong prefab, không cần Image/sprite hay object tạo lúc chạy.</summary>
 public sealed class ShieldBorderGraphic : MaskableGraphic
 {
     #region Appearance State
@@ -13,6 +13,7 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
 
     #region Layout
 
+    /// <summary>Đặt độ dày viền (tối thiểu 0.5) và cập nhật padding theo cùng giá trị.</summary>
     public void SetThickness(float value)
     {
         thickness = Mathf.Max(0.5f, value);
@@ -54,6 +55,7 @@ public sealed class ShieldBorderGraphic : MaskableGraphic
 
     #region Shield Presentation
 
+    /// <summary>Đặt tỉ lệ giáp 0..1; chỉ vẽ lại mesh khi giá trị thay đổi.</summary>
     public void SetRatio(float value)
     {
         value = Mathf.Clamp01(value);

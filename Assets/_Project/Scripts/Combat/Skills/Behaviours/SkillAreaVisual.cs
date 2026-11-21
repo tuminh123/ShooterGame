@@ -6,37 +6,20 @@ using UnityEngine;
 /// <remarks>
 /// Chỉ là hình ảnh: sát thương và làm chậm thuộc hành vi C# thuần (<see cref="FrostAuraSkill"/>, <see cref="OrbitSawSkill"/>).
 /// Được pool tái sử dụng. Không đổi tên class: prefab tham chiếu script qua GUID.
+/// Vỏ thụ động: không tự đăng ký tick; khi bật thì tự vào <see cref="SkillAreaVisuals"/> để CombatManager gọi <see cref="LateTick"/>.
 /// </remarks>
-public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
+public sealed class SkillAreaVisual : MonoBehaviour
 {
-    #region Zenject Tick Registration
+    #region Frame Registration
 
-    private Zenject.LazyInject<Zenject.TickableManager> tickables;
-    private bool registeredForTicks;
+    private SkillAreaVisuals tracker; // Giữ qua các lượt pool; Initialize gán lại mỗi lượt thuê.
     private int activationFrame = -1;
 
-    [Zenject.Inject]
-    public void ConstructTickables(Zenject.LazyInject<Zenject.TickableManager> tickables)=> this.tickables = tickables;
-
-    // Đăng ký một lần ở Start để tránh vòng phụ thuộc trong lúc Zenject dựng container.
-    // Object trong pool vẫn giữ đăng ký; Tick bỏ qua khi tắt hoặc vừa được tái sử dụng.
-    private void StartFrameUpdates()
+    private void OnEnable()
     {
-        if (registeredForTicks || tickables == null) return;
-        tickables.Value.AddLate(this, 300);
-        registeredForTicks = true;
+        activationFrame = Time.frameCount;
+        tracker?.Add(this);
     }
-
-    private void StopFrameUpdates()
-    {
-        if (!registeredForTicks) return;
-        tickables.Value.RemoveLate(this);
-        registeredForTicks = false;
-    }
-
-    private void Start() => StartFrameUpdates();
-
-    private void OnEnable() => activationFrame = Time.frameCount;
 
     #endregion
 
@@ -85,9 +68,14 @@ public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
         filter.sharedMesh = mesh;
     }
 
-    public void Initialize(CharacterView character, float radius)
+    /// <summary>
+    /// Gắn visual cho chủ mới. Thường gọi khi còn tắt (beforeActivate của pool); nếu đang bật thì vào danh sách ngay.
+    /// </summary>
+    public void Initialize(CharacterView character, float radius, SkillAreaVisuals frameTracker)
     {
         EnsureGeometry();
+        tracker = frameTracker ?? throw new System.ArgumentNullException(nameof(frameTracker));
+        if (isActiveAndEnabled) tracker.Add(this);
         owner = character;
         offset = Vector2.zero;
         rotation = 0f;
@@ -100,7 +88,8 @@ public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
     public void SetPose(Vector2 localOffset, float angle) { offset = localOffset; rotation = angle; }
     public void SetVisible(bool visible) { if (meshRenderer != null) meshRenderer.enabled = visible; }
 
-    public void LateTick()
+    /// <summary>Bám theo chủ sau khi di chuyển đã áp dụng. <see cref="SkillAreaVisuals"/> gọi mỗi frame.</summary>
+    internal void LateTick()
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
         ApplyPose();
@@ -118,11 +107,11 @@ public sealed class SkillAreaVisual : MonoBehaviour, Zenject.ILateTickable
 
     private void OnDisable()
     {
+        tracker?.Remove(this);
         owner = null; offset = Vector2.zero;
     }
     private void OnDestroy()
     {
-        StopFrameUpdates();
         OnDisable();
         if (mesh != null) Destroy(mesh);
         if (material != null) Destroy(material);

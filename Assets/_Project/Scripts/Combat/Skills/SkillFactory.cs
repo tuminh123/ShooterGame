@@ -29,14 +29,30 @@ public sealed class SkillFactory
         return new SkillRuntime(definition, owner, this);
     }
 
-    /// <summary>Tạo bản sao chạy được của hành vi <paramref name="type"/> từ template trong <paramref name="definition"/>.</summary>
+    /// <summary>Tạo hành vi <paramref name="type"/> mới cho <paramref name="owner"/>; mỗi lần gọi là một object riêng.</summary>
     public ISkill CreateBehaviour(SkillDataSO definition, SkillBehaviourType type, CharacterSkills owner)
     {
-        // Kiểm tra kiểu ở đây là kiểm tra dữ liệu, không phải chọn hành vi: chỉ class con của Skill
-        // mới có phần clone template an toàn. SkillDataSO.Validate cũng chặn trường hợp này từ sớm.
-        if (!(definition.GetBehaviour(type) is Skill template))
-            throw new InvalidOperationException("Behaviour templates must inherit Skill.");
-        return template.CreateRuntime(owner, services);
+        if (!definition.HasBehaviour(type))
+            throw new InvalidOperationException($"No {type} behaviour in {definition.name}.");
+        Skill behaviour = New(type);
+        behaviour.Bind(owner, services);
+        return behaviour;
+    }
+
+    // Nơi DUY NHẤT ánh xạ enum → class hành vi. Thêm hành vi mới = thêm giá trị enum (ở cuối) + một dòng ở đây.
+    private static Skill New(SkillBehaviourType type)
+    {
+        switch (type)
+        {
+            case SkillBehaviourType.NormalAttack: return new NormalAttackSkill();
+            case SkillBehaviourType.Shooting: return new ShootingSkill();
+            case SkillBehaviourType.OrbitSaw: return new OrbitSawSkill();
+            case SkillBehaviourType.SlowAura: return new FrostAuraSkill();
+            case SkillBehaviourType.Regeneration: return new RegenerationSkill();
+            case SkillBehaviourType.EmergencyShield: return new EmergencyShieldSkill();
+            case SkillBehaviourType.StatBuff: return new StatBonusSkill();
+            default: throw new ArgumentOutOfRangeException(nameof(type), type, "No behaviour class for this type.");
+        }
     }
 
     #endregion

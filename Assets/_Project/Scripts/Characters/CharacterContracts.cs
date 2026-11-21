@@ -128,6 +128,8 @@ public interface ICharacterSearch
     /// <summary>
     /// Ghi mọi nhân vật trong bán kính vào <paramref name="results"/> và trả về số phần tử hợp lệ.
     /// Mảng thuộc bên gọi để dùng lại qua nhiều frame; chỉ được cấp phát lại khi không đủ chỗ.
+    /// <c>ref</c>: khi không đủ chỗ, hàm thay biến của bên gọi bằng mảng lớn hơn. Bên gọi giữ biến đó làm field
+    /// (không truyền mảng tạm) để các frame sau không cấp phát lại, tránh tạo rác cho GC.
     /// </summary>
     int FindAll(Vector2 center, float radius, CharacterTeam targetTeam, ref CharacterHandle[] results, CharacterView exclude = null);
 }

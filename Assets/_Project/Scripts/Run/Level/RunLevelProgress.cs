@@ -1,28 +1,32 @@
 using System;
 
-// * Tiến trình level class thuần của một lượt chơi; mỗi nhân vật/lượt chơi tạo instance riêng, không đưa vào PlayerSaveData.
+/// <summary>Tiến trình level class thuần của một lượt chơi; mỗi nhân vật/lượt chơi tạo instance riêng, không đưa vào PlayerSaveData.</summary>
 public sealed class RunLevelProgress
 {
     #region Run State
 
     private readonly RunLevelConfigSO config;  // * Chỉ đọc công thức EXP và bonus cố định; không sửa asset dùng chung.
 
-    public int Level { get; private set; } = 1;        // * Level trong trận, bắt đầu từ 1.
-    public int Experience { get; private set; }        // * EXP dư của cấp hiện tại, không phải tổng EXP đã nhặt.
-    public StatBonus TotalBonus => config.GetTotalBonus(Level);  // * Tổng thưởng cố định của các level đã đạt trong lượt này.
-    public bool IsMaxLevel => Level >= config.MaxLevel;         // * Đạt cấp cuối thì bỏ EXP dư.
+    /// <summary>Level trong trận, bắt đầu từ 1.</summary>
+    public int Level { get; private set; } = 1;
+    /// <summary>EXP dư của cấp hiện tại, không phải tổng EXP đã nhặt.</summary>
+    public int Experience { get; private set; }
+    /// <summary>Tổng thưởng cố định của các level đã đạt trong lượt này.</summary>
+    public StatBonus TotalBonus => config.GetTotalBonus(Level);
+    /// <summary>Đạt cấp cuối thì bỏ EXP dư.</summary>
+    public bool IsMaxLevel => Level >= config.MaxLevel;
 
     #endregion
 
     #region Initialization & Experience
 
-    // * Nhận config từ bên gọi; không bind singleton vì mỗi lượt chơi cần trạng thái riêng.
+    /// <summary>Nhận config từ bên gọi; không bind singleton vì mỗi lượt chơi cần trạng thái riêng.</summary>
     public RunLevelProgress(RunLevelConfigSO config)
     {
         this.config = config != null ? config : throw new ArgumentNullException(nameof(config));
     }
 
-    // * Thêm EXP, hỗ trợ lên nhiều cấp một lần; trả số cấp đã tăng để bên ngoài mở lựa chọn thưởng tương ứng.
+    /// <summary>Thêm EXP, hỗ trợ lên nhiều cấp một lần; trả số cấp đã tăng để bên ngoài mở lựa chọn thưởng tương ứng.</summary>
     public int AddExperience(int amount)
     {
         if (amount < 0)
@@ -47,7 +51,7 @@ public sealed class RunLevelProgress
         return gainedLevels;
     }
 
-    // * Gọi khi bắt đầu lượt mới; không thay đổi level vĩnh viễn hoặc dữ liệu save.
+    /// <summary>Gọi khi bắt đầu lượt mới; không thay đổi level vĩnh viễn hoặc dữ liệu save.</summary>
     public void Reset()
     {
         Level = 1;

@@ -5,15 +5,14 @@ using UnityEngine;
 
 /// <summary>Hành vi bắn: tìm mục tiêu gần nhất rồi bắn một lượt đạn, chia hướng bằng <see cref="IShooter"/>.</summary>
 /// <remarks>Không có mục tiêu thì không tiêu cooldown (trừ khi data cho bắn không cần mục tiêu). Data: <see cref="ShootingData"/>.</remarks>
-[Serializable]
 public sealed class ShootingSkill : Skill
 {
     #region Runtime State
 
-    [NonSerialized] private ShootingData data; // Cấu hình đang dùng, chỉ đọc.
-    [NonSerialized] private IShooter liveShooter; // Trạng thái bắn riêng, ví dụ góc Spiral.
-    [NonSerialized] private IProjectileMove movement; // Quỹ đạo của cấp hiện tại; không trạng thái nên dùng thẳng instance trong asset.
-    [NonSerialized] private IGameplayEffect[] effectSnapshot; // Đạn giữ snapshot của cấp lúc bắn.
+    private ShootingData data; // Cấu hình đang dùng, chỉ đọc.
+    private IShooter liveShooter; // Trạng thái bắn riêng, ví dụ góc Spiral.
+    private IProjectileMove movement; // Quỹ đạo của cấp hiện tại; không trạng thái nên dùng thẳng instance trong asset.
+    private IGameplayEffect[] effectSnapshot; // Đạn giữ snapshot của cấp lúc bắn.
     public override SkillBehaviourType Type => SkillBehaviourType.Shooting;
 
     #endregion

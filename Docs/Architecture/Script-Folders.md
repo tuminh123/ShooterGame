@@ -45,17 +45,16 @@ Scripts/
 │   └── Data/                     Các section save (tự Validate) và PlayerSaveData cũ cho migration
 ├── Progression/                  ProgressionManager, ProgressionContracts.cs, Wallet, CharacterLevels, Loadout, StageProgress, CurrencyType
 │   └── Data/                     CharacterLevelConfigSO, LevelDatabaseSO, EquipmentDatabaseSO
-├── Pooling/                      PoolManager, PoolContracts.cs, ClassPool, PoolPrewarmSettingsSO
+├── Pooling/                      PoolManager, PoolContracts.cs, PoolPrewarmSettingsSO
 ├── Infrastructure/
 │   └── Zenject/                  GameSceneInstaller (một file: bind một Manager/miền + thứ tự lifecycle)
-├── World/                        Miền World: WorldManager, WorldContracts.cs (IWorldMap), GroundChunks; Data/ chứa database map
+├── World/                        Miền World: WorldManager, WorldContracts.cs (IWorldMap), GroundChunks, CameraFollow (camera bám Player); Data/ chứa database map
 ├── Stage/                        Miền Stage (đã chuyển): StageManager, StageContracts.cs (4 vai trò), StageRewards
 │   ├── Core/                     EnemySpawner, IStageSpawnData, IStageSpawnEntity, StageSpawnRoster
 │   ├── Waves/                    WaveConfigSO, WaveSpawnSystem
 │   ├── Patterns/                 Pattern/Formation/Path (xem README trong thư mục)
 │   ├── Bosses/                   BossSpawnDataSO, BossSpawnSystem, BossArena
 │   └── Data/                     StageDataSO, StageDatabaseSO
-├── Camera/                       Camera bám Player
 └── UI/                           UIContracts.cs (IScreenTransition); UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI (thanh máu world); CharacterScreen/ chứa toàn bộ màn Character (Controller, View, Theme, model)
 ```
 

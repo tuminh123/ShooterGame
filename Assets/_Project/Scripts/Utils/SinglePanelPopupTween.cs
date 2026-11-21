@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
 
-// Tween một khung popup bất kỳ: mở nhỏ → phóng vượt → về scale gốc; đóng thu nhỏ → callback UI.
-// Không phụ thuộc nội dung Settings, cửa hàng, thông báo hay controller cụ thể.
+/// <summary>
+/// Tween một khung popup bất kỳ: mở nhỏ → phóng vượt → về scale gốc; đóng thu nhỏ → callback UI.
+/// Không phụ thuộc nội dung Settings, cửa hàng, thông báo hay controller cụ thể.
+/// </summary>
 public sealed class SinglePanelPopupTween : PopupTweenBase
 {
     #region Panel Reference
@@ -13,7 +15,7 @@ public sealed class SinglePanelPopupTween : PopupTweenBase
 
     #region Initialization
 
-    // UI có thể gán khung bằng code; gọi khi đổi reference, không gọi lại trước mỗi lần mở.
+    /// <summary>UI có thể gán khung bằng code; gọi khi đổi reference, không gọi lại trước mỗi lần mở.</summary>
     public void Initialize(Transform target)
     {
         InitializeTargets(new[] { target });

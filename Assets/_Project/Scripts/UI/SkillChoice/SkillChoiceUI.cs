@@ -6,8 +6,10 @@ using UnityEngine.EventSystems;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-// View nằm trên LevelUpPanel; SkillChoiceController luôn hoạt động quản lý vòng đời.
-// Chỉ hiển thị và phát sự kiện chọn; không sở hữu gameplay hoặc pause.
+/// <summary>
+/// View nằm trên LevelUpPanel; SkillChoiceController luôn hoạt động quản lý vòng đời.
+/// Chỉ hiển thị và phát sự kiện chọn; không sở hữu gameplay hoặc pause.
+/// </summary>
 public sealed class SkillChoiceUI : MonoBehaviour
 {
     #region Card Presentation
@@ -15,14 +17,20 @@ public sealed class SkillChoiceUI : MonoBehaviour
     [Serializable]
     private sealed class Card
     {
-        public Button button; // Nút chọn cả thẻ; khóa ngay sau click để tránh nhận thưởng lặp.
-        public Image icon; // Icon lấy từ definition của skill được offer.
-        public TMP_Text title; // Tên hiển thị; fallback về tên asset nếu chưa nhập.
-        public TMP_Text description; // Nhãn NEW/UPGRADE và mô tả của cấp sẽ nhận.
-        public Transform gemsOff; // Các sao nền, bật theo trần cấp thực tế của offer.
-        public Transform gemsOn; // Các sao sáng, bật theo cấp nhận sau khi chọn.
+        /// <summary>Nút chọn cả thẻ; khóa ngay sau click để tránh nhận thưởng lặp.</summary>
+        public Button button;
+        /// <summary>Icon lấy từ definition của skill được offer.</summary>
+        public Image icon;
+        /// <summary>Tên hiển thị; fallback về tên asset nếu chưa nhập.</summary>
+        public TMP_Text title;
+        /// <summary>Nhãn NEW/UPGRADE và mô tả của cấp sẽ nhận.</summary>
+        public TMP_Text description;
+        /// <summary>Các sao nền, bật theo trần cấp thực tế của offer.</summary>
+        public Transform gemsOff;
+        /// <summary>Các sao sáng, bật theo cấp nhận sau khi chọn.</summary>
+        public Transform gemsOn;
 
-        // Đổ dữ liệu một offer lên thẻ; sao sáng là cấp sẽ nhận sau khi chọn.
+        /// <summary>Đổ dữ liệu một offer lên thẻ; sao sáng là cấp sẽ nhận sau khi chọn.</summary>
         public void Show(SkillChoiceOffer offer)
         {
             button.gameObject.SetActive(true);
@@ -59,9 +67,12 @@ public sealed class SkillChoiceUI : MonoBehaviour
     [SerializeField] private Card[] cards = new Card[3]; // Ba thẻ có sẵn trong scene; không tạo thêm object lúc chơi.
     [SerializeField] private StaggeredPopupTween popupTween; // Utils tween danh sách bất kỳ; view truyền thứ tự các thẻ.
     [SerializeField] private Button rerollButton;
+    /// <summary>Người chơi bấm nút roll lại bảng lựa chọn.</summary>
     public event Action RerollRequested;
-    public event Action<int> Selected; // Gửi index thẻ được chọn cho controller xử lý gameplay.
-    public event Action Hidden; // Báo panel tắt để controller trả token pause.
+    /// <summary>Gửi index thẻ được chọn cho controller xử lý gameplay.</summary>
+    public event Action<int> Selected;
+    /// <summary>Báo panel tắt để controller trả token pause.</summary>
+    public event Action Hidden;
     private UnityAction[] clicks; // Giữ delegate đã đăng ký để gỡ chính xác khi view bị hủy.
     private GameObject previousSelection; // Nút được focus trước khi mở modal, phục hồi khi đóng.
     private int openedFrame; // Chặn input rơi từ frame mở bảng sang nút đầu tiên.
@@ -73,7 +84,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     #region Initialization
 
-    // Inject pool cả khi panel đang tắt; không spawn slot trong bước khởi tạo.
+    /// <summary>Inject pool cả khi panel đang tắt; không spawn slot trong bước khởi tạo.</summary>
     [Zenject.Inject]
     public void Construct(IGameObjectPool pools)
     {
@@ -113,7 +124,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     #region Panel Presentation
 
-    // Mở panel, cập nhật ba thẻ và giới hạn điều hướng trong modal; bắt đầu khoảng chặn input ngắn.
+    /// <summary>Mở panel, cập nhật ba thẻ và giới hạn điều hướng trong modal; bắt đầu khoảng chặn input ngắn.</summary>
     public void Show(IReadOnlyList<SkillChoiceOffer> offers, int pending)
     {
         Initialize();
@@ -153,7 +164,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     #region Owned Skill Slot Presentation
 
-    // Đồng bộ số slot đúng với snapshot; chưa có skill thì không spawn, nâng cấp chỉ đổi nội dung ô đang dùng.
+    /// <summary>Đồng bộ số slot đúng với snapshot; chưa có skill thì không spawn, nâng cấp chỉ đổi nội dung ô đang dùng.</summary>
     public void ShowOwnedSkills(IReadOnlyList<SkillRuntime> skills)
     {
         while (ownedSlots.Count > skills.Count) ReleaseLastOwnedSlot();
@@ -219,7 +230,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
 
     #region Visibility And Cleanup
 
-    // Đóng panel qua vòng đời Unity để OnDisable luôn trả focus và thông báo controller.
+    /// <summary>Đóng panel qua vòng đời Unity để OnDisable luôn trả focus và thông báo controller.</summary>
     public void Hide()
     {
         ReleaseOwnedSlots();

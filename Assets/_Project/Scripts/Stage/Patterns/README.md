@@ -9,8 +9,8 @@ Thư mục này chứa cấu hình, xử lý spawn và chuyển động của Pa
 - Formations/: hình học đội hình và thuật toán sinh slot.
 - Paths/: dữ liệu waypoint và thuật toán lấy vị trí dọc đường.
 
-Formation/SequentialPath sử dụng Path. Area không dùng Path, lấy player làm tâm
-và thu nhỏ dần. Chỉ con chạm player nhận knockback qua EnemyController, không choáng.
+Formation/SequentialPath sử dụng Path. Area không dùng Path: chốt vị trí player lúc spawn
+làm tâm cố định trong world (không đi theo player sau đó) và thu nhỏ dần về tâm đó. Chỉ con chạm player nhận knockback qua EnemyController, không choáng.
 Con chạy Path tách khỏi slot rồi tự đi nốt đường với tốc độ nhóm, không quay về hình.
 Con Area vẫn thuộc viền và tiếp tục thu nhỏ sau knockback.
 Hết Path hoặc thời gian Area thì thu hồi, không chuyển sang chase.

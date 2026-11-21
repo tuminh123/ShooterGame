@@ -2,8 +2,10 @@ using System;
 using PrimeTween;
 using UnityEngine;
 
-// Vòng đời chung của tween popup. UI sở hữu nội dung, input, pause và quyết định tắt GameObject.
-// Các lớp con chỉ chọn một khung hoặc nhiều phần tử và khoảng cách phát giữa chúng.
+/// <summary>
+/// Vòng đời chung của tween popup. UI sở hữu nội dung, input, pause và quyết định tắt GameObject.
+/// Các lớp con chỉ chọn một khung hoặc nhiều phần tử và khoảng cách phát giữa chúng.
+/// </summary>
 public abstract class PopupTweenBase : MonoBehaviour
 {
     #region Shared Scale Settings
@@ -23,6 +25,7 @@ public abstract class PopupTweenBase : MonoBehaviour
     private Sequence sequence; // Chỉ dừng sequence do component này tạo, không dừng tween của hệ khác.
     private Action completion; // Xóa khi dừng/đổi chiều để callback đóng cũ không ẩn popup vừa mở lại.
 
+    /// <summary>Có sequence mở/đóng đang chạy hay không.</summary>
     public bool IsPlaying => sequence.isAlive;
     protected bool IsInitialized => targets != null;
     protected int TargetCount => targets != null ? targets.Length : 0;
@@ -31,12 +34,16 @@ public abstract class PopupTweenBase : MonoBehaviour
 
     #region Public Animation Contract
 
-    // Trả tổng thời gian thực để UI khóa input đến khi trình bày hoàn tất.
-    // UI bật popup trước khi gọi PlayOpen; component này không tự mở các panel khác.
+    /// <summary>
+    /// Trả tổng thời gian thực để UI khóa input đến khi trình bày hoàn tất.
+    /// UI bật popup trước khi gọi PlayOpen; component này không tự mở các panel khác.
+    /// </summary>
     public abstract float PlayOpen(Action onComplete = null);
 
-    // Thu nhỏ từ scale hiện tại rồi gọi callback. UI có thể tắt panel trong callback này.
-    // Gọi mở/đóng mới sẽ hủy callback của lần cũ; không gọi SetActive(false) trước khi tween đóng xong.
+    /// <summary>
+    /// Thu nhỏ từ scale hiện tại rồi gọi callback. UI có thể tắt panel trong callback này.
+    /// Gọi mở/đóng mới sẽ hủy callback của lần cũ; không gọi SetActive(false) trước khi tween đóng xong.
+    /// </summary>
     public abstract float PlayClose(Action onComplete = null);
 
     #endregion
@@ -149,7 +156,7 @@ public abstract class PopupTweenBase : MonoBehaviour
             if (targets[i] != null) targets[i].localScale = originalScales[i];
     }
 
-    // Dùng khi đóng tức thời/reset UI; không chạy callback đóng đang chờ.
+    /// <summary>Dùng khi đóng tức thời/reset UI; không chạy callback đóng đang chờ.</summary>
     public void StopAndReset()
     {
         StopSequence();

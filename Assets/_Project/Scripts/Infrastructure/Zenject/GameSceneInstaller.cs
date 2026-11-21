@@ -22,7 +22,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
     [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, truyền cho PlayerController.
     [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
-    [Tooltip("Nền lặp theo Player và danh mục map; WorldManager dựng từ cấu hình này.")]
+    [Tooltip("Nền lặp, camera bám Player và danh mục map; WorldManager dựng từ cấu hình này.")]
     [SerializeField] private WorldManager.Settings world = new WorldManager.Settings();
     [Tooltip("Vùng sinh quái và AI quái (tách đàn, phản lực); StageManager dựng EnemySpawner từ cấu hình này.")]
     [SerializeField] private EnemySpawner.Settings stage = new EnemySpawner.Settings();
@@ -57,16 +57,13 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     #region Installation
 
-    /// <summary>Kiểm tra cấu hình → bind dữ liệu → bind Manager theo chiều phụ thuộc → thứ tự lifecycle.</summary>
+    /// <summary>Kiểm tra cấu hình → bind dữ liệu → bind Manager theo chiều phụ thuộc → thứ tự lifecycle (danh sách).</summary>
     public override void InstallBindings()
     {
         ValidateDependencies();
         BindData();
         BindDomainManagers();
-        BindSceneServices();
-        ConfigureInitializationOrder();
-        ConfigureFrameOrder();
-        ConfigureDisposalOrder();
+        ConfigureLifecycleOrder();
     }
 
     // Chặn thiếu reference/cấu hình trước khi tạo service, tránh container khởi tạo dở dang.
@@ -93,7 +90,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     }
 
     // Dùng đúng asset đã gán trong Inspector; không tạo bản sao hoặc giữ trạng thái trận trên DataSO.
-    // Settings là dữ liệu cấu hình mà Manager nhận qua constructor.
+    // Cấu hình của Manager luôn đi qua class Settings riêng của nó (BindInstance), không dùng WithArguments:
+    // Zenject ghép WithArguments theo KIỂU dữ liệu, thêm một tham số cùng kiểu là có thể ghép nhầm mà không báo lỗi.
     private void BindData()
     {
         Container.Bind<CharacterDatabaseSO>().FromInstance(characterDatabase).AsSingle();
@@ -106,12 +104,18 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(poolPrewarmSettings);
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInstance(new PlayerSystem.Settings(defaultPlayerType));
+        Container.BindInstance(new CharacterManager.Settings(characterPrefab));
+        Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartRun));
+        Container.BindInstance(world);  // WorldManager.Settings
+        Container.BindInstance(stage);  // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
     }
 
     /// <summary>
     /// Một dòng cho mỗi miền, theo chiều phụ thuộc từ dưới lên (Save → … → Game). Mỗi Manager chỉ lộ contract
     /// trong <c>XxxContracts.cs</c> của nó; system con không có binding nào.
+    /// <c>NonLazy</c>: tạo Manager ngay lúc khởi động thay vì chờ có ai inject. Cần vì nhiều Manager đăng ký event
+    /// trong constructor (ví dụ Run nghe quái chết); nếu tạo trễ thì bỏ lỡ sự kiện hoặc không bao giờ được tạo.
     /// </summary>
     private void BindDomainManagers()
     {
@@ -119,74 +123,82 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesTo<ProgressionManager>().AsSingle().NonLazy();   // Progression: ví, level vĩnh viễn, trang bị, mốc vượt màn
         Container.BindInterfacesTo<PoolManager>().AsSingle().NonLazy();         // Pool: LeanPool + holder
         Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy();   // Simulation: job di chuyển + lưới không gian
-        Container.BindInterfacesTo<CharacterManager>().AsSingle().WithArguments(characterPrefab).NonLazy(); // Character
-        Container.BindInterfacesTo<WorldManager>().AsSingle().WithArguments(world).NonLazy();               // World: map nền
-
-        // Combat nhận hai MemoryPool của Zenject để dựng pool runtime effect (kèm số lượng tạo sẵn).
-        Container.BindMemoryPool<SlowEffectRuntime, ClassPool<SlowEffectRuntime>>()
-            .WithInitialSize(poolPrewarmSettings.SlowRuntimes);
-        Container.BindMemoryPool<DamageOverTimeEffectRuntime, ClassPool<DamageOverTimeEffectRuntime>>()
-            .WithInitialSize(poolPrewarmSettings.DamageOverTimeRuntimes);
+        Container.BindInterfacesTo<CharacterManager>().AsSingle().NonLazy(); // Character
+        Container.BindInterfacesTo<WorldManager>().AsSingle().NonLazy();               // World: map nền
         Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy();       // Combat: skill, đạn, effect, VFX
 
-        Container.BindInterfacesTo<StageManager>().AsSingle().WithArguments(stage).NonLazy(); // Stage: wave, đội hình, boss
+        Container.BindInterfacesTo<StageManager>().AsSingle().NonLazy(); // Stage: wave, đội hình, boss
         Container.BindInterfacesTo<RunManager>().AsSingle().NonLazy();          // Run: đồng hồ, level trận, loot, chọn skill
-        Container.BindInterfacesTo<GameManager>().AsSingle()
-            .WithArguments(autoStartRun, characterPrefab).NonLazy();            // Game: luồng scene, pause, prewarm
+        Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy();            // Game: luồng scene, pause, prewarm
     }
 
-    // UI là MonoBehaviour trong scene và được SceneContext tự inject; chỉ dịch vụ UI dùng chung mới cần binding.
-    private void BindSceneServices()
-    {
-        Container.BindInterfacesTo<ScreenTransitionController>().FromComponentInHierarchy().AsSingle(); // UIContracts.cs
-    }
-
+    // Binding của tầng UI (ScreenTransitionController…) nằm ở UIInstaller, chạy sau installer này.
     #endregion
 
     #region Lifecycle Order
 
-    // Initialize chạy số nhỏ trước: mở save + migration → đọc tiến trình → nhân vật đang chọn → map → bắt đầu game.
+    // Đọc từ trên xuống = thứ tự chạy. Thêm Manager có lifecycle = chèn một dòng đúng chỗ, không cần nghĩ số.
+    // Thứ tự bên trong một miền do Manager của nó tự gọi. Số thứ tự Zenject do ConfigureLifecycleOrder sinh ra.
+
     // Run, Combat, Stage… không có Initialize: chúng đăng ký event ngay trong constructor.
-    private void ConfigureInitializationOrder()
+    private static readonly Type[] InitializeOrder =
     {
-        Container.BindInitializableExecutionOrder<SaveManager>(-200);
-        Container.BindInitializableExecutionOrder<ProgressionManager>(-160);
-        Container.BindInitializableExecutionOrder<CharacterManager>(-150);
-        Container.BindInitializableExecutionOrder<WorldManager>(50); // Map ban đầu trước khi GameManager vào Home.
-        Container.BindInitializableExecutionOrder<GameManager>(100); // Prewarm/spawn sau khi mọi miền đã sẵn sàng.
-    }
+        typeof(SaveManager),        // Mở save + migration trước mọi miền đọc dữ liệu.
+        typeof(ProgressionManager), // Ví, level vĩnh viễn, trang bị, mốc vượt màn.
+        typeof(CharacterManager),   // Nhân vật đang chọn (đọc Progression).
+        typeof(WorldManager),       // Map ban đầu trước khi GameManager vào Home.
+        typeof(GameManager),        // Prewarm/spawn sau khi mọi miền đã sẵn sàng.
+    };
 
-    // Tick/LateTick chạy số nhỏ trước. Thứ tự bên trong một miền do Manager của nó tự gọi.
-    private void ConfigureFrameOrder()
+    private static readonly Type[] TickOrder =
     {
-        Container.BindTickableExecutionOrder<RunManager>(-250); // Đồng hồ trận đầu frame.
-        Container.BindTickableExecutionOrder<CombatManager>(-100); // Bên trong: effect → skill → đạn.
-        Container.BindTickableExecutionOrder<StageManager>(200);
-        Container.BindTickableExecutionOrder<CharacterManager>(300);
-        Container.BindTickableExecutionOrder<WorldManager>(400); // Nền theo Player sau khi nhân vật đã tick.
-        Container.BindLateTickableExecutionOrder<SimulationManager>(0); // Áp dụng di chuyển sau khi mọi Tick đã gửi lệnh.
-        Container.BindLateTickableExecutionOrder<StageManager>(200); // Bù chuyển động camera cho đội hình sau khi đã di chuyển.
-        Container.BindLateTickableExecutionOrder<RunManager>(600); // Nhặt loot sau khi đã áp dụng chuyển động.
-    }
+        typeof(RunManager),         // Đồng hồ trận đầu frame.
+        typeof(CombatManager),      // Bên trong: effect → skill → đạn.
+        typeof(StageManager),
+        typeof(CharacterManager),
+        typeof(WorldManager),       // Nền theo Player sau khi nhân vật đã tick.
+    };
 
-    // Dispose chạy số lớn trước: dừng game → thu hồi entity/VFX → trả pool → giải phóng save và buffer Jobs.
-    private void ConfigureDisposalOrder()
+    private static readonly Type[] LateTickOrder =
     {
-        Container.BindDisposableExecutionOrder<GameManager>(300); // Hủy prewarm, gỡ listener, trả timeScale.
-        Container.BindDisposableExecutionOrder<StageManager>(250);
-        // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk trả về pool).
-        Container.BindDisposableExecutionOrder<WorldManager>(230);
-        // Trước Character (Run nghe PlayerChanged/CharacterDied) và Pool (pickup trả về pool).
-        Container.BindDisposableExecutionOrder<RunManager>(210);
-        // Thu hồi mọi nhân vật trước khi dọn Combat và pool. Thứ tự nội bộ xem CharacterManager.Dispose.
-        Container.BindDisposableExecutionOrder<CharacterManager>(200);
-        // Sau Character: nhân vật despawn còn gọi Combat để dọn skill/effect. Trước Pool: skill, đạn và VFX còn trả visual.
-        Container.BindDisposableExecutionOrder<CombatManager>(175);
-        Container.BindDisposableExecutionOrder<PoolManager>(100);
-        Container.BindDisposableExecutionOrder<ProgressionManager>(0); // Sau mọi miền gameplay (còn đọc/ghi ví khi dọn).
-        Container.BindDisposableExecutionOrder<SaveManager>(-50); // Thử ghi lần cuối phần còn chờ.
-        // Gần cuối: mọi miền đã gỡ đăng ký movement/hitbox. Bên trong: movement rồi spatial.
-        Container.BindDisposableExecutionOrder<SimulationManager>(-100);
+        typeof(SimulationManager),  // Áp dụng di chuyển sau khi mọi Tick đã gửi lệnh.
+        typeof(WorldManager),       // Camera bám Player sau khi di chuyển đã áp dụng.
+        typeof(StageManager),       // Bù chuyển động camera cho đội hình sau khi đã di chuyển.
+        typeof(CharacterManager),   // Animation visual nhân vật (CharacterVisualHandle).
+        typeof(CombatManager),      // Vùng/lưỡi skill bám chủ, rồi VFX kiểm tra đã phát xong.
+        typeof(RunManager),         // Nhặt loot sau khi đã áp dụng chuyển động.
+        // UI (SkillChoiceController, GameplayController) chạy sau toàn bộ danh sách này; thứ tự ở UIInstaller.
+    };
+
+    // Dừng game → thu hồi entity/VFX → trả pool → giải phóng save và buffer Jobs.
+    private static readonly Type[] DisposeOrder =
+    {
+        typeof(GameManager),        // Hủy prewarm, gỡ listener, trả timeScale.
+        typeof(StageManager),
+        typeof(WorldManager),       // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk về pool).
+        typeof(RunManager),         // Trước Character (Run nghe PlayerChanged/CharacterDied) và Pool (pickup về pool).
+        typeof(CharacterManager),   // Thu hồi mọi nhân vật trước khi dọn Combat và Pool. Thứ tự nội bộ xem CharacterManager.Dispose.
+        typeof(CombatManager),      // Nhân vật despawn còn gọi Combat dọn skill/effect; skill, đạn, VFX còn trả visual về Pool.
+        typeof(PoolManager),
+        typeof(ProgressionManager), // Sau mọi miền gameplay (còn đọc/ghi ví khi dọn).
+        typeof(SaveManager),        // Thử ghi lần cuối phần còn chờ.
+        typeof(SimulationManager),  // Cuối: mọi miền đã gỡ đăng ký movement/hitbox. Bên trong: movement rồi spatial.
+    };
+
+    /// <summary>
+    /// Chuyển 4 danh sách thành thứ tự của Zenject. Số do vị trí trong danh sách sinh ra, không ai viết tay.
+    /// Zenject chạy Initialize/Tick/LateTick số nhỏ trước nhưng Dispose số lớn trước, nên Dispose đảo ngược số.
+    /// </summary>
+    private void ConfigureLifecycleOrder()
+    {
+        for (int i = 0; i < InitializeOrder.Length; i++)
+            Container.BindInitializableExecutionOrder(InitializeOrder[i], (i + 1) * 10);
+        for (int i = 0; i < TickOrder.Length; i++)
+            Container.BindTickableExecutionOrder(TickOrder[i], (i + 1) * 10);
+        for (int i = 0; i < LateTickOrder.Length; i++)
+            Container.BindLateTickableExecutionOrder(LateTickOrder[i], (i + 1) * 10);
+        for (int i = 0; i < DisposeOrder.Length; i++)
+            Container.BindDisposableExecutionOrder(DisposeOrder[i], (DisposeOrder.Length - i) * 10);
     }
 
     #endregion

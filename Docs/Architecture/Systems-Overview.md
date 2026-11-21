@@ -7,8 +7,8 @@ Ngày ghi nhận theo code hiện tại: 2026-11-18 (cập nhật miền Stage s
 Tài liệu này là điểm bắt đầu để tìm code và tài liệu chi tiết. Một số tài liệu
 thiết kế cũ mô tả blueprint hoặc phiên bản trước; không mặc định mọi nội dung trong đó đã được triển khai.
 
-Xem [Service contracts và Zenject](../../Assets/_Project/Scripts/Interfaces/README.md) để tra các hợp đồng nhỏ,
-interface tổng hợp và cách đăng ký service/component trong phiên bản hiện tại.
+Contract của mỗi miền nằm trong `XxxContracts.cs` cạnh Manager của miền đó; cách đăng ký Zenject xem
+[Refactor architecture](Refactor-Architecture.md) và `CLAUDE.md`.
 
 ## Ranh giới dữ liệu và hành vi
 
@@ -43,7 +43,7 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | ↳ Player | PlayerSystem, PlayerController | Nhân vật đang chơi, input; giữ một nguồn bonus level/trang bị và cập nhật tại chỗ. |
 | Enemy/boss | EnemySpawner (trong Stage), EnemyController, WaveConfigSO | Chọn đợt/quái, sinh theo vùng, đuổi player, tách đàn và thu hồi. |
 | Visual | CharacterVisualSettings, EnemyVisibility | Prefab visual theo loại, layout, hitbox và bật/tắt visual enemy theo camera. |
-| **Pool** (kiến trúc mới) | **PoolManager**, PoolContracts, ClassPool | Manager duy nhất được bind: thuê/trả GameObject qua LeanPool. Kế hoạch prewarm nằm ở miền Game (GamePrewarm). |
+| **Pool** (kiến trúc mới) | **PoolManager**, PoolContracts | Manager duy nhất được bind: thuê/trả GameObject qua LeanPool; không inject clone. Kế hoạch prewarm nằm ở miền Game (GamePrewarm). |
 | **Combat** (kiến trúc mới) | **CombatManager**, CombatContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng CombatContracts.cs. |
 | ↳ Skill | CharacterSkills, SkillRuntime, SkillSystem, SkillFactory, SkillServices | Data đầy đủ theo cấp, ghép hành vi bằng enum; tách nguồn Character/Gameplay, quản lý cooldown và vòng đời. |
 | ↳ Shooting | ShootingSkill, IShooter, ProjectileSystem | Kiểu bắn do asset chọn ([SerializeReference]); ProjectileSystem sở hữu trọn vòng đời đạn. |
@@ -68,12 +68,12 @@ Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
 
 ```text
 Bind dịch vụ và inject scene
-→ SaveManager.Initialize (-200): mở file + migration
-→ ProgressionManager.Initialize (-160): ví, level vĩnh viễn, trang bị, mốc vượt màn
-→ CharacterManager.Initialize (-150): nhân vật đang chọn
-→ Các service scene còn lại Initialize (thứ tự mặc định 0)
-→ WorldManager.Initialize (50): đặt map ban đầu trước khi vào Home
-→ GameManager.Initialize (100): GamePrewarm tạo sẵn pool/buffer
+(thứ tự = danh sách InitializeOrder trong GameSceneInstaller)
+→ SaveManager.Initialize: mở file + migration
+→ ProgressionManager.Initialize: ví, level vĩnh viễn, trang bị, mốc vượt màn
+→ CharacterManager.Initialize: nhân vật đang chọn
+→ WorldManager.Initialize: đặt map ban đầu trước khi vào Home
+→ GameManager.Initialize: GamePrewarm tạo sẵn pool/buffer
 → prewarm → Home → PreparingRun → reset trận → spawn Player → Playing
 → Gameplay/spawner được phép hoạt động
 ```
@@ -112,7 +112,7 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 ## UI và visual hiện tại
 
 - Hai prefab trong `Prefabs/CharacterType` dùng `CharacterVisualHandle` nhận enum/event từ `CharacterView` để quay mặt toàn mô hình và phát animation. Xem [Character visual events](Character-Visual-Events.md).
-- `ResultController` dùng chung cho Won/Lost: mở popup Victory/Defeat có sẵn trong SampleScene, gọi `StaggeredPopupTween` hiện có để scale nội dung và cho Continue bắt đầu trận mới. Popup chạy bằng unscaled time; Player được phát hết Death trước khi chuyển Lost. Thắng khi Stage phát `IStageResults.Cleared`.
+- `ResultController` dùng chung cho Won/Lost: mở popup Victory/Defeat có sẵn trong SampleScene, gọi `StaggeredPopupTween` hiện có để scale nội dung. Nút của Victory ("Home") về Home, nút của Defeat ("Play Again") bắt đầu trận mới. Popup chạy bằng unscaled time; Player được phát hết Death trước khi chuyển Lost. Thắng khi Stage phát `IStageResults.Cleared`.
 
 - Thanh máu dùng `Slider_Player` trên Canvas world space của character.
 - Player và boss hiển thị máu/giáp; enemy thường không bật thanh này.

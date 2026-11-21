@@ -39,15 +39,10 @@ MonoBehaviour:
     behaviours:
     - rid: 1014
     - rid: 1015
-  behaviours:
-  - rid: 1001
-  - rid: 1005
+  behaviourTypes: 0100000006000000
   references:
     version: 2
     RefIds:
-    - rid: 1001
-      type: {class: ShootingSkill, ns: , asm: Assembly-CSharp}
-      data: 
     - rid: 1002
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: 
@@ -63,9 +58,6 @@ MonoBehaviour:
         useEffectStats: 1
         tickInterval: 1
         damagePerTick: 2
-    - rid: 1005
-      type: {class: StatBonusSkill, ns: , asm: Assembly-CSharp}
-      data: 
     - rid: 1006
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:

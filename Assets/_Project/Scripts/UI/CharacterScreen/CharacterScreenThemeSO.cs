@@ -12,14 +12,6 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
 {
     #region Entry Types
 
-    /// <summary>Cách hiện một con số chỉ số.</summary>
-    public enum StatFormat
-    {
-        Integer, // 750
-        Decimal, // 3.5
-        Percent  // 5%
-    }
-
     /// <summary>Hiển thị của một chỉ số. Thứ tự trong danh sách là thứ tự ô StatRow trên màn.</summary>
     [Serializable]
     public sealed class StatEntry

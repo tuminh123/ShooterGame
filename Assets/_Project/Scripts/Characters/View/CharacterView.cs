@@ -226,6 +226,12 @@ public sealed class CharacterView : MonoBehaviour
         behavior.CompletePatternContact(spawn);
     }
 
+    /// <summary>
+    /// CharacterRegistry gọi ở LateTick: kiểm tra animation của visual. Không chặn khi đã khóa kết quả hay đã chết,
+    /// vì animation Death/Win/Lose phải chạy hết để báo hoàn tất cho gameplay.
+    /// </summary>
+    internal void LateTickFrame() => visualHandle?.LateTick();
+
     #endregion
 
     #region Movement

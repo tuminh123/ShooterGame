@@ -2,14 +2,13 @@ using System;
 
 /// <summary>Hành vi tăng/giảm chỉ số: giữ một modifier chỉ số trên chủ nhân trong suốt thời gian sở hữu skill.</summary>
 /// <remarks>Dùng chung modifier của hệ chỉ số nên không cần switch theo loại chỉ số. Lên cấp thì thay modifier tại chỗ. Data: <see cref="StatBonusData"/>.</remarks>
-[Serializable]
 public sealed class StatBonusSkill : Skill
 {
     #region Runtime State
 
-    [NonSerialized] private StatModifierLease modifier; // Token của đúng skill và đúng spawn.
-    [NonSerialized] private StatModifier applied; // Snapshot config đã áp dụng, không giữ reference data có thể đổi trong Inspector.
-    [NonSerialized] private bool disposed; // Chặn callback sau cleanup.
+    private StatModifierLease modifier; // Token của đúng skill và đúng spawn.
+    private StatModifier applied; // Snapshot config đã áp dụng, không giữ reference data có thể đổi trong Inspector.
+    private bool disposed; // Chặn callback sau cleanup.
     public override SkillBehaviourType Type => SkillBehaviourType.StatBuff;
 
     #endregion

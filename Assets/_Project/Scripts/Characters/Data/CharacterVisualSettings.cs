@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-// Cấu hình local của từng loại nhân vật; vỏ pool giữ scale 1, không scale chung UI và hitbox.
+/// <summary>Cấu hình local của từng loại nhân vật; vỏ pool giữ scale 1, không scale chung UI và hitbox.</summary>
 [Serializable]
 public struct CharacterVisualSettings
 {
@@ -22,6 +22,7 @@ public struct CharacterVisualSettings
     [Tooltip("Độ dày viền giáp theo đơn vị UI trước khi scale; tối thiểu 0.5.")]
     [Min(0.5f)] public float ShieldThickness;
 
+    /// <summary>Giá trị mặc định an toàn cho template mới: scale 1, hitbox nhỏ và thanh máu kích thước chuẩn.</summary>
     public static CharacterVisualSettings Default => new CharacterVisualSettings
     {
         Scale = Vector3.one,
@@ -32,6 +33,7 @@ public struct CharacterVisualSettings
         ShieldThickness = 3f
     };
 
+    /// <summary>Đặt vị trí, góc xoay và scale của visual con theo prefab gốc cộng offset/scale của cấu hình này.</summary>
     public void ApplyVisual(Transform visual)
     {
         visual.localPosition = Prefab.transform.localPosition + Offset;
@@ -39,6 +41,7 @@ public struct CharacterVisualSettings
         visual.localScale = Vector3.Scale(Prefab.transform.localScale, Scale);
     }
 
+    /// <summary>Ném lỗi khi có giá trị NaN/vô hạn hoặc kích thước không dương, để phát hiện cấu hình sai trước khi spawn.</summary>
     public void Validate()
     {
         Hitbox.Validate();

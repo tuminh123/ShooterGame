@@ -18,6 +18,7 @@ using Zenject;
 /// miền khác dùng các vai trò trong <c>SimulationContracts.cs</c>.
 /// </remarks>
 public sealed class SimulationManager :
+    DomainManager,
     IMovementRegistration,
     IMovementCommand,
     IMovementArena,
@@ -66,7 +67,7 @@ public sealed class SimulationManager :
     /// Áp dụng di chuyển của cả frame trong một job. Chạy ở LateTick để mọi Update/Tick
     /// (input, AI, đạn quét va chạm) đã gửi lệnh di chuyển xong.
     /// </summary>
-    public void LateTick()
+    public override void LateTick()
     {
         if (disposed) return;
         movement.LateTick();
@@ -157,7 +158,7 @@ public sealed class SimulationManager :
     /// (Giữ đúng thứ tự cũ khi hai system được Zenject dispose riêng: -100 rồi -250.)
     /// Mỗi bước được cô lập để lỗi của một bên không làm rò NativeArray của bên kia.
     /// </summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;

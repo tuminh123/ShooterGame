@@ -11,24 +11,23 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
   m_Name: EnemyNormalAttack
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   source: 1
   level: 1
   displayName: Normal Attack
-  description: Attack an opponent in contact using the character's damage and crit stats.
+  description: Attack an opponent in contact using the character's damage and crit
+    stats.
   icon: {fileID: 0}
+  shootingVisualState: 3
   levels:
-  - description: Attack an opponent in contact using the character's damage and crit stats.
+  - description: Attack an opponent in contact using the character's damage and crit
+      stats.
     behaviours:
-    - {rid: 1002}
-  behaviours:
-  - {rid: 1001}
+    - rid: 1002
+  behaviourTypes: 00000000
   references:
     version: 2
     RefIds:
-    - rid: 1001
-      type: {class: NormalAttackSkill, ns: , asm: Assembly-CSharp}
-      data: {}
     - rid: 1002
       type: {class: NormalAttackData, ns: , asm: Assembly-CSharp}
       data:

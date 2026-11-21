@@ -1,6 +1,3 @@
-/// <summary>Loại cảnh báo spawn; số lớn hơn được ưu tiên khi xuất hiện cùng lúc.</summary>
-public enum StageSpawnWarning { SimultaneousWave, Elite, Boss }
-
 /// <summary>
 /// Đánh dấu một DataSO spawn được phép nằm trong danh sách Spawn Data của <see cref="StageDataSO"/>
 /// (WaveConfigSO, EnemyPatternSO, BossSpawnDataSO). Inspector và StageDataSO dùng nó để chặn gán nhầm asset.

@@ -93,14 +93,15 @@ Pending patterns keep DeploymentComplete false even while AliveCount is zero.
 - Formation creates every geometry slot at Path A plus shape offsets.
 - SequentialPath creates one member at A, then the system schedules subsequent
   births at Spawn Interval.
-- Area creates perimeter-only closed geometry around the current player, follows
-  that center and shrinks over Shrink Duration. Path is hidden and unused for Area.
+- Area creates perimeter-only closed geometry around the player position at spawn time;
+  that center stays fixed in the world (the ring does not follow the player) and the ring
+  shrinks toward it over Shrink Duration. Path is hidden and unused for Area.
 
 EnemyFormationRuntime is a group entity implementing IStageSpawnEntity. It receives
 actors through Add/Seal, owns their identities/lifetimes and computes targets for
 attached slots, without creating or scheduling enemies itself. Formation uses one
 group path progress and speed; SequentialPath keeps per-birth progress without
-geometry slots. Area uses player center and shrinkDuration instead of path speed.
+geometry slots. Area uses the spawn-time player position as a fixed center and shrinkDuration instead of path speed.
 
 Only a touching member receives knockback; there is no contact stun or stun field.
 CharacterView lets ready innate skills resolve first, preserving damage, on-hit

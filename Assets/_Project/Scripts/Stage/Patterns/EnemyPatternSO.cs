@@ -2,21 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Ba cách hoạt động dùng chung hệ thống Pattern.</summary>
-public enum EnemyPatternType
-{
-    [InspectorName("Cả khối theo Path")] Formation = 0,
-    [InspectorName("Từng thành viên theo Path")] SequentialPath = 1,
-    [InspectorName("Area tại Player")] Area = 2
-}
-
-/// <summary>Area thu đều hoặc xen kẽ các đợt thu và khoảng nghỉ.</summary>
-public enum AreaShrinkMode
-{
-    [InspectorName("Thu liên tục")] Continuous = 0,
-    [InspectorName("Thu theo đợt")] Burst = 1
-}
-
 #region Area Shrink Timeline
 
 /// <summary>Snapshot nhịp thu, dùng chung cho runtime và Editor; không giữ đồng hồ riêng.</summary>
@@ -30,9 +15,22 @@ public readonly struct AreaShrinkTiming
         Mode = mode; Duration = duration; BurstDuration = burstDuration; PauseDuration = pauseDuration;
     }
 
-    // Không cộng khoảng nghỉ sau đợt cuối, kể cả khi đợt cuối chỉ thu một phần thời gian.
-    public float TotalDuration => Mode == AreaShrinkMode.Continuous ? Duration :
-        (float)(Duration + Math.Max(0d, Math.Ceiling((double)Duration / BurstDuration - 1e-6d) - 1d) * PauseDuration);
+    /// <summary>
+    /// Tổng thời gian Area tồn tại = thời gian thu + số lần nghỉ × thời gian nghỉ.
+    /// Ví dụ thu 5 giây, mỗi đợt 1 giây, nghỉ 1 giây: 5 đợt, 4 lần nghỉ, tổng 9 giây.
+    /// </summary>
+    public float TotalDuration
+    {
+        get
+        {
+            if (Mode == AreaShrinkMode.Continuous) return Duration;
+
+            // Trừ 1e-6 để sai số làm tròn (5 / 1 = 5.0000001) không bị Ceiling đẩy lên thành 6 đợt.
+            int burstCount = (int)Math.Ceiling((double)Duration / BurstDuration - 1e-6d);
+            int pauseCount = Math.Max(0, burstCount - 1); // Không nghỉ sau đợt cuối.
+            return Duration + pauseCount * PauseDuration;
+        }
+    }
 
     /// <summary>Tổng giây thực sự thu đến mốc elapsed, bỏ qua các khoảng nghỉ.</summary>
     public float GetShrinkTime(float elapsed)
@@ -64,7 +62,7 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
 {
     #region Cấu hình quái và chuyển động
 
-    [Tooltip("Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area tại Player. Hình Đặc/Rỗng lấy từ Formation asset.")]
+    [Tooltip("Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area quanh Player lúc spawn. Hình Đặc/Rỗng lấy từ Formation asset.")]
     [SerializeField] private EnemyPatternType type;
     [Tooltip("Mốc bắt đầu tính bằng giây từ đầu Stage, độc lập với Wave.")]
     [SerializeField][Min(0f)] private float delay;
@@ -92,10 +90,10 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
     [SerializeField][Min(0.01f)] private float shrinkDuration = 5f;
     [Tooltip("Số giây thu mỗi đợt, sau đó dừng lại. Chỉ dùng khi chọn Thu theo đợt.")]
     [SerializeField][Min(0.01f)] private float shrinkBurstDuration = 1f;
-    [Tooltip("Số giây đứng nguyên bán kính giữa hai đợt thu. Vòng vẫn bám Player; 0 = không nghỉ. Không nghỉ sau đợt cuối.")]
+    [Tooltip("Số giây đứng nguyên bán kính giữa hai đợt thu. Tâm vòng giữ cố định tại chỗ spawn; 0 = không nghỉ. Không nghỉ sau đợt cuối.")]
     [SerializeField][Min(0f)] private float shrinkPauseDuration = 1f;
 
-    /// <summary>Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area tại Player. Hình Đặc/Rỗng lấy từ Formation asset.</summary>
+    /// <summary>Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area quanh Player lúc spawn. Hình Đặc/Rỗng lấy từ Formation asset.</summary>
     public EnemyPatternType Type => type;
     /// <summary>Mốc bắt đầu tính bằng giây từ đầu Stage, độc lập với Wave.</summary>
     public float Delay => delay;
@@ -123,7 +121,7 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
     public float ShrinkDuration => shrinkDuration;
     /// <summary>Số giây thu mỗi đợt, sau đó dừng lại. Chỉ dùng khi chọn Thu theo đợt.</summary>
     public float ShrinkBurstDuration => shrinkBurstDuration;
-    /// <summary>Số giây đứng nguyên bán kính giữa hai đợt thu. Vòng vẫn bám Player; 0 = không nghỉ. Không nghỉ sau đợt cuối.</summary>
+    /// <summary>Số giây đứng nguyên bán kính giữa hai đợt thu. Tâm vòng giữ cố định tại chỗ spawn; 0 = không nghỉ. Không nghỉ sau đợt cuối.</summary>
     public float ShrinkPauseDuration => shrinkPauseDuration;
 
     #endregion

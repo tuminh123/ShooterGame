@@ -156,13 +156,43 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 
 ### Strategy
 - Chọn biến thể bằng **enum + một switch duy nhất** trong factory của họ đó.
+- Ví dụ: hành vi skill. Asset lưu `SkillBehaviourType[]`, `SkillFactory.New` là switch duy nhất tạo class hành vi.
 - Ngoại lệ đã dùng trong code: các strategy chỉ chứa tham số cấu hình (`IShooter`, `IProjectileMove`, `IGameplayEffect`)
-  được chọn thẳng trong data bằng `[SerializeReference]`, nên không cần enum + switch.
+  được chọn thẳng trong data bằng `[SerializeReference]`, nên không cần enum + switch. Class có state chạy trong trận
+  thì không dùng `[SerializeReference]` làm template (tránh `MemberwiseClone` và dùng chung collection giữa nhân vật).
 - Nơi dùng không bao giờ kiểm tra kiểu bằng `is`/`as`.
 
 ### Kiểu dùng chung (thư mục `Scripts/Shared`)
 - `CharacterHandle`: danh tính một lượt spawn (view + runtime + generation). Thay cho mọi so sánh generation viết tay.
 - `DamageInfo`: định nghĩa sát thương duy nhất.
+
+### Enum
+- Mọi enum của code game nằm trong `Scripts/Core/GameEnums.cs`, mỗi miền một `#region`. Tìm hoặc thêm enum chỉ cần mở một file.
+- Asset và save lưu enum bằng **số**: thêm giá trị mới ở cuối hoặc gán số rõ ràng; không đổi số của giá trị đã dùng.
+- Enum chỉ dùng trong Editor (ví dụ `DataInspectorTone`) ở lại `Assembly-CSharp-Editor`, vì code game không được thấy Editor.
+
+### Cấu hình Manager
+- Mỗi Manager cần cấu hình có class `Settings` lồng bên trong, installer bind bằng `BindInstance(new XxxManager.Settings(...))`.
+- Không dùng `WithArguments`: Zenject ghép tham số theo kiểu chứ không theo tên.
+
+### Pool
+- Pool GameObject: `PoolManager` (LeanPool). Clone không được Zenject inject; Manager sở hữu truyền dữ liệu qua `beforeActivate`/`Initialize`.
+- Pool class C# thuần: `Stack<T>` do Manager sở hữu tự `new` (ví dụ `CharacterRuntimePool`, `EffectRuntimePool`). Không dùng `MemoryPool` của Zenject.
+
+### Chặn callback cũ bằng version
+Callback chạy trễ (tween xong, animation xong, effect hết hạn) có thể thuộc một lượt đã bị hủy. Mẫu chung:
+```csharp
+int myVersion = ++version;               // bắt đầu lượt mới
+tween.OnComplete(() =>
+{
+    if (myVersion != version) return;    // callback của lượt cũ → bỏ qua
+    ...
+});
+```
+- Tăng `version` mỗi khi lượt hiện tại bị hủy hoặc thay thế (Hide, Clear, đổi data).
+- Tên biến nói rõ lượt nào: `presentationVersion` (popup kết quả), `playbackVersion` (VFX), `celebrationVersion`
+  (quái ăn mừng), `revision` (data của skill đổi giữa frame). Giữ tên theo nghĩa thay vì ép một tên chung.
+- Với nhân vật trong pool, dùng `CharacterHandle` thay cho version viết tay.
 
 ### Chỉ số nhân vật
 - Công thức tính chỉ số cuối cùng **đã nằm ở một chỗ duy nhất**: `StatCalculator.Calculate`
@@ -182,15 +212,20 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 ## 6. Vòng đời
 
 Container chỉ đăng ký các Manager. Thứ tự nội bộ do từng Manager tự gọi trong code.
-Thứ tự giữa các Manager khai báo bằng số trong `GameSceneInstaller` (một file, mục *Lifecycle Order*);
-chỉ Manager có Initialize/Tick/LateTick/Dispose thật sự mới có dòng ở đó.
+Thứ tự giữa các Manager là **vị trí trong bốn danh sách** của `GameSceneInstaller` (mục *Lifecycle Order*);
+`ConfigureLifecycleOrder` sinh số cho Zenject, không ai viết số tay. Chỉ Manager có Initialize/Tick/LateTick/Dispose
+thật sự mới có dòng ở đó. Mọi Manager kế thừa `DomainManager` (lifecycle virtual).
 
 ```text
-Initialize: Save → Progression → Pool → Simulation → Character → Combat → Stage → Run → Game → UI
-Dispose:    chạy ngược lại
-Tick:       Run (đồng hồ) → Combat (effect → skill → đạn) → Stage (wave) → Character (controller)
-LateTick:   Simulation (di chuyển) → Run (nhặt loot sau khi di chuyển)
+Initialize: Save → Progression → Character → World → Game
+Tick:       Run (đồng hồ) → Combat (effect → skill → đạn) → Stage (wave) → Character (controller) → World (nền)
+LateTick:   Simulation (di chuyển) → World (camera) → Stage (bù camera cho đội hình) → Character (visual)
+            → Combat (vùng skill, VFX) → Run (nhặt loot) → UI (SkillChoiceController → GameplayController, ở UIInstaller)
+Dispose:    Game → Stage → World → Run → Character → Combat → Pool → Progression → Save → Simulation
 ```
+
+View trong scene/pool không tự đăng ký tick: Manager của miền tick hộ (camera trong World, `CharacterVisualHandle`
+qua registry của Character, `SkillAreaVisual` và VFX trong Combat). **Check Service Contracts** chặn field `TickableManager`.
 
 ## 7. Cấu trúc thư mục đích
 

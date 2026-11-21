@@ -3,16 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-/// <summary>Cách chuyển wave: chờ thời gian hoặc dọn sạch quái của chuỗi.</summary>
-public enum WaveAdvanceCondition { AfterDuration, AfterEnemiesCleared }
-
-/// <summary>Cách sinh quái trong một wave.</summary>
-public enum WaveSpawnMode
-{
-    [InspectorName("Lần lượt")] Sequential = 0,
-    [InspectorName("Đồng thời")] Simultaneous = 1
-}
-
 /// <summary>Cấu hình toàn bộ chuỗi wave quái thường, độc lập với Stage.</summary>
 [CreateAssetMenu(fileName = "Waves", menuName = "Shooter Game/Data/Waves")]
 public sealed class WaveConfigSO : ScriptableObject, IStageSpawnData

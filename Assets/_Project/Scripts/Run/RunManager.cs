@@ -21,7 +21,7 @@ using Zenject;
 /// quái chết → thống kê + rơi loot; nhặt EXP → RunLevel; nhặt vàng → ví + thống kê; lên cấp → SkillChoice.
 /// Chiều phụ thuộc: Run → Combat / Character (gọi xuống trực tiếp). Miền khác chỉ thấy <c>RunContracts.cs</c>.
 /// </remarks>
-public sealed class RunManager : IRunReader, IRunLifecycle, ISkillChoice, ITickable, ILateTickable, IDisposable
+public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkillChoice, ITickable, ILateTickable, IDisposable
 {
     #region Fields
 
@@ -48,6 +48,8 @@ public sealed class RunManager : IRunReader, IRunLifecycle, ISkillChoice, ITicka
     public int ElapsedSeconds => clock.ElapsedSeconds;
     public int EnemiesDefeated => statistics.EnemiesDefeated;
 
+    // Event chuyển tiếp: đăng ký vào event của Manager thực chất là đăng ký thẳng vào system con
+    // (add/remove), Manager không giữ danh sách listener riêng.
     /// <inheritdoc/>
     public event Action<int, int> LevelUp
     {
@@ -131,14 +133,14 @@ public sealed class RunManager : IRunReader, IRunLifecycle, ISkillChoice, ITicka
     }
 
     /// <summary>Đồng hồ chạy ở đầu frame (trước Combat), chỉ khi Player đang sống.</summary>
-    public void Tick()
+    public override void Tick()
     {
         if (disposed || !IsPlayerActive(out _)) return;
         clock.Tick(Time.deltaTime);
     }
 
     /// <summary>Nhặt loot sau khi Simulation đã áp vị trí mới (LateTick sau SimulationManager).</summary>
-    public void LateTick()
+    public override void LateTick()
     {
         if (disposed || !IsPlayerActive(out CharacterView player)) return;
         loot.Collect(player.transform.position);
@@ -148,7 +150,7 @@ public sealed class RunManager : IRunReader, IRunLifecycle, ISkillChoice, ITicka
     /// Thứ tự: gỡ listener miền khác → loot (trả pickup về pool, Pool dispose sau) → level (gỡ PlayerChanged) →
     /// listener của các system.
     /// </summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;

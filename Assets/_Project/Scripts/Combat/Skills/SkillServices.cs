@@ -20,10 +20,15 @@ public sealed class SkillServices
     /// <summary>Áp effect một lần hoặc effect duy trì, và kiểm tra/gỡ handle của effect duy trì.</summary>
     public EffectSystem Effects { get; }
 
-    public SkillServices(ProjectileSystem projectiles, IGameObjectPool pools, EffectSystem effects)
+    /// <summary>Danh sách visual vùng/lưỡi đang hiển thị; truyền vào <see cref="SkillAreaVisual.Initialize"/> để visual được tick.</summary>
+    public SkillAreaVisuals AreaVisuals { get; }
+
+    /// <summary>CombatManager tạo một lần; mọi hành vi skill dùng chung.</summary>
+    public SkillServices(ProjectileSystem projectiles, IGameObjectPool pools, EffectSystem effects, SkillAreaVisuals areaVisuals)
     {
         Projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
         Pools = pools ?? throw new ArgumentNullException(nameof(pools));
         Effects = effects ?? throw new ArgumentNullException(nameof(effects));
+        AreaVisuals = areaVisuals ?? throw new ArgumentNullException(nameof(areaVisuals));
     }
 }

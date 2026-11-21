@@ -18,8 +18,27 @@ using Zenject;
 /// Game nằm trên mọi miền gameplay và gọi xuống trực tiếp qua contract của chúng; chỉ UI nghe Game (qua event).
 /// Miền khác chỉ thấy <c>GameContracts.cs</c>.
 /// </remarks>
-public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingProgress, IInitializable, IDisposable
+public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePause, ILoadingProgress, IInitializable, IDisposable
 {
+    #region Settings
+
+    /// <summary>Cấu hình luồng game, installer gán từ Inspector.</summary>
+    public sealed class Settings
+    {
+        /// <summary>Vỏ nhân vật dùng chung; prewarm tạo sẵn theo số lượng trong PoolPrewarmSettings.</summary>
+        public readonly CharacterView CharacterPrefab;
+        /// <summary>true: vào trận ngay khi prewarm xong (test nhanh). false: chờ người chơi bấm Play tại Home.</summary>
+        public readonly bool AutoStartRun;
+
+        public Settings(CharacterView characterPrefab, bool autoStartRun)
+        {
+            CharacterPrefab = characterPrefab != null ? characterPrefab : throw new ArgumentNullException(nameof(characterPrefab));
+            AutoStartRun = autoStartRun;
+        }
+    }
+
+    #endregion
+
     #region Fields
 
     private readonly GameStateMachine states;
@@ -35,15 +54,18 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
     private readonly ICombatLifecycle combat; // Dọn đạn/effect/VFX và skill gameplay.
     private readonly IStageRunLifecycle stageLifecycle;
     private readonly IStageResults stageResults;
-    private readonly bool autoStartRun; // Tắt để chờ người chơi bấm Play tại Home.
+    private readonly Settings settings;
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
     private bool initialized; // Chặn Initialize lặp và lệnh chạy trước bước chuẩn bị.
     private bool transitioning; // Chặn yêu cầu chuyển luồng lồng nhau từ callback UI hoặc gameplay.
     private bool disposed;
+    // Kết thúc trận chờ HAI animation xong rồi mới hiện popup: Player (Win/Lose) và quái (ăn mừng khi thua).
     private bool playerResultComplete;
     private bool enemiesResultComplete;
-    private GameState? completedDuringTransition; // Giữ kết quả nếu hoàn tất ngay trong lúc đang phát state.
+    // Nếu cả hai báo xong NGAY trong lúc FinishRun còn đang chạy (không có animation, hết quái), không được đổi
+    // state lồng vào giữa: lưu Won/Lost tạm ở đây, FinishRun áp dụng khi chạy xong. null = chưa có kết quả chờ.
+    private GameState? pendingResultState;
 
     #endregion
 
@@ -55,6 +77,8 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
     /// <inheritdoc/>
     public Exception LastError { get; private set; }
 
+    // Event chuyển tiếp: đăng ký vào event của Manager thực chất là đăng ký thẳng vào system con
+    // (add/remove), Manager không giữ danh sách listener riêng.
     /// <inheritdoc/>
     public event Action<GameState, GameState> StateChanged
     {
@@ -80,8 +104,8 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
     #region Constructor / Lifecycle
 
     /// <summary>Dựng các system của Game; chưa spawn Player hay phát event (UI chưa inject xong).</summary>
-    /// <param name="characterPrefab">Vỏ nhân vật dùng chung; prewarm tạo sẵn theo số lượng trong settings.</param>
     public GameManager(
+        Settings settings,
         ISaveStore saves,
         IRunLifecycle runLifecycle,
         IPlayerReader playerReader, // Bốn vai trò Character đều do CharacterManager implement (CharacterContracts.cs).
@@ -94,16 +118,15 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
         IPoolCleanup poolCleanup,
         // Dữ liệu và dung lượng cho bước prewarm.
         PoolPrewarmSettingsSO prewarmSettings,
-        CharacterView characterPrefab,
         CharacterDatabaseSO characterDatabase,
         CombatAssetsSO combatAssets,
         LootDatabaseSO lootDatabase,
         IPoolPreparation poolPreparation,
         ICharacterCapacity characterCapacity,
         ICombatCapacity combatCapacity,
-        ISimulationCapacity simulationCapacity,
-        bool autoStartRun = false)
+        ISimulationCapacity simulationCapacity)
     {
+        this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         this.saves = saves;
         run = runLifecycle;
         this.playerReader = playerReader;
@@ -114,16 +137,15 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
         this.stageLifecycle = stageLifecycle;
         this.stageResults = stageResults;
         this.poolCleanup = poolCleanup;
-        this.autoStartRun = autoStartRun;
 
         states = new GameStateMachine();
         pause = new GamePause();
-        prewarm = new GamePrewarm(prewarmSettings, characterPrefab, characterDatabase, combatAssets, lootDatabase,
+        prewarm = new GamePrewarm(prewarmSettings, settings.CharacterPrefab, characterDatabase, combatAssets, lootDatabase,
             poolPreparation, characterCapacity, combatCapacity, simulationCapacity);
     }
 
     /// <summary>Chạy sau Save và Progression; chỉ cho vào Playing sau khi pool sẵn sàng và spawn thành công.</summary>
-    public void Initialize()
+    public override void Initialize()
     {
         if (initialized || disposed) return;
         initialized = true;
@@ -131,7 +153,7 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
     }
 
     /// <summary>Gỡ listener và token trước khi các miền khác Dispose; GamePause trả timeScale về lúc đầu.</summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         disposed = true;
@@ -169,7 +191,7 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception exception) { Fail(exception); }
         finally { transitioning = false; }
-        if (!disposed && autoStartRun && State == GameState.Home) StartRun();
+        if (!disposed && settings.AutoStartRun && State == GameState.Home) StartRun();
     }
 
     #endregion
@@ -209,7 +231,7 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
         try
         {
             LastError = null;
-            completedDuringTransition = null;
+            pendingResultState = null;
             states.Change(GameState.PreparingRun);
             ClearGameplayWorld();
             stageLifecycle.BeginRun();
@@ -262,7 +284,7 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
             stageResults.FinishRun(result == GameState.Won);
             combat.ClearRunSkills();
             GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
-            completedDuringTransition = null;
+            pendingResultState = null;
             playerResultComplete = false;
             enemiesResultComplete = result == GameState.Won;
             states.Change(ending);
@@ -277,10 +299,10 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
             if (player == null || !player.PlayResultAnimation(animation, () => OnPlayerResultAnimationCompleted(ending)))
                 playerResultComplete = true;
             TryCompleteResultPresentation();
-            if (completedDuringTransition.HasValue)
+            if (pendingResultState.HasValue)
             {
-                GameState completed = completedDuringTransition.Value;
-                completedDuringTransition = null;
+                GameState completed = pendingResultState.Value;
+                pendingResultState = null;
                 if (State == ending) states.Change(completed);
             }
             return true;
@@ -308,7 +330,7 @@ public sealed class GameManager : IGameState, IGameFlow, IGamePause, ILoadingPro
     {
         if (!playerResultComplete || !enemiesResultComplete) return;
         GameState result = State == GameState.EndingWin ? GameState.Won : GameState.Lost;
-        if (transitioning) completedDuringTransition = result;
+        if (transitioning) pendingResultState = result;
         else CompleteResult(result);
     }
 

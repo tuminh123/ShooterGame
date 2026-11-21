@@ -15,7 +15,7 @@ using Zenject;
 /// file đã ở schema mới. Trước đây SaveMigration là binding riêng (-180).
 /// Miền khác chỉ thấy <c>SaveContracts.cs</c>.
 /// </remarks>
-public sealed class SaveManager : ISaveStore, ISaveMaintenance, IInitializable, IDisposable
+public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, IInitializable, IDisposable
 {
     #region Settings
 
@@ -55,7 +55,7 @@ public sealed class SaveManager : ISaveStore, ISaveMaintenance, IInitializable, 
     }
 
     /// <summary>Mở file và migration. Lỗi ở bước nào cũng khóa ghi; GameManager sẽ báo lỗi khi thấy IsLoaded = false.</summary>
-    public void Initialize()
+    public override void Initialize()
     {
         EnsureNotDisposed();
         storage.Open();
@@ -63,7 +63,7 @@ public sealed class SaveManager : ISaveStore, ISaveMaintenance, IInitializable, 
     }
 
     /// <summary>Thử ghi lần cuối phần đang chờ rồi khóa.</summary>
-    public void Dispose()
+    public override void Dispose()
     {
         if (disposed) return;
         storage.SaveIfDirty();

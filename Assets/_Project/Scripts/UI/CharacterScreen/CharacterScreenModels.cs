@@ -2,21 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Dữ liệu hiển thị của màn Character (Collection + Detail), gom vào một file vì đều là struct/enum thuần.
+// Dữ liệu hiển thị của màn Character (Collection + Detail), gom vào một file vì đều là struct thuần (enum nằm ở Core/GameEnums.cs).
 // Controller dựng các model này từ service + Theme rồi đẩy xuống View; View chỉ đọc, không gọi service.
-
-#region Enums
-
-/// <summary>Màn con đang mở trong màn Character.</summary>
-public enum CharacterScreenPage { Collection, Detail }
-
-/// <summary>Tab đang mở ở màn Detail. Mỗi tab ứng với một loại nâng cấp.</summary>
-public enum CharacterScreenTab { Level, Stars }
-
-/// <summary>Trạng thái một thẻ trong lưới Collection.</summary>
-public enum CharacterCardState { Normal, Selected, Empty }
-
-#endregion
 
 #region Collection Models
 
