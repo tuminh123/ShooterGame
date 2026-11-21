@@ -19,7 +19,7 @@ public sealed class CharacterPresentation
     private GameObject visual;
     private SpriteRenderer[] sprites;
     private bool resultLocked; // Đang phát thắng/thua: chỉ nhận state kết quả, visual luôn hiện.
-    private bool deathLocked;  // Boss đang phát animation chết: visual luôn hiện tới khi xong.
+    private bool deathLocked; // Boss đang phát animation chết: visual luôn hiện tới khi xong.
 
     #endregion
 
@@ -172,7 +172,11 @@ public sealed class CharacterPresentation
                 Mathf.Abs(x.y) + Mathf.Abs(y.y) + Mathf.Abs(z.y), Mathf.Abs(x.z) + Mathf.Abs(y.z) + Mathf.Abs(z.z));
             Bounds world = new Bounds(matrix.MultiplyPoint3x4(local.center), extent * 2f);
             if (hasSprite) combined.Encapsulate(world);
-            else { combined = world; hasSprite = true; }
+            else
+            {
+                combined = world;
+                hasSprite = true;
+            }
         }
         return combined;
     }

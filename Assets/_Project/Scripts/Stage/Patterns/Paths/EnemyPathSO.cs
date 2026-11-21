@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class EnemyPathSO : ScriptableObject
 {
 
-    #region Cấu hình đường đi
+    #region Path Configuration
 
     [Tooltip("Tắt: tâm Path trùng tâm camera. Bật: dùng Center Offset tương đối với camera; tâm vẫn luôn bám camera.")]
     [SerializeField] private bool useCustomCenter;
@@ -26,7 +26,7 @@ public sealed class EnemyPathSO : ScriptableObject
 
     #endregion
 
-    #region Truy cập dữ liệu và tâm đường
+    #region Data Access & Path Center
 
     public bool UseCustomCenter => useCustomCenter;
     public Vector2 CenterOffset => useCustomCenter ? centerOffset : Vector2.zero;
@@ -43,7 +43,7 @@ public sealed class EnemyPathSO : ScriptableObject
 
     #endregion
 
-    #region Kiểm tra cấu hình
+    #region Validation
 
     /// <summary>Kiểm tra số waypoint, tọa độ hữu hạn, điểm liên tiếp và mức lấy mẫu.</summary>
     public void Validate()

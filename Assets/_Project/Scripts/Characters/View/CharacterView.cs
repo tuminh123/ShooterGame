@@ -37,7 +37,7 @@ public sealed class CharacterView : MonoBehaviour
     private IMovementRegistration movementRegistration;
     private IMovementCommand movementCommand;
     private ISpatialRegistration spatial;
-    private IGameObjectPool pools;           // Thuê/trả visual con.
+    private IGameObjectPool pools; // Thuê/trả visual con.
     private CharacterRuntimePool runtimePool; // Trả runtime về pool khi lượt spawn kết thúc.
 
     #endregion
@@ -45,10 +45,10 @@ public sealed class CharacterView : MonoBehaviour
     #region Spawn State (reset mỗi lượt spawn)
 
     private ICharacterController controller; // Hành vi gắn lúc spawn, không serialize vào prefab.
-    private GameObject visual;               // Visual con thuê từ pool theo prefab trong CharacterDataSO.
+    private GameObject visual; // Visual con thuê từ pool theo prefab trong CharacterDataSO.
     private CharacterVisualHandle visualHandle;
-    private HitboxData hitbox;               // Hitbox local; không cần Collider2D trên vỏ.
-    private MovementHandle movementHandle;   // Đăng ký di chuyển của lần bật hiện tại; vô hiệu ngay khi tắt vỏ.
+    private HitboxData hitbox; // Hitbox local; không cần Collider2D trên vỏ.
+    private MovementHandle movementHandle; // Đăng ký di chuyển của lần bật hiện tại; vô hiệu ngay khi tắt vỏ.
     private CharacterFeedback feedback;
     private CharacterPresentation presentation;
 
@@ -131,29 +131,9 @@ public sealed class CharacterView : MonoBehaviour
     {
         if (context == null) throw new ArgumentNullException(nameof(context));
         // Gán dịch vụ trước mọi kiểm tra: nếu khởi tạo lỗi, factory gọi ClearSpawn và ClearSpawn cần pool.
-        // Mọi vỏ dùng chung một context, nên gán lại ở mỗi lượt spawn là vô hại.
-        movementRegistration = context.MovementRegistration;
-        movementCommand = context.MovementCommand;
-        spatial = context.SpatialRegistration;
-        pools = context.Pools;
-        runtimePool = context.Runtimes;
-        Search = context.Search;
-
-        if (gameObject.activeInHierarchy || RuntimeData != null)
-            throw new InvalidOperationException("Initialize a released, inactive character shell.");
-        if (template == null || runtime == null || behavior == null || template.VisualPrefab == null)
-            throw new ArgumentException("Character needs data, runtime, behavior and a visual prefab.");
-        if (template.CharacterType != runtime.CharacterType || template.Team != runtime.Team)
-            throw new ArgumentException("Character template and runtime must match.");
-
-        // Giữ layer của vỏ theo phe cho các bộ lọc Unity khác; tìm kiếm gameplay dùng Team trong dữ liệu native.
-        string layerName = template.Team == CharacterTeam.Enemy
-            ? GameConstants.PhysicsLayers.Enemy
-            : GameConstants.PhysicsLayers.Player;
-        int characterLayer = LayerMask.NameToLayer(layerName);
-        if (characterLayer < 0)
-            throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
-        gameObject.layer = characterLayer;
+        BindServices(context);
+        ValidateSpawn(template, runtime, behavior);
+        ApplyTeamLayer(template.Team);
 
         CharacterVisualSettings visualSettings = template.VisualSettings;
         visualSettings.Validate();
@@ -164,7 +144,51 @@ public sealed class CharacterView : MonoBehaviour
         IsElite = false;
         controller = behavior;
 
-        // Vỏ vẫn đang tắt nên visual cũng được chuẩn bị trước khi xuất hiện trong scene.
+        AttachVisual(template, visualSettings);
+
+        // Skill vốn có không được tạo ở đây: Combat tạo khi nghe CharacterAdded, ngay trong lời gọi Spawn.
+        // Quái bắt đầu ẩn; EnemyVisibility sẽ bật nếu visual giao khung hình trước khi render.
+        visual.SetActive(runtime.Team != CharacterTeam.Enemy);
+    }
+
+    // Mọi vỏ dùng chung một context, nên gán lại ở mỗi lượt spawn là vô hại.
+    private void BindServices(CharacterContext context)
+    {
+        movementRegistration = context.MovementRegistration;
+        movementCommand = context.MovementCommand;
+        spatial = context.SpatialRegistration;
+        pools = context.Pools;
+        runtimePool = context.Runtimes;
+        Search = context.Search;
+    }
+
+    // Chỉ nhận vỏ đã thu hồi và đang tắt, cùng dữ liệu khớp nhau giữa template và runtime.
+    private void ValidateSpawn(CharacterDataSO template, CharacterRuntimeData runtime, ICharacterController behavior)
+    {
+        if (gameObject.activeInHierarchy || RuntimeData != null)
+            throw new InvalidOperationException("Initialize a released, inactive character shell.");
+        if (template == null || runtime == null || behavior == null || template.VisualPrefab == null)
+            throw new ArgumentException("Character needs data, runtime, behavior and a visual prefab.");
+        if (template.CharacterType != runtime.CharacterType || template.Team != runtime.Team)
+            throw new ArgumentException("Character template and runtime must match.");
+    }
+
+    // Giữ layer của vỏ theo phe cho các bộ lọc Unity khác; tìm kiếm gameplay dùng Team trong dữ liệu native.
+    private void ApplyTeamLayer(CharacterTeam team)
+    {
+        string layerName = team == CharacterTeam.Enemy
+            ? GameConstants.PhysicsLayers.Enemy
+            : GameConstants.PhysicsLayers.Player;
+        int characterLayer = LayerMask.NameToLayer(layerName);
+        if (characterLayer < 0)
+            throw new InvalidOperationException($"Add the {layerName} layer in Project Settings.");
+        gameObject.layer = characterLayer;
+    }
+
+    // Thuê visual của loại nhân vật, áp layout và nối phần hiển thị (animation, màu trúng đòn).
+    // Vỏ vẫn đang tắt nên visual được chuẩn bị xong trước khi xuất hiện trong scene.
+    private void AttachVisual(CharacterDataSO template, CharacterVisualSettings visualSettings)
+    {
         visual = pools.Spawn(template.VisualPrefab, transform.position, transform.rotation, PoolGroup.Other, transform);
         if (visual == null)
             throw new InvalidOperationException("Could not spawn the character visual.");
@@ -179,10 +203,6 @@ public sealed class CharacterView : MonoBehaviour
         visualHandle?.Bind(Presentation);
         Feedback.Bind(new CharacterFeedbackSettings(hitFlashDuration, hitWhiteBlend, statusColorBlend,
             poisonColor, burnColor, slowColor), sprites, controller);
-
-        // Skill vốn có không được tạo ở đây: Combat tạo khi nghe CharacterAdded, ngay trong lời gọi Spawn.
-        // Quái bắt đầu ẩn; EnemyVisibility sẽ bật nếu visual giao khung hình trước khi render.
-        visual.SetActive(runtime.Team != CharacterTeam.Enemy);
     }
 
     #endregion

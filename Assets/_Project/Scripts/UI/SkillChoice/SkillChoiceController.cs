@@ -212,25 +212,35 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     // Panel bị tắt từ ngoài: trả pause và bỏ offer cũ, không xóa lượt đang chờ.
     private void OnPanelHidden()
     {
-        ReleasePause(); offers.Clear(); refreshPending = false; rerollPending = false;
+        ReleasePause();
+        offers.Clear();
+        refreshPending = false;
+        rerollPending = false;
         if (visible) RequestVisibility(false);
     }
 
     // Trả riêng token của bảng skill; gọi lặp vẫn an toàn và không ảnh hưởng nguồn pause khác.
     private void ReleasePause()
     {
-        IDisposable previous = pauseLease; pauseLease = null; previous?.Dispose();
+        IDisposable previous = pauseLease;
+        pauseLease = null;
+        previous?.Dispose();
     }
 
     private void ReleaseSlowMotion()
     {
-        IDisposable previous = slowMotionLease; slowMotionLease = null; previous?.Dispose();
+        IDisposable previous = slowMotionLease;
+        slowMotionLease = null;
+        previous?.Dispose();
     }
 
     // Ẩn view và dọn offer/pause; giữ nguyên lượt chờ để hỗ trợ ẩn UI hoặc phục hồi sau lỗi.
     private void ClosePanel()
     {
-        levelUpPanel.Hide(); offers.Clear(); rerollPending = false; ReleasePause();
+        levelUpPanel.Hide();
+        offers.Clear();
+        rerollPending = false;
+        ReleasePause();
     }
 
     // Kết thúc yêu cầu modal để UIManager quay về panel trước hoặc gameplay; không tự chuyển UI khác.

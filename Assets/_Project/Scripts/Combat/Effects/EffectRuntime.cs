@@ -11,7 +11,10 @@ public readonly struct EffectHandle
 
     // Handle mặc định không chứa runtime; dùng khi yêu cầu áp dụng effect thất bại.
     internal EffectHandle(EffectRuntime runtime)
-    { Runtime = runtime; Version = runtime.Version; }
+    {
+        Runtime = runtime;
+        Version = runtime.Version;
+    }
 
     #endregion
 }

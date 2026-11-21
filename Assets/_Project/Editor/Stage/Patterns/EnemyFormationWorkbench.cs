@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>Công cụ chỉnh hình/Path và xem trước bằng marker, không sinh quái thật.</summary>
 public sealed class EnemyFormationWorkbench : EditorWindow
 {
-    #region Dữ liệu chọn và trạng thái preview
+    #region Selection & Preview State
 
     [SerializeField] private EnemyPatternSO pattern;
     [SerializeField] private BossSpawnDataSO bossSpawn;
@@ -26,7 +26,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
 
     #endregion
 
-    #region Mở cửa sổ và nạp asset
+    #region Window Opening & Asset Loading
 
     /// <summary>Mở cửa sổ từ menu và đọc asset đang được chọn.</summary>
     [MenuItem("Tools/Shooter Game/Formation & Path Workbench")]
@@ -75,7 +75,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
     }
     #endregion
 
-    #region Vòng đời cửa sổ và đồng hồ
+    #region Window Lifecycle & Clock
 
     /// <summary>Đăng ký vẽ Scene và cập nhật preview khi cửa sổ được bật.</summary>
     private void OnEnable()
@@ -114,7 +114,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
 
     #endregion
 
-    #region Giao diện và chỉnh asset
+    #region GUI & Asset Editing
 
     /// <summary>Vẽ các tab Pattern/Boss, preview và chỉnh asset bằng Undo.</summary>
     private void OnGUI()
@@ -260,7 +260,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
 
     #endregion
 
-    #region Dựng hình học xem trước
+    #region Preview Geometry
 
     // Dùng cùng camera với hệ spawn (GameSceneInstaller > Stage > Formation Camera, trống thì Main Camera);
     // Scene View chỉ là nơi vẽ, không phải mốc gameplay. Đọc qua SerializedObject để không mở API mới trên installer.
@@ -365,7 +365,7 @@ public sealed class EnemyFormationWorkbench : EditorWindow
 
     #endregion
 
-    #region Vẽ và tương tác Scene
+    #region Scene Drawing & Interaction
 
     /// <summary>Vẽ đường, slot và marker; cho kéo điểm Custom, waypoint hoặc player minh họa.</summary>
     private void DrawScene(SceneView scene)

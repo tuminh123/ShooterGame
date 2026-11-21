@@ -6,7 +6,7 @@ using UnityEngine;
 public static class EnemyPathBuilder
 {
 
-    #region Dựng hình học local và world
+    #region Local & World Geometry
 
     /// <summary>Sao chép waypoint local; làm mượt nếu asset bật Smooth.</summary>
     public static Vector2[] BuildLocal(EnemyPathSO path)
@@ -48,7 +48,7 @@ public static class EnemyPathBuilder
 
     #endregion
 
-    #region Làm mượt và kiểm tra tọa độ
+    #region Smoothing & Coordinate Checks
 
     /// <summary>Lấy mẫu Catmull-Rom qua waypoint và giữ nguyên hai đầu đường.</summary>
     private static Vector2[] BuildSmooth(Vector2[] knots, int samples)
@@ -92,7 +92,7 @@ public static class EnemyPathBuilder
 public sealed class EnemyPathRoute
 {
 
-    #region Hình học cache và tâm camera
+    #region Cached Geometry & Camera Anchor
 
     private readonly Transform cameraAnchor;
     private readonly Vector2 initialCameraPosition;
@@ -107,7 +107,7 @@ public sealed class EnemyPathRoute
 
     #endregion
 
-    #region Khởi tạo route
+    #region Route Construction
 
     /// <summary>Sao chép điểm world và tính chiều dài tích lũy; từ chối đường suy biến.</summary>
     public EnemyPathRoute(Vector2[] source, Transform cameraAnchor = null)
@@ -144,7 +144,7 @@ public sealed class EnemyPathRoute
 
     #endregion
 
-    #region Lấy mẫu theo quãng đường
+    #region Sampling By Distance
 
     /// <summary>Lấy vị trí theo quãng đường, số lượt đi và độ dịch camera hiện tại.</summary>
     public Vector2 Sample(float travelled, int passes)

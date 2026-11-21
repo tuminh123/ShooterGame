@@ -14,7 +14,11 @@ public readonly struct SpatialHandle : IEquatable<SpatialHandle>
     internal readonly uint Version; // Phiên bản để không nhận nhầm lượt đăng ký mới.
     // Manager cấp handle sau khi đăng ký nhân vật.
     internal SpatialHandle(object owner, int index, uint version)
-    { Owner = owner; Index = index; Version = version; }
+    {
+        Owner = owner;
+        Index = index;
+        Version = version;
+    }
     // Cùng index nhưng khác manager/phiên bản vẫn là đăng ký khác.
     public bool Equals(SpatialHandle other)
         => ReferenceEquals(Owner, other.Owner) && Index == other.Index && Version == other.Version;

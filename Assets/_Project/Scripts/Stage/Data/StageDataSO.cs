@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(fileName = "Stage", menuName = "Shooter Game/Data/Stage")]
 public sealed class StageDataSO : ScriptableObject
 {
-    #region Cấu hình màn và phần thưởng
+    #region Stage & Reward Configuration
 
     /// <summary>Một khoản thưởng tiền tệ, chưa chứa trạng thái đã cấp.</summary>
     [Serializable]
@@ -42,7 +42,7 @@ public sealed class StageDataSO : ScriptableObject
 
     #endregion
 
-    #region Dữ liệu chỉ đọc
+    #region Read-only Data
 
     public string StageId => stageId;
     public string DisplayName => displayName;
@@ -58,7 +58,7 @@ public sealed class StageDataSO : ScriptableObject
 
     #endregion
 
-    #region Kiểm tra cấu hình
+    #region Validation
 
     /// <summary>Kiểm tra màn, từng asset spawn và các khoản thưởng.</summary>
     public void Validate()

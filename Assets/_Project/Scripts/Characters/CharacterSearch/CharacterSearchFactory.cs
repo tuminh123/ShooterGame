@@ -56,5 +56,11 @@ public readonly struct CharacterSearchRequest
 
     public CharacterSearchRequest(Vector2 origin, Vector2 end, float radius, CharacterTeam targetTeam,
         CharacterView exclude = null)
-    { Origin = origin; End = end; Radius = radius; TargetTeam = targetTeam; Exclude = exclude; }
+    {
+        Origin = origin;
+        End = end;
+        Radius = radius;
+        TargetTeam = targetTeam;
+        Exclude = exclude;
+    }
 }

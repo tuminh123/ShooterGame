@@ -4,7 +4,7 @@ using System.Collections.Generic;
 /// <summary>Sở hữu các thực thể spawn, gồm enemy đơn và cả nhóm Pattern.</summary>
 internal sealed class StageSpawnRoster
 {
-    #region Danh tính và quyền sở hữu
+    #region Identity & Ownership
 
     /// <summary>Bọc một enemy/boss; giữ danh tính pool để không thu hồi nhầm lượt mới.</summary>
     private sealed class CharacterEntity : IStageSpawnEntity
@@ -39,7 +39,7 @@ internal sealed class StageSpawnRoster
 
     #endregion
 
-    #region Khởi tạo và thống kê
+    #region Construction & Counts
 
     /// <summary>Nhận spawner dùng để thu hồi các nhân vật được theo dõi.</summary>
     internal StageSpawnRoster(EnemySpawner spawner) { this.spawner = spawner; }
@@ -62,7 +62,7 @@ internal sealed class StageSpawnRoster
 
     #endregion
 
-    #region Theo dõi và thu hồi
+    #region Tracking & Release
 
     /// <summary>Bọc enemy/boss đơn thành thực thể có bảo vệ danh tính pool.</summary>
     internal void Add(CharacterView member)

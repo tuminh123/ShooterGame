@@ -264,6 +264,13 @@ Scripts/
 Chia `#region` theo **nhóm logic** khi class có từ 2 nhóm trở lên. Thứ tự gợi ý:
 `Fields` → `Properties / Events` → `Constructor / Lifecycle` → các nhóm hành vi public → `Private Helpers`.
 Không bọc một region quanh một member duy nhất.
+Tên region viết bằng tiếng Anh (thống nhất toàn dự án); được thêm ghi chú tiếng Việt trong ngoặc, ví dụ `Spawn State (reset mỗi lượt spawn)`.
+
+### Trình bày
+- Mỗi lệnh một dòng; khối `{ ... }` nhiều lệnh thì xuống dòng.
+- Một dòng trống giữa hai member.
+- Comment cuối dòng cách code đúng một dấu cách, không căn lề bằng nhiều dấu cách. Không dùng ký hiệu `// *` / `// !` (viết "Lưu ý:").
+- Field có `[Tooltip]` thì không viết lại cùng ý ở comment cuối dòng; chỉ comment khi có ý mà Tooltip không nói.
 
 ## 9. Lộ trình refactor
 

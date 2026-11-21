@@ -6,7 +6,7 @@ using UnityEngine;
 [CustomEditor(typeof(WaveConfigSO))]
 public sealed class WaveConfigEditor : Editor
 {
-    #region Inspector chuỗi wave
+    #region Wave Sequence Inspector
 
     /// <summary>Vẽ từng wave, xử lý thêm/xóa và chỉ hiện thời gian nghỉ khi có dùng.</summary>
     public override void OnInspectorGUI()

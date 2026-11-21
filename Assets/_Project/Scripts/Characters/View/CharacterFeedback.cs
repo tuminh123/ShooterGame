@@ -5,7 +5,7 @@ using UnityEngine;
 public readonly struct CharacterFeedbackSettings
 {
     public readonly float HitFlashDuration; // Thời gian nháy trắng sau một đòn trúng (giây).
-    public readonly float HitWhiteBlend;    // Mức pha trắng khi nháy (0..1).
+    public readonly float HitWhiteBlend; // Mức pha trắng khi nháy (0..1).
     public readonly float StatusColorBlend; // Mức pha màu trạng thái lên màu gốc (0..1).
     public readonly Color PoisonColor, BurnColor, SlowColor;
 
@@ -38,8 +38,8 @@ public sealed class CharacterFeedback
     private CharacterFeedbackSettings settings;
     private ICharacterController source; // Controller đang được nghe; giữ riêng để gỡ đúng object khi dọn lượt spawn.
     private SpriteRenderer[] sprites;
-    private Color[] originalColors;      // Màu gốc trên prefab visual, để trả lại khi hết trạng thái.
-    private float flashRemaining;        // Mỗi lượt spawn giữ thời hạn nháy riêng, không cần lịch callback.
+    private Color[] originalColors; // Màu gốc trên prefab visual, để trả lại khi hết trạng thái.
+    private float flashRemaining; // Mỗi lượt spawn giữ thời hạn nháy riêng, không cần lịch callback.
     private bool flashing;
 
     #endregion
@@ -99,7 +99,11 @@ public sealed class CharacterFeedback
         Color combined = new Color(0f, 0f, 0f, 0f);
         int count = 0;
         for (int i = 1; i < statusColors.Length; i++)
-            if (statusColors[i]) { combined += StatusColor((CharacterFeedbackKind)i); count++; }
+        {
+            if (!statusColors[i]) continue;
+            combined += StatusColor((CharacterFeedbackKind)i);
+            count++;
+        }
         Color tint = count > 0 ? Color.Lerp(Color.white, combined / count, settings.StatusColorBlend) : Color.white;
         for (int i = 0; i < sprites.Length; i++)
         {

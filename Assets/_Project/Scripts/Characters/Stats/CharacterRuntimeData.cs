@@ -14,9 +14,9 @@ public sealed class CharacterRuntimeData
     #region Vitals State
 
     private StatBonus receivedBonus; // HP/giáp được cấp trực tiếp trong lượt spawn; cộng sau công thức, không bị nhân lại.
-    private float lostHealth;        // HP đã mất; bonus tăng max không xóa lượng damage này.
-    private float lostShield;        // Giáp đã mất; max 100, mất 70 thì current là 30.
-    private bool defeated;           // Đã chết thì đổi bonus hay dọn dẹp cũng không được tự hồi sinh.
+    private float lostHealth; // HP đã mất; bonus tăng max không xóa lượng damage này.
+    private float lostShield; // Giáp đã mất; max 100, mất 70 thì current là 30.
+    private bool defeated; // Đã chết thì đổi bonus hay dọn dẹp cũng không được tự hồi sinh.
 
     #endregion
 

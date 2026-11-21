@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// * Cấu hình trang bị theo ID ổn định; save chỉ giữ ID, bonus được đọc lại khi vào game.
+// Cấu hình trang bị theo ID ổn định; save chỉ giữ ID, bonus được đọc lại khi vào game.
 [CreateAssetMenu(fileName = "EquipmentDatabase", menuName = "Shooter Game/Data/Equipment Database")]
 public sealed class EquipmentDatabaseSO : ScriptableObject
 {

@@ -17,39 +17,39 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
 
     #region Player Configuration & Dependencies
 
-    // * Cấu hình từ installer, phân biệt prefab với instance đang chơi.
+    // Cấu hình từ installer, phân biệt prefab với instance đang chơi.
     public sealed class Settings
     {
-        public readonly CharacterType DefaultType; // * Nhân vật mặc định khi save chưa chọn; hình ảnh được tra từ CharacterDataSO.
+        public readonly CharacterType DefaultType; // Nhân vật mặc định khi save chưa chọn; hình ảnh được tra từ CharacterDataSO.
 
 
-        // * Chỉ lưu cấu hình, chưa tạo GameObject trong bước dựng container.
+        // Chỉ lưu cấu hình, chưa tạo GameObject trong bước dựng container.
         public Settings(CharacterType defaultType)
         {
             DefaultType = defaultType;
         }
     }
-    private readonly ICharacterSpawn characterSpawn; // * Lấy cùng prefab vỏ với Enemy, gắn dữ liệu/hành vi trước khi bật.
+    private readonly ICharacterSpawn characterSpawn; // Lấy cùng prefab vỏ với Enemy, gắn dữ liệu/hành vi trước khi bật.
     private readonly ICharacterDespawn characterDespawn;
-    private readonly VirtualJoystick joystick; // * Truyền cho PlayerController thuần; manager không đọc input.
-    private readonly Settings settings; // * Loại Player mặc định khi hồ sơ chưa chọn nhân vật.
+    private readonly VirtualJoystick joystick; // Truyền cho PlayerController thuần; manager không đọc input.
+    private readonly Settings settings; // Loại Player mặc định khi hồ sơ chưa chọn nhân vật.
     private readonly ISaveStore saves; // Chỉ đọc/ghi lựa chọn nhân vật qua key riêng.
     private PlayerSelectionSaveData selection;
     private readonly IReadOnlyDictionary<CharacterType, CharacterDataSO> characters; // Template theo type (CharacterDatabaseSO).
-    private readonly IPermanentBonuses permanentBonuses; // * Level vĩnh viễn + trang bị (miền Progression), kèm thông báo khi đổi.
+    private readonly IPermanentBonuses permanentBonuses; // Level vĩnh viễn + trang bị (miền Progression), kèm thông báo khi đổi.
     // Nguồn bonus của Player (level vĩnh viễn + trang bị) trong StatSheet của lượt spawn hiện tại.
     // Cập nhật tại chỗ khi level/trang bị đổi; không cộng dồn thêm nguồn mới.
     private StatModifierLease playerBonus;
-    private bool disposed;                   // * Chặn tạo player sau khi dịch vụ kết thúc.
+    private bool disposed; // Chặn tạo player sau khi dịch vụ kết thúc.
 
     #endregion
 
     #region Current Player & Events
 
-    public CharacterView CurrentPlayer { get; private set; } // * Vỏ đang gắn hành vi Player, không phải component Player riêng.
+    public CharacterView CurrentPlayer { get; private set; } // Vỏ đang gắn hành vi Player, không phải component Player riêng.
     public CharacterRuntimeData RuntimeData => CurrentPlayer != null ? CurrentPlayer.RuntimeData : null;
-    public Transform PlayerTransform => CurrentPlayer != null ? CurrentPlayer.transform : null;  // * Mục tiêu world-space.
-    public event Action<CharacterView> PlayerChanged; // * Vỏ Player mới hoặc null; camera/nền không phụ thuộc kiểu controller.
+    public Transform PlayerTransform => CurrentPlayer != null ? CurrentPlayer.transform : null; // Mục tiêu world-space.
+    public event Action<CharacterView> PlayerChanged; // Vỏ Player mới hoặc null; camera/nền không phụ thuộc kiểu controller.
     public CharacterType SelectedCharacterType
     {
         get { EnsureSelectionLoaded(); return selection.selectedCharacterType; }
@@ -91,7 +91,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
 
     #region Service Initialization
 
-    // * CharacterManager tạo và truyền dependency; constructor chưa tạo nhân vật.
+    // CharacterManager tạo và truyền dependency; constructor chưa tạo nhân vật.
     public PlayerSystem(
         CharacterFactory characterFactory,
         VirtualJoystick joystick,
@@ -115,7 +115,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
 
     #region Player Lifecycle
 
-    // * Chỉ tạo khi chưa có player; gọi lại trả về cùng instance để tránh tạo trùng.
+    // Chỉ tạo khi chưa có player; gọi lại trả về cùng instance để tránh tạo trùng.
     public CharacterView SpawnPlayer()
     {
         if (disposed)
@@ -147,7 +147,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         return CurrentPlayer;
     }
 
-    // * Gỡ tham chiếu và thông báo trước khi trả vỏ về pool; SpawnPlayer sau đó tạo runtime/hành vi mới.
+    // Gỡ tham chiếu và thông báo trước khi trả vỏ về pool; SpawnPlayer sau đó tạo runtime/hành vi mới.
     public void RemovePlayer()
     {
         CharacterView previous = CurrentPlayer;
@@ -159,7 +159,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         characterDespawn.Despawn(previous);
     }
 
-    // * Đồng bộ trạng thái nếu có hệ thống khác Destroy player trực tiếp.
+    // Đồng bộ trạng thái nếu có hệ thống khác Destroy player trực tiếp.
     private void OnPlayerReleased(CharacterView player)
     {
         if (!ReferenceEquals(CurrentPlayer, player))
@@ -205,7 +205,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
 
     #region Scene Cleanup
 
-    // * Dọn player và subscription khi scene kết thúc; gọi lại vẫn an toàn.
+    // Dọn player và subscription khi scene kết thúc; gọi lại vẫn an toàn.
     public void Dispose()
     {
         if (disposed)

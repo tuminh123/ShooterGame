@@ -12,9 +12,9 @@ public readonly struct MovementHandle
     // Token nhận diện MovementSystem đã cấp handle (so sánh bằng ReferenceEquals), để handle của
     // scene/container khác không bị nhận nhầm. Kiểu object vì bên cấp là system nội bộ, không phải interface.
     internal readonly object Owner;
-    internal readonly long Id;                // * Mã tăng dần, không tái sử dụng khi pool trả lại cùng một GameObject.
+    internal readonly long Id; // Mã tăng dần, không tái sử dụng khi pool trả lại cùng một GameObject.
 
-    // * Chỉ manager tạo handle khi đăng ký thành công.
+    // Chỉ manager tạo handle khi đăng ký thành công.
     internal MovementHandle(object owner, long id)
     {
         Owner = owner;
@@ -44,31 +44,31 @@ public sealed class MovementSystem : IDisposable
 
     #region Movement Data & Jobs
 
-    // * Dữ liệu main thread; Target không được đưa vào job.
+    // Dữ liệu main thread; Target không được đưa vào job.
     private struct Entry
     {
-        public long Id;            // * Danh tính dùng cập nhật bảng tra cứu khi xóa bằng đổi chỗ.
-        public Transform Target;   // * Transform cần đọc và áp dụng vị trí trong main thread.
-        public Vector2 Velocity;   // * Vận tốc XY đã tính từ hướng chuẩn hóa và tốc độ.
-        public float MaxDistance;  // * Giới hạn quãng đường mỗi bước, giúp đối tượng đuổi mục tiêu không đi vượt đích.
+        public long Id; // Danh tính dùng cập nhật bảng tra cứu khi xóa bằng đổi chỗ.
+        public Transform Target; // Transform cần đọc và áp dụng vị trí trong main thread.
+        public Vector2 Velocity; // Vận tốc XY đã tính từ hướng chuẩn hóa và tốc độ.
+        public float MaxDistance; // Giới hạn quãng đường mỗi bước, giúp đối tượng đuổi mục tiêu không đi vượt đích.
     }
 
-    // * Dữ liệu unmanaged liên tiếp trong NativeArray, mỗi phần tử dành cho một đối tượng.
+    // Dữ liệu unmanaged liên tiếp trong NativeArray, mỗi phần tử dành cho một đối tượng.
     private struct MovementData
     {
-        public float3 Position;    // * Vị trí world-space, giữ nguyên Z khi di chuyển trong mặt phẳng XY.
-        public float2 Velocity;    // * Vận tốc world unit/giây theo XY.
-        public float MaxDistance;  // * Giới hạn bước đi do đối tượng quyết định; vô cực cho chuyển động tự do.
+        public float3 Position; // Vị trí world-space, giữ nguyên Z khi di chuyển trong mặt phẳng XY.
+        public float2 Velocity; // Vận tốc world unit/giây theo XY.
+        public float MaxDistance; // Giới hạn bước đi do đối tượng quyết định; vô cực cho chuyển động tự do.
     }
 
-    // * Burst tối ưu phép tính; Unity chia các chỉ số cho worker, không tạo job riêng từng enemy.
+    // Burst tối ưu phép tính; Unity chia các chỉ số cho worker, không tạo job riêng từng enemy.
     [BurstCompile]
     private struct MovementJob : IJobParallelFor
     {
-        public NativeArray<MovementData> Data;  // * Mỗi Execute chỉ đọc/ghi đúng phần tử index của mình.
-        public float DeltaTime;                 // * Thời gian bước mô phỏng lấy từ main thread, tính bằng giây.
+        public NativeArray<MovementData> Data; // Mỗi Execute chỉ đọc/ghi đúng phần tử index của mình.
+        public float DeltaTime; // Thời gian bước mô phỏng lấy từ main thread, tính bằng giây.
 
-        // * Tính bước dịch chuyển có giới hạn, không gọi GameObject/Transform/LeanPool trong job.
+        // Tính bước dịch chuyển có giới hạn, không gọi GameObject/Transform/LeanPool trong job.
         public void Execute(int index)
         {
             MovementData item = Data[index];
@@ -85,18 +85,21 @@ public sealed class MovementSystem : IDisposable
 
     #region Registry & Native State
 
-    private readonly List<Entry> entries = new List<Entry>(128);  // * Danh sách đặc để duyệt nhanh; chỉ cấp phát thêm khi vượt dung lượng hiện có.
-    // * Tra mã đăng ký ra chỉ số hiện tại; xóa phần tử không làm hỏng handle còn sống.
+    private readonly List<Entry> entries = new List<Entry>(128); // Danh sách đặc để duyệt nhanh; chỉ cấp phát thêm khi vượt dung lượng hiện có.
+    // Tra mã đăng ký ra chỉ số hiện tại; xóa phần tử không làm hỏng handle còn sống.
     private readonly Dictionary<long, int> indices = new Dictionary<long, int>(128);
-    // * Ngăn đăng ký cùng một Transform nhiều lần khiến đối tượng bị di chuyển hai lần.
+    // Ngăn đăng ký cùng một Transform nhiều lần khiến đối tượng bị di chuyển hai lần.
     private readonly Dictionary<Transform, long> targets = new Dictionary<Transform, long>(128);
-    private NativeArray<MovementData> buffer;  // * Buffer persistent dùng lại qua các frame, tăng gấp đôi khi cần.
-    private JobHandle pendingJob;              // * Job gần nhất; luôn Complete trước khi sửa/giải phóng buffer.
-    private long nextId;                       // * Mã tiếp theo; không reset trong vòng đời dịch vụ.
-    private bool disposed;                     // * Chặn đăng ký hoặc chạy sau khi đã giải phóng.
+    private NativeArray<MovementData> buffer; // Buffer persistent dùng lại qua các frame, tăng gấp đôi khi cần.
+    private JobHandle pendingJob; // Job gần nhất; luôn Complete trước khi sửa/giải phóng buffer.
+    private long nextId; // Mã tiếp theo; không reset trong vòng đời dịch vụ.
+    private bool disposed; // Chặn đăng ký hoặc chạy sau khi đã giải phóng.
     private Bounds? arenaBounds;
+    // Tra tên layer một lần (NameToLayer tìm theo chuỗi); Simulate chạy mỗi frame cho mọi object di chuyển.
+    private readonly int playerLayer = LayerMask.NameToLayer(GameConstants.PhysicsLayers.Player);
+    private readonly int enemyLayer = LayerMask.NameToLayer(GameConstants.PhysicsLayers.Enemy);
 
-    public int Count => entries.Count;  // * Số đối tượng đang đăng ký, phục vụ theo dõi trong debugger/profiler.
+    public int Count => entries.Count; // Số đối tượng đang đăng ký, phục vụ theo dõi trong debugger/profiler.
 
     /// <summary>Giới hạn chuyển động XY trong đấu trường; null sẽ gỡ giới hạn.</summary>
     public void SetArenaBounds(Bounds? bounds) => arenaBounds = bounds;
@@ -105,7 +108,7 @@ public sealed class MovementSystem : IDisposable
 
     #region Registration & Movement Commands
 
-    // * Đăng ký một lần khi bật/spawn; đối tượng bắt đầu đứng yên tới khi được gửi hướng.
+    // Đăng ký một lần khi bật/spawn; đối tượng bắt đầu đứng yên tới khi được gửi hướng.
     public MovementHandle Register(Transform target)
     {
         if (disposed)
@@ -122,14 +125,14 @@ public sealed class MovementSystem : IDisposable
         return new MovementHandle(this, id);
     }
 
-    // * Kiểm tra handle còn thuộc đăng ký hiện tại; handle cũ sau despawn không điều khiển object mới.
+    // Kiểm tra handle còn thuộc đăng ký hiện tại; handle cũ sau despawn không điều khiển object mới.
     public bool IsRegistered(MovementHandle handle)
     {
         return !disposed && ReferenceEquals(handle.Owner, this) && indices.ContainsKey(handle.Id);
     }
 
-    // * direction chỉ quyết định hướng; speed là world unit/giây, maxDistance là giới hạn mỗi bước.
-    // * Hướng zero hoặc tốc độ zero sẽ dừng; hướng và tốc độ giữ nguyên tới lần cập nhật tiếp theo.
+    // direction chỉ quyết định hướng; speed là world unit/giây, maxDistance là giới hạn mỗi bước.
+    // Hướng zero hoặc tốc độ zero sẽ dừng; hướng và tốc độ giữ nguyên tới lần cập nhật tiếp theo.
     public bool SetMovement(MovementHandle handle, Vector2 direction, float speed,
         float maxDistance = float.PositiveInfinity)
     {
@@ -147,7 +150,7 @@ public sealed class MovementSystem : IDisposable
         return true;
     }
 
-    // * Hủy khi OnDisable/despawn; gọi nhiều lần hoặc gửi handle cũ đều an toàn.
+    // Hủy khi OnDisable/despawn; gọi nhiều lần hoặc gửi handle cũ đều an toàn.
     public bool Unregister(MovementHandle handle)
     {
         if (!IsRegistered(handle))
@@ -166,7 +169,7 @@ public sealed class MovementSystem : IDisposable
         Simulate(Time.deltaTime);
     }
 
-    // * Chạy một bước cho cả nhóm; có thể gọi thủ công để kiểm tra với deltaTime cố định.
+    // Chạy một bước cho cả nhóm; có thể gọi thủ công để kiểm tra với deltaTime cố định.
     // Chỉ dùng cho kiểm tra thủ công (smoke test); không gọi trong frame đã chạy LateTick, tránh di chuyển hai lần.
     public void Simulate(float deltaTime)
     {
@@ -196,16 +199,14 @@ public sealed class MovementSystem : IDisposable
 
         pendingJob = new MovementJob { Data = buffer, DeltaTime = deltaTime }
             .Schedule(entries.Count, 64);
-        // ! Hoàn tất trong cùng bước để callback pool không thể thay đổi danh sách khi job đang chạy.
-        // * Có song song trong nhóm; main thread chờ ở đây trước khi ghi Transform.
+        // Lưu ý: Hoàn tất trong cùng bước để callback pool không thể thay đổi danh sách khi job đang chạy.
+        // Có song song trong nhóm; main thread chờ ở đây trước khi ghi Transform.
         pendingJob.Complete();
         for (int i = 0; i < entries.Count; i++)
         {
             float3 position = buffer[i].Position;
-            int layer = entries[i].Target.gameObject.layer;
-            bool character = layer == LayerMask.NameToLayer(GameConstants.PhysicsLayers.Player) ||
-                layer == LayerMask.NameToLayer(GameConstants.PhysicsLayers.Enemy);
-            if (arenaBounds.HasValue && character)
+            // Đấu trường boss chỉ giữ nhân vật lại; đạn và loot vẫn bay/rơi tự do.
+            if (arenaBounds.HasValue && IsCharacter(entries[i].Target))
             {
                 Bounds bounds = arenaBounds.Value;
                 position.x = math.clamp(position.x, bounds.min.x, bounds.max.x);
@@ -215,6 +216,12 @@ public sealed class MovementSystem : IDisposable
         }
         // Snapshot không gian phải lấy vị trí mới nếu có truy vấn sau LateTick trong cùng frame.
         spatial.Invalidate();
+    }
+
+    private bool IsCharacter(Transform target)
+    {
+        int layer = target.gameObject.layer;
+        return layer == playerLayer || layer == enemyLayer;
     }
 
     #endregion
@@ -231,7 +238,7 @@ public sealed class MovementSystem : IDisposable
         targets.EnsureCapacity(count);
     }
 
-    // * Chỉ cấp phát khi cần tăng dung lượng, giữ buffer cũ khi số lượng giảm.
+    // Chỉ cấp phát khi cần tăng dung lượng, giữ buffer cũ khi số lượng giảm.
     private void EnsureCapacity(int count)
     {
         if (buffer.IsCreated && buffer.Length >= count)
@@ -244,7 +251,7 @@ public sealed class MovementSystem : IDisposable
             NativeArrayOptions.UninitializedMemory);
     }
 
-    // * Xóa O(1) bằng chuyển phần tử cuối vào chỗ trống và cập nhật bảng tra handle.
+    // Xóa O(1) bằng chuyển phần tử cuối vào chỗ trống và cập nhật bảng tra handle.
     private void RemoveAt(int index)
     {
         Entry removed = entries[index];
@@ -264,7 +271,7 @@ public sealed class MovementSystem : IDisposable
 
     #region Native Memory Cleanup
 
-    // * SimulationManager gọi khi scene kết thúc; Complete job trước khi Dispose để không rò native memory.
+    // SimulationManager gọi khi scene kết thúc; Complete job trước khi Dispose để không rò native memory.
     public void Dispose()
     {
         if (disposed)

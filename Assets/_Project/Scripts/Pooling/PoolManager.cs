@@ -21,22 +21,22 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
 
     #region Pool State & Holders
 
-    private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>(); // * Tra pool theo prefab, dùng lại qua các lượt spawn.
-    private readonly HashSet<LeanGameObjectPool> ownedPools = new HashSet<LeanGameObjectPool>();  // * Chỉ hủy pool tự tạo.
-    // * Clone đang hoạt động → nhóm lúc spawn. Nhóm dùng để biết clone nào là của trận khi rời gameplay.
+    private readonly Dictionary<GameObject, LeanGameObjectPool> pools = new Dictionary<GameObject, LeanGameObjectPool>(); // Tra pool theo prefab, dùng lại qua các lượt spawn.
+    private readonly HashSet<LeanGameObjectPool> ownedPools = new HashSet<LeanGameObjectPool>(); // Chỉ hủy pool tự tạo.
+    // Clone đang hoạt động → nhóm lúc spawn. Nhóm dùng để biết clone nào là của trận khi rời gameplay.
     private readonly Dictionary<GameObject, PoolGroup> activeClones = new Dictionary<GameObject, PoolGroup>();
     private readonly List<GameObject> sweepBuffer = new List<GameObject>(); // Dùng lại giữa các lần quét; Despawn sửa activeClones.
-    private readonly Transform[] holders = new Transform[5];  // * Holder theo thứ tự PoolGroup.
-    private Transform root;           // * Gốc Pool Holders với transform mặc định.
-    private Transform poolsHolder;    // * Chứa pool và các object đã thu hồi.
-    private Transform stagingHolder;  // * Nhánh tắt: clone được chuẩn bị ở đây trước khi OnEnable chạy.
-    private bool disposed;            // * Ngăn spawn sau khi dịch vụ được giải phóng.
+    private readonly Transform[] holders = new Transform[5]; // Holder theo thứ tự PoolGroup.
+    private Transform root; // Gốc Pool Holders với transform mặc định.
+    private Transform poolsHolder; // Chứa pool và các object đã thu hồi.
+    private Transform stagingHolder; // Nhánh tắt: clone được chuẩn bị ở đây trước khi OnEnable chạy.
+    private bool disposed; // Ngăn spawn sau khi dịch vụ được giải phóng.
 
     #endregion
 
     #region Initialization & Holder Access
 
-    // * Trả holder theo nhóm, dùng chung cho enemy, đạn, boss hoặc object khác. Chỉ dùng bên trong miền Pool.
+    // Trả holder theo nhóm, dùng chung cho enemy, đạn, boss hoặc object khác. Chỉ dùng bên trong miền Pool.
     private Transform GetHolder(PoolGroup group)
     {
         if ((int)group < 0 || (int)group >= holders.Length)
@@ -98,7 +98,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         }
     }
 
-    // * Spawn theo world-space; parent tùy chọn cho object có nhánh riêng như chunk.
+    // Spawn theo world-space; parent tùy chọn cho object có nhánh riêng như chunk.
     public GameObject Spawn(
         GameObject prefab,
         Vector3 position,
@@ -118,7 +118,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         try
         {
             activeClones[clone] = group;
-            // * Gán runtime/controller khi clone còn ở Preparing; không để OnEnable nhìn thấy trạng thái cũ.
+            // Gán runtime/controller khi clone còn ở Preparing; không để OnEnable nhìn thấy trạng thái cũ.
             beforeActivate?.Invoke(clone);
             clone.transform.SetParent(holder, true);
             return clone;
@@ -131,7 +131,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         }
     }
 
-    // * Giữ kiểu component, ví dụ Spawn<Bullet>(bulletPrefab, ...).
+    // Giữ kiểu component, ví dụ Spawn<Bullet>(bulletPrefab, ...).
     public T Spawn<T>(T prefab, Vector3 position, Quaternion rotation,
         PoolGroup group = PoolGroup.Other, Transform parent = null) where T : Component
     {
@@ -141,7 +141,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         return clone != null ? clone.GetComponent<T>() : null;
     }
 
-    // * Thu hồi qua LeanPool; gọi hai lần không hủy nhầm clone đã nằm trong pool.
+    // Thu hồi qua LeanPool; gọi hai lần không hủy nhầm clone đã nằm trong pool.
     public void Despawn(GameObject clone)
     {
         if (clone == null)
@@ -198,7 +198,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
 
     #region Pool & Holder Creation
 
-    // * Các holder có position zero, rotation identity, scale one để không làm lệch object.
+    // Các holder có position zero, rotation identity, scale one để không làm lệch object.
     private void EnsureHolders()
     {
         if (disposed)
@@ -216,7 +216,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         stagingHolder.gameObject.SetActive(false);
     }
 
-    // * Một pool mỗi prefab; giữ pool có sẵn và chỉ nhận quyền sở hữu pool do dịch vụ tạo.
+    // Một pool mỗi prefab; giữ pool có sẵn và chỉ nhận quyền sở hữu pool do dịch vụ tạo.
     private LeanGameObjectPool GetPool(GameObject prefab)
     {
         if (pools.TryGetValue(prefab, out LeanGameObjectPool pool) && pool != null)
@@ -233,7 +233,7 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
         return pool;
     }
 
-    // * Tạo nhánh với local transform mặc định.
+    // Tạo nhánh với local transform mặc định.
     private static Transform CreateHolder(string name, Transform parent)
     {
         Transform holder = new GameObject(name).transform;
@@ -245,13 +245,13 @@ public sealed class PoolManager : DomainManager, IDisposable, IGameObjectPool, I
 
     #region Scene Cleanup
 
-    // * Thu hồi clone đang quản lý và hủy pool tự tạo; không DespawnAll toàn cục.
+    // Thu hồi clone đang quản lý và hủy pool tự tạo; không DespawnAll toàn cục.
     public override void Dispose()
     {
         if (disposed)
             return;
         disposed = true;
-        // * OnDisable của vỏ thu hồi cả visual con, làm thay đổi activeClones; duyệt bản sao để tránh lỗi collection.
+        // OnDisable của vỏ thu hồi cả visual con, làm thay đổi activeClones; duyệt bản sao để tránh lỗi collection.
         GameObject[] remaining = new GameObject[activeClones.Count];
         activeClones.Keys.CopyTo(remaining, 0);
         foreach (GameObject clone in remaining)

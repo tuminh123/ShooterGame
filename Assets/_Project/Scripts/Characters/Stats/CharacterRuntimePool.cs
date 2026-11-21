@@ -39,7 +39,12 @@ public sealed class CharacterRuntimePool : IDisposable
         if (available.Count == 0) Prewarm(1); // Thiếu số đã dự trù thì mở rộng, không bỏ mất spawn.
         CharacterRuntimeData runtime = available.Pop();
         try { runtime.InitializeSpawn(template, bonus); }
-        catch { runtime.ResetForPool(); available.Push(runtime); throw; }
+        catch
+        {
+            runtime.ResetForPool();
+            available.Push(runtime);
+            throw;
+        }
         leased.Add(runtime);
         return runtime;
     }

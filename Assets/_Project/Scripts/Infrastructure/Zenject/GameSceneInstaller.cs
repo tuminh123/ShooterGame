@@ -16,12 +16,12 @@ public sealed class GameSceneInstaller : MonoInstaller
 {
     #region Scene References
 
-    [SerializeField] private CharacterView characterPrefab; // * Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
+    [SerializeField] private CharacterView characterPrefab; // Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
     [SerializeField] private CombatAssetsSO combatAssets; // Vỏ đạn dùng chung, sprite đạn và prefab effect.
     [SerializeField] private PoolPrewarmSettingsSO poolPrewarmSettings;
-    [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // * Loại Player khi save chưa chọn nhân vật.
-    [SerializeField] private VirtualJoystick joystick;  // * Joystick trên Canvas, truyền cho PlayerController.
-    [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile;  // * Tên file save người chơi; không chứa dữ liệu của lượt chơi.
+    [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // Loại Player khi save chưa chọn nhân vật.
+    [SerializeField] private VirtualJoystick joystick; // Joystick trên Canvas, truyền cho PlayerController.
+    [SerializeField] private string playerSaveFile = GameConstants.SaveKeys.PlayerFile; // Tên file save người chơi; không chứa dữ liệu của lượt chơi.
     [Tooltip("Nền lặp, camera bám Player và danh mục map; WorldManager dựng từ cấu hình này.")]
     [SerializeField] private WorldManager.Settings world = new WorldManager.Settings();
     [Tooltip("Vùng sinh quái và AI quái (tách đàn, phản lực); StageManager dựng EnemySpawner từ cấu hình này.")]
@@ -33,9 +33,9 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     #region Gameplay Databases
 
-    [SerializeField] private CharacterDatabaseSO characterDatabase;  // * Danh mục template nhân vật.
-    [SerializeField] private LevelDatabaseSO levelDatabase;          // * Config level vĩnh viễn theo nhân vật và config level trận.
-    [SerializeField] private EquipmentDatabaseSO equipmentDatabase;  // * Tra bonus từ ID trang bị đã lưu.
+    [SerializeField] private CharacterDatabaseSO characterDatabase; // Danh mục template nhân vật.
+    [SerializeField] private LevelDatabaseSO levelDatabase; // Config level vĩnh viễn theo nhân vật và config level trận.
+    [SerializeField] private EquipmentDatabaseSO equipmentDatabase; // Tra bonus từ ID trang bị đã lưu.
     [SerializeField] private LootDatabaseSO lootDatabase; // Catalog EXP/vàng: prefab, sprite, lượng, tỉ lệ.
     [SerializeField] private SkillDatabaseSO skillDatabase; // Catalog skill gameplay và quyền xuất hiện trong bảng thưởng.
     [Tooltip("Danh mục tất cả màn và màn mặc định; StageManager chọn Stage từ database này.")]
@@ -106,8 +106,8 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new PlayerSystem.Settings(defaultPlayerType));
         Container.BindInstance(new CharacterManager.Settings(characterPrefab));
         Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartRun));
-        Container.BindInstance(world);  // WorldManager.Settings
-        Container.BindInstance(stage);  // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
+        Container.BindInstance(world); // WorldManager.Settings
+        Container.BindInstance(stage); // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
     }
 
@@ -119,17 +119,17 @@ public sealed class GameSceneInstaller : MonoInstaller
     /// </summary>
     private void BindDomainManagers()
     {
-        Container.BindInterfacesTo<SaveManager>().AsSingle().NonLazy();          // Save: đọc/ghi + migration
-        Container.BindInterfacesTo<ProgressionManager>().AsSingle().NonLazy();   // Progression: ví, level vĩnh viễn, trang bị, mốc vượt màn
-        Container.BindInterfacesTo<PoolManager>().AsSingle().NonLazy();         // Pool: LeanPool + holder
-        Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy();   // Simulation: job di chuyển + lưới không gian
+        Container.BindInterfacesTo<SaveManager>().AsSingle().NonLazy(); // Save: đọc/ghi + migration
+        Container.BindInterfacesTo<ProgressionManager>().AsSingle().NonLazy(); // Progression: ví, level vĩnh viễn, trang bị, mốc vượt màn
+        Container.BindInterfacesTo<PoolManager>().AsSingle().NonLazy(); // Pool: LeanPool + holder
+        Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy(); // Simulation: job di chuyển + lưới không gian
         Container.BindInterfacesTo<CharacterManager>().AsSingle().NonLazy(); // Character
-        Container.BindInterfacesTo<WorldManager>().AsSingle().NonLazy();               // World: map nền
-        Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy();       // Combat: skill, đạn, effect, VFX
+        Container.BindInterfacesTo<WorldManager>().AsSingle().NonLazy(); // World: map nền
+        Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy(); // Combat: skill, đạn, effect, VFX
 
         Container.BindInterfacesTo<StageManager>().AsSingle().NonLazy(); // Stage: wave, đội hình, boss
-        Container.BindInterfacesTo<RunManager>().AsSingle().NonLazy();          // Run: đồng hồ, level trận, loot, chọn skill
-        Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy();            // Game: luồng scene, pause, prewarm
+        Container.BindInterfacesTo<RunManager>().AsSingle().NonLazy(); // Run: đồng hồ, level trận, loot, chọn skill
+        Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy(); // Game: luồng scene, pause, prewarm
     }
 
     // Binding của tầng UI (ScreenTransitionController…) nằm ở UIInstaller, chạy sau installer này.

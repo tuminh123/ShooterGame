@@ -5,7 +5,7 @@ public sealed class RunLevelProgress
 {
     #region Run State
 
-    private readonly RunLevelConfigSO config;  // * Chỉ đọc công thức EXP và bonus cố định; không sửa asset dùng chung.
+    private readonly RunLevelConfigSO config; // Chỉ đọc công thức EXP và bonus cố định; không sửa asset dùng chung.
 
     /// <summary>Level trong trận, bắt đầu từ 1.</summary>
     public int Level { get; private set; } = 1;

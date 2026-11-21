@@ -18,15 +18,15 @@ public sealed class SkillDataSO : ScriptableObject
     #region Display And Source
 
     [Tooltip("Gameplay: skill có thể xuất hiện trong lựa chọn nâng cấp. Character/Equipment: skill vốn có, lấy cấp ban đầu từ Level.")]
-    [SerializeField] private SkillSource source; // Chỉ Gameplay được nhận/nâng qua bảng thưởng.
+    [SerializeField] private SkillSource source;
     [Tooltip("Cấp ban đầu của skill Character/Equipment. Skill Gameplay luôn bắt đầu ở cấp 1 trong trận.")]
     [SerializeField, Min(1)] private int level = 1; // Cấp ban đầu của Character/Equipment; Gameplay luôn bắt đầu cấp một.
     [Tooltip("Tên skill hiển thị trên UI.")]
-    [SerializeField] private string displayName; // Tên hiển thị.
+    [SerializeField] private string displayName;
     [Tooltip("Mô tả chung, dùng khi cấp hiện tại không có mô tả riêng.")]
     [SerializeField, TextArea] private string description; // Mô tả dự phòng khi cấp chưa có mô tả riêng.
     [Tooltip("Icon hiển thị trên thẻ lựa chọn và ô skill.")]
-    [SerializeField] private Sprite icon; // Icon thẻ và slot sở hữu.
+    [SerializeField] private Sprite icon;
     [Tooltip("Chỉ dùng cho boss: animation khi Shooting thực thi thành công. Chọn Idle để không yêu cầu animation; NormalAttack của boss dùng Attack.")]
     [SerializeField] private CharacterVisualState shootingVisualState = CharacterVisualState.Cast;
 
@@ -35,7 +35,7 @@ public sealed class SkillDataSO : ScriptableObject
     #region Level Data And Behaviour Templates
 
     [Tooltip("Danh sách cấu hình theo cấp, theo thứ tự từ cấp 1. Mỗi cấp giữ mô tả và các Behaviour Data được bật ở cấp đó.")]
-    [SerializeField] private SkillLevelData[] levels = Array.Empty<SkillLevelData>(); // Index 0 là cấp 1; mỗi cấp chứa đủ cấu hình.
+    [SerializeField] private SkillLevelData[] levels = Array.Empty<SkillLevelData>();
     [Tooltip("Các hành vi skill này chạy, mỗi loại tối đa một lần. Thông số nằm trong Behaviour Data của từng cấp.")]
     [SerializeField] private SkillBehaviourType[] behaviourTypes = Array.Empty<SkillBehaviourType>();
     public SkillSource Source => source;

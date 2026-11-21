@@ -39,7 +39,11 @@ public sealed class StatBonusSkill : Skill
         }
         StatModifierLease token = Owner.Identity.Stats.AddSource(value);
         if (disposed) token.Dispose();
-        else { modifier = token; applied = value; }
+        else
+        {
+            modifier = token;
+            applied = value;
+        }
     }
 
     #endregion

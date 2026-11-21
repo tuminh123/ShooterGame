@@ -16,20 +16,20 @@ internal sealed class GroundChunks : IDisposable
 
     private readonly IGameObjectPool pool;
     private readonly GameObject template; // Mẫu chunk (prefab có SpriteRenderer ở root).
-    private readonly Transform parent;    // Cha của các chunk; nên giữ scale 1 để kích thước khớp khoảng cách lưới.
-    private readonly float chunkSize;     // Cạnh một chunk theo world unit; phải khớp kích thước hiển thị của sprite.
-    private readonly int radius;          // Số vòng chunk quanh chunk trung tâm: cạnh lưới = 2 * radius + 1.
+    private readonly Transform parent; // Cha của các chunk; nên giữ scale 1 để kích thước khớp khoảng cách lưới.
+    private readonly float chunkSize; // Cạnh một chunk theo world unit; phải khớp kích thước hiển thị của sprite.
+    private readonly int radius; // Số vòng chunk quanh chunk trung tâm: cạnh lưới = 2 * radius + 1.
 
     #endregion
 
     #region State
 
     private readonly Dictionary<Vector2Int, GameObject> active = new Dictionary<Vector2Int, GameObject>(); // Tọa độ chunk → bản sao đang hiện.
-    private readonly HashSet<Vector2Int> required = new HashSet<Vector2Int>();  // Tập cần giữ ở lần dựng hiện tại.
-    private readonly List<Vector2Int> outOfRange = new List<Vector2Int>();     // Dùng lại giữa các lần dựng; không sửa dictionary khi đang duyệt.
-    private Transform target;      // Tâm lưới; null khi chưa có Player (nền đứng yên, chunk cũ giữ nguyên).
+    private readonly HashSet<Vector2Int> required = new HashSet<Vector2Int>(); // Tập cần giữ ở lần dựng hiện tại.
+    private readonly List<Vector2Int> outOfRange = new List<Vector2Int>(); // Dùng lại giữa các lần dựng; không sửa dictionary khi đang duyệt.
+    private Transform target; // Tâm lưới; null khi chưa có Player (nền đứng yên, chunk cũ giữ nguyên).
     private Vector2Int lastCenter; // Chunk chứa mục tiêu ở lần dựng trước.
-    private Sprite sprite;         // Sprite của map đang chọn; null thì giữ sprite có sẵn trên prefab.
+    private Sprite sprite; // Sprite của map đang chọn; null thì giữ sprite có sẵn trên prefab.
 
     #endregion
 

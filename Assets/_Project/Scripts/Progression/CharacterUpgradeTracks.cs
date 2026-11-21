@@ -78,7 +78,7 @@ internal sealed class StarTrack : IUpgradeTrack
     /// <summary>Số sao tối đa, khớp 5 ô sao trên UI.</summary>
     public const int MaxStars = 5;
 
-    // ! CỜ TEST TẠM: true = nâng sao miễn phí để test UI và save trước khi có mảnh nhân vật.
+    // Lưu ý: CỜ TEST TẠM: true = nâng sao miễn phí để test UI và save trước khi có mảnh nhân vật.
     // Task S2 thay bằng giá mảnh thật (CurrencyType.Shard) và xóa cờ này; đặt false để khóa lại nút nâng sao.
     // static readonly thay vì const để compiler không báo "unreachable code" cho nhánh còn lại.
     private static readonly bool FreeUpgradesForTesting = true;

@@ -18,7 +18,11 @@ public sealed class NormalAttackSkill : Skill
     #region Configuration And Execution
 
     // Không giữ collection/state của template.
-    protected override void InitializeRuntime() { data = null; effects = Array.Empty<IGameplayEffect>(); }
+    protected override void InitializeRuntime()
+    {
+        data = null;
+        effects = Array.Empty<IGameplayEffect>();
+    }
 
     // Cập nhật cấu hình mà không tạo lại runtime.
     public override void ApplyData(SkillBehaviourData configuration)

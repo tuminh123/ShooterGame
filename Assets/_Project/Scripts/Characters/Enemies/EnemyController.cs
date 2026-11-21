@@ -9,37 +9,32 @@ public sealed class EnemyController : CharacterControllerBase
 {
     #region Separation Configuration
 
-    // * Cấu hình chung ở GameSceneInstaller > Stage (EnemySpawner.Settings); mỗi controller chỉ giữ bản sao giá trị cần dùng.
+    // Cấu hình chung ở GameSceneInstaller > Stage (EnemySpawner.Settings); mỗi controller chỉ giữ bản sao giá trị cần dùng.
     [System.Serializable]
     public sealed class SeparationSettings
     {
-        [Min(0.01f)] public float radius = 0.2f; // * Khoảng cách mong muốn giữa hai tâm tránh nhau, tính bằng world unit.
-        public float offsetY = -0.05f; // * Cộng vào world Y của vỏ; âm dịch xuống, dương dịch lên, không dời visual/collider.
-        [Min(0f)] public float strength = 2f; // * Trọng số hướng ra xa hàng xóm so với hướng đuổi Player có độ dài 1.
-        [Min(0.01f)] public float scanInterval = 0.1f; // * Số giây game giữa hai lần quét; không quét lại trong mọi Update.
+        [Min(0.01f)] public float radius = 0.2f; // Khoảng cách mong muốn giữa hai tâm tránh nhau, tính bằng world unit.
+        public float offsetY = -0.05f; // Cộng vào world Y của vỏ; âm dịch xuống, dương dịch lên, không dời visual/collider.
+        [Min(0f)] public float strength = 2f; // Trọng số hướng ra xa hàng xóm so với hướng đuổi Player có độ dài 1.
+        [Min(0.01f)] public float scanInterval = 0.1f; // Số giây game giữa hai lần quét; không quét lại trong mọi Update.
     }
 
     // Độ giật là cấu hình di chuyển; hành vi tấn công và cooldown lấy từ asset/manager của skill.
     [System.Serializable]
     public sealed class RecoilSettings
     {
-        [Min(0f)] public float knockbackDistance = 0.35f; // * Chính Enemy lùi ra xa Player sau khi gây damage thành công.
-        [Min(0.01f)] public float knockbackDuration = 0.18f; // * Dịch chuyển bằng MovementSystem, không dùng lực Rigidbody.
+        [Min(0f)] public float knockbackDistance = 0.35f; // Chính Enemy lùi ra xa Player sau khi gây damage thành công.
+        [Min(0.01f)] public float knockbackDuration = 0.18f; // Dịch chuyển bằng MovementSystem, không dùng lực Rigidbody.
     }
 
     #endregion
 
     #region Dependencies & Per-Spawn State
-    private readonly IPlayerReader players; // * Tra mục tiêu hiện tại để không giữ Transform Player cũ sau khi đổi nhân vật.
-    private readonly ICharacterDespawn characters; // * Thu hồi visual trước vỏ qua một đầu mối, không gọi pool trực tiếp cho nhân vật.
-    private readonly float separationRadius; // * Giá trị cấu hình chốt khi tạo controller, không sửa template hoặc dùng chung trạng thái cá thể.
-    private readonly float separationOffsetY; // * Offset tâm quét, không bị scale hoặc flip của visual ảnh hưởng.
-    private readonly float separationStrength; // * Trọng số tách đã chốt cho cá thể; bằng 0 sẽ bỏ qua truy vấn hàng xóm.
-    private readonly float scanInterval; // * Chu kỳ quét của cá thể, tối thiểu 0.01 giây dù cấu hình bị sửa ngoài Inspector.
-    private Vector2 separationDirection; // * Hướng ra xa đã tính ở lượt quét trước; dùng lại giữa các lần quét.
-    private CharacterHandle[] neighborBuffer = System.Array.Empty<CharacterHandle>(); // Mảng của controller, chỉ tăng khi thiếu chỗ; không mượn/trả mỗi lần tìm.
-    private float scanRemaining, recoilRemaining;
-    private bool timingInitialized, paused;
+    private readonly IPlayerReader players; // Tra mục tiêu hiện tại để không giữ Transform Player cũ sau khi đổi nhân vật.
+    private readonly ICharacterDespawn characters; // Thu hồi visual trước vỏ qua một đầu mối, không gọi pool trực tiếp cho nhân vật.
+    private readonly EnemySeparation separation; // Lực tách đàn riêng của con quái này.
+    private readonly EnemyKnockback knockback = new EnemyKnockback(); // Phản lực riêng sau khi đánh trúng Player.
+    private bool paused;
     private EnemyFormationRuntime formation; // Chủ sở hữu nhóm, giữ cả khi con đã tách chuyển động.
     private EnemyFormationRuntime pendingPatternContact;
     private int formationMemberIndex;
@@ -53,14 +48,10 @@ public sealed class EnemyController : CharacterControllerBase
     // Va chạm không gây choáng hoặc khóa skill; cooldown vẫn do skill quản lý.
     public override bool CanAttack => !disposed;
     /// <summary>Cho biết controller còn đang thực hiện phản lực riêng.</summary>
-    internal bool IsKnockedBack => recoilRemaining > 0f;
-    private bool scanReady; // Nhiều nhịp trễ được gộp thành một lần quét, không tính hàng xóm lặp lại vô ích.
+    internal bool IsKnockedBack => knockback.IsActive;
     private bool disposed;
     private readonly float knockbackDistance;
     private readonly float knockbackDuration;
-    private float activeKnockbackDistance;
-    private float activeKnockbackDuration;
-    private Vector2 knockbackDirection; // * Hướng lùi chốt lúc trúng, không đổi theo Player trong lúc lùi.
 
     public EnemyController(
         IPlayerReader players,
@@ -70,11 +61,7 @@ public sealed class EnemyController : CharacterControllerBase
     {
         this.players = players;
         this.characters = characters;
-        separation = separation ?? new SeparationSettings();
-        separationRadius = Mathf.Max(0.01f, separation.radius);
-        separationOffsetY = separation.offsetY;
-        separationStrength = Mathf.Max(0f, separation.strength);
-        scanInterval = Mathf.Max(0.01f, separation.scanInterval);
+        this.separation = new EnemySeparation(separation ?? new SeparationSettings());
         recoil = recoil ?? new RecoilSettings();
         knockbackDistance = Mathf.Max(0f, recoil.knockbackDistance);
         knockbackDuration = Mathf.Max(0.01f, recoil.knockbackDuration);
@@ -90,7 +77,7 @@ public sealed class EnemyController : CharacterControllerBase
     /// </summary>
     protected override void TickMovement(CharacterView view, CharacterRuntimeData runtime)
     {
-        // * Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
+        // Chết/thu hồi là quyết định của Enemy; vỏ không chứa luật sống chết theo phe.
         if (!runtime.IsAlive)
         {
             characters.Despawn(view);
@@ -99,7 +86,7 @@ public sealed class EnemyController : CharacterControllerBase
 
         if (paused || Time.deltaTime <= 0f) return;
 
-        AdvanceScanClock(view, Time.deltaTime);
+        separation.AdvanceClock(view, Time.deltaTime);
 
         if (TickKnockback(view)) return;
 
@@ -120,11 +107,11 @@ public sealed class EnemyController : CharacterControllerBase
         else ChasePlayer(view, runtime, target);
     }
 
-    // * Phản lực đang chạy có ưu tiên hơn đuổi/tách; hai lệnh không triệt tiêu nhau.
-    // * Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết. Trả true nếu frame này đang lùi.
+    // Phản lực đang chạy có ưu tiên hơn đuổi/tách; hai lệnh không triệt tiêu nhau.
+    // Vẫn hoàn tất lùi ngay cả khi đòn vừa rồi làm Player chết. Trả true nếu frame này đang lùi.
     private bool TickKnockback(CharacterView view)
     {
-        if (!ApplyKnockback(view)) return false;
+        if (!knockback.Apply(view, players.CurrentPlayer)) return false;
         if (remainingPath != null) pathAnchorOffset = remainingPath.AnchorOffset;
         return true;
     }
@@ -135,7 +122,7 @@ public sealed class EnemyController : CharacterControllerBase
     // Không còn Player để đuổi: đứng yên và bỏ lực tách cũ.
     private void StopMoving(CharacterView view)
     {
-        separationDirection = Vector2.zero;
+        separation.Clear();
         view.Move(Vector2.zero, 0f);
     }
 
@@ -163,23 +150,23 @@ public sealed class EnemyController : CharacterControllerBase
     // Quái thường: đuổi Player, cộng lực tách để không chồng lên nhau trong đám đông.
     private void ChasePlayer(CharacterView view, CharacterRuntimeData runtime, CharacterView target)
     {
-        UpdateSeparation(view);
+        separation.Update(view);
         Vector2 toPlayer = target.transform.position - view.transform.position;
 
-        // * Hướng đuổi luôn được đọc mới mỗi frame; hướng tách chỉ cập nhật khi đến lịch quét.
-        // * Giữ độ lớn nhỏ hơn 1 khi hai hướng triệt tiêu một phần để quái có thể chậm lại trong đám đông.
+        // Hướng đuổi luôn được đọc mới mỗi frame; hướng tách chỉ cập nhật khi đến lịch quét.
+        // Giữ độ lớn nhỏ hơn 1 khi hai hướng triệt tiêu một phần để quái có thể chậm lại trong đám đông.
         Vector2 direction = Vector2.ClampMagnitude(
-            toPlayer.normalized + separationDirection * separationStrength, 1f);
+            toPlayer.normalized + separation.Direction * separation.Strength, 1f);
 
-        // * MovementSystem chuẩn hóa hướng: nhân tốc độ với độ lớn để giữ mức giảm tốc ở trên.
-        // * Tổng tốc độ không vượt moveSpeed; giới hạn bước đi vẫn ngăn chạy vượt khoảng cách đến Player.
-        // * Hướng nhìn vẫn theo Player, không bị lực tách làm flip ngược lúc quái phải lùi ra xa hàng xóm.
+        // MovementSystem chuẩn hóa hướng: nhân tốc độ với độ lớn để giữ mức giảm tốc ở trên.
+        // Tổng tốc độ không vượt moveSpeed; giới hạn bước đi vẫn ngăn chạy vượt khoảng cách đến Player.
+        // Hướng nhìn vẫn theo Player, không bị lực tách làm flip ngược lúc quái phải lùi ra xa hàng xóm.
         view.Move(direction, runtime.FinalStats.moveSpeed * direction.magnitude, toPlayer.magnitude, toPlayer.x);
     }
 
     #endregion
 
-    #region Thành viên Pattern và tiếp xúc
+    #region Pattern Membership & Contact
 
     /// <summary>Nhận nhóm sở hữu, chỉ số thành viên và cấu hình phản lực cá thể.</summary>
     internal void JoinFormation(EnemyFormationRuntime group, int memberIndex, float recoilDistance, float recoilDuration)
@@ -192,7 +179,7 @@ public sealed class EnemyController : CharacterControllerBase
         patternTouching = false;
         remainingPath = null;
         pathFinished = false;
-        separationDirection = Vector2.zero;
+        separation.Clear();
     }
 
     /// <summary>Chốt tiếp xúc sau skill; chỉ con va chạm bị tách và nhận knockback.</summary>
@@ -221,7 +208,7 @@ public sealed class EnemyController : CharacterControllerBase
 
     #endregion
 
-    #region Path độc lập sau khi tách đội hình
+    #region Detached Path Following
 
     /// <summary>Giữ Path còn lại và tốc độ nhóm; không nhận lại slot hoặc chuyển sang chase.</summary>
     internal void FollowRemainingPath(EnemyPathRoute path, float travelled, int passes, float speed)
@@ -270,84 +257,6 @@ public sealed class EnemyController : CharacterControllerBase
 
     #endregion
 
-    #region Separation Queries
-
-    // Chia pha quét bằng bộ đếm riêng của cá thể; giữa hai lượt dùng lại hướng đã tính.
-    private void UpdateSeparation(CharacterView view)
-    {
-        if (separationStrength <= 0f || !scanReady)
-        {
-            return;
-        }
-        scanReady = false;
-        // Search đọc snapshot hitbox và grid chung; không truy vấn collider.
-        separationDirection = CalculateSeparation(view);
-    }
-
-    // Dùng lại buffer của controller; chỉ giữ dung lượng, xóa tham chiếu hàng xóm sau khi tính xong.
-    // Vùng query chạm hitbox; kiểm tra lại khoảng cách giữa hai tâm để lực tách về 0 đúng bán kính.
-    private Vector2 CalculateSeparation(CharacterView view)
-    {
-        Vector2 position = GetSeparationCenter(view.transform.position);
-        int neighborCount = view.Search.FindAll(position, separationRadius, CharacterTeam.Enemy, ref neighborBuffer, view);
-        float radiusSquared = separationRadius * separationRadius;
-        Vector2 direction = Vector2.zero;
-        try
-        {
-            for (int i = 0; i < neighborCount; i++)
-            {
-                if (!neighborBuffer[i].TryGetCharacter(out CharacterView neighbor))
-                {
-                    continue;
-                }
-
-                // Dùng cùng tâm/offset cho cả hai bên; vector chỉ ra xa hàng xóm.
-                Vector2 away = position - (Vector2)GetSeparationCenter(neighbor.transform.position);
-                float distanceSquared = away.sqrMagnitude;
-                if (distanceSquared >= radiusSquared)
-                {
-                    continue;
-                }
-                if (distanceSquared <= 0.000001f)
-                {
-                    direction += GetOverlapDirection(view.GetInstanceID(), neighbor.GetInstanceID());
-                    continue;
-                }
-
-                float distance = Mathf.Sqrt(distanceSquared);
-                float weight = 1f - distance / separationRadius;
-                direction += away / distance * weight;
-            }
-            // Giới hạn tổng lực để mật độ cao không làm tốc độ tăng vô hạn.
-            return Vector2.ClampMagnitude(direction, 1f);
-        }
-        finally
-        {
-            System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);
-        }
-    }
-
-    // * Một cách tính tâm dùng chung cho truy vấn, khoảng cách và vòng debug để hình vẽ khớp logic.
-    // * Offset giống nhau triệt tiêu khi trừ hai tâm; nó dời vùng query, không tự đổi khoảng cách giữa quái.
-    private Vector3 GetSeparationCenter(Vector3 position)
-    {
-        position.y += separationOffsetY;
-        return position;
-    }
-
-    // * Hai tâm trùng nhau không có hướng để chuẩn hóa; chọn hướng ổn định từ ID của cặp.
-    // * Cùng một cặp nhận hai vector đối nhau nên không cùng chạy sang một phía rồi tiếp tục dính nhau.
-    private static Vector2 GetOverlapDirection(int ownId, int neighborId)
-    {
-        uint pairHash = unchecked((uint)Mathf.Min(ownId, neighborId) * 73856093u ^
-            (uint)Mathf.Max(ownId, neighborId) * 19349663u);
-        float angle = (pairHash % 360u) * Mathf.Deg2Rad;
-        Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-        return ownId < neighborId ? direction : -direction;
-    }
-
-    #endregion
-
     #region Contact Attack & Recoil
 
     protected override void OnAttack(CharacterView view, CharacterRuntimeData runtime, Vector2 away)
@@ -363,54 +272,7 @@ public sealed class EnemyController : CharacterControllerBase
     // Chỉ gửi lệnh di chuyển cho view enemy này; không tác động controller hoặc Transform của player.
     private void StartKnockback(CharacterView view, Vector2 away, float distance, float duration)
     {
-        if (distance <= 0f || !view.isActiveAndEnabled)
-        {
-            return;
-        }
-
-        activeKnockbackDistance = distance;
-        activeKnockbackDuration = Mathf.Max(0.01f, duration);
-        if (away.sqrMagnitude < 0.000001f)
-        {
-            away = Vector2.right;
-        }
-        knockbackDirection = away.normalized;
-        recoilRemaining = activeKnockbackDuration;
-        separationDirection = Vector2.zero;
-    }
-
-    private bool ApplyKnockback(CharacterView view)
-    {
-        if (recoilRemaining <= 0f)
-        {
-            return false;
-        }
-        float stepTime = Mathf.Min(Time.deltaTime, recoilRemaining);
-        recoilRemaining = Mathf.Max(0f, recoilRemaining - stepTime);
-        // Bước cuối chỉ dùng phần duration còn lại, tránh lùi quá quãng đường cấu hình.
-        float speed = (activeKnockbackDistance / activeKnockbackDuration) * (stepTime / Time.deltaTime);
-        CharacterView player = players.CurrentPlayer;
-        float facing = player != null ? player.transform.position.x - view.transform.position.x : -knockbackDirection.x;
-        view.Move(knockbackDirection, speed, facingDirection: facing);
-        return true;
-    }
-
-    // Mỗi controller giữ pha quét riêng; frame dài chỉ quét hàng xóm một lần.
-    private void AdvanceScanClock(CharacterView view, float deltaTime)
-    {
-        if (!timingInitialized)
-        {
-            timingInitialized = true;
-            scanRemaining = scanInterval * (unchecked((uint)view.GetInstanceID()) % 16u) / 16f;
-            return;
-        }
-        if (separationStrength <= 0f) return;
-        scanRemaining -= deltaTime;
-        if (scanRemaining <= 0f)
-        {
-            scanReady = true;
-            scanRemaining += (Mathf.Floor(-scanRemaining / scanInterval) + 1f) * scanInterval;
-        }
+        if (knockback.Start(view, away, distance, duration)) separation.Clear();
     }
 
     public override void SetPaused(bool paused)
@@ -431,9 +293,8 @@ public sealed class EnemyController : CharacterControllerBase
         pendingPatternContact = null;
         remainingPath = null;
         base.Dispose();
-        scanRemaining = recoilRemaining = 0f;
-        System.Array.Clear(neighborBuffer, 0, neighborBuffer.Length);
-        neighborBuffer = System.Array.Empty<CharacterHandle>();
+        separation.Reset();
+        knockback.Clear();
     }
 
     #endregion
@@ -441,15 +302,15 @@ public sealed class EnemyController : CharacterControllerBase
     #if UNITY_EDITOR
     #region Separation Debug
 
-    // * CharacterView gọi khi chọn Enemy trong Scene view; dùng đúng bán kính đã chốt cho lượt spawn này.
+    // CharacterView gọi khi chọn Enemy trong Scene view; dùng đúng bán kính đã chốt cho lượt spawn này.
     // Vẽ vùng tìm hàng xóm theo world XY, không nhân theo scale của vỏ hoặc visual.
-    // ! Chỉ hiển thị phạm vi quét, không thực hiện truy vấn Physics2D hoặc thay đổi hành vi di chuyển.
+    // Lưu ý: Chỉ hiển thị phạm vi quét, không thực hiện truy vấn Physics2D hoặc thay đổi hành vi di chuyển.
     public override void DrawSeparationGizmo(Vector3 position)
     {
-        // * DrawingScope tự khôi phục màu và ma trận để không ảnh hưởng gizmo của đối tượng khác.
+        // DrawingScope tự khôi phục màu và ma trận để không ảnh hưởng gizmo của đối tượng khác.
         using (new UnityEditor.Handles.DrawingScope(Color.yellow, Matrix4x4.identity))
         {
-            UnityEditor.Handles.DrawWireDisc(GetSeparationCenter(position), Vector3.forward, separationRadius);
+            UnityEditor.Handles.DrawWireDisc(separation.GetCenter(position), Vector3.forward, separation.Radius);
         }
     }
 

@@ -209,7 +209,11 @@ public abstract class CharacterControllerBase : ICharacterController
     {
         if (view == null || runtime == null || !ReferenceEquals(view.RuntimeData, runtime)) return false;
         var call = new CharacterHandle(view, runtime);
-        if (!spawnBound) { spawn = call; spawnBound = true; }
+        if (!spawnBound)
+        {
+            spawn = call;
+            spawnBound = true;
+        }
         return spawn.Equals(call); // Cùng vỏ, cùng runtime, cùng generation.
     }
 

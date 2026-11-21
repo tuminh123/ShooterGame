@@ -25,7 +25,7 @@ public sealed class CharacterSkillSystem : IDisposable
     {
         public readonly CharacterHandle Handle;
         public readonly CharacterSkills Skills;
-        public readonly Action Activated;   // Giữ delegate để gỡ đúng listener khi thu hồi.
+        public readonly Action Activated; // Giữ delegate để gỡ đúng listener khi thu hồi.
         public readonly Action Deactivated;
 
         public Entry(CharacterHandle handle, CharacterSkills skills, Action activated, Action deactivated)

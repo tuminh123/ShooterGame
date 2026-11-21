@@ -12,7 +12,10 @@ public readonly struct AreaShrinkTiming
 
     public AreaShrinkTiming(AreaShrinkMode mode, float duration, float burstDuration, float pauseDuration)
     {
-        Mode = mode; Duration = duration; BurstDuration = burstDuration; PauseDuration = pauseDuration;
+        Mode = mode;
+        Duration = duration;
+        BurstDuration = burstDuration;
+        PauseDuration = pauseDuration;
     }
 
     /// <summary>
@@ -60,7 +63,7 @@ public readonly struct AreaShrinkTiming
 [CreateAssetMenu(fileName = "EnemyPattern", menuName = "Shooter Game/Enemy/Pattern")]
 public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
 {
-    #region Cấu hình quái và chuyển động
+    #region Enemy & Movement Configuration
 
     [Tooltip("Chỉ chọn cách spawn/chuyển động: cả khối theo Path, từng thành viên theo Path, hoặc Area quanh Player lúc spawn. Hình Đặc/Rỗng lấy từ Formation asset.")]
     [SerializeField] private EnemyPatternType type;
@@ -126,7 +129,7 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
 
     #endregion
 
-    #region Số lượng và kiểm tra
+    #region Count & Validation
 
     /// <summary>Cả ba cách spawn đều dùng đúng số slot của cùng một hình học.</summary>
     public int Count => formation != null ? formation.SlotCount : throw new InvalidOperationException("Pattern cần Formation asset.");
@@ -183,9 +186,14 @@ public sealed class EnemyPatternSO : ScriptableObject, IStageSpawnData
 
         internal RuntimeData(EnemyPatternSO data)
         {
-            Type = data.type; EnemyLevel = data.enemyLevel; Passes = data.passes;
-            Delay = data.delay; SpawnInterval = data.spawnInterval; Speed = data.speed;
-            KnockbackDistance = data.knockbackDistance; KnockbackDuration = data.knockbackDuration;
+            Type = data.type;
+            EnemyLevel = data.enemyLevel;
+            Passes = data.passes;
+            Delay = data.delay;
+            SpawnInterval = data.spawnInterval;
+            Speed = data.speed;
+            KnockbackDistance = data.knockbackDistance;
+            KnockbackDuration = data.knockbackDuration;
             ShrinkTiming = data.ShrinkTiming;
             Slots = FormationBuilder.Build(data.formation);
             Enemies = (CharacterDataSO[])data.enemies.Clone();

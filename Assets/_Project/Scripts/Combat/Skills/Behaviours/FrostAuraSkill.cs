@@ -149,7 +149,11 @@ public sealed class FrostAuraSkill : Skill
         while (slowed.Count > 0)
         {
             CharacterHandle target;
-            using (var iterator = slowed.Keys.GetEnumerator()) { iterator.MoveNext(); target = iterator.Current; }
+            using (var iterator = slowed.Keys.GetEnumerator())
+            {
+                iterator.MoveNext();
+                target = iterator.Current;
+            }
             try { RemoveSlow(target); }
             catch (Exception exception) { Debug.LogException(exception); }
         }

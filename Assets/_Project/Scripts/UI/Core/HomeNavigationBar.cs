@@ -57,7 +57,7 @@ public sealed class HomeNavigationBar : MonoBehaviour
     private IGameState game;
     private bool barShown;
     private bool barInitialized; // Lần áp dụng đầu bật/tắt ngay, không trượt.
-    private bool wasHome;        // Trạng thái Home lần Refresh trước, để nhận ra lúc vào trận / về Home.
+    private bool wasHome; // Trạng thái Home lần Refresh trước, để nhận ra lúc vào trận / về Home.
 
     #endregion
 

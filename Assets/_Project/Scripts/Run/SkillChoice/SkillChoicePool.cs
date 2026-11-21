@@ -17,7 +17,12 @@ public readonly struct SkillChoiceOffer
 
     /// <summary>Chụp trạng thái skill tại thời điểm roll.</summary>
     internal SkillChoiceOffer(SkillDataSO definition, int current, int offered, int max)
-    { Definition = definition; CurrentLevel = current; OfferedLevel = offered; MaxLevel = max; }
+    {
+        Definition = definition;
+        CurrentLevel = current;
+        OfferedLevel = offered;
+        MaxLevel = max;
+    }
 
     #endregion
 
@@ -68,7 +73,9 @@ public sealed class SkillChoicePool
         // Chụp trước khi xóa result: controller có thể truyền cùng list để roll lại.
         if (previousOffers != null)
             foreach (SkillChoiceOffer offer in previousOffers) previous.Add(offer.Definition);
-        result.Clear(); candidates.Clear(); unique.Clear();
+        result.Clear();
+        candidates.Clear();
+        unique.Clear();
         if (catalog == null || owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return;
         foreach (SkillDataSO definition in catalog)
         {
@@ -92,7 +99,9 @@ public sealed class SkillChoicePool
             candidates[index] = candidates[last];
             candidates.RemoveAt(last);
         }
-        candidates.Clear(); unique.Clear(); previous.Clear();
+        candidates.Clear();
+        unique.Clear();
+        previous.Clear();
     }
     #endregion
 }

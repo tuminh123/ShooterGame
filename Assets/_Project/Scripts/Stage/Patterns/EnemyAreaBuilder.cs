@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>Dựng viền rỗng cho hình học Formation; không quyết định cách spawn hoặc vị trí Player.</summary>
 public static class EnemyAreaBuilder
 {
-    #region Sinh viền hình rỗng
+    #region Hollow Outline Generation
 
     /// <summary>Sinh đủ count điểm trên viền hình, rồi áp dụng kích thước và góc xoay.</summary>
     public static Vector2[] Build(EnemyFormationSO shape, int count)
@@ -96,7 +96,7 @@ public static class EnemyAreaBuilder
 
     #endregion
 
-    #region Biến đổi tọa độ
+    #region Coordinate Transform
 
     /// <summary>Đổi điểm chuẩn sang offset theo Size và Rotation của hình.</summary>
     private static Vector2 Transform(Vector2 point, EnemyFormationSO shape)

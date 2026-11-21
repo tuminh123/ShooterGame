@@ -278,37 +278,56 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
         try
         {
             CharacterView player = playerReader.CurrentPlayer;
+            // Thắng chỉ hợp lệ khi Player còn sống (Stage có thể báo clear đúng frame Player chết).
             if (result == GameState.Won && (player == null || player.RuntimeData == null || !player.RuntimeData.IsAlive))
                 return false;
-            HoldFlowPause();
-            stageResults.FinishRun(result == GameState.Won);
-            combat.ClearRunSkills();
-            GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
-            pendingResultState = null;
-            playerResultComplete = false;
-            enemiesResultComplete = result == GameState.Won;
-            states.Change(ending);
 
-            // Thắng hay thua đều không được để đạn, effect và VFX chạy tiếp phía sau popup kết quả.
-            // Phải chạy SAU khi đổi state: nếu không còn quái nào để ăn mừng, CharacterManager báo hoàn tất
-            // ngay lập tức, và OnEnemyCelebrationsCompleted chỉ chấp nhận khi State đã là EndingLose.
-            combat.ClearCombat();
-            if (ending == GameState.EndingLose) characterDeaths.PlayEnemyCelebrations();
-
-            CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
-            if (player == null || !player.PlayResultAnimation(animation, () => OnPlayerResultAnimationCompleted(ending)))
-                playerResultComplete = true;
-            TryCompleteResultPresentation();
-            if (pendingResultState.HasValue)
-            {
-                GameState completed = pendingResultState.Value;
-                pendingResultState = null;
-                if (State == ending) states.Change(completed);
-            }
+            GameState ending = EnterEnding(result);
+            StartResultAnimations(result, ending, player);
+            ApplyPendingResult(ending);
             return true;
         }
         catch (Exception exception) { Fail(exception); return false; }
         finally { transitioning = false; }
+    }
+
+    // Dừng trận, cấp thưởng đúng một lần và chuyển sang EndingWin/EndingLose. Trả state kết thúc.
+    private GameState EnterEnding(GameState result)
+    {
+        HoldFlowPause();
+        stageResults.FinishRun(result == GameState.Won);
+        combat.ClearRunSkills();
+
+        GameState ending = result == GameState.Won ? GameState.EndingWin : GameState.EndingLose;
+        pendingResultState = null;
+        playerResultComplete = false;
+        enemiesResultComplete = result == GameState.Won; // Thắng thì không có quái ăn mừng để chờ.
+        states.Change(ending);
+        return ending;
+    }
+
+    // Dọn đạn/effect rồi phát animation: Player (Win/Lose), và quái ăn mừng khi thua.
+    private void StartResultAnimations(GameState result, GameState ending, CharacterView player)
+    {
+        // Thắng hay thua đều không được để đạn, effect và VFX chạy tiếp phía sau popup kết quả.
+        // Phải chạy SAU khi đổi state: nếu không còn quái nào để ăn mừng, CharacterManager báo hoàn tất
+        // ngay lập tức, và OnEnemyCelebrationsCompleted chỉ chấp nhận khi State đã là EndingLose.
+        combat.ClearCombat();
+        if (ending == GameState.EndingLose) characterDeaths.PlayEnemyCelebrations();
+
+        CharacterVisualState animation = result == GameState.Won ? CharacterVisualState.Win : CharacterVisualState.Lose;
+        if (player == null || !player.PlayResultAnimation(animation, () => OnPlayerResultAnimationCompleted(ending)))
+            playerResultComplete = true; // Không có animation để chờ.
+        TryCompleteResultPresentation();
+    }
+
+    // Hai animation đã xong ngay trong FinishRun (xem pendingResultState): giờ mới đổi sang Won/Lost.
+    private void ApplyPendingResult(GameState ending)
+    {
+        if (!pendingResultState.HasValue) return;
+        GameState completed = pendingResultState.Value;
+        pendingResultState = null;
+        if (State == ending) states.Change(completed);
     }
 
     // Chờ cả Player và nhóm enemy/boss trước khi công bố state cuối.

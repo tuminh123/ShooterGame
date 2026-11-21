@@ -15,7 +15,16 @@ public sealed class SkillSystem : IDisposable
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
-    public int RunCount { get { int count = 0; foreach (SkillRuntime skill in skills) if (skill.IsActive) count++; return count; } }
+    public int RunCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (SkillRuntime skill in skills)
+                if (skill.IsActive) count++;
+            return count;
+        }
+    }
 
     #endregion
 
@@ -41,7 +50,8 @@ public sealed class SkillSystem : IDisposable
     {
         foreach (SkillRuntime skill in skills)
             if (skill.IsActive && skill.Definition == definition && skill.BelongsTo(owner)) { runtime = skill; return true; }
-        runtime = null; return false;
+        runtime = null;
+        return false;
     }
 
     #endregion
@@ -95,7 +105,11 @@ public sealed class SkillSystem : IDisposable
             for (int i = 0; i < count; i++)
                 try { skills[i].Tick(deltaTime); } catch (Exception exception) { Debug.LogException(exception); }
         }
-        finally { ticking = false; RemoveInactive(); }
+        finally
+        {
+            ticking = false;
+            RemoveInactive();
+        }
     }
 
     // Owner tạm tắt: pause mọi hành vi và timer ngay, không chờ tới frame tick tiếp theo.
@@ -122,10 +136,15 @@ public sealed class SkillSystem : IDisposable
     public void ClearRunSkills()
     {
         if (clearing) return;
-        clearing = true; runVersion++;
+        clearing = true;
+        runVersion++;
         var failures = new List<Exception>();
         try { foreach (SkillRuntime skill in skills) try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); } }
-        finally { clearing = false; if (!ticking) RemoveInactive(); }
+        finally
+        {
+            clearing = false;
+            if (!ticking) RemoveInactive();
+        }
         if (failures.Count > 0) throw new AggregateException("Skill cleanup failed.", failures);
     }
 

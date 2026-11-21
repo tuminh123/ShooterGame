@@ -11,13 +11,13 @@ public sealed class CharacterFactory : IDisposable, ICharacterSpawn, ICharacterD
 {
     #region Dependencies And State
 
-    private readonly CharacterView prefab; // * Prefab vỏ duy nhất do GameSceneInstaller truyền vào.
-    private readonly IGameObjectPool pools; // * Chuẩn bị clone dưới nhánh tắt trước khi cho OnEnable chạy.
+    private readonly CharacterView prefab; // Prefab vỏ duy nhất do GameSceneInstaller truyền vào.
+    private readonly IGameObjectPool pools; // Chuẩn bị clone dưới nhánh tắt trước khi cho OnEnable chạy.
     private readonly CharacterRegistry characters;
     private readonly CharacterRuntimePool runtimes;
     private readonly CharacterContext context; // Dịch vụ truyền vào mọi vỏ lúc spawn.
-    private readonly HashSet<CharacterView> activeCharacters = new HashSet<CharacterView>(); // * Chỉ thu hồi các cá thể do factory này tạo, kể cả lúc đóng scene.
-    private bool disposed; // * Ngăn tạo thêm nhân vật khi scene đang giải phóng dịch vụ.
+    private readonly HashSet<CharacterView> activeCharacters = new HashSet<CharacterView>(); // Chỉ thu hồi các cá thể do factory này tạo, kể cả lúc đóng scene.
+    private bool disposed; // Ngăn tạo thêm nhân vật khi scene đang giải phóng dịch vụ.
 
     #endregion
 
@@ -78,8 +78,8 @@ public sealed class CharacterFactory : IDisposable, ICharacterSpawn, ICharacterD
                 }
                 catch
                 {
-                    // * Vỏ chưa bật nên OnDisable có thể chưa chạy; dọn cả visual/trạng thái chuẩn bị dở.
-                    // * Đặt xử lý riêng của nhân vật tại factory để IGameObjectPool tiếp tục dùng chung cho mọi object.
+                    // Vỏ chưa bật nên OnDisable có thể chưa chạy; dọn cả visual/trạng thái chuẩn bị dở.
+                    // Đặt xử lý riêng của nhân vật tại factory để IGameObjectPool tiếp tục dùng chung cho mọi object.
                     view.ClearSpawn();
                     throw;
                 }
@@ -98,8 +98,8 @@ public sealed class CharacterFactory : IDisposable, ICharacterSpawn, ICharacterD
 
     #region Cleanup
 
-    // * Một đầu mối thu hồi cả nhân vật: ngừng hành vi → trả visual → báo Released → trả vỏ.
-    // * Xóa quyền sở hữu trước callback để gọi Despawn lặp/reentrant không thu hồi cùng vỏ hai lần.
+    // Một đầu mối thu hồi cả nhân vật: ngừng hành vi → trả visual → báo Released → trả vỏ.
+    // Xóa quyền sở hữu trước callback để gọi Despawn lặp/reentrant không thu hồi cùng vỏ hai lần.
     public void Despawn(CharacterView character)
     {
         if (character == null || !activeCharacters.Remove(character))
@@ -146,7 +146,7 @@ public sealed class CharacterFactory : IDisposable, ICharacterSpawn, ICharacterD
         }
     }
 
-    // * Installer gọi trước PoolManager.Dispose để visual con luôn được trả trước khi vỏ bị tắt.
+    // Installer gọi trước PoolManager.Dispose để visual con luôn được trả trước khi vỏ bị tắt.
     public void Dispose()
     {
         if (disposed)

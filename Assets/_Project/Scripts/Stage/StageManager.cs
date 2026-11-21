@@ -13,7 +13,7 @@ using Zenject;
 /// </remarks>
 public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDisposable, IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule
 {
-    #region Dependency, system và trạng thái
+    #region Dependencies, Systems & State
 
     private StageDataSO data;
     private readonly Dictionary<string, StageDataSO> stages;
@@ -41,7 +41,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Khởi tạo
+    #region Construction
 
     /// <summary>Tạo ba spawn system và đấu trường Boss, nối event giữa chúng và đăng ký callback cuối frame.</summary>
     public StageManager(
@@ -107,7 +107,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Chuẩn bị lượt chơi
+    #region Run Preparation
 
     // Công bố lịch Boss chờ sinh xong wave nếu mọi chuỗi đều có thời điểm xác định.
     private void PrepareSpawnSchedule()
@@ -169,7 +169,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Cập nhật và kết thúc màn
+    #region Update & Stage End
 
     /// <summary>Cập nhật Stage và chuyển ngoại lệ sang luồng xử lý lỗi.</summary>
     public override void Tick()
@@ -237,7 +237,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Kết quả lượt chơi
+    #region Run Result
 
     /// <summary>Dừng clock và spawn (giữ nhân vật đang sống để phát animation kết quả), rồi cấp thưởng đúng một lần.</summary>
     public void FinishRun(bool won)
@@ -253,7 +253,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Dừng và giải phóng
+    #region Stop & Dispose
 
     /// <summary>Hủy lịch sinh và thu hồi quái của cả ba system; một system lỗi không chặn các system còn lại.</summary>
     public void StopRun()
@@ -291,7 +291,13 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         waves.AllWavesSpawned -= boss.NotifyAllWavesSpawned;
         waves.FinalWaveCleared -= boss.NotifyFinalWaveCleared;
         try { StopRun(); }
-        finally { Cleared = null; Failed = null; SpawnScheduled = null; WarningsCleared = null; }
+        finally
+        {
+            Cleared = null;
+            Failed = null;
+            SpawnScheduled = null;
+            WarningsCleared = null;
+        }
     }
 
     #endregion

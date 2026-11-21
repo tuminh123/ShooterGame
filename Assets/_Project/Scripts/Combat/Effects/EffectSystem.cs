@@ -99,55 +99,29 @@ public sealed class EffectSystem : IDisposable
         if (disposed || !target.TryGetCharacter(out CharacterView character) ||
             character.RuntimeData.Team == sourceTeam)
             return false;
-        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-        if (float.IsNaN(effectHit) || float.IsInfinity(effectHit))
-            throw new ArgumentOutOfRangeException(nameof(effectHit));
-        configuration.Validate();
 
-        // Tắt UseEffectStats chỉ bỏ effectHit/kháng; ApplicationChance vẫn được dùng để roll.
-        float chance = configuration.UseEffectStats
-            ? ApplicationChance(configuration.ApplicationChance, effectHit, character.RuntimeData.FinalStats.effectResistance)
-            : configuration.ApplicationChance;
-        if (chance <= 0f || (chance < 100f && UnityEngine.Random.value * 100f >= chance)) return false;
-
-        if (!maintained && lookup.TryGetValue((character.RuntimeData, configuration), out EffectRuntime active))
-        {
-            // Kéo dài thời gian tồn tại nhưng giữ nhịp; bắn liên tục không trì hoãn độc/cháy mãi.
-            active.Remaining = configuration.Duration;
-            return true;
-        }
+        ValidateRequest(configuration, effectHit);
+        if (!RollApplication(configuration, effectHit, character)) return false;
+        if (!maintained && TryRefreshExisting(configuration, character)) return true;
 
         operationDepth++;
         EffectRuntime created = null;
         try
         {
             created = configuration.RentRuntime(runtimePool);
-            created.Initialize(configuration, character, sourceTeam);
-            created.Manager = this;
-            created.IsMaintained = maintained;
-            // Đăng ký đầy đủ trước Apply: callback stat/damage có thể yêu cầu dọn ngay runtime này.
-            created.ActiveIndex = activeEffects.Count;
-            activeEffects.Add(created);
-            if (!maintained) lookup.Add((created.Identity, configuration), created);
-            if (!targetEffects.TryGetValue(created.Identity, out List<EffectRuntime> group))
-            {
-                group = freeTargetLists.Count > 0 ? freeTargetLists.Pop() : new List<EffectRuntime>(4);
-                targetEffects.Add(created.Identity, group);
-            }
-            created.TargetIndex = group.Count;
-            group.Add(created);
-            created.Remaining = maintained ? double.PositiveInfinity : configuration.Duration;
-            created.TickElapsed = 0d;
+            Register(created, configuration, character, sourceTeam, maintained);
             created.Apply();
+
             // Apply có thể kích hoạt callback thu hồi mục tiêu hoặc kết thúc trận.
             if (disposed || !target.TryGetCharacter(out _)) Deactivate(created);
-            if (created.IsActive)
-            {
-                created.FeedbackApplied = true;
-                NotifyFeedback(created, true);
-            }
-            if (created.IsActive) handle = new EffectHandle(created);
-            return created.IsActive;
+            if (!created.IsActive) return false;
+
+            created.FeedbackApplied = true;
+            NotifyFeedback(created, true);
+            // Callback feedback cũng có thể gỡ effect vừa áp.
+            if (!created.IsActive) return false;
+            handle = new EffectHandle(created);
+            return true;
         }
         catch
         {
@@ -155,6 +129,56 @@ public sealed class EffectSystem : IDisposable
             throw;
         }
         finally { EndOperation(); }
+    }
+
+    private static void ValidateRequest(IGameplayEffect configuration, float effectHit)
+    {
+        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+        if (float.IsNaN(effectHit) || float.IsInfinity(effectHit))
+            throw new ArgumentOutOfRangeException(nameof(effectHit));
+        configuration.Validate();
+    }
+
+    // Roll tỉ lệ áp dụng. Tắt UseEffectStats chỉ bỏ effectHit/kháng; ApplicationChance vẫn được dùng để roll.
+    private static bool RollApplication(IGameplayEffect configuration, float effectHit, CharacterView character)
+    {
+        float chance = configuration.UseEffectStats
+            ? ApplicationChance(configuration.ApplicationChance, effectHit, character.RuntimeData.FinalStats.effectResistance)
+            : configuration.ApplicationChance;
+        return chance > 0f && (chance >= 100f || UnityEngine.Random.value * 100f < chance);
+    }
+
+    // Effect cùng cấu hình đang chạy trên mục tiêu: kéo dài thời gian nhưng giữ nhịp,
+    // để bắn liên tục không trì hoãn độc/cháy mãi.
+    private bool TryRefreshExisting(IGameplayEffect configuration, CharacterView character)
+    {
+        if (!lookup.TryGetValue((character.RuntimeData, configuration), out EffectRuntime active)) return false;
+        active.Remaining = configuration.Duration;
+        return true;
+    }
+
+    // Đăng ký đầy đủ TRƯỚC Apply: callback stat/damage trong Apply có thể yêu cầu dọn ngay runtime này.
+    private void Register(EffectRuntime created, IGameplayEffect configuration, CharacterView character,
+        CharacterTeam sourceTeam, bool maintained)
+    {
+        created.Initialize(configuration, character, sourceTeam);
+        created.Manager = this;
+        created.IsMaintained = maintained;
+
+        created.ActiveIndex = activeEffects.Count;
+        activeEffects.Add(created);
+        if (!maintained) lookup.Add((created.Identity, configuration), created);
+
+        if (!targetEffects.TryGetValue(created.Identity, out List<EffectRuntime> group))
+        {
+            group = freeTargetLists.Count > 0 ? freeTargetLists.Pop() : new List<EffectRuntime>(4);
+            targetEffects.Add(created.Identity, group);
+        }
+        created.TargetIndex = group.Count;
+        group.Add(created);
+
+        created.Remaining = maintained ? double.PositiveInfinity : configuration.Duration;
+        created.TickElapsed = 0d;
     }
 
     // Đầu vào/đầu ra đều là phần trăm; kháng hiệu ứng giữ giới hạn 80% như hệ thống cũ.
@@ -207,10 +231,18 @@ public sealed class EffectSystem : IDisposable
                 if (disposed) break;
                 if (!entry.Runtime.IsActive || entry.Runtime.Version != entry.Version) continue;
                 try { Advance(entry.Runtime, deltaTime); }
-                catch (Exception exception) { Deactivate(entry.Runtime); Debug.LogException(exception); }
+                catch (Exception exception)
+                {
+                    Deactivate(entry.Runtime);
+                    Debug.LogException(exception);
+                }
             }
         }
-        finally { tickSnapshot.Clear(); EndOperation(); }
+        finally
+        {
+            tickSnapshot.Clear();
+            EndOperation();
+        }
     }
 
     private void Advance(EffectRuntime runtime, float deltaTime)

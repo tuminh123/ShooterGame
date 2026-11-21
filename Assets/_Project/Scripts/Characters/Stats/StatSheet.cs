@@ -19,7 +19,7 @@ public sealed class StatSheet
 
     private readonly Dictionary<long, StatModifier[]> sources = new Dictionary<long, StatModifier[]>(8); // Mỗi nguồn có ID riêng.
     private readonly Action onChanged; // Chủ sở hữu tính lại chỉ số cuối rồi phát Changed; có thể ném lỗi.
-    private long nextId;   // Không dùng lại ID trong cùng một lượt spawn.
+    private long nextId; // Không dùng lại ID trong cùng một lượt spawn.
     private ulong version; // Tăng khi bảng được reset; lease của lượt spawn cũ thấy version khác và không làm gì.
 
     /// <summary>Chỉ số gốc lấy từ template của lượt spawn.</summary>

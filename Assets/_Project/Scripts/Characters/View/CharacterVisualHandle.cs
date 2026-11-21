@@ -52,10 +52,14 @@ public sealed class CharacterVisualHandle : MonoBehaviour
         originalAnimatorSpeed = animator.speed;
         originalUpdateMode = animator.updateMode;
         animator.keepAnimatorStateOnDisable = true;
-        idleHash = Hash(idleState); moveHash = Hash(moveState);
-        attackHash = Hash(attackState); castHash = Hash(castState);
-        hitHash = Hash(hitState); deathHash = Hash(deathState);
-        winHash = Hash(winState); loseHash = Hash(loseState);
+        idleHash = Hash(idleState);
+        moveHash = Hash(moveState);
+        attackHash = Hash(attackState);
+        castHash = Hash(castState);
+        hitHash = Hash(hitState);
+        deathHash = Hash(deathState);
+        winHash = Hash(winState);
+        loseHash = Hash(loseState);
     }
 
     private static int Hash(string name) => string.IsNullOrWhiteSpace(name) ? 0 : Animator.StringToHash(name);

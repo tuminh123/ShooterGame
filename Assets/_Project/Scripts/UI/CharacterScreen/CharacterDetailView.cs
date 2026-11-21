@@ -115,7 +115,7 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     private CharacterScreenTab shownTab;
     private TextPunch badgePunch;
     private TextPunch progressPunch;
-    private int boundLevel;         // Cấp lần vẽ trước, để biết vừa lên cấp (thanh chạy đầy rồi về 0).
+    private int boundLevel; // Cấp lần vẽ trước, để biết vừa lên cấp (thanh chạy đầy rồi về 0).
     private Sequence barSequence;
 
     #endregion

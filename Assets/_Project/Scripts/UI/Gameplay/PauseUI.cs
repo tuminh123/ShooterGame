@@ -48,6 +48,7 @@ public sealed class PauseUI : MonoBehaviour
         if (homeButton != null) homeButton.onClick.AddListener(ReturnHome);
         Resume();
     }
+
     private void OnDisable()
     {
         if (button != null) button.onClick.RemoveListener(Toggle);

@@ -11,7 +11,7 @@ internal sealed class WaveSpawnSystem
     // Chỉ công bố lịch gameplay; UI tự chọn thời điểm cảnh báo, không dời lịch spawn.
     public event Action<StageSpawnWarning, float> SpawnScheduled;
     private bool allWavesSpawnedRaised, finalWaveClearedRaised;
-    #region Trạng thái các chuỗi
+    #region Sequence State
 
     /// <summary>Giữ wave hiện tại, quota, mốc thời gian Stage và roster riêng.</summary>
     private sealed class Run
@@ -28,7 +28,7 @@ internal sealed class WaveSpawnSystem
 
     #endregion
 
-    #region Dependency và thống kê
+    #region Dependencies & Counts
 
     /// <summary>Nhận spawner chung; các chuỗi sẽ giữ roster riêng khi bắt đầu.</summary>
     public WaveSpawnSystem(EnemySpawner spawner)
@@ -43,12 +43,17 @@ internal sealed class WaveSpawnSystem
     /// <summary>Tổng quái còn sống của mọi chuỗi, gồm cả quái từ wave trước.</summary>
     public int AliveCount
     {
-        get { int count = 0; foreach (var run in runs) count += run.roster.AliveCount; return count; }
+        get
+        {
+            int count = 0;
+            foreach (var run in runs) count += run.roster.AliveCount;
+            return count;
+        }
     }
 
     #endregion
 
-    #region Kiểm tra và bắt đầu chuỗi
+    #region Validation & Sequence Start
 
     /// <summary>Kiểm tra WaveConfigSO, vùng spawn và cấu hình cấp của các loại quái.</summary>
     public void Validate(WaveConfigSO config)
@@ -99,7 +104,7 @@ internal sealed class WaveSpawnSystem
 
     #endregion
 
-    #region Spawn và chuyển wave
+    #region Spawning & Wave Advance
 
     /// <summary>Sinh bù các mốc đã đến và chuyển wave trên đồng hồ Stage.</summary>
     public void Tick(float stageTime, float deltaTime)
@@ -148,7 +153,7 @@ internal sealed class WaveSpawnSystem
 
     #endregion
 
-    #region Vòng đời và cleanup
+    #region Lifecycle & Cleanup
 
     /// <summary>Dừng mọi chuỗi và dọn roster; gom lỗi cleanup để không bỏ sót chuỗi khác.</summary>
     public void Stop()

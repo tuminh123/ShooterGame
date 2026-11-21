@@ -15,10 +15,10 @@ public sealed class CharacterLevels : IDisposable
     private readonly ISaveStore saves; // Chỉ đọc/ghi payload; system này sở hữu tiến trình level.
     private CharacterLevelsSaveData progress;
     private readonly Dictionary<CharacterType, CharacterLevelsSaveData.Entry> progressLookup = new Dictionary<CharacterType, CharacterLevelsSaveData.Entry>();
-    private readonly Dictionary<CharacterType, CharacterDataSO> characters;                // * Tra template theo type, trung bình O(1).
-    private readonly Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs;       // * Tra config vĩnh viễn riêng theo cùng type.
-    private bool changingLevel;                                                    // * Chặn gọi tăng cấp lồng nhau từ callback sự kiện.
-    private bool disposed;                                                         // * Bảo vệ vòng đời service do Zenject quản lý.
+    private readonly Dictionary<CharacterType, CharacterDataSO> characters; // Tra template theo type, trung bình O(1).
+    private readonly Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs; // Tra config vĩnh viễn riêng theo cùng type.
+    private bool changingLevel; // Chặn gọi tăng cấp lồng nhau từ callback sự kiện.
+    private bool disposed; // Chặn dùng lại sau khi ProgressionManager đã Dispose.
 
     #endregion
 
@@ -59,14 +59,14 @@ public sealed class CharacterLevels : IDisposable
 
     #region Progress Notifications
 
-    public event Action<CharacterType, int, int> LevelChanged;       // * Type, level cũ, level mới; phát sau khi cập nhật RAM và thử save.
-    public event Action<CharacterType, int, Exception> SaveFailed;   // * Type, level mới, lỗi IO; level vẫn đã tăng trong RAM và còn dirty.
+    public event Action<CharacterType, int, int> LevelChanged; // Type, level cũ, level mới; phát sau khi cập nhật RAM và thử save.
+    public event Action<CharacterType, int, Exception> SaveFailed; // Type, level mới, lỗi IO; level vẫn đã tăng trong RAM và còn dirty.
 
     #endregion
 
     #region Service Initialization
 
-    // * Chỉ dựng cache và kiểm tra cấu hình; không đọc hồ sơ trước khi SaveManager.Initialize chạy.
+    // Chỉ dựng cache và kiểm tra cấu hình; không đọc hồ sơ trước khi SaveManager.Initialize chạy.
     public CharacterLevels(
         ISaveStore saves,
         CharacterDatabaseSO characterDatabase,
@@ -82,10 +82,10 @@ public sealed class CharacterLevels : IDisposable
         Dictionary<CharacterType, CharacterLevelConfigSO> configsByType = levelDatabase.CreateTypeLookup();
         levelConfigs = new Dictionary<CharacterType, CharacterLevelConfigSO>(characters.Count);
 
-        // * Vòng duyệt thứ hai ghép type nhân vật với config, dùng chính enum đó làm key runtime/save.
+        // Vòng duyệt thứ hai ghép type nhân vật với config, dùng chính enum đó làm key runtime/save.
         foreach (CharacterDataSO character in characters.Values)
         {
-            // * Database chứa cả Enemy; chỉ Player có tiến trình level vĩnh viễn và trang bị trong hồ sơ.
+            // Database chứa cả Enemy; chỉ Player có tiến trình level vĩnh viễn và trang bị trong hồ sơ.
             if (character.Team != CharacterTeam.Player)
                 continue;
             if (!configsByType.TryGetValue(character.CharacterType, out CharacterLevelConfigSO config))
@@ -98,7 +98,7 @@ public sealed class CharacterLevels : IDisposable
 
     #region Character Progress Queries
 
-    // * Đọc template theo type; Type không tồn tại sẽ báo lỗi để tránh tính nhầm nhân vật.
+    // Đọc template theo type; Type không tồn tại sẽ báo lỗi để tránh tính nhầm nhân vật.
     public CharacterDataSO GetCharacter(CharacterType characterType)
     {
         EnsureAvailable();
@@ -114,7 +114,7 @@ public sealed class CharacterLevels : IDisposable
         return ReadLevel(characterType);
     }
 
-    // * Tính tổng bonus vĩnh viễn từ level hiện tại, không sửa template hoặc chỉ số runtime.
+    // Tính tổng bonus vĩnh viễn từ level hiện tại, không sửa template hoặc chỉ số runtime.
     public StatBonus GetTotalBonus(CharacterType characterType)
     {
         CharacterLevelConfigSO config = GetConfig(characterType);
@@ -149,7 +149,7 @@ public sealed class CharacterLevels : IDisposable
         return Math.Max(0L, remaining);
     }
 
-    // * Đọc config để UI hiển thị trần, bonus mỗi cấp và công thức giá.
+    // Đọc config để UI hiển thị trần, bonus mỗi cấp và công thức giá.
     public CharacterLevelConfigSO GetConfig(CharacterType characterType)
     {
         GetCharacter(characterType);
@@ -162,7 +162,7 @@ public sealed class CharacterLevels : IDisposable
 
     #region Permanent Level Advancement
 
-    // * Thử lưu hồ sơ hiện tại sau lỗi IO, không tăng level hoặc phát lại sự kiện tăng cấp.
+    // Thử lưu hồ sơ hiện tại sau lỗi IO, không tăng level hoặc phát lại sự kiện tăng cấp.
     public bool SaveProgress()
     {
         EnsureAvailable();
@@ -267,7 +267,7 @@ public sealed class CharacterLevels : IDisposable
 
     #region Service Cleanup
 
-    // * Hủy callback và cache; SaveManager vẫn tự quản lý vòng đời hồ sơ và việc thử lưu dirty.
+    // Hủy callback và cache; SaveManager vẫn tự quản lý vòng đời hồ sơ và việc thử lưu dirty.
     public void Dispose()
     {
         if (disposed)
@@ -281,7 +281,7 @@ public sealed class CharacterLevels : IDisposable
         progress = null;
     }
 
-    // * Không cho dùng lại service sau khi scene container giải phóng.
+    // Không cho dùng lại service sau khi scene container giải phóng.
     private void EnsureAvailable()
     {
         if (disposed)

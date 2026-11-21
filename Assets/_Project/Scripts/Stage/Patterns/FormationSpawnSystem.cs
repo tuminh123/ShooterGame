@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>Sinh và quản lý nhiều lượt Pattern độc lập trong cùng hệ thống. Do StageManager tạo và tick; không bind vào Zenject.</summary>
 internal sealed class FormationSpawnSystem
 {
-    #region Snapshot và dependency
+    #region Snapshot & Dependencies
 
     /// <summary>Snapshot một lượt Pattern: nhóm, quái, cấp, quota và lịch sinh.</summary>
     private sealed class Run
@@ -23,7 +23,7 @@ internal sealed class FormationSpawnSystem
     private readonly List<Run> runs = new List<Run>();
     #endregion
 
-    #region Thống kê và khởi tạo
+    #region Counts & Construction
 
     /// <summary>Đếm thành viên sống của mọi nhóm đang được quản lý.</summary>
     public int AliveCount => roster.AliveCount;
@@ -47,7 +47,7 @@ internal sealed class FormationSpawnSystem
 
     #endregion
 
-    #region Kiểm tra và sinh nhóm
+    #region Validation & Group Spawning
 
     /// <summary>Kiểm tra asset, cấp quái và camera cần cho Pattern chạy Path.</summary>
     public void Validate(EnemyPatternSO config)
@@ -102,7 +102,7 @@ internal sealed class FormationSpawnSystem
 
     #endregion
 
-    #region Cập nhật chuyển động
+    #region Movement Update
 
     /// <summary>Kích hoạt theo giờ Stage; chia bước di chuyển tại từng mốc sinh thành viên.</summary>
     public void Tick(float stageTime, float deltaTime)
@@ -138,7 +138,7 @@ internal sealed class FormationSpawnSystem
 
     #endregion
 
-    #region Dừng và giải phóng
+    #region Stop & Dispose
 
     /// <summary>Hủy lịch sinh rồi giao roster thu hồi các nhóm đang sở hữu.</summary>
     public void Stop()

@@ -139,7 +139,10 @@ public sealed class CharacterRegistry : IDisposable, ICharacterRegistry, ICharac
         disposed = true;
         celebrationVersion++;
         foreach (CharacterView character in new List<CharacterView>(characters.Keys)) Unregister(character);
-        CharacterAdded = null; CharacterRemoved = null; CharacterDied = null; EnemyCelebrationsCompleted = null;
+        CharacterAdded = null;
+        CharacterRemoved = null;
+        CharacterDied = null;
+        EnemyCelebrationsCompleted = null;
     }
 
     #endregion

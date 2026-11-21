@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>Thực thể nhóm: sở hữu thành viên, hình dạng và tiến trình chuyển động chung.</summary>
 public sealed class EnemyFormationRuntime : IStageSpawnEntity
 {
-    #region Danh tính và trạng thái nhóm
+    #region Group Identity & State
 
     /// <summary>Lưu danh tính thành viên, offset hình và trạng thái liên kết đội hình.</summary>
     private sealed class Member
@@ -48,7 +48,7 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #endregion
 
-    #region Khởi tạo và nhận thành viên
+    #region Construction & Members
 
     /// <summary>
     /// Chốt thông số, tạo offset và ghi tâm ban đầu; chưa sinh nhân vật.
@@ -64,11 +64,15 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
     {
         if (data.Type != EnemyPatternType.Area && route == null)
             throw new ArgumentNullException(nameof(route), "Hai chế độ Path cần route runtime.");
-        type = data.Type; this.route = route; this.areaCenter = areaCenter;
+        type = data.Type;
+        this.route = route;
+        this.areaCenter = areaCenter;
         this.despawn = despawn;
         speed = data.Speed;
-        knockbackDistance = data.KnockbackDistance; knockbackDuration = data.KnockbackDuration;
-        shrinkDuration = data.ShrinkTiming.Duration; passes = data.Passes;
+        knockbackDistance = data.KnockbackDistance;
+        knockbackDuration = data.KnockbackDuration;
+        shrinkDuration = data.ShrinkTiming.Duration;
+        passes = data.Passes;
         shrinkTiming = data.ShrinkTiming;
         offsets = data.Slots;
         anchorOffset = CurrentAnchor;
@@ -99,7 +103,7 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #endregion
 
-    #region Tiến trình chuyển động
+    #region Movement Progress
 
     /// <summary>Tiến tâm nhóm và các slot còn liên kết; Area hết hạn thu hồi cả nhóm.</summary>
     public void Tick(float deltaTime)
@@ -149,7 +153,7 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #endregion
 
-    #region Tách đội hình và truy vấn thành viên
+    #region Detach & Member Queries
 
     /// <summary>Giao Path còn lại và tốc độ nhóm cho controller; Area vẫn liên kết với viền.</summary>
     public void DetachMember(int memberIndex)
@@ -182,7 +186,7 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #endregion
 
-    #region Bù chuyển động tâm
+    #region Anchor Motion Compensation
 
     /// <summary>Bù dịch tâm cho slot đang liên kết; controller tự xử lý con tách và knockback.</summary>
     public bool ApplyCameraMotion()
@@ -215,7 +219,7 @@ public sealed class EnemyFormationRuntime : IStageSpawnEntity
 
     #endregion
 
-    #region Thu hồi và giải phóng
+    #region Release & Dispose
 
     /// <summary>Thu hồi thành viên đúng danh tính; không phát sự kiện chết hoặc thưởng.</summary>
     private void Release(Member member)

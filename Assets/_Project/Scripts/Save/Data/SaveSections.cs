@@ -97,6 +97,7 @@ public sealed class CurrencySaveData
         foreach (CurrencyType type in Enum.GetValues(typeof(CurrencyType))) entries.Add(new Balance { type = type });
         return entries;
     }
+
     public CurrencySaveData Clone()
     {
         var copy = new CurrencySaveData { currencies = new List<Balance>(currencies.Count) };

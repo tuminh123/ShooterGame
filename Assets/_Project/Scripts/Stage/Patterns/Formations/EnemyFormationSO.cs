@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class EnemyFormationSO : ScriptableObject
 {
 
-    #region Cấu hình hình học
+    #region Geometry Configuration
 
     [Tooltip("Hình chuẩn luôn đối xứng; Custom cho phép tự đặt điểm và chọn đối xứng tự động.")]
     [SerializeField] private FormationType shape = FormationType.FilledSquare;
@@ -35,7 +35,7 @@ public sealed class EnemyFormationSO : ScriptableObject
 
     #endregion
 
-    #region Dữ liệu chỉ đọc
+    #region Read-only Data
 
     public FormationType Shape => shape;
     public FormationFillMode FillMode => fillMode;
@@ -68,7 +68,7 @@ public sealed class EnemyFormationSO : ScriptableObject
 
     #endregion
 
-    #region Kiểm tra cấu hình
+    #region Validation
 
     /// <summary>Kiểm tra hình, Level, kích thước và tọa độ Custom hữu hạn.</summary>
     public void Validate()

@@ -15,7 +15,7 @@ public sealed class LootDatabaseSO : ScriptableObject
         [Tooltip("Loại phần thưởng được nhận khi nhặt; mỗi loại chỉ xuất hiện một lần trong catalog.")]
         [SerializeField] private PickupType type; // Khóa loại vật phẩm, không dùng tên sprite để nhận diện.
         [Tooltip("Sprite gán vào vỏ PickupView khi vật phẩm rơi; không cần tạo prefab riêng cho mỗi loại.")]
-        [SerializeField] private Sprite sprite; // Hình ảnh được nạp vào vỏ pickup khi spawn.
+        [SerializeField] private Sprite sprite;
         [Tooltip("Lượng EXP hoặc tiền nhận từ một vật phẩm; tối thiểu 1.")]
         [SerializeField, Min(1)] private int amount = 1; // Phần thưởng của một vật phẩm.
         [Tooltip("Xác suất rơi khi Enemy chết, thang 0..1: 0 = không rơi, 0.25 = 25%, 1 = luôn rơi.")]
@@ -32,14 +32,14 @@ public sealed class LootDatabaseSO : ScriptableObject
     }
 
     [Tooltip("Danh sách loại loot và xác suất rơi riêng của từng loại; mỗi PickupType chỉ có một entry.")]
-    [SerializeField] private List<LootEntry> drops = new List<LootEntry>(); // Mỗi loại xuất hiện tối đa một lần.
+    [SerializeField] private List<LootEntry> drops = new List<LootEntry>();
 
     #endregion
 
     #region Shared Pickup Configuration
 
     [Tooltip("Vỏ pickup dùng chung cho tất cả loại loot; sprite và lượng thưởng lấy từ entry.")]
-    [SerializeField] private PickupView pickupPrefab; // Vỏ dùng chung cho tất cả entry.
+    [SerializeField] private PickupView pickupPrefab;
     [Tooltip("Khoảng cách nhặt tính từ tâm Player đến vật phẩm, theo world unit; phải dương.")]
     [SerializeField, Min(0.01f)] private float pickupRadius = 0.25f; // Bán kính nhặt tính từ tâm Player, theo world unit.
 

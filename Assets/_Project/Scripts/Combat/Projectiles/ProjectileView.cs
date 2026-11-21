@@ -63,7 +63,11 @@ public sealed class ProjectileView : MonoBehaviour
             foreach (Renderer renderer in visualRenderers)
             {
                 if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
-                if (!hasBounds) { bounds = renderer.bounds; hasBounds = true; }
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
                 else bounds.Encapsulate(renderer.bounds);
             }
             return bounds;

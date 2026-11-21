@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// * Danh mục template nhân vật; CharacterType là khóa, tên hiển thị không tham gia tra cứu.
+// Danh mục template nhân vật; CharacterType là khóa, tên hiển thị không tham gia tra cứu.
 [CreateAssetMenu(fileName = "CharacterDatabase", menuName = "Shooter Game/Data/Character Database")]
 public sealed class CharacterDatabaseSO : ScriptableObject
 {
     #region Character Templates
 
     [Tooltip("Danh sách template Player, Enemy và Boss. Mỗi CharacterType khác None xuất hiện tối đa một lần; không để phần tử trống.")]
-    [SerializeField] private List<CharacterDataSO> characters = new List<CharacterDataSO>();  // * Mỗi nhân vật dùng type khác None, được khai báo duy nhất trong enum.
+    [SerializeField] private List<CharacterDataSO> characters = new List<CharacterDataSO>();
 
     /// <summary>Danh sách theo đúng thứ tự trong asset; UI dùng để giữ thứ tự hiển thị ổn định (Dictionary không bảo đảm thứ tự).</summary>
     public IReadOnlyList<CharacterDataSO> Characters => characters;
@@ -18,8 +18,8 @@ public sealed class CharacterDatabaseSO : ScriptableObject
 
     #region Runtime Lookup Creation
 
-    // * Dựng dictionary type → template cho service; không lưu cache trên asset.
-    // ! Thiếu template, type không hợp lệ hoặc trùng type sẽ báo lỗi thay vì ghi đè.
+    // Dựng dictionary type → template cho service; không lưu cache trên asset.
+    // Lưu ý: Thiếu template, type không hợp lệ hoặc trùng type sẽ báo lỗi thay vì ghi đè.
     public Dictionary<CharacterType, CharacterDataSO> CreateLookup()
     {
         var lookup = new Dictionary<CharacterType, CharacterDataSO>(characters.Count);

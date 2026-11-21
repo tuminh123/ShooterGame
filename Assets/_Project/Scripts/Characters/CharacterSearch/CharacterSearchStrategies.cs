@@ -7,19 +7,22 @@ using UnityEngine;
 public abstract class SingleCharacterSearch : ISingleCharacterSearch
 {
     private readonly ISpatialResolution spatialResolution; // Chạy query và tra lại đúng lượt spawn.
-    private readonly ISpatialQuery spatialSpatialQuery;
+    private readonly ISpatialQuery spatialQuery;
     protected readonly ISpatialQueryBuilder Queries; // Cung cấp dữ liệu hình học cho từng cách tìm.
 
-    protected SingleCharacterSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder)
-    { this.spatialResolution = spatialResolution;
-        this.spatialSpatialQuery = spatialSpatialQuery; Queries = queryBuilder; }
+    protected SingleCharacterSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialQuery, ISpatialQueryBuilder queryBuilder)
+    {
+        this.spatialResolution = spatialResolution;
+        this.spatialQuery = spatialQuery;
+        Queries = queryBuilder;
+    }
 
     protected abstract SpatialQuery CreateQuery(CharacterSearchRequest request); // Lớp cụ thể chọn dữ liệu hình học cần tìm.
 
     // Chạy query rồi xác nhận đúng cá thể; không trả mục tiêu đã chết hoặc tái sử dụng.
     public bool TryFind(CharacterSearchRequest request, out CharacterHandle target, out Vector2 hitPosition)
     {
-        SpatialHit hit = spatialSpatialQuery.Query(CreateQuery(request), request.Exclude != null ? request.Exclude.SpatialHandle : default);
+        SpatialHit hit = spatialQuery.Query(CreateQuery(request), request.Exclude != null ? request.Exclude.SpatialHandle : default);
         hitPosition = hit.Found != 0 ? new Vector2(hit.Position.x, hit.Position.y) : request.Origin;
         if (spatialResolution.TryResolve(hit, out target)) return true;
         target = default;
@@ -30,7 +33,7 @@ public abstract class SingleCharacterSearch : ISingleCharacterSearch
 /// <summary>Strategy tìm nhân vật gần nhất trong vòng tròn (hitbox phải chạm vòng, xếp theo khoảng cách tâm).</summary>
 public sealed class FindNearestSearch : SingleCharacterSearch
 {
-    public FindNearestSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialSpatialQuery, queryBuilder) { }
+    public FindNearestSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialQuery, queryBuilder) { }
 
     // Xét hitbox giao vòng tròn rồi lấy tâm gần nhất.
     protected override SpatialQuery CreateQuery(CharacterSearchRequest request)
@@ -40,7 +43,7 @@ public sealed class FindNearestSearch : SingleCharacterSearch
 /// <summary>Strategy tìm nhân vật đầu tiên trên đường quét của viên đạn.</summary>
 public sealed class FindFirstOnPathSearch : SingleCharacterSearch
 {
-    public FindFirstOnPathSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialSpatialQuery, queryBuilder) { }
+    public FindFirstOnPathSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialQuery, ISpatialQueryBuilder queryBuilder) : base(spatialResolution, spatialQuery, queryBuilder) { }
 
     // Quét cả đoạn và chọn mục tiêu đầu tiên, kể cả khi đã chạm ở điểm đầu.
     protected override SpatialQuery CreateQuery(CharacterSearchRequest request)
@@ -55,18 +58,18 @@ public sealed class FindFirstOnPathSearch : SingleCharacterSearch
 public sealed class FindAllInCircleSearch : IMultipleCharacterSearch
 {
     private readonly ISpatialResolution spatialResolution; // Sở hữu native view tạm của kết quả job.
-    private readonly ISpatialQuery spatialSpatialQuery;
+    private readonly ISpatialQuery spatialQuery;
     private readonly ISpatialQueryBuilder queryBuilder; // Tạo query lấy mọi hitbox trong vòng tròn.
 
-    public FindAllInCircleSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialSpatialQuery, ISpatialQueryBuilder queryBuilder)
+    public FindAllInCircleSearch(ISpatialResolution spatialResolution, ISpatialQuery spatialQuery, ISpatialQueryBuilder queryBuilder)
     { this.spatialResolution = spatialResolution;
-        this.spatialSpatialQuery = spatialSpatialQuery;
+        this.spatialQuery = spatialQuery;
         this.queryBuilder = queryBuilder; }
 
     // Chuyển native hit thành mục tiêu trong buffer của caller; chỉ trả số mục tiêu còn hợp lệ.
     public int FindAll(CharacterSearchRequest request, ref CharacterHandle[] results)
     {
-        var hits = spatialSpatialQuery.FindAll(queryBuilder.AllInCircle(request.Origin, request.Radius, request.TargetTeam),
+        var hits = spatialQuery.FindAll(queryBuilder.AllInCircle(request.Origin, request.Radius, request.TargetTeam),
             request.Exclude != null ? request.Exclude.SpatialHandle : default);
         if (results == null) results = Array.Empty<CharacterHandle>();
         // Chỉ cấp phát khi vượt dung lượng; không cắt bớt kết quả để vừa mảng cũ.

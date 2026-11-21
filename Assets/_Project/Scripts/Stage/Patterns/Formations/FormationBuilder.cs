@@ -6,7 +6,7 @@ using UnityEngine;
 public static class FormationBuilder
 {
 
-    #region API dựng hình
+    #region Build API
 
     /// <summary>Tính số slot theo hình/Level; Custom tính sau đối xứng và loại điểm trùng.</summary>
     public static int GetSlotCount(EnemyFormationSO formation)
@@ -99,7 +99,7 @@ public static class FormationBuilder
 
     #endregion
 
-    #region Các hình chuẩn
+    #region Standard Shapes
 
     /// <summary>Thêm lưới vuông đầy với Level + 1 hàng và cột.</summary>
     private static void BuildSquare(List<Vector2> points, int level)
@@ -197,7 +197,7 @@ public static class FormationBuilder
 
     #endregion
 
-    #region Điểm Custom và đối xứng
+    #region Custom Points & Symmetry
 
     /// <summary>Nhân đối xứng các điểm gốc và loại bỏ điểm trùng.</summary>
     private static List<Vector2> BuildCustom(EnemyFormationSO formation)

@@ -2,22 +2,22 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// * Bonus theo cấp dùng chung cho player và enemy. Phần EXP nâng cấp (nguyên liệu) chỉ dùng cho player.
+// Bonus theo cấp dùng chung cho player và enemy. Phần EXP nâng cấp (nguyên liệu) chỉ dùng cho player.
 [CreateAssetMenu(fileName = "CharacterLevelConfig", menuName = "Shooter Game/Levels/Character Level Config")]
 public sealed class CharacterLevelConfigSO : ScriptableObject
 {
     #region Character Growth Settings
 
     [Tooltip("CharacterType nhận bộ tăng trưởng này; phải khớp template trong Character Database.")]
-    [SerializeField] private CharacterType characterType;  // * Type nhân vật nhận config này; service ghép với type trên CharacterDataSO khi init.
+    [SerializeField] private CharacterType characterType;
     [Tooltip("Trần cấp nhân vật. Cấp 1 dùng chỉ số gốc; tổng bonus ở cấp L = Bonus Per Level × (L - 1), giới hạn ở trần.")]
-    [SerializeField, Min(1)] private int maxLevel = 10;  // * Level tối đa; level 1 dùng chỉ số gốc, chưa nhận bonus.
+    [SerializeField, Min(1)] private int maxLevel = 10; // Level tối đa; level 1 dùng chỉ số gốc, chưa nhận bonus.
     [Tooltip("Bonus cộng thẳng cho mỗi cấp sau cấp 1. Tỷ lệ là điểm phần trăm: 5 = cộng 5 điểm %, không phải nhân 1.05.")]
-    [SerializeField] private StatBonus bonusPerLevel;   // * Một bộ bonus cố định, cộng lại mỗi cấp tăng thêm.
+    [SerializeField] private StatBonus bonusPerLevel;
 
-    public int MaxLevel => maxLevel;             // * Mốc giới hạn cấp rõ ràng, không suy ra từ vị trí trong danh sách.
-    public CharacterType CharacterType => characterType;  // * Khóa ghép cấu hình, đồng thời là khóa nhận diện nhân vật trong save; không cần tham chiếu character asset.
-    public StatBonus BonusPerLevel => bonusPerLevel;  // * Trả bản sao struct, không sửa dữ liệu template từ bên ngoài.
+    public int MaxLevel => maxLevel; // Mốc giới hạn cấp rõ ràng, không suy ra từ vị trí trong danh sách.
+    public CharacterType CharacterType => characterType; // Khóa ghép cấu hình, đồng thời là khóa nhận diện nhân vật trong save; không cần tham chiếu character asset.
+    public StatBonus BonusPerLevel => bonusPerLevel; // Trả bản sao struct, không sửa dữ liệu template từ bên ngoài.
 
     #endregion
 
@@ -25,11 +25,11 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     [Tooltip("Nguyên liệu (EXP vĩnh viễn) cần để lên từ cấp 1 lên 2; không phải EXP trong trận.")]
     [FormerlySerializedAs("initialUpgradeCost")]
-    [SerializeField, Min(1)] private int initialRequired = 100;  // * Hệ số A; nhận lại giá trị Initial Upgrade Cost cũ trong asset.
+    [SerializeField, Min(1)] private int initialRequired = 100; // Hệ số A; nhận lại giá trị Initial Upgrade Cost cũ trong asset.
     [Tooltip("Nguyên liệu cần từ cấp L lên L+1 = Initial Required + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng.")]
-    [SerializeField, Min(0)] private int requiredIncreasePerLevel = 50;  // * Hệ số B; thanh của cấp sau dài hơn nên cần bấm nhiều lần hơn.
+    [SerializeField, Min(0)] private int requiredIncreasePerLevel = 50; // Hệ số B; thanh của cấp sau dài hơn nên cần bấm nhiều lần hơn.
     [Tooltip("Lượng nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade (tỉ lệ 1:1).")]
-    [SerializeField, Min(1)] private int amountPerUpgrade = 25;  // * Một lần bấm = một lần tiêu = một lần cộng EXP, giống nhặt EXP trong trận.
+    [SerializeField, Min(1)] private int amountPerUpgrade = 25; // Một lần bấm = một lần tiêu = một lần cộng EXP, giống nhặt EXP trong trận.
 
     /// <summary>Hệ số A của công thức A + B × (level - 1).</summary>
     public int InitialRequired => initialRequired;
@@ -42,7 +42,7 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
     /// Nguyên liệu cần từ <paramref name="currentLevel"/> lên cấp kế tiếp = A + B × (L - 1);
     /// false nếu level không hợp lệ hoặc đã đạt trần. Cùng dạng công thức với EXP trong trận (RunLevelConfigSO).
     /// </summary>
-    // ! Trả yêu cầu riêng của một cấp, không phải tổng tích lũy; overflow int sẽ báo lỗi thay vì thành số âm.
+    // Lưu ý: Trả yêu cầu riêng của một cấp, không phải tổng tích lũy; overflow int sẽ báo lỗi thay vì thành số âm.
     public bool TryGetRequired(int currentLevel, out int required)
     {
         required = 0;
@@ -58,8 +58,8 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #region Cumulative Stat Growth
 
-    // * Tổng bonus = bonus mỗi cấp × (level - 1); tính lại từ template, không cộng dồn lên kết quả cũ.
-    // ! Save cao hơn trần hiện tại chỉ nhận bonus đến MaxLevel; không tự sửa level đã lưu.
+    // Tổng bonus = bonus mỗi cấp × (level - 1); tính lại từ template, không cộng dồn lên kết quả cũ.
+    // Lưu ý: Save cao hơn trần hiện tại chỉ nhận bonus đến MaxLevel; không tự sửa level đã lưu.
     public StatBonus GetTotalBonus(int level)
     {
         ValidateConfiguration();
@@ -72,7 +72,7 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #region Configuration Validation
 
-    // * Chặn cấu hình cấp/EXP nâng cấp không hợp lệ trước khi tính; không tự sửa asset trong runtime.
+    // Chặn cấu hình cấp/EXP nâng cấp không hợp lệ trước khi tính; không tự sửa asset trong runtime.
     private void ValidateConfiguration()
     {
         bonusPerLevel.Validate();

@@ -28,6 +28,7 @@ public sealed class GamePause : IDisposable
             throw new ArgumentOutOfRangeException(nameof(multiplier));
         return AcquireScale(multiplier);
     }
+
     private IDisposable AcquireScale(float multiplier)
     {
         if (disposed) throw new ObjectDisposedException(nameof(GamePause));
@@ -78,9 +79,19 @@ public sealed class GamePause : IDisposable
     {
         private GamePause owner;
         private readonly long id;
-        public PauseLease(GamePause owner, long id) { this.owner = owner;
-        this.id = id; }
-        public void Dispose() { GamePause previous = owner; owner = null; previous?.Release(id); }
+        public PauseLease(GamePause owner, long id)
+        {
+            this.owner = owner;
+            this.id = id;
+        }
+
+        // Dispose hai lần chỉ trả token một lần: lần đầu đã xóa owner.
+        public void Dispose()
+        {
+            GamePause previous = owner;
+            owner = null;
+            previous?.Release(id);
+        }
     }
 
     #endregion

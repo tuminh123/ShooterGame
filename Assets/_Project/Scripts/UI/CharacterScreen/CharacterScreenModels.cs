@@ -85,7 +85,7 @@ public readonly struct CharacterDetailModel
     public readonly string RarityText;
     public readonly Color RarityTextColor;
     public readonly string Name;
-    public readonly Sprite Portrait;            // Ảnh dự phòng khi chưa có nhân vật UI.
+    public readonly Sprite Portrait; // Ảnh dự phòng khi chưa có nhân vật UI.
     public readonly CharacterUIVisual UIVisual; // Prefab nhân vật UI (Idle); null thì hiện Portrait.
     public readonly int Stars;
 
@@ -93,8 +93,8 @@ public readonly struct CharacterDetailModel
     public readonly CharacterScreenTab Tab;
     public readonly int Level;
     public readonly int MaxLevel;
-    public readonly int LevelProgress;          // Nguyên liệu đã nạp vào thanh của cấp hiện tại.
-    public readonly int LevelProgressRequired;  // Cần để đầy thanh; 0 nghĩa là đã ở cấp tối đa.
+    public readonly int LevelProgress; // Nguyên liệu đã nạp vào thanh của cấp hiện tại.
+    public readonly int LevelProgressRequired; // Cần để đầy thanh; 0 nghĩa là đã ở cấp tối đa.
     public readonly IReadOnlyList<StatRowModel> Stats;
     public readonly IReadOnlyList<Sprite> SkillIcons;
 

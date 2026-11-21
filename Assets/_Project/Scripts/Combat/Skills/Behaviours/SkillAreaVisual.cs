@@ -85,7 +85,11 @@ public sealed class SkillAreaVisual : MonoBehaviour
     }
 
     public void SetRadius(float radius) => transform.localScale = Vector3.one * radius;
-    public void SetPose(Vector2 localOffset, float angle) { offset = localOffset; rotation = angle; }
+    public void SetPose(Vector2 localOffset, float angle)
+    {
+        offset = localOffset;
+        rotation = angle;
+    }
     public void SetVisible(bool visible) { if (meshRenderer != null) meshRenderer.enabled = visible; }
 
     /// <summary>Bám theo chủ sau khi di chuyển đã áp dụng. <see cref="SkillAreaVisuals"/> gọi mỗi frame.</summary>
@@ -108,8 +112,10 @@ public sealed class SkillAreaVisual : MonoBehaviour
     private void OnDisable()
     {
         tracker?.Remove(this);
-        owner = null; offset = Vector2.zero;
+        owner = null;
+        offset = Vector2.zero;
     }
+
     private void OnDestroy()
     {
         OnDisable();

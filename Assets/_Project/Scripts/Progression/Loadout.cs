@@ -59,7 +59,7 @@ public sealed class Loadout : IDisposable
 
     #region Runtime Operations
 
-    // * Thay toàn bộ loadout, kiểm tra trước khi sửa RAM. false nghĩa là IO lỗi; không cần mặc lại.
+    // Thay toàn bộ loadout, kiểm tra trước khi sửa RAM. false nghĩa là IO lỗi; không cần mặc lại.
     public bool SetEquippedItems(IEnumerable<string> itemIds)
     {
         EnsureAvailable();

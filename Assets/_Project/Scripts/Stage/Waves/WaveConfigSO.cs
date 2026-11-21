@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(fileName = "Waves", menuName = "Shooter Game/Data/Waves")]
 public sealed class WaveConfigSO : ScriptableObject, IStageSpawnData
 {
-    #region Dữ liệu chuỗi wave
+    #region Wave Sequence Data
 
     /// <summary>Thông số một wave: loại quái, quota, nhịp sinh và thời gian nghỉ.</summary>
     [Serializable]
@@ -54,7 +54,7 @@ public sealed class WaveConfigSO : ScriptableObject, IStageSpawnData
 
     #endregion
 
-    #region Truy cập wave
+    #region Wave Access
 
     public WaveAdvanceCondition AdvanceCondition => advanceCondition;
     public int Count => waves == null ? 0 : waves.Length;
@@ -68,7 +68,7 @@ public sealed class WaveConfigSO : ScriptableObject, IStageSpawnData
 
     #endregion
 
-    #region Kiểm tra cấu hình
+    #region Validation
 
     /// <summary>Kiểm tra chuỗi, thời gian và danh sách quái thường của từng wave.</summary>
     public void Validate()

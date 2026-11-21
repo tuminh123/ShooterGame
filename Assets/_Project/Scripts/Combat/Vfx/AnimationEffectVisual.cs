@@ -79,6 +79,7 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
     {
         StopAndReset();
     }
+
     private void OnDestroy() => OnDisable();
     #endregion
 }
