@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 
 // Ranh giới của miền Progression: đây là TẤT CẢ những gì miền khác được phép dùng.
-// Mọi interface trong file này do ProgressionManager implement. Wallet, CharacterLevels, Loadout và StageProgress
-// nằm bên trong miền, không được bind vào Zenject.
+// Mọi interface trong file này do ProgressionManager implement. Wallet, CharacterLevels, EquipmentInventory, Loadout
+// và StageProgress nằm bên trong miền, không được bind vào Zenject.
 // Progression giữ dữ liệu còn lại giữa các lượt chơi (ví, level vĩnh viễn, trang bị, mốc vượt màn) và chỉ phụ thuộc Save.
-// Mỗi vai trò ứng với một nhóm nơi dùng thực tế. Nâng level/sao đi qua ICharacterUpgrades (màn Character);
-// API chưa có ai dùng (đổi trang bị) vẫn nằm trên system bên trong và sẽ có vai trò riêng khi UI tương ứng ra đời.
+// Mỗi vai trò ứng với một nhóm nơi dùng thực tế. Nâng level/sao đi qua ICharacterUpgrades (màn Character), túi đồ và
+// đồ đang mặc đi qua IEquipment (màn Equipment), nhận đồ đi qua IEquipmentGrant (panel test; sau này thưởng Stage/loot).
 // Xem Docs/Architecture/Refactor-Architecture.md.
 
 #region Wallet (Home UI, Run, Stage)
@@ -38,7 +38,8 @@ public interface IWallet
 #region Permanent Bonuses (PlayerSystem)
 
 /// <summary>
-/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + trang bị (sao không cộng chỉ số). Dùng bởi PlayerSystem.
+/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + trang bị (sao không cộng chỉ số).
+/// Dùng bởi PlayerSystem, màn Character và màn Equipment.
 /// </summary>
 /// <remarks>PlayerSystem chỉ cần một con số tổng, nên vai trò này gộp sẵn thay vì lộ hai system riêng.</remarks>
 public interface IPermanentBonuses
@@ -46,7 +47,7 @@ public interface IPermanentBonuses
     /// <summary>Bonus cộng thẳng của <paramref name="type"/>; type không có cấu hình level thì ném lỗi.</summary>
     StatBonus GetBonus(CharacterType type);
 
-    /// <summary>Level của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
+    /// <summary>Level của một nhân vật, đồ đang mặc hoặc level của một món đang mặc vừa đổi: Player cần tính lại nguồn bonus.</summary>
     event Action BonusesChanged;
 }
 
@@ -55,11 +56,12 @@ public interface IPermanentBonuses
 #region Character Progress (Combat)
 
 /// <summary>
-/// Level và sao đã lưu của một nhân vật Player. Dùng bởi Combat lúc spawn để tính skill nào mở và mỗi skill cấp mấy.
+/// Tiến trình vĩnh viễn ảnh hưởng skill của Player: level và sao của nhân vật, đồ và set đang mặc.
+/// Dùng bởi Combat (CharacterSkillSystem) lúc spawn để tính skill nào mở và mỗi skill cấp mấy.
 /// </summary>
 /// <remarks>
-/// Chỉ trả con số, không biết gì về skill: luật "level/sao → skill" nằm trong CharacterDataSO,
-/// nên Progression (miền dưới) không phải tham chiếu kiểu của Character/Combat (miền trên).
+/// Chỉ trả dữ liệu, không đọc skill: luật "level/sao → skill" nằm trong CharacterDataSO, luật "level đồ → skill" trong
+/// EquipmentDataSO.TryGetSkill và skill của set trong EquipmentSetData, nên code Progression (miền dưới) không xử lý skill của Combat (miền trên).
 /// </remarks>
 public interface ICharacterProgress
 {
@@ -68,6 +70,12 @@ public interface ICharacterProgress
 
     /// <summary>Số sao đã mở; nhân vật chưa có bản ghi là 0.</summary>
     int GetStars(CharacterType type);
+
+    /// <summary>Ghi đồ đang mặc theo thứ tự ô (Vũ khí → Nhẫn) vào <paramref name="result"/> (list được xóa trước). Đồ dùng chung mọi nhân vật.</summary>
+    void GetEquippedItems(List<EquipmentItem> result);
+
+    /// <summary>Ghi các set đang bật (đủ số món) vào <paramref name="result"/> (list được xóa trước).</summary>
+    void GetActiveSets(List<EquipmentSetData> result);
 }
 
 #endregion
@@ -148,6 +156,61 @@ public interface IStageProgress
 
     /// <summary>Đánh dấu màn đã thắng và cộng thưởng trong <b>cùng một lần ghi file</b>, để hai thứ không lệch nhau.</summary>
     bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards);
+}
+
+#endregion
+
+#region Equipment (màn Equipment)
+
+/// <summary>
+/// Túi đồ và đồ đang mặc (dùng chung mọi nhân vật). Dùng bởi màn Equipment: đọc, mặc/tháo, hỏi giá và nâng cấp.
+/// Mọi thay đổi được lưu ngay; saved=false nghĩa là IO lỗi, RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
+/// </summary>
+public interface IEquipment
+{
+    /// <summary>Mọi bản đồ đang sở hữu (cả đồ đang mặc), theo thứ tự nhận.</summary>
+    IReadOnlyList<EquipmentItem> Items { get; }
+
+    /// <summary>Đồ đang mặc ở ô; null nếu ô trống.</summary>
+    EquipmentItem GetEquipped(EquipmentSlot slot);
+
+    /// <summary>Số món của set đang mặc (ví dụ "Samurai 2/4").</summary>
+    int CountEquipped(EquipmentSet set);
+
+    /// <summary>Mặc vào ô của món; ô đang có món khác thì đổi chỗ. Trả về có đổi hay không.</summary>
+    bool Equip(EquipmentItem item, out bool saved);
+
+    /// <summary>Tháo đồ ở ô về túi. Trả về có đổi hay không.</summary>
+    bool Unequip(EquipmentSlot slot, out bool saved);
+
+    /// <summary>Tháo mọi món trong một lần ghi file. Trả về có đổi hay không.</summary>
+    bool UnequipAll(out bool saved);
+
+    /// <summary>Level hiện tại/tối đa, giá nâng và lý do bị chặn của một món.</summary>
+    UpgradeQuote GetQuote(EquipmentItem item);
+
+    /// <summary>Nâng một level nếu đủ điều kiện (luôn kiểm tra lại). Trả về đã nâng hay chưa.</summary>
+    bool TryUpgrade(EquipmentItem item, out bool saved);
+
+    /// <summary>Phát sau khi túi đồ hoặc đồ đang mặc đổi (đã đổi RAM và đã thử lưu).</summary>
+    event Action Changed;
+}
+
+#endregion
+
+#region Equipment Grant (panel test; sau này thưởng Stage/loot)
+
+/// <summary>
+/// Trao một bản trang bị mới cho người chơi (dòng phụ được roll ngay theo độ hiếm). Dùng bởi nút Gacha của panel test;
+/// thưởng Stage/loot sau này dùng cùng vai trò.
+/// </summary>
+public interface IEquipmentGrant
+{
+    /// <summary>
+    /// Thêm một bản đồ của <paramref name="item"/> (phải có trong Equipment Database) với độ hiếm <paramref name="rarity"/>.
+    /// Trả về bản đồ vừa nhận; <paramref name="saved"/> = false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
+    /// </summary>
+    EquipmentItem Grant(EquipmentDataSO item, EquipmentRarity rarity, out bool saved);
 }
 
 #endregion

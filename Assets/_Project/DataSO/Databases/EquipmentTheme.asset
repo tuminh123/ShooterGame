@@ -1,0 +1,103 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b982f99ee0c2594292318e9b58569a9, type: 3}
+  m_Name: EquipmentTheme
+  m_EditorClassIdentifier: 
+  statTheme: {fileID: 11400000, guid: b8cddd233fe785c4ca8db3c62dd0949e, type: 2}
+  rarities:
+  - rarity: 0
+    text: COMMON
+    textColor: {r: 0.78431374, g: 0.83137256, b: 0.85490197, a: 1}
+    background: {r: 0.38039216, g: 0.49411765, b: 0.5411765, a: 1}
+    light: {r: 0.50980395, g: 0.627451, b: 0.67058825, a: 1}
+    border: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+    glow: {r: 0.5137255, g: 0.6509804, b: 0.7058824, a: 1}
+    cornerDeco: {r: 0.44313726, g: 0.5568628, b: 0.6, a: 1}
+    slotCircle: {r: 0.38039216, g: 0.49411765, b: 0.5411765, a: 1}
+  - rarity: 1
+    text: UNCOMMON
+    textColor: {r: 0.36078432, g: 0.9019608, b: 0.41568628, a: 1}
+    background: {r: 0.11372549, g: 0.7529412, b: 0.3372549, a: 1}
+    light: {r: 0.69803923, g: 0.94509804, b: 0.12156863, a: 1}
+    border: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+    glow: {r: 0.7529412, g: 1, b: 0.31764707, a: 1}
+    cornerDeco: {r: 0.20392157, g: 0.8509804, b: 0.20392157, a: 1}
+    slotCircle: {r: 0.13333334, g: 0.9372549, b: 0.11372549, a: 1}
+  - rarity: 2
+    text: RARE
+    textColor: {r: 0.30980393, g: 0.7647059, b: 1, a: 1}
+    background: {r: 0, g: 0.65882355, b: 1, a: 1}
+    light: {r: 0.20784314, g: 0.9843137, b: 1, a: 1}
+    border: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+    glow: {r: 0.03137255, g: 0.9372549, b: 1, a: 1}
+    cornerDeco: {r: 0.17254902, g: 0.74509805, b: 1, a: 1}
+    slotCircle: {r: 0.05490196, g: 0.50980395, b: 0.9764706, a: 1}
+  - rarity: 3
+    text: EPIC
+    textColor: {r: 0.78431374, g: 0.5019608, b: 0.99607843, a: 1}
+    background: {r: 0.69803923, g: 0.3764706, b: 0.99215686, a: 1}
+    light: {r: 1, g: 0.5411765, b: 1, a: 1}
+    border: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+    glow: {r: 0.7254902, g: 0.5882353, b: 1, a: 1}
+    cornerDeco: {r: 0.78431374, g: 0.5019608, b: 0.99607843, a: 1}
+    slotCircle: {r: 0.6392157, g: 0.24313726, b: 1, a: 1}
+  - rarity: 4
+    text: LEGENDARY
+    textColor: {r: 1, g: 0.8235294, b: 0.22745098, a: 1}
+    background: {r: 1, g: 0.7882353, b: 0, a: 1}
+    light: {r: 0.99607843, g: 0.99215686, b: 0.30588236, a: 1}
+    border: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+    glow: {r: 0.9529412, g: 1, b: 0.19215687, a: 1}
+    cornerDeco: {r: 1, g: 0.87058824, b: 0, a: 1}
+    slotCircle: {r: 1, g: 0.87058824, b: 0, a: 1}
+  slots:
+  - slot: 0
+    text: Weapon
+    icon: {fileID: 21300000, guid: 97aeaf017389e4efdb679f7db8867011, type: 3}
+    emptyIcon: {fileID: 21300000, guid: 1740839837d3b4cc8aec21c4857838f0, type: 3}
+  - slot: 1
+    text: Helmet
+    icon: {fileID: 21300000, guid: 2f5d9539836314bb5a9c0d2f0ebdb3b6, type: 3}
+    emptyIcon: {fileID: 21300000, guid: befcfbc20b10c42868c152bfb04c0b42, type: 3}
+  - slot: 2
+    text: Armor
+    icon: {fileID: 21300000, guid: 9b48aebbded0f48c782d54dd6078bd7a, type: 3}
+    emptyIcon: {fileID: 21300000, guid: 82095098c7c4746f4ac8973e44dc14de, type: 3}
+  - slot: 3
+    text: Gloves
+    icon: {fileID: 21300000, guid: ce5d2c0c8582d4fefab527af78c3c0a2, type: 3}
+    emptyIcon: {fileID: 21300000, guid: b0e0176379d5c4498bc407907ec4a75e, type: 3}
+  - slot: 4
+    text: Boots
+    icon: {fileID: 21300000, guid: 4e72bc3825879426a9063db404f68716, type: 3}
+    emptyIcon: {fileID: 21300000, guid: 41e92cd524be34a2783b6c7044182cc9, type: 3}
+  - slot: 5
+    text: Ring
+    icon: {fileID: 21300000, guid: 7031761beba0844f19638697d6537888, type: 3}
+    emptyIcon: {fileID: 21300000, guid: 28b2dee5c89ff42a6838b7dd92b1ec74, type: 3}
+  statNames:
+  - stat: 0
+    text: HP
+  - stat: 1
+    text: Damage
+  - stat: 2
+    text: Defense
+  - stat: 3
+    text: Move Speed
+  - stat: 4
+    text: Crit Chance
+  - stat: 5
+    text: Crit Damage
+  - stat: 6
+    text: Effect Resist
+  - stat: 7
+    text: Effect Hit

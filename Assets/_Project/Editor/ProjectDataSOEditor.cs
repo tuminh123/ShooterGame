@@ -80,8 +80,34 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Info, "defaultStage");
         }
         else if (target is EquipmentDatabaseSO)
-            Section("EQUIPMENT CATALOG", "ID được lưu trong save và phải ổn định, duy nhất. Bonus cộng thẳng; tỷ lệ dùng điểm phần trăm.",
-                DataInspectorTone.Stats, "items");
+        {
+            Section("EQUIPMENT RULES", "Luật dùng chung: chỉ số chính theo ô × độ hiếm, dòng phụ, level tối đa, giá nâng.",
+                DataInspectorTone.Stats, "rules");
+            Section("EQUIPMENT CATALOG", "Mọi mẫu đồ của game. ID được lưu trong save: đổi hoặc xóa ID thì bản đồ đã lưu bị xóa khỏi túi khi load.",
+                DataInspectorTone.Info, "items");
+            Section("EQUIPMENT SETS", "Mỗi set (trừ None) một mục: skill duy nhất (nguồn Equipment, 1 cấp) bật khi mặc đủ Required Pieces món cùng set.",
+                DataInspectorTone.Advanced, "sets");
+            Section("STARTER ITEMS", "Đồ nhận một lần khi save chưa từng nhận (save mới hoặc sau Reset). Dòng phụ được roll lúc nhận.",
+                DataInspectorTone.Rewards, "starterItems");
+        }
+        else if (target is EquipmentDataSO)
+        {
+            Section("EQUIPMENT INFO", "ID ổn định được lưu trong save; tên, mô tả và icon chỉ để hiển thị.",
+                DataInspectorTone.Info, "id", "displayName", "description", "icon");
+            Section("SLOT & SET", "Ô quyết định chỉ số chính (xem Equipment Rules). Set = None nếu món không thuộc set nào.",
+                DataInspectorTone.Stats, "slot", "set");
+            Section("SKILL", "Một skill, một cấp (definition nguồn Equipment). Có skill khi món đạt Skill Unlock Level; để trống nếu không có.",
+                DataInspectorTone.Advanced, "skill", "skillUnlockLevel");
+        }
+        else if (target is EquipmentRulesSO)
+        {
+            Section("MAIN STAT BY SLOT", "Mỗi ô một chỉ số chính. Giá trị ở Lv.L = Base Value + Per Level × (L - 1), theo từng độ hiếm.",
+                DataInspectorTone.Stats, "slots");
+            Section("SUBSTATS", "Số dòng phụ ban đầu theo độ hiếm. Mốc thứ k (Lv = k × Interval): ít hơn k dòng thì mở dòng mới, đủ rồi thì cộng một lần roll vào một dòng ngẫu nhiên.",
+                DataInspectorTone.Advanced, "rarities", "maxLevel", "milestoneInterval", "maxSubstats", "substatRolls");
+            Section("LEVEL UP COST", "Giá = Base + Per Level × (level hiện tại - 1). TODO: chưa kiểm tra và trừ tiền.",
+                DataInspectorTone.Rewards, "levelUpCurrency", "levelUpCostBase", "levelUpCostPerLevel");
+        }
         else if (target is CombatAssetsSO)
         {
             Section("SHARED VIEW SHELLS", "Vỏ dùng chung cho đạn và VFX; mỗi loại có visual con riêng, được ghép khi spawn.",
@@ -234,7 +260,9 @@ public abstract class ProjectDataSOEditor : Editor
         else if (data is CharacterLevelConfigSO growth) growth.GetTotalBonus(1);
         else if (data is RunLevelConfigSO run) run.GetTotalBonus(1);
         else if (data is LevelDatabaseSO levels) levels.CreateTypeLookup();
-        else if (data is EquipmentDatabaseSO equipment) equipment.CreateBonusLookup();
+        else if (data is EquipmentDatabaseSO equipment) equipment.Validate();
+        else if (data is EquipmentDataSO equipmentItem) equipmentItem.Validate();
+        else if (data is EquipmentRulesSO equipmentRules) equipmentRules.Validate();
         else if (data is CombatAssetsSO combat) combat.Validate();
         else if (data is LootDatabaseSO loot) loot.CreateLookup();
         else if (data is SkillDatabaseSO skills) skills.Validate();
@@ -268,6 +296,8 @@ public abstract class ProjectDataSOEditor : Editor
 [CustomEditor(typeof(RunLevelConfigSO)), CanEditMultipleObjects] public sealed class RunLevelInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(LevelDatabaseSO)), CanEditMultipleObjects] public sealed class LevelDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EquipmentDatabaseSO)), CanEditMultipleObjects] public sealed class EquipmentDatabaseInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(EquipmentDataSO)), CanEditMultipleObjects] public sealed class EquipmentItemInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(EquipmentRulesSO)), CanEditMultipleObjects] public sealed class EquipmentRulesInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(CombatAssetsSO)), CanEditMultipleObjects] public sealed class CombatAssetsInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(LootDatabaseSO)), CanEditMultipleObjects] public sealed class LootDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(SkillDatabaseSO)), CanEditMultipleObjects] public sealed class SkillDatabaseInspector : ProjectDataSOEditor { }

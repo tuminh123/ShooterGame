@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: EQ_FrostAura
+  m_EditorClassIdentifier: 
+  source: 2
+  level: 1
+  displayName: Frost Aura (Equip)
+  description: Five run levels. Resets to level one each run.
+  icon: {fileID: 21300000, guid: feff385501ef94fb09731630b5606c35, type: 3}
+  shootingVisualState: 3
+  levels:
+  - description: Create a frost aura with radius 1. Enemies inside move 30% slower.
+    behaviours:
+    - rid: 1002
+  behaviourTypes: 03000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 1002
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        radius: 1
+        slowFraction: 0.3
+        effects: []

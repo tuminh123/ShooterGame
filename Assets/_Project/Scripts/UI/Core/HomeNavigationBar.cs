@@ -4,8 +4,8 @@ using UnityEngine.UI;
 using Zenject;
 
 /// <summary>
-/// Hai thanh dùng chung của các màn chính (Home, Heroes, sau này Shop, Map...): thanh dưới (nút Battle về Home,
-/// nút Heroes mở màn Character) và thanh trên (tiền tệ, nút menu). Nút của màn đang mở "nổi lên" bằng cách bật bản Focus.
+/// Hai thanh dùng chung của các màn chính (Home, Heroes, Equipment, sau này Shop, Map...): thanh dưới (nút Battle về Home,
+/// nút Heroes mở màn Character, nút Bag mở màn Equipment) và thanh trên (tiền tệ, nút menu). Nút của màn đang mở "nổi lên" bằng cách bật bản Focus.
 /// </summary>
 /// <remarks>
 /// Cả hai nằm ngoài MainUI và CharacterScreen (sau chúng trong hierarchy) vì UIManager tắt MainUI khi mở màn Character,
@@ -49,9 +49,11 @@ public sealed class HomeNavigationBar : MonoBehaviour
     [SerializeField] private GameObject sharedBackground;
     [SerializeField] private NavTab battleTab;
     [SerializeField] private NavTab heroesTab;
+    [SerializeField] private NavTab equipmentTab;
     [Tooltip("Các nút chưa có chức năng (Shop, Bag, Map...); bị khóa.")]
     [SerializeField] private Button[] lockedButtons = Array.Empty<Button>();
     [SerializeField] private CharacterScreenController characterScreen;
+    [SerializeField] private EquipmentScreenController equipmentScreen;
 
     #endregion
 
@@ -78,10 +80,12 @@ public sealed class HomeNavigationBar : MonoBehaviour
     {
         battleTab.normal.onClick.AddListener(OnBattle);
         heroesTab.normal.onClick.AddListener(OnHeroes);
+        equipmentTab.normal.onClick.AddListener(OnEquipment);
         // Scene lưu các nút mockup ở trạng thái khóa; trước đây HomeController mở khóa khi chúng còn nằm trong MainUI.
         // Thanh bar giờ tự mở khóa nút của nó (cả bản nổi, để không bị tô màu xám "disabled").
         battleTab.SetInteractable();
         heroesTab.SetInteractable();
+        equipmentTab.SetInteractable();
         foreach (Button button in lockedButtons)
             if (button != null) button.interactable = false;
         Subscribe();
@@ -91,6 +95,7 @@ public sealed class HomeNavigationBar : MonoBehaviour
     {
         battleTab.normal.onClick.RemoveListener(OnBattle);
         heroesTab.normal.onClick.RemoveListener(OnHeroes);
+        equipmentTab.normal.onClick.RemoveListener(OnEquipment);
         Unsubscribe();
     }
 
@@ -100,6 +105,7 @@ public sealed class HomeNavigationBar : MonoBehaviour
         Unsubscribe(); // Tránh đăng ký hai lần khi Construct và OnEnable cùng chạy.
         game.StateChanged += OnGameStateChanged;
         characterScreen.NavigationChanged += Refresh;
+        equipmentScreen.NavigationChanged += Refresh;
         Refresh();
     }
 
@@ -107,6 +113,7 @@ public sealed class HomeNavigationBar : MonoBehaviour
     {
         if (game != null) game.StateChanged -= OnGameStateChanged;
         if (characterScreen != null) characterScreen.NavigationChanged -= Refresh;
+        if (equipmentScreen != null) equipmentScreen.NavigationChanged -= Refresh;
     }
 
     #endregion
@@ -114,9 +121,24 @@ public sealed class HomeNavigationBar : MonoBehaviour
     #region Navigation
 
     // Bản Focus không cần listener: bấm vào nút của màn đang mở thì không làm gì.
-    private void OnBattle() => characterScreen.Close();
+    // Mỗi lúc chỉ một màn chính mở: đóng màn còn lại trước rồi mới mở màn được chọn.
+    private void OnBattle()
+    {
+        characterScreen.Close();
+        equipmentScreen.Close();
+    }
 
-    private void OnHeroes() => characterScreen.Open();
+    private void OnHeroes()
+    {
+        equipmentScreen.Close();
+        characterScreen.Open();
+    }
+
+    private void OnEquipment()
+    {
+        characterScreen.Close();
+        equipmentScreen.Open();
+    }
 
     private void OnGameStateChanged(GameState previous, GameState current) => Refresh();
 
@@ -125,9 +147,11 @@ public sealed class HomeNavigationBar : MonoBehaviour
     {
         bool home = game != null && game.State == GameState.Home;
         bool heroesOpen = characterScreen.IsShown;
+        bool equipmentOpen = equipmentScreen.IsShown;
         if (sharedBackground != null) sharedBackground.SetActive(home);
-        battleTab.SetFocused(!heroesOpen);
+        battleTab.SetFocused(!heroesOpen && !equipmentOpen);
         heroesTab.SetFocused(heroesOpen);
+        equipmentTab.SetFocused(equipmentOpen);
         // Rời Home (vào trận) hoặc quay về Home: bật/tắt ngay cùng Home lúc màn đã tối, không trượt để khỏi hở đáy màn.
         // Chỉ trượt khi vẫn ở trong menu (vào/ra Detail).
         bool instant = home != wasHome;

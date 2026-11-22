@@ -1,0 +1,165 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46a850652790040408277f52766f4c00, type: 3}
+  m_Name: EquipmentRules
+  m_EditorClassIdentifier: 
+  slots:
+  - slot: 0
+    mainStat: 1
+    values:
+    - rarity: 0
+      baseValue: 5
+      perLevel: 1
+    - rarity: 1
+      baseValue: 7
+      perLevel: 1.5
+    - rarity: 2
+      baseValue: 10
+      perLevel: 2
+    - rarity: 3
+      baseValue: 14
+      perLevel: 2.8
+    - rarity: 4
+      baseValue: 20
+      perLevel: 4
+  - slot: 1
+    mainStat: 0
+    values:
+    - rarity: 0
+      baseValue: 40
+      perLevel: 8
+    - rarity: 1
+      baseValue: 60
+      perLevel: 12
+    - rarity: 2
+      baseValue: 85
+      perLevel: 17
+    - rarity: 3
+      baseValue: 120
+      perLevel: 24
+    - rarity: 4
+      baseValue: 170
+      perLevel: 34
+  - slot: 2
+    mainStat: 2
+    values:
+    - rarity: 0
+      baseValue: 4
+      perLevel: 0.8
+    - rarity: 1
+      baseValue: 6
+      perLevel: 1.2
+    - rarity: 2
+      baseValue: 9
+      perLevel: 1.8
+    - rarity: 3
+      baseValue: 13
+      perLevel: 2.6
+    - rarity: 4
+      baseValue: 18
+      perLevel: 3.6
+  - slot: 3
+    mainStat: 4
+    values:
+    - rarity: 0
+      baseValue: 2
+      perLevel: 0.2
+    - rarity: 1
+      baseValue: 3
+      perLevel: 0.3
+    - rarity: 2
+      baseValue: 4
+      perLevel: 0.4
+    - rarity: 3
+      baseValue: 5.5
+      perLevel: 0.55
+    - rarity: 4
+      baseValue: 7
+      perLevel: 0.7
+  - slot: 4
+    mainStat: 3
+    values:
+    - rarity: 0
+      baseValue: 0.1
+      perLevel: 0.01
+    - rarity: 1
+      baseValue: 0.15
+      perLevel: 0.015
+    - rarity: 2
+      baseValue: 0.2
+      perLevel: 0.02
+    - rarity: 3
+      baseValue: 0.3
+      perLevel: 0.03
+    - rarity: 4
+      baseValue: 0.4
+      perLevel: 0.04
+  - slot: 5
+    mainStat: 5
+    values:
+    - rarity: 0
+      baseValue: 5
+      perLevel: 0.5
+    - rarity: 1
+      baseValue: 7.5
+      perLevel: 0.75
+    - rarity: 2
+      baseValue: 10
+      perLevel: 1
+    - rarity: 3
+      baseValue: 14
+      perLevel: 1.4
+    - rarity: 4
+      baseValue: 20
+      perLevel: 2
+  rarities:
+  - rarity: 0
+    initialSubstats: 0
+  - rarity: 1
+    initialSubstats: 1
+  - rarity: 2
+    initialSubstats: 2
+  - rarity: 3
+    initialSubstats: 3
+  - rarity: 4
+    initialSubstats: 4
+  maxLevel: 20
+  milestoneInterval: 5
+  maxSubstats: 4
+  substatRolls:
+  - stat: 0
+    min: 15
+    max: 30
+  - stat: 1
+    min: 2
+    max: 4
+  - stat: 2
+    min: 2
+    max: 4
+  - stat: 3
+    min: 0.05
+    max: 0.15
+  - stat: 4
+    min: 1
+    max: 2
+  - stat: 5
+    min: 2
+    max: 5
+  - stat: 6
+    min: 2
+    max: 4
+  - stat: 7
+    min: 2
+    max: 4
+  levelUpCurrency: 0
+  levelUpCostBase: 100
+  levelUpCostPerLevel: 50

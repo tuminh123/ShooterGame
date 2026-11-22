@@ -35,7 +35,7 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     [SerializeField] private CharacterDatabaseSO characterDatabase; // Danh mục template nhân vật.
     [SerializeField] private LevelDatabaseSO levelDatabase; // Config level vĩnh viễn theo nhân vật và config level trận.
-    [SerializeField] private EquipmentDatabaseSO equipmentDatabase; // Tra bonus từ ID trang bị đã lưu.
+    [SerializeField] private EquipmentDatabaseSO equipmentDatabase; // Mẫu đồ, set, luật trang bị và đồ khởi đầu.
     [SerializeField] private LootDatabaseSO lootDatabase; // Catalog EXP/vàng: prefab, sprite, lượng, tỉ lệ.
     [SerializeField] private SkillDatabaseSO skillDatabase; // Catalog skill gameplay và quyền xuất hiện trong bảng thưởng.
     [Tooltip("Danh mục tất cả màn và màn mặc định; StageManager chọn Stage từ database này.")]

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 /// <summary>
@@ -40,7 +39,6 @@ public sealed class SaveMigration
 
             var selection = new PlayerSelectionSaveData();
             var levels = new CharacterLevelsSaveData();
-            var equipment = new EquipmentSaveData();
             var currencies = new CurrencySaveData();
             if (storage.HasKey(GameConstants.SaveKeys.PlayerData))
             {
@@ -48,7 +46,7 @@ public sealed class SaveMigration
                 selection.selectedCharacterType = legacy.selectedCharacterType;
                 foreach (PlayerSaveData.CharacterProgress entry in legacy.characters)
                     levels.characters.Add(new CharacterLevelsSaveData.Entry { characterType = entry.characterType, permanentLevel = entry.permanentLevel });
-                equipment.equippedItemIds = new List<string>(legacy.equippedItemIds ?? new List<string>());
+                // equippedItemIds cũ chỉ là ID loại (không có ô/độ hiếm) và database lúc đó rỗng: không chuyển sang túi đồ mới.
                 if (legacy.version == 3)
                 {
                     currencies.currencies.Clear();
@@ -60,12 +58,10 @@ public sealed class SaveMigration
             // Cùng quy tắc kiểm tra mà system sở hữu dữ liệu dùng khi đọc (Validate nằm trên chính lớp section).
             PlayerSelectionSaveData.Validate(selection);
             CharacterLevelsSaveData.Validate(levels);
-            EquipmentSaveData.Validate(equipment);
             CurrencySaveData.Validate(currencies);
 
             Write(GameConstants.SaveKeys.PlayerSelection, selection);
             Write(GameConstants.SaveKeys.CharacterLevels, levels);
-            Write(GameConstants.SaveKeys.Equipment, equipment);
             Write(GameConstants.SaveKeys.Currencies, currencies);
             // Marker ghi CUỐI: lần chuyển đổi lỗi có thể chạy lại từ dữ liệu cũ nguyên vẹn.
             Write(GameConstants.SaveKeys.Format, new SaveFormatData());

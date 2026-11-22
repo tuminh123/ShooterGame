@@ -44,8 +44,10 @@ public sealed class CharacterSkillSystem : IDisposable
     private readonly ICharacterRegistry characters;
     private readonly ICharacterDeathEvents deaths;
     private readonly SkillFactory factory;
-    private readonly ICharacterProgress progress; // Level/sao đã lưu của Player (miền Progression), đọc lúc spawn.
+    private readonly ICharacterProgress progress; // Level/sao và đồ/set đang mặc của Player (miền Progression), đọc lúc spawn.
     private readonly List<SkillGrant> grantBuffer = new List<SkillGrant>(8); // Dùng lại mỗi lần spawn, không cấp phát mới.
+    private readonly List<EquipmentItem> equippedBuffer = new List<EquipmentItem>(6);
+    private readonly List<EquipmentSetData> setBuffer = new List<EquipmentSetData>(3);
     private readonly SkillSystem gameplaySkills;
     private readonly EffectSystem effects;
     private readonly Dictionary<CharacterView, Entry> entries = new Dictionary<CharacterView, Entry>(128);
@@ -145,6 +147,7 @@ public sealed class CharacterSkillSystem : IDisposable
                 int level = progress.GetLevel(template.CharacterType);
                 int stars = progress.GetStars(template.CharacterType);
                 template.GetSkillGrants(level, stars, result);
+                AddEquipmentSkills(result);
                 break;
 
             case CharacterTeam.Enemy:
@@ -157,6 +160,35 @@ public sealed class CharacterSkillSystem : IDisposable
             default:
                 throw new ArgumentOutOfRangeException(nameof(template), template.Team, "Unknown character team.");
         }
+    }
+
+    /// <summary>
+    /// Skill của đồ đang mặc (theo thứ tự ô) rồi skill của set đang bật, mỗi skill một cấp.
+    /// Thứ tự ưu tiên khi trùng: skill nhân vật (đã có trong list) > skill đồ > skill set; skill đã có thì bỏ bản sau,
+    /// vì CharacterSkills không nhận skill trùng. Skill trong trận là asset nguồn Gameplay khác nên luôn đứng sau.
+    /// </summary>
+    private void AddEquipmentSkills(List<SkillGrant> result)
+    {
+        progress.GetEquippedItems(equippedBuffer);
+        foreach (EquipmentItem item in equippedBuffer)
+        {
+            if (item.Definition.TryGetSkill(item.Level, out SkillDataSO skill))
+                AddIfMissing(result, skill);
+        }
+        progress.GetActiveSets(setBuffer);
+        foreach (EquipmentSetData set in setBuffer)
+            AddIfMissing(result, set.Skill);
+    }
+
+    private static void AddIfMissing(List<SkillGrant> result, SkillDataSO skill)
+    {
+        foreach (SkillGrant grant in result)
+        {
+            if (grant.Skill == skill)
+                return;
+        }
+        // Skill trang bị chỉ có một cấp.
+        result.Add(new SkillGrant(skill, 1));
     }
 
     // Chết không phải là thu hồi: vỏ còn ở lại để phát animation chết, nhưng mọi skill và effect phải dừng ngay.

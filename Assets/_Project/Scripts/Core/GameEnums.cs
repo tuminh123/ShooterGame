@@ -146,6 +146,18 @@ public enum CharacterUpgradeKind { Level, Star }
 /// <summary>Lý do không nâng được; <see cref="None"/> nghĩa là nâng được.</summary>
 public enum UpgradeBlock { None, MaxReached, NotEnoughCurrency, NotAvailable }
 
+/// <summary>Ô mặc trang bị; mỗi ô có một chỉ số chính cố định (EquipmentRulesSO). Số được lưu trong save.</summary>
+public enum EquipmentSlot { Weapon = 0, Helmet = 1, Armor = 2, Gloves = 3, Boots = 4, Ring = 5 }
+
+/// <summary>
+/// Độ hiếm của một bản trang bị (cùng một mẫu đồ có thể ra mọi độ hiếm). Quyết định số dòng phụ ban đầu và chỉ số chính.
+/// Không dùng chung CharacterRarity vì enum đó không có Uncommon.
+/// </summary>
+public enum EquipmentRarity { Common = 0, Uncommon = 1, Rare = 2, Epic = 3, Legendary = 4 }
+
+/// <summary>Set trang bị; mỗi set khai báo một lần trong EquipmentDatabaseSO. Thêm set mới ở cuối, không đổi số đã dùng.</summary>
+public enum EquipmentSet { None = 0, Samurai = 1, Witch = 2 }
+
 #endregion
 
 #region Run

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0fbf9081d5f55b4bac0f33347fc221c, type: 3}
+  m_Name: SamuraiHelmet
+  m_EditorClassIdentifier: 
+  id: samurai_helmet
+  displayName: Samurai Helmet
+  description: "M\u0169 tr\u1EE5 \u0111an t\u1EEB l\xE1, nh\u1EB9 m\xE0 b\u1EC1n."
+  icon: {fileID: 21300000, guid: 3eafb270868ab3e409183eec5020b8e6, type: 3}
+  slot: 1
+  set: 1
+  skill: {fileID: 0}
+  skillUnlockLevel: 1

@@ -28,8 +28,10 @@ public static class GameConstants
         public const string PlayerSelection = "player_selection";
         /// <summary>Section lưu level/sao vĩnh viễn của từng nhân vật.</summary>
         public const string CharacterLevels = "character_levels";
-        /// <summary>Section lưu ID trang bị đang mặc.</summary>
-        public const string Equipment = "equipment";
+        /// <summary>Section lưu túi đồ (mọi bản trang bị đang sở hữu).</summary>
+        public const string EquipmentItems = "equipment_items";
+        /// <summary>Section lưu đồ đang mặc theo ô. Key cũ "equipment" (danh sách ID loại) đã bỏ, không đọc lại.</summary>
+        public const string EquipmentSlots = "equipment_slots";
         /// <summary>Section lưu số dư các loại tiền.</summary>
         public const string Currencies = "currencies";
         /// <summary>Section lưu tiến trình vượt màn và thưởng thắng lần đầu.</summary>

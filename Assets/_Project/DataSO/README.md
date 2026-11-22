@@ -1,6 +1,6 @@
 # Hướng dẫn chung DataSO, level và save người chơi
 
-> Trạng thái hiện tại: kết nối equipment trong GameSceneInstaller và PlayerSystem đã được bật. Runtime nhận bonus từ database và ID trang bị đã lưu; database mẫu hiện rỗng, chưa mặc trang bị thì bonus bằng 0.
+> Trạng thái hiện tại: hệ thống trang bị (túi đồ, 6 ô mặc, độ hiếm, dòng phụ, set, skill đồ) đã chạy. Thiết kế và luật đầy đủ xem `Docs/Architecture/Equipment-Tasks.md`.
 
 ## 1. Phân chia dữ liệu
 
@@ -17,8 +17,8 @@
 | Dữ liệu lưu lâu dài | PlayerSaveData | Nhân vật đang chọn và level vĩnh viễn của từng nhân vật |
 | IO hồ sơ | SaveManager | Đọc/ghi Easy Save 3 theo key, giữ snapshot chưa ghi được để retry |
 | Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
-| Danh mục trang bị | EquipmentDatabaseSO | Tra bonus cộng thẳng bằng ID vật phẩm |
-| Trang bị đang mặc | Loadout (miền Progression) | Đọc/thay loadout đã lưu, tính tổng bonus và phát sự kiện |
+| Danh mục trang bị | EquipmentDatabaseSO (+ EquipmentDataSO, EquipmentRulesSO) | Mẫu đồ, set, luật tăng trưởng dùng chung, đồ khởi đầu |
+| Túi đồ / đồ đang mặc | EquipmentInventory, Loadout (miền Progression) | Bản đồ đang sở hữu (key `equipment_items`), ô → bản đồ (key `equipment_slots`), tổng bonus, set đang bật |
 
 PlayerSystem tạo CharacterRuntimeData từ template, bonus level và loadout đã load. Player sử dụng runtime làm nguồn chỉ số. Trang bị hiện có danh mục ID/bonus và danh sách đang mặc chung cho người chơi; chưa có inventory, slot, mở khóa hoặc nâng cấp vật phẩm. Skin, tiền tệ và EXP vĩnh viễn chưa được thêm. Hai config không tự thực thi skill.
 
@@ -179,7 +179,7 @@ equippedItemIds là field tùy chọn bổ sung cho schema 2: file cũ thiếu f
 
 SaveManager (miền Save) chỉ xử lý lưu trữ: `ISaveStore` (Load<T>(key, defaultData, validate), Save<T>, SaveBatch) và `ISaveMaintenance` (SaveIfDirty, ResetData). Wallet, CharacterLevels, Loadout, StageProgress (bên trong ProgressionManager) và PlayerSystem sở hữu dữ liệu và quyết định thời điểm lưu; mỗi section tự kiểm tra bằng `XxxSaveData.Validate`. Thứ tự khởi tạo: SaveManager (-200, mở file rồi chạy SaveMigration ngay bên trong) → ProgressionManager (-160) → CharacterManager (-150) → gameplay.
 
-Mặc định dùng chung file `PlayerSave.es3`, các key `player_selection`, `character_levels`, `equipment`, `currencies`, và marker `save_format` phiên bản 4. Hằng số ở GameConstants.SaveKeys. `player_data` chỉ còn phục vụ migration. Field Player Save File trên installer cho phép đổi tên file; tên khác không tự di chuyển save cũ.
+Mặc định dùng chung file `PlayerSave.es3`, các key `player_selection`, `character_levels`, `equipment_items`, `equipment_slots`, `currencies`, và marker `save_format` phiên bản 4. Hằng số ở GameConstants.SaveKeys. `player_data` chỉ còn phục vụ migration. Field Player Save File trên installer cho phép đổi tên file; tên khác không tự di chuyển save cũ.
 
 Easy Save dùng Location.File và Directory.PersistentDataPath; đường dẫn dựa trên thư mục dữ liệu ứng dụng của Unity. Không ghi vào Assets. Trên nền tảng plugin chuyển File sang PlayerPrefs, hành vi tuân theo Easy Save.
 
@@ -338,15 +338,7 @@ PlayerSystem thêm một nguồn bonus (level vĩnh viễn + trang bị) và Run
 
 Đọc runtime qua CharacterView.RuntimeData hoặc PlayerSystem.RuntimeData. FinalStats và BaseStats trả bản sao struct. Gọi CharacterView.ReceiveDamage hoặc ChangeHealth (âm trừ HP trực tiếp, dương hồi HP); view chuyển tiếp tới CharacterControllerBase. Controller chung xử lý giáp hấp thụ trước HP, thông báo và chết; PlayerController/EnemyController kế thừa và định nghĩa hành vi chết riêng. Nghe Changed để cập nhật UI. Effect sở hữu thời hạn, danh sách slow và luật slow mạnh nhất; runtime chỉ nhận hệ số di chuyển đã tổng hợp.
 
-Thêm vật phẩm vào danh sách Items của EquipmentDatabase: ID ổn định, tên hiển thị và bonus. `Loadout.SetEquippedItems` (bên trong ProgressionManager; vai trò công khai sẽ thêm khi có UI trang bị) nhận toàn bộ ID đang mặc; danh sách rỗng để tháo hết. Ví dụ, sau khi đã khai báo ID boots trong database:
-
-```csharp
-bool saved = loadout.SetEquippedItems(new[] { "boots" });
-// Runtime đã cập nhật dù saved=false. Khi IO lỗi, thử loadout.SaveEquipment() hoặc chờ ISaveMaintenance.SaveIfDirty.
-loadout.SetEquippedItems(System.Array.Empty<string>());
-```
-
-Thay loadout kiểm tra tất cả ID trước khi sửa RAM, không cho trùng ID hoặc đổi loadout lồng nhau trong callback. Loadout sở hữu danh sách, gửi snapshot vào key equipment ngay rồi phát EquipmentChanged; ProgressionManager chuyển thành BonusesChanged để PlayerSystem tính lại. Chưa có UI trang bị, kiểm tra sở hữu, slot hoặc item instance; ID ở đây là ID loại vật phẩm, mỗi loại được cộng tối đa một lần.
+Thêm mẫu đồ: tạo asset `Shooter Game/Data/Equipment Item` (ID ổn định, tên, icon, ô, set, skill + level mở) rồi kéo vào Items của EquipmentDatabase. Chỉ số không nằm trên mẫu đồ: chỉ số chính đọc từ `EquipmentRules` theo ô × độ hiếm, dòng phụ được roll khi nhận đồ và lưu vào save. Set khai báo trong Sets của database (mỗi `EquipmentSet` một mục: số món cần mặc + một skill). Skill của đồ/set là definition nguồn Equipment, đúng 1 cấp. Màn Equipment dùng `IEquipment`; Combat đọc đồ/set đang mặc qua `ICharacterProgress`. Lưu ý: đổi hoặc xóa ID của mẫu đồ thì các bản đã lưu với ID đó bị xóa khỏi túi khi load.
 
 Skill, shooting, đạn và hiệu ứng đã được nối vào Character runtime. Enemy dùng chung vỏ/runtime và chết qua pipeline damage/despawn. Chưa nối EXP nhặt được, UI chọn thưởng, ví tài nguyên hoặc game over/chơi lại hoàn chỉnh. Các blueprint kiến trúc cũ cần được đối chiếu với mã hiện tại; tài liệu Skill-Shooting-Pipeline.md mô tả phần đã triển khai.
 

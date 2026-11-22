@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0fbf9081d5f55b4bac0f33347fc221c, type: 3}
+  m_Name: SamuraiArmor
+  m_EditorClassIdentifier: 
+  id: samurai_armor
+  displayName: Samurai Armor
+  description: "Gi\xE1p samurai l\xE0m t\u1EEB l\xE1 \u0111an, r\u1EA5t ch\u1EAFc
+    trong r\u1EEBng; h\u1ED3i m\xE1u khi \u0111\u1EA1t Lv.10."
+  icon: {fileID: 21300000, guid: 3a3a5d970e2d94998818421e4e0e384b, type: 3}
+  slot: 2
+  set: 1
+  skill: {fileID: 11400000, guid: f105b33be520851499e51735ae002628, type: 2}
+  skillUnlockLevel: 10

@@ -12,7 +12,8 @@ using Zenject;
 /// ProgressionManager
 /// ├── Wallet           ví vàng/kim cương (key currencies)
 /// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels)
-/// ├── Loadout          trang bị đang mặc (key equipment)
+/// ├── EquipmentInventory  túi đồ: các bản trang bị, nhận đồ, nâng cấp (key equipment_items)
+/// ├── Loadout          đồ đang mặc theo ô, set đang bật, tổng bonus trang bị (key equipment_slots)
 /// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
 /// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
 /// └── StarTrack        nâng sao (dùng CharacterLevels); tạm miễn phí để test, giá mảnh làm ở Task S2
@@ -20,12 +21,14 @@ using Zenject;
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
-public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, ICharacterProgress, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
+public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, ICharacterProgress, IStageProgress, ICharacterUpgrades,
+    IEquipment, IEquipmentGrant, IInitializable, IDisposable
 {
     #region Fields
 
     private readonly Wallet wallet;
     private readonly CharacterLevels levels;
+    private readonly EquipmentInventory equipment;
     private readonly Loadout loadout;
     private readonly StageProgress stages;
     private readonly LevelTrack levelTrack;
@@ -51,11 +54,14 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     /// <inheritdoc/>
     public event Action<CharacterType, CharacterUpgradeKind> Upgraded;
 
+    /// <inheritdoc/>
+    public event Action Changed;
+
     #endregion
 
     #region Constructor / Lifecycle
 
-    /// <summary>Dựng bốn system; chưa đọc save (SaveManager.Initialize chưa chạy lúc container dựng object).</summary>
+    /// <summary>Dựng các system con; chưa đọc save (SaveManager.Initialize chưa chạy lúc container dựng object).</summary>
     public ProgressionManager(
         ISaveStore saves,
         CharacterDatabaseSO characterDatabase,
@@ -65,14 +71,17 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         if (saves == null) throw new ArgumentNullException(nameof(saves));
         wallet = new Wallet(saves);
         levels = new CharacterLevels(saves, characterDatabase, levelDatabase);
-        loadout = new Loadout(saves, equipmentDatabase);
+        equipment = new EquipmentInventory(saves, equipmentDatabase, new System.Random());
+        loadout = new Loadout(saves, equipment);
         stages = new StageProgress(saves, wallet);
         levelTrack = new LevelTrack(levels);
         starTrack = new StarTrack(levels);
 
-        // Gộp hai nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
+        // Gộp các nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
+        // Túi đồ đổi (lên cấp một món đang mặc) cũng có thể đổi bonus, nên cũng báo tính lại.
         levels.LevelChanged += OnLevelChanged;
-        loadout.EquipmentChanged += OnBonusSourceChanged;
+        equipment.Changed += OnEquipmentChanged;
+        loadout.EquipmentChanged += OnEquipmentChanged;
     }
 
     /// <summary>Đọc mọi section sau SaveManager (-200) và trước CharacterManager (-150), xem ExecutionOrder.</summary>
@@ -81,7 +90,8 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         if (disposed) return;
         wallet.Load();
         levels.Load();
-        loadout.Load();
+        equipment.Load();
+        loadout.Load(); // Sau túi đồ: ô chỉ lưu UID của bản đồ.
         stages.Load();
     }
 
@@ -91,10 +101,13 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         if (disposed) return;
         disposed = true;
         levels.LevelChanged -= OnLevelChanged;
-        loadout.EquipmentChanged -= OnBonusSourceChanged;
+        equipment.Changed -= OnEquipmentChanged;
+        loadout.EquipmentChanged -= OnEquipmentChanged;
         BonusesChanged = null;
         Upgraded = null;
+        Changed = null;
         DisposeSafely(loadout);
+        DisposeSafely(equipment);
         DisposeSafely(levels);
         wallet.Dispose();
     }
@@ -131,6 +144,12 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
 
     /// <inheritdoc/>
     public int GetStars(CharacterType type) => levels.GetStars(type);
+
+    /// <inheritdoc/>
+    public void GetEquippedItems(List<EquipmentItem> result) => loadout.GetEquippedItems(result);
+
+    /// <inheritdoc/>
+    public void GetActiveSets(List<EquipmentSetData> result) => loadout.GetActiveSets(result);
 
     #endregion
 
@@ -174,6 +193,41 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
 
     #endregion
 
+    #region IEquipment
+
+    /// <inheritdoc/>
+    public IReadOnlyList<EquipmentItem> Items => equipment.Items;
+
+    /// <inheritdoc/>
+    public EquipmentItem GetEquipped(EquipmentSlot slot) => loadout.GetEquipped(slot);
+
+    /// <inheritdoc/>
+    public int CountEquipped(EquipmentSet set) => loadout.CountEquipped(set);
+
+    /// <inheritdoc/>
+    public bool Equip(EquipmentItem item, out bool saved) => loadout.Equip(item, out saved);
+
+    /// <inheritdoc/>
+    public bool Unequip(EquipmentSlot slot, out bool saved) => loadout.Unequip(slot, out saved);
+
+    /// <inheritdoc/>
+    public bool UnequipAll(out bool saved) => loadout.UnequipAll(out saved);
+
+    /// <inheritdoc/>
+    public UpgradeQuote GetQuote(EquipmentItem item) => equipment.GetQuote(item);
+
+    /// <inheritdoc/>
+    public bool TryUpgrade(EquipmentItem item, out bool saved) => equipment.TryLevelUp(item, out saved);
+
+    #endregion
+
+    #region IEquipmentGrant
+
+    /// <inheritdoc/>
+    public EquipmentItem Grant(EquipmentDataSO item, EquipmentRarity rarity, out bool saved) => equipment.Grant(item, rarity, out saved);
+
+    #endregion
+
     #region Private Helpers
 
     private void OnLevelChanged(CharacterType type, int previousLevel, int newLevel) => OnBonusSourceChanged();
@@ -181,6 +235,14 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     private void OnBonusSourceChanged()
     {
         if (!disposed) BonusesChanged?.Invoke();
+    }
+
+    // Màn Equipment vẽ lại trước, rồi Player tính lại bonus (thứ tự không quan trọng, cả hai chỉ đọc).
+    private void OnEquipmentChanged()
+    {
+        if (disposed) return;
+        Changed?.Invoke();
+        OnBonusSourceChanged();
     }
 
     // System có thể đã lỗi giữa chừng; vẫn dọn những system còn lại.

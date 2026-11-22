@@ -58,6 +58,23 @@ public struct StatBonus
         };
     }
 
+    /// <summary>Bonus chỉ có một chỉ số (dùng khi cộng dồn chỉ số chính/phụ của trang bị theo <see cref="StatType"/>).</summary>
+    public static StatBonus Of(StatType stat, float value)
+    {
+        switch (stat)
+        {
+            case StatType.MaxHealth: return new StatBonus { maxHealth = value };
+            case StatType.Damage: return new StatBonus { damage = value };
+            case StatType.Defense: return new StatBonus { defense = value };
+            case StatType.MoveSpeed: return new StatBonus { moveSpeed = value };
+            case StatType.CritChance: return new StatBonus { critChance = value };
+            case StatType.CritDamageMultiplier: return new StatBonus { critDamageMultiplier = value };
+            case StatType.EffectResistance: return new StatBonus { effectResistance = value };
+            case StatType.EffectHit: return new StatBonus { effectHit = value };
+            default: throw new ArgumentOutOfRangeException(nameof(stat), stat, "Unknown stat type.");
+        }
+    }
+
     /// <summary>
     /// Chuyển thành một nguồn modifier cho <see cref="StatSheet"/>: mỗi chỉ số là một modifier <c>Add</c>.
     /// Công thức không đổi, vì bonus cộng thẳng và modifier Add đều được cộng trước khi nhân phần trăm.

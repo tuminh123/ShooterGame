@@ -49,8 +49,9 @@ SaveManager
 ⬆ ISaveStore, ISaveMaintenance
 
 ProgressionManager
-├── Wallet, CharacterLevels, Loadout, StageProgress
-⬆ IWallet, IPermanentBonuses, IStageProgress      ⚡ BalanceChanged, BonusesChanged
+├── Wallet, CharacterLevels, EquipmentInventory (+ EquipmentGrowth), Loadout, StageProgress
+⬆ IWallet, IPermanentBonuses, ICharacterProgress, ICharacterUpgrades, IStageProgress, IEquipment
+   ⚡ BalanceChanged, BonusesChanged, Upgraded, Changed
 
 PoolManager   (bọc LeanPool; pool runtime C# thuần thuộc miền sở hữu runtime đó)
 ⬆ IGameObjectPool, IPoolPreparation, IPoolCleanup

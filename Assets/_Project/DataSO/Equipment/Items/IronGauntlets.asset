@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0fbf9081d5f55b4bac0f33347fc221c, type: 3}
+  m_Name: IronGauntlets
+  m_EditorClassIdentifier: 
+  id: iron_gauntlets
+  displayName: Iron Gauntlets
+  description: "G\u0103ng s\u1EAFt c\u1EE7a l\xEDnh g\xE1c, kh\xF4ng thu\u1ED9c set
+    n\xE0o."
+  icon: {fileID: 21300000, guid: 8795d976aed5d430280d75d083fcb5b0, type: 3}
+  slot: 3
+  set: 0
+  skill: {fileID: 0}
+  skillUnlockLevel: 1

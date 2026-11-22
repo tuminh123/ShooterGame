@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0fbf9081d5f55b4bac0f33347fc221c, type: 3}
+  m_Name: WitchBoots
+  m_EditorClassIdentifier: 
+  id: witch_boots
+  displayName: Witch Boots
+  description: "Gi\xE0y b\u01B0\u1EDBc nh\u1EB9 nh\u01B0 kh\xF3i."
+  icon: {fileID: 21300000, guid: e07c16cced13542f59c7400aff52d8a7, type: 3}
+  slot: 4
+  set: 2
+  skill: {fileID: 0}
+  skillUnlockLevel: 1

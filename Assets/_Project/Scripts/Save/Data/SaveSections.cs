@@ -64,20 +64,98 @@ public sealed class CharacterLevelsSaveData
     }
 }
 
+/// <summary>Túi đồ: mọi bản trang bị đang sở hữu (key <c>equipment_items</c>). Do EquipmentInventory sở hữu.</summary>
 [Serializable]
-public sealed class EquipmentSaveData
+public sealed class EquipmentItemsSaveData
 {
-    public List<string> equippedItemIds = new List<string>();
-    public EquipmentSaveData Clone() => new EquipmentSaveData { equippedItemIds = new List<string>(equippedItemIds) };
-
-    /// <summary>ID trang bị không rỗng và không trùng (phân biệt hoa/thường). Việc ID có trong database do Loadout kiểm tra.</summary>
-    public static void Validate(EquipmentSaveData value)
+    [Serializable]
+    public sealed class Substat
     {
-        if (value == null || value.equippedItemIds == null) throw new InvalidOperationException("Missing equipped items.");
-        var unique = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string id in value.equippedItemIds)
-            if (string.IsNullOrWhiteSpace(id) || !unique.Add(id))
-                throw new InvalidOperationException("Equipment IDs must be non-empty and unique.");
+        public StatType stat;
+        public float value;
+    }
+
+    [Serializable]
+    public sealed class Item
+    {
+        public int uid;
+        public string itemId; // ID mẫu đồ trong EquipmentDatabase; mất ID thì món bị xóa khi load.
+        public EquipmentRarity rarity;
+        public int level = 1;
+        public List<Substat> substats = new List<Substat>(); // Kết quả random đã lưu, không random lại.
+    }
+
+    public int nextUid = 1;
+    public bool starterItemsGranted; // Save cũ không có field này nên đọc ra false: nhận đồ khởi đầu một lần.
+    public List<Item> items = new List<Item>();
+
+    public EquipmentItemsSaveData Clone()
+    {
+        var copy = new EquipmentItemsSaveData { nextUid = nextUid, starterItemsGranted = starterItemsGranted };
+        foreach (Item item in items)
+        {
+            var substats = new List<Substat>(item.substats.Count);
+            foreach (Substat substat in item.substats)
+                substats.Add(new Substat { stat = substat.stat, value = substat.value });
+            copy.items.Add(new Item { uid = item.uid, itemId = item.itemId, rarity = item.rarity, level = item.level, substats = substats });
+        }
+        return copy;
+    }
+
+    /// <summary>
+    /// UID dương, không trùng và nhỏ hơn nextUid; ID không trống; độ hiếm và chỉ số đã định nghĩa; level dương;
+    /// dòng phụ không trùng nhau và là số hữu hạn. Việc ID có trong database và dòng phụ khớp luật do EquipmentInventory kiểm tra.
+    /// </summary>
+    public static void Validate(EquipmentItemsSaveData value)
+    {
+        if (value == null || value.items == null || value.nextUid < 1)
+            throw new InvalidOperationException("Missing equipment items.");
+        var uids = new HashSet<int>();
+        foreach (Item item in value.items)
+        {
+            if (item == null || item.uid < 1 || item.uid >= value.nextUid || !uids.Add(item.uid) || string.IsNullOrWhiteSpace(item.itemId) ||
+                !Enum.IsDefined(typeof(EquipmentRarity), item.rarity) || item.level < 1 || item.substats == null)
+                throw new InvalidOperationException("Equipment items must have unique positive UIDs, IDs, defined rarities and positive levels.");
+            var stats = new HashSet<StatType>();
+            foreach (Substat substat in item.substats)
+                if (substat == null || !Enum.IsDefined(typeof(StatType), substat.stat) || !stats.Add(substat.stat) ||
+                    float.IsNaN(substat.value) || float.IsInfinity(substat.value))
+                    throw new InvalidOperationException("Equipment substats must be defined, unique and finite.");
+        }
+    }
+}
+
+/// <summary>Đồ đang mặc: ô → UID (key <c>equipment_slots</c>). Do Loadout sở hữu.</summary>
+[Serializable]
+public sealed class EquipmentSlotsSaveData
+{
+    [Serializable]
+    public sealed class Entry
+    {
+        public EquipmentSlot slot;
+        public int uid;
+    }
+
+    public List<Entry> slots = new List<Entry>();
+
+    public EquipmentSlotsSaveData Clone()
+    {
+        var copy = new EquipmentSlotsSaveData();
+        foreach (Entry entry in slots)
+            copy.slots.Add(new Entry { slot = entry.slot, uid = entry.uid });
+        return copy;
+    }
+
+    /// <summary>Mỗi ô tối đa một món, mỗi món tối đa một ô, UID dương. Việc UID còn trong túi và đúng loại ô do Loadout kiểm tra.</summary>
+    public static void Validate(EquipmentSlotsSaveData value)
+    {
+        if (value == null || value.slots == null)
+            throw new InvalidOperationException("Missing equipment slots.");
+        var slots = new HashSet<EquipmentSlot>();
+        var uids = new HashSet<int>();
+        foreach (Entry entry in value.slots)
+            if (entry == null || !Enum.IsDefined(typeof(EquipmentSlot), entry.slot) || entry.uid < 1 || !slots.Add(entry.slot) || !uids.Add(entry.uid))
+                throw new InvalidOperationException("Equipment slots must be defined and unique, with unique positive UIDs.");
     }
 }
 
