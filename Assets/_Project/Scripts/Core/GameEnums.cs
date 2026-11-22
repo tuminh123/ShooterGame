@@ -67,6 +67,16 @@ public enum CharacterVisualState
     Lose
 }
 
+/// <summary>
+/// Loại điều kiện của một bước tiến trình skill (Player): so với level vĩnh viễn hay số sao đã lưu.
+/// Lưu bằng số trong asset: thêm loại mới ở cuối, không đổi số đã dùng.
+/// </summary>
+public enum SkillConditionType
+{
+    CharacterLevel = 0,
+    Stars = 1
+}
+
 #endregion
 
 #region Combat

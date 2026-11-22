@@ -46,6 +46,8 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Stats, "baseStats");
             Section("INNATE SKILLS", "Skill vốn có của nhân vật. Cấp ban đầu đọc từ từng SkillDataSO; skill nhận trong màn nằm ở Skill Database.",
                 DataInspectorTone.Advanced, "skills");
+            Section("SKILL PROGRESSION (PLAYER)", "Mỗi bước: skill đạt Skill Level khi thỏa điều kiện. Character Level ≥ N chỉ dùng để mở khóa (Skill Level = 1); Stars ≥ N mở hoặc nâng cấp, một sao có thể nâng nhiều skill. Skill chưa có trong Innate Skills cần một bước mở khóa. Cấp skill = cấp cao nhất trong các bước đã thỏa. Enemy bỏ qua phần này.",
+                DataInspectorTone.Advanced, "skillProgression");
         }
         else if (target is CharacterDatabaseSO)
             Section("CHARACTER CATALOG", "Mỗi Character Type chỉ khai báo một template. Bao gồm Player, Enemy thường và Boss; không để reference trống.",
@@ -55,8 +57,7 @@ public abstract class ProjectDataSOEditor : Editor
             Section("CHARACTER GROWTH", "Cấp 1 chưa có bonus; cấp L nhận Bonus Per Level × (L - 1), giới hạn ở Max Level.",
                 DataInspectorTone.Stats, "characterType", "maxLevel", "bonusPerLevel");
             Section("PERMANENT UPGRADE EXP", "Thanh cấp L cần Initial Required + Increase Per Level × (L - 1) nguyên liệu. Mỗi lần bấm tiêu và nạp Amount Per Upgrade (1:1); đầy thanh thì lên cấp, phần dư chuyển sang cấp sau. Chỉ dùng cho Player, không phải EXP trận.",
-                DataInspectorTone.Rewards, "initialRequired", "requiredIncreasePerLevel", "amountPerUpgrade");
-        }
+                DataInspectorTone.Rewards, "initialRequired", "requiredIncreasePerLevel", "amountPerUpgrade");        }
         else if (target is RunLevelConfigSO)
         {
             Section("RUN LEVEL GROWTH", "Cấp và bonus trong một lượt chơi. Bonus cố định này cộng thêm bên cạnh phần thưởng skill được chọn.",
@@ -223,7 +224,12 @@ public abstract class ProjectDataSOEditor : Editor
     private static void ValidateData(UnityEngine.Object data)
     {
         // Chỉ gọi hàm đọc/kiểm tra hiện có, không sửa giá trị hoặc tạo runtime trong Inspector.
-        if (data is CharacterDataSO character) { character.ValidateStats(); character.VisualSettings.Validate(); }
+        if (data is CharacterDataSO character)
+        {
+            character.ValidateStats();
+            character.VisualSettings.Validate();
+            character.ValidateSkillProgression();
+        }
         else if (data is CharacterDatabaseSO characters) characters.CreateLookup();
         else if (data is CharacterLevelConfigSO growth) growth.GetTotalBonus(1);
         else if (data is RunLevelConfigSO run) run.GetTotalBonus(1);

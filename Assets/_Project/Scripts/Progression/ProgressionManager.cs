@@ -20,7 +20,7 @@ using Zenject;
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
-public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
+public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, ICharacterProgress, IStageProgress, ICharacterUpgrades, IInitializable, IDisposable
 {
     #region Fields
 
@@ -124,6 +124,16 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
 
     #endregion
 
+    #region ICharacterProgress
+
+    /// <inheritdoc/>
+    public int GetLevel(CharacterType type) => levels.GetLevel(type);
+
+    /// <inheritdoc/>
+    public int GetStars(CharacterType type) => levels.GetStars(type);
+
+    #endregion
+
     #region IStageProgress
 
     /// <inheritdoc/>
@@ -145,15 +155,11 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     {
         saved = false;
         if (disposed || !Track(kind).TryUpgrade(type, out saved)) return false;
-        // Sao mới mở một perk: Player và màn Character cần tính lại chỉ số.
+        // Sao không đổi chỉ số (sao nâng skill, đọc lúc spawn) nên không phát BonusesChanged.
         // Level chỉ đổi bonus khi thật sự lên cấp, đã báo qua CharacterLevels.LevelChanged.
-        if (kind == CharacterUpgradeKind.Star) OnBonusSourceChanged();
         Upgraded?.Invoke(type, kind);
         return true;
     }
-
-    /// <inheritdoc/>
-    public IReadOnlyList<StarPerk> GetStarPerks(CharacterType type) => levels.GetStarPerks(type);
 
     // Một switch duy nhất chọn track theo loại nâng cấp.
     private IUpgradeTrack Track(CharacterUpgradeKind kind)

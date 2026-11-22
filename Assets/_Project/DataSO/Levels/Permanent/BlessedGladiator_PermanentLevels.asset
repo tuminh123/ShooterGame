@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BlessedGladiator_PermanentLevels
   m_EditorClassIdentifier: 
   characterType: 1
-  maxLevel: 10
+  maxLevel: 20
   bonusPerLevel:
     maxHealth: 20
     damage: 2
@@ -26,59 +26,3 @@ MonoBehaviour:
   initialRequired: 100
   requiredIncreasePerLevel: 50
   amountPerUpgrade: 25
-  starPerks:
-  - description: +60 Max Health
-    icon: {fileID: 21300000, guid: ae898e04b74ec47d8bb33582fcf24b12, type: 3}
-    bonus:
-      maxHealth: 60
-      damage: 0
-      defense: 0
-      moveSpeed: 0
-      critChance: 0
-      critDamageMultiplier: 0
-      effectResistance: 0
-      effectHit: 0
-  - description: +8 Damage
-    icon: {fileID: 21300000, guid: 97aeaf017389e4efdb679f7db8867011, type: 3}
-    bonus:
-      maxHealth: 0
-      damage: 8
-      defense: 0
-      moveSpeed: 0
-      critChance: 0
-      critDamageMultiplier: 0
-      effectResistance: 0
-      effectHit: 0
-  - description: +10 Defense
-    icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
-    bonus:
-      maxHealth: 0
-      damage: 0
-      defense: 10
-      moveSpeed: 0
-      critChance: 0
-      critDamageMultiplier: 0
-      effectResistance: 0
-      effectHit: 0
-  - description: +5% Crit Chance
-    icon: {fileID: 21300000, guid: 5864b32a142be4809ab2ccc225cae6bf, type: 3}
-    bonus:
-      maxHealth: 0
-      damage: 0
-      defense: 0
-      moveSpeed: 0
-      critChance: 5
-      critDamageMultiplier: 0
-      effectResistance: 0
-      effectHit: 0
-  - description: +25% Crit Damage
-    icon: {fileID: 21300000, guid: 9c5f1b7307f6ee545a3830c89966e310, type: 3}
-    bonus:
-      maxHealth: 0
-      damage: 0
-      defense: 0
-      moveSpeed: 0
-      critChance: 0
-      critDamageMultiplier: 25
-      effectResistance: 0
-      effectHit: 0

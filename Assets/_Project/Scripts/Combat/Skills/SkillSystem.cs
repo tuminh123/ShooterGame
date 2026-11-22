@@ -11,6 +11,9 @@ public sealed class SkillSystem : IDisposable
 {
     #region Services And Runtime Collection
 
+    /// <summary>Skill nhận trong màn luôn bắt đầu ở cấp 1, rồi lên cấp khi được chọn lại (TryUpgrade).</summary>
+    public const int GameplayStartLevel = 1;
+
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
@@ -77,7 +80,7 @@ public sealed class SkillSystem : IDisposable
         adding = true;
         try
         {
-            var runtime = factory.Create(definition, context);
+            var runtime = factory.Create(definition, context, GameplayStartLevel);
             if (disposed || version != runVersion || !context.IsValid || !runtime.IsActive) { runtime.Dispose(); return false; }
             skills.Add(runtime);
             return true;

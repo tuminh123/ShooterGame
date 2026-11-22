@@ -64,7 +64,10 @@ public sealed class SkillDataSO : ScriptableObject
     public string GetRunLevelDescription(int currentLevel)
     {
         string text = GetLevel(currentLevel).Description;
-        return string.IsNullOrWhiteSpace(text) ? description : text;
+        // Cấp chưa có mô tả riêng thì dùng mô tả chung của skill.
+        if (string.IsNullOrWhiteSpace(text))
+            return description;
+        return text;
     }
 
     #endregion

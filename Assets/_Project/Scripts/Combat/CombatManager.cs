@@ -53,6 +53,7 @@ public sealed class CombatManager :
     /// </summary>
     /// <param name="characters">Danh sách nhân vật (miền Character): tạo/dọn skill vốn có khi nhân vật xuất hiện/bị thu hồi.</param>
     /// <param name="characterDeaths">Sự kiện chết (miền Character): dừng skill và effect ngay khi nhân vật chết.</param>
+    /// <param name="characterProgress">Level/sao đã lưu (miền Progression): quyết định skill vốn có của Player mở và cấp mấy lúc spawn.</param>
     public CombatManager(
         IGameObjectPool pools,
         CombatAssetsSO combatAssets,
@@ -62,7 +63,8 @@ public sealed class CombatManager :
         ISpatialQuery spatialQuery,
         ISpatialQueryBuilder queryBuilder,
         ICharacterRegistry characters,
-        ICharacterDeathEvents characterDeaths)
+        ICharacterDeathEvents characterDeaths,
+        ICharacterProgress characterProgress)
     {
         try
         {
@@ -78,7 +80,7 @@ public sealed class CombatManager :
             skillFactory = new SkillFactory(new SkillServices(projectiles, pools, effects, areaVisuals));
             skills = new SkillSystem(skillFactory);
             // Tạo sau cùng: khi nhân vật chết/thu hồi, nó dọn cả skill gameplay (SkillSystem) và effect (EffectSystem).
-            characterSkills = new CharacterSkillSystem(characters, characterDeaths, skillFactory, skills, effects);
+            characterSkills = new CharacterSkillSystem(characters, characterDeaths, characterProgress, skillFactory, skills, effects);
         }
         catch
         {

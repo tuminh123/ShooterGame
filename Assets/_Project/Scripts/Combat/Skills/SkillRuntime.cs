@@ -93,7 +93,10 @@ public sealed class SkillRuntime : IDisposable
         {
             float remaining = float.MaxValue; // Giá trị tổng quan cho debug, không gộp cooldown giữa các hành vi.
             foreach (Behaviour behaviour in behaviours) remaining = Math.Min(remaining, behaviour.Remaining);
-            return remaining == float.MaxValue ? 0f : remaining;
+            // Chưa có hành vi nào thì không có cooldown.
+            if (remaining == float.MaxValue)
+                return 0f;
+            return remaining;
         }
     }
 
@@ -102,14 +105,15 @@ public sealed class SkillRuntime : IDisposable
     #region Initialization
 
     // Runtime đăng ký owner trước khi ApplyData có thể phát callback stats.
-    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, SkillFactory factory)
+    // Cấp bắt đầu do nơi tạo truyền vào: runtime chỉ chạy skill, không biết level/sao của Player hay nguồn skill.
+    internal SkillRuntime(SkillDataSO definition, CharacterSkills context, SkillFactory factory, int startLevel)
     {
         Definition = definition;
         this.context = context;
         this.factory = factory;
         owner = context.Owner;
         paused = !owner.isActiveAndEnabled;
-        RunLevel = definition.Source == SkillSource.Gameplay ? 1 : definition.Level;
+        RunLevel = startLevel;
         owner.Died += OnOwnerEnded;
         owner.Released += OnOwnerEnded;
         owner.Deactivated += OnOwnerDeactivated;

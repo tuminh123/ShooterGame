@@ -30,21 +30,23 @@ public sealed class CharacterSkills : IDisposable
     #region Initialization
 
     // CharacterView tạo context khi vỏ còn tắt; mọi runtime ban đầu thuộc context này.
-    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillDataSO> definitions, SkillFactory factory)
+    // grants: skill + cấp bắt đầu, do CharacterSkillSystem tính sẵn (Player theo level/sao đã lưu, Enemy theo cấp mặc định).
+    public CharacterSkills(CharacterView owner, IReadOnlyList<SkillGrant> grants, SkillFactory factory)
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Identity = owner.RuntimeData ?? throw new ArgumentException("Initialize character data before skills.");
         handle = new CharacterHandle(owner);
-        if (definitions == null) throw new ArgumentNullException(nameof(definitions));
+        if (grants == null) throw new ArgumentNullException(nameof(grants));
         if (factory == null) throw new ArgumentNullException(nameof(factory));
         try
         {
             var unique = new HashSet<SkillDataSO>();
-            foreach (SkillDataSO definition in definitions)
+            foreach (SkillGrant grant in grants)
             {
+                SkillDataSO definition = grant.Skill;
                 if (definition == null || !unique.Add(definition)) throw new ArgumentException("Initial skills must be non-null and unique.");
                 if (definition.Source == SkillSource.Gameplay) throw new ArgumentException("Initial character skills must use separate Character/Equipment definitions.");
-                SkillRuntime runtime = factory.Create(definition, this);
+                SkillRuntime runtime = factory.Create(definition, this, grant.Level);
                 if (!IsValid || !runtime.IsActive)
                 {
                     runtime.Dispose();

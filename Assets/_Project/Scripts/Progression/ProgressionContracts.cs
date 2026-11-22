@@ -38,7 +38,7 @@ public interface IWallet
 #region Permanent Bonuses (PlayerSystem)
 
 /// <summary>
-/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + perk sao + trang bị. Dùng bởi PlayerSystem.
+/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + trang bị (sao không cộng chỉ số). Dùng bởi PlayerSystem.
 /// </summary>
 /// <remarks>PlayerSystem chỉ cần một con số tổng, nên vai trò này gộp sẵn thay vì lộ hai system riêng.</remarks>
 public interface IPermanentBonuses
@@ -46,8 +46,28 @@ public interface IPermanentBonuses
     /// <summary>Bonus cộng thẳng của <paramref name="type"/>; type không có cấu hình level thì ném lỗi.</summary>
     StatBonus GetBonus(CharacterType type);
 
-    /// <summary>Level, sao của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
+    /// <summary>Level của một nhân vật hoặc loadout vừa đổi: Player cần tính lại nguồn bonus.</summary>
     event Action BonusesChanged;
+}
+
+#endregion
+
+#region Character Progress (Combat)
+
+/// <summary>
+/// Level và sao đã lưu của một nhân vật Player. Dùng bởi Combat lúc spawn để tính skill nào mở và mỗi skill cấp mấy.
+/// </summary>
+/// <remarks>
+/// Chỉ trả con số, không biết gì về skill: luật "level/sao → skill" nằm trong CharacterDataSO,
+/// nên Progression (miền dưới) không phải tham chiếu kiểu của Character/Combat (miền trên).
+/// </remarks>
+public interface ICharacterProgress
+{
+    /// <summary>Level vĩnh viễn; nhân vật chưa có bản ghi là 1.</summary>
+    int GetLevel(CharacterType type);
+
+    /// <summary>Số sao đã mở; nhân vật chưa có bản ghi là 0.</summary>
+    int GetStars(CharacterType type);
 }
 
 #endregion
@@ -114,9 +134,6 @@ public interface ICharacterUpgrades
 
     /// <summary>Phát sau khi một lần nâng thành công (đã đổi RAM và đã thử lưu).</summary>
     event Action<CharacterType, CharacterUpgradeKind> Upgraded;
-
-    /// <summary>Perk theo thứ tự sao (phần tử 0 mở ở sao 1) để tab Stars hiển thị.</summary>
-    IReadOnlyList<StarPerk> GetStarPerks(CharacterType type);
 }
 
 #endregion

@@ -81,15 +81,53 @@ public readonly struct StarPerkModel
 {
     public readonly int Star; // Sao mở perk này, bắt đầu từ 1.
     public readonly Sprite Icon; // null thì giữ icon mặc định của dòng.
-    public readonly string Description;
+    public readonly string Description; // Dòng ngắn trên tab (tên skill + cấp), chi tiết nằm trong Info.
     public readonly StarPerkState State;
+    public readonly InfoPopupModel Info; // Nội dung popup khi chạm vào dòng (mô tả đầy đủ của từng skill sao này nâng).
 
-    public StarPerkModel(int star, Sprite icon, string description, StarPerkState state)
+    public StarPerkModel(int star, Sprite icon, string description, StarPerkState state, InfoPopupModel info)
     {
         Star = star;
         Icon = icon;
         Description = description;
         State = state;
+        Info = info;
+    }
+}
+
+/// <summary>Nội dung popup thông tin ở giữa màn Detail (dùng chung cho ô skill và dòng sao).</summary>
+public readonly struct InfoPopupModel
+{
+    public readonly Sprite Icon; // Icon trong ô; null thì ẩn.
+    public readonly string Title; // Tên skill hoặc "STAR n".
+    public readonly string Status; // "Lv.3", "Unlocks at Lv 15", "Unlocked", "Locked"...
+    public readonly bool Unlocked; // Tô màu dòng trạng thái: sáng khi đã mở, xám khi chưa.
+    public readonly string Description; // Mô tả đầy đủ, có thể nhiều dòng.
+
+    public InfoPopupModel(Sprite icon, string title, string status, bool unlocked, string description)
+    {
+        Icon = icon;
+        Title = title;
+        Status = status;
+        Unlocked = unlocked;
+        Description = description;
+    }
+}
+
+/// <summary>Một ô skill trên tab Level: skill đã mở (hiện cấp) hoặc còn khóa (hiện điều kiện mở).</summary>
+public readonly struct SkillSlotModel
+{
+    public readonly Sprite Icon; // null thì ẩn icon.
+    public readonly bool Unlocked;
+    public readonly string Label; // Nhãn dưới ô. Đã mở: cấp hiện tại ("Lv.3"); còn khóa: điều kiện ("Lv 15", "★2").
+    public readonly InfoPopupModel Info; // Nội dung popup khi chạm vào ô.
+
+    public SkillSlotModel(Sprite icon, bool unlocked, string label, InfoPopupModel info)
+    {
+        Icon = icon;
+        Unlocked = unlocked;
+        Label = label;
+        Info = info;
     }
 }
 
@@ -113,7 +151,7 @@ public readonly struct CharacterDetailModel
     public readonly int LevelProgress; // Nguyên liệu đã nạp vào thanh của cấp hiện tại.
     public readonly int LevelProgressRequired; // Cần để đầy thanh; 0 nghĩa là đã ở cấp tối đa.
     public readonly IReadOnlyList<StatRowModel> Stats;
-    public readonly IReadOnlyList<Sprite> SkillIcons;
+    public readonly IReadOnlyList<SkillSlotModel> SkillSlots; // Đúng số skill của nhân vật, kể cả skill còn khóa.
 
     // Tab Stars
     public readonly IReadOnlyList<StarPerkModel> StarPerks;
@@ -126,7 +164,7 @@ public readonly struct CharacterDetailModel
         CharacterType type, Sprite rarityLabel, string rarityText, Color rarityTextColor, string name, Sprite portrait,
         CharacterUIVisual uiVisual, int stars,
         CharacterScreenTab tab, int level, int maxLevel, int levelProgress, int levelProgressRequired,
-        IReadOnlyList<StatRowModel> stats, IReadOnlyList<Sprite> skillIcons, IReadOnlyList<StarPerkModel> starPerks,
+        IReadOnlyList<StatRowModel> stats, IReadOnlyList<SkillSlotModel> skillSlots, IReadOnlyList<StarPerkModel> starPerks,
         bool isSelected, UpgradeButtonModel upgrade)
     {
         Type = type;
@@ -143,7 +181,7 @@ public readonly struct CharacterDetailModel
         LevelProgress = levelProgress;
         LevelProgressRequired = levelProgressRequired;
         Stats = stats ?? Array.Empty<StatRowModel>();
-        SkillIcons = skillIcons ?? Array.Empty<Sprite>();
+        SkillSlots = skillSlots ?? Array.Empty<SkillSlotModel>();
         StarPerks = starPerks ?? Array.Empty<StarPerkModel>();
         IsSelected = isSelected;
         Upgrade = upgrade;

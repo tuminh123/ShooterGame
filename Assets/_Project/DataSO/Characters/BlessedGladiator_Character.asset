@@ -41,3 +41,28 @@ MonoBehaviour:
     effectHit: 0
   skills:
   - {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+  skillProgression:
+  - skill: {fileID: 11400000, guid: bae4ee25694773b479f65b80fcd84d7a, type: 2}
+    skillLevel: 1
+    condition: 0
+    required: 15
+  - skill: {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+    skillLevel: 2
+    condition: 1
+    required: 1
+  - skill: {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+    skillLevel: 3
+    condition: 1
+    required: 2
+  - skill: {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+    skillLevel: 4
+    condition: 1
+    required: 3
+  - skill: {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+    skillLevel: 5
+    condition: 1
+    required: 4
+  - skill: {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+    skillLevel: 6
+    condition: 1
+    required: 5

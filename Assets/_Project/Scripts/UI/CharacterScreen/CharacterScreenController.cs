@@ -26,9 +26,30 @@ public sealed class CharacterScreenController : UIPanelController
     [SerializeField] private string upgradeLabel = "UPGRADE";
     [SerializeField] private string maxLabel = "MAX";
     [SerializeField] private string lockedLabel = "LOCKED";
+    [Tooltip("Chữ trên dòng sao chưa cấu hình bước skill nào.")]
+    [SerializeField] private string emptyStarText = "—";
 
-    /// <summary>Số ô skill trên màn Detail.</summary>
-    private const int SkillSlots = 3;
+    [Tooltip("Một bước trên dòng sao (ngắn để đọc được trên điện thoại); {0} = tên skill, {1} = cấp skill.")]
+    [SerializeField] private string starRowFormat = "{0} Lv.{1}";
+    [Tooltip("Một bước trong popup của dòng sao; {0} = tên skill, {1} = cấp skill, {2} = mô tả cấp đó. Dùng \\n để xuống dòng.")]
+    [SerializeField] private string starStepFormat = "<b>{0} Lv.{1}</b>\n{2}";
+    [Tooltip("Tiêu đề popup của dòng sao; {0} = số sao.")]
+    [SerializeField] private string starTitleFormat = "STAR {0}";
+    [Tooltip("Trạng thái trên popup của dòng sao: đã mở / sao kế tiếp / còn khóa.")]
+    [SerializeField] private string starUnlockedStatus = "Unlocked";
+    [SerializeField] private string starNextStatus = "Next upgrade";
+    [SerializeField] private string starLockedStatus = "Locked";
+
+    [Header("Skill Slot Text")]
+    [Tooltip("Nhãn ô skill đã mở và trạng thái trên popup; {0} = cấp skill.")]
+    [SerializeField] private string skillLevelFormat = "Lv.{0}";
+    [Tooltip("Điều kiện mở theo level; {0} = level cần.")]
+    [SerializeField] private string levelConditionFormat = "Lv {0}";
+    [Tooltip("Điều kiện mở theo sao; {0} = số sao cần.")]
+    [SerializeField] private string starConditionFormat = "★{0}";
+    [Tooltip("Trạng thái trên popup của skill còn khóa; {0} = điều kiện mở.")]
+    [SerializeField] private string lockedStatusFormat = "Unlocks at {0}";
+
 
     #endregion
 
@@ -44,6 +65,9 @@ public sealed class CharacterScreenController : UIPanelController
     private CharacterScreenPage page = CharacterScreenPage.Collection;
     private CharacterScreenTab tab = CharacterScreenTab.Level;
     private int viewingIndex; // Chỉ số trong IPlayerSelection.PlayableCharacters.
+    private readonly List<SkillProgressStep> stepBuffer = new List<SkillProgressStep>(4); // Dùng lại khi dựng dòng sao.
+    private readonly List<SkillDataSO> skillBuffer = new List<SkillDataSO>(4); // Dùng lại khi dựng ô skill.
+    private readonly List<SkillGrant> grantBuffer = new List<SkillGrant>(4);
 
     #endregion
 
@@ -305,12 +329,12 @@ public sealed class CharacterScreenController : UIPanelController
             type, rarity.Label, rarity.Text, rarity.TextColor, character.DisplayName, character.Portrait,
             character.UIVisualPrefab, star.Current,
             tab, level.Current, level.Max, level.Progress, level.ProgressRequired,
-            BuildStats(character), BuildSkillIcons(character), BuildStarPerks(type, star.Current),
+            BuildStats(character), BuildSkillSlots(character, level.Current, star.Current), BuildStarPerks(character, star.Current),
             type == selection.SelectedCharacterType,
             BuildUpgradeButton(tab == CharacterScreenTab.Level ? level : star)));
     }
 
-    // Chỉ số cuối = chỉ số gốc + bonus vĩnh viễn (level + perk sao + trang bị), cùng công thức với Player khi vào trận.
+    // Chỉ số cuối = chỉ số gốc + bonus vĩnh viễn (level + trang bị), cùng công thức với Player khi vào trận.
     private StatRowModel[] BuildStats(CharacterDataSO character)
     {
         StatBonus bonus = bonuses.GetBonus(character.CharacterType);
@@ -325,30 +349,141 @@ public sealed class CharacterScreenController : UIPanelController
         return rows;
     }
 
-    // Perk i mở ở sao i+1: đã có đủ sao thì Unlocked, sao kế tiếp là Next, còn lại Locked.
-    private StarPerkModel[] BuildStarPerks(CharacterType type, int stars)
+    // Luôn đủ một dòng cho mỗi sao. Dòng chỉ ghi "tên skill + cấp" cho từng skill mà sao nâng (chữ to, đọc được trên
+    // điện thoại); chạm vào dòng mở popup có mô tả đầy đủ. Sao chưa cấu hình bước nào hiện emptyStarText.
+    private StarPerkModel[] BuildStarPerks(CharacterDataSO character, int stars)
     {
-        IReadOnlyList<StarPerk> perks = upgrades.GetStarPerks(type);
-        var models = new StarPerkModel[perks.Count];
-        for (int i = 0; i < perks.Count; i++)
+        var models = new StarPerkModel[CharacterLevelConfigSO.MaxStars];
+        for (int i = 0; i < models.Length; i++)
         {
             int star = i + 1;
-            StarPerkState state = star <= stars ? StarPerkState.Unlocked
-                : star == stars + 1 ? StarPerkState.Next
-                : StarPerkState.Locked;
-            StarPerk perk = perks[i];
-            models[i] = new StarPerkModel(star, perk?.Icon, perk != null ? perk.Description : string.Empty, state);
+            character.GetStarSteps(star, stepBuffer);
+            StarPerkState state = GetStarState(star, stars);
+            // Chưa có sprite riêng cho perk: icon null để dòng giữ icon mặc định.
+            string row = DescribeStarSteps(stepBuffer, false);
+            models[i] = new StarPerkModel(star, null, row, state, BuildStarInfo(star, state));
         }
         return models;
     }
 
-    private static Sprite[] BuildSkillIcons(CharacterDataSO character)
+    // Popup của dòng sao: icon skill đầu tiên mà sao nâng, mô tả đầy đủ từng skill (stepBuffer vừa được điền).
+    private InfoPopupModel BuildStarInfo(int star, StarPerkState state)
     {
-        var icons = new Sprite[SkillSlots];
-        IReadOnlyList<SkillDataSO> skills = character.Skills;
-        for (int i = 0; i < icons.Length && i < skills.Count; i++)
-            icons[i] = skills[i] != null ? skills[i].Icon : null;
-        return icons;
+        Sprite icon = null;
+        if (stepBuffer.Count > 0)
+            icon = stepBuffer[0].Skill.Icon;
+        string title = string.Format(CultureInfo.InvariantCulture, starTitleFormat, star);
+        string description = DescribeStarSteps(stepBuffer, true);
+        return new InfoPopupModel(icon, title, GetStarStatus(state), state == StarPerkState.Unlocked, description);
+    }
+
+    // Một switch duy nhất đổi trạng thái sao sang chữ trên popup.
+    private string GetStarStatus(StarPerkState state)
+    {
+        switch (state)
+        {
+            case StarPerkState.Unlocked:
+                return starUnlockedStatus;
+            case StarPerkState.Next:
+                return starNextStatus;
+            default:
+                return starLockedStatus;
+        }
+    }
+
+    // Sao đã có thì Unlocked, sao kế tiếp là Next, còn lại Locked.
+    private static StarPerkState GetStarState(int star, int stars)
+    {
+        if (star <= stars)
+            return StarPerkState.Unlocked;
+        if (star == stars + 1)
+            return StarPerkState.Next;
+        return StarPerkState.Locked;
+    }
+
+    // Dòng trên tab chỉ ghi "tên + cấp" (detailed = false); popup ghi thêm mô tả cấp đó, mỗi skill cách một dòng trống.
+    private string DescribeStarSteps(List<SkillProgressStep> steps, bool detailed)
+    {
+        if (steps.Count == 0)
+            return emptyStarText;
+        var lines = new string[steps.Count];
+        for (int i = 0; i < steps.Count; i++)
+        {
+            SkillDataSO skill = steps[i].Skill;
+            int skillLevel = steps[i].SkillLevel;
+            if (detailed)
+                lines[i] = string.Format(CultureInfo.InvariantCulture, starStepFormat,
+                    skill.DisplayName, skillLevel, skill.GetRunLevelDescription(skillLevel));
+            else
+                lines[i] = string.Format(CultureInfo.InvariantCulture, starRowFormat, skill.DisplayName, skillLevel);
+        }
+        if (detailed)
+            return string.Join("\n\n", lines);
+        return string.Join("\n", lines);
+    }
+
+    // Một ô cho mỗi skill của nhân vật. Skill đã mở/cấp skill dùng đúng GetSkillGrants mà Combat dùng lúc spawn,
+    // nên màn Character luôn khớp với skill khi vào trận.
+    private SkillSlotModel[] BuildSkillSlots(CharacterDataSO character, int level, int stars)
+    {
+        character.GetAllSkills(skillBuffer);
+        character.GetSkillGrants(level, stars, grantBuffer);
+        var slots = new SkillSlotModel[skillBuffer.Count];
+        for (int i = 0; i < slots.Length; i++)
+        {
+            SkillDataSO skill = skillBuffer[i];
+            if (TryFindGrant(skill, out SkillGrant grant))
+                slots[i] = BuildUnlockedSlot(skill, grant.Level);
+            else
+                slots[i] = BuildLockedSlot(character, skill);
+        }
+        return slots;
+    }
+
+    private bool TryFindGrant(SkillDataSO skill, out SkillGrant found)
+    {
+        foreach (SkillGrant grant in grantBuffer)
+        {
+            if (grant.Skill == skill)
+            {
+                found = grant;
+                return true;
+            }
+        }
+        found = default;
+        return false;
+    }
+
+    private SkillSlotModel BuildUnlockedSlot(SkillDataSO skill, int skillLevel)
+    {
+        string label = string.Format(CultureInfo.InvariantCulture, skillLevelFormat, skillLevel);
+        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, label, true, skill.GetRunLevelDescription(skillLevel));
+        return new SkillSlotModel(skill.Icon, true, label, info);
+    }
+
+    // Skill còn khóa: nhãn là điều kiện mở; popup hiện điều kiện + mô tả cấp 1 để người chơi biết sẽ nhận gì.
+    private SkillSlotModel BuildLockedSlot(CharacterDataSO character, SkillDataSO skill)
+    {
+        string condition = string.Empty;
+        if (character.TryGetUnlockStep(skill, out SkillProgressStep unlock))
+            condition = FormatCondition(unlock);
+        string status = string.Format(CultureInfo.InvariantCulture, lockedStatusFormat, condition);
+        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, status, false, skill.GetRunLevelDescription(1));
+        return new SkillSlotModel(skill.Icon, false, condition, info);
+    }
+
+    // Một switch duy nhất đổi điều kiện sang chữ hiển thị.
+    private string FormatCondition(SkillProgressStep step)
+    {
+        switch (step.Condition)
+        {
+            case SkillConditionType.CharacterLevel:
+                return string.Format(CultureInfo.InvariantCulture, levelConditionFormat, step.Required);
+            case SkillConditionType.Stars:
+                return string.Format(CultureInfo.InvariantCulture, starConditionFormat, step.Required);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(step), step.Condition, "Unknown skill condition.");
+        }
     }
 
     // Chữ và giá của nút UPGRADE theo lý do bị chặn của tab đang mở.

@@ -11,7 +11,8 @@ using UnityEngine.UI;
 /// View màn Detail của một nhân vật: header, tab Level/Stars và footer.
 /// Chỉ hiện <see cref="CharacterDetailModel"/> và phát event khi người dùng bấm; không gọi service.
 /// Khung nhân vật hiện prefab <see cref="CharacterUIVisual"/> (Idle, ăn mừng qua <see cref="Celebrate"/>), thiếu thì hiện ảnh tĩnh.
-/// Tab Stars hiện 5 perk sao (StarPerkRowView). Vuốt ngang trên màn để đổi nhân vật (như ←/→).
+/// Tab Level hiện ô skill theo đúng số skill (SkillSlotView, chạm để mở popup thông tin ở giữa màn).
+/// Tab Stars hiện 5 dòng sao (StarPerkRowView, chạm để mở popup chi tiết nâng cấp). Vuốt ngang trên màn để đổi nhân vật (như ←/→).
 /// </summary>
 public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -66,8 +67,12 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     [SerializeField] private TMP_Text levelBadgeText;
     [Tooltip("8 ô chỉ số theo thứ tự trong Theme.")]
     [SerializeField] private StatRowView[] statRows = Array.Empty<StatRowView>();
-    [Tooltip("Icon của 3 ô skill; ô không có skill bị ẩn icon.")]
-    [SerializeField] private Image[] skillIcons = Array.Empty<Image>();
+    [Tooltip("Vùng chứa ô skill (nên có HorizontalLayoutGroup); số ô tạo theo đúng số skill của nhân vật.")]
+    [SerializeField] private RectTransform skillSlotContainer;
+    [Tooltip("Prefab một ô skill.")]
+    [SerializeField] private SkillSlotView skillSlotPrefab;
+    [Tooltip("Popup thông tin ở giữa màn khi chạm ô skill hoặc dòng sao; đặt cuối cùng trong màn Detail để vẽ trên cùng.")]
+    [SerializeField] private InfoPopupView infoPopup;
 
     #endregion
 
@@ -120,6 +125,8 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     private TextPunch progressPunch;
     private int boundLevel; // Cấp lần vẽ trước, để biết vừa lên cấp (thanh chạy đầy rồi về 0).
     private Sequence barSequence;
+    // Ô skill đã tạo; dùng lại giữa các lần vẽ, chỉ tạo thêm khi nhân vật có nhiều skill hơn, ô thừa thì ẩn.
+    private readonly List<SkillSlotView> skillSlots = new List<SkillSlotView>();
 
     #endregion
 
@@ -134,6 +141,8 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         upgradeButton.onClick.AddListener(OnUpgrade);
         levelTabButton.onClick.AddListener(OnLevelTab);
         starsTabButton.onClick.AddListener(OnStarsTab);
+        foreach (StarPerkRowView row in perkRows)
+            row.Clicked += OnPerkRowClicked;
     }
 
     private void OnDisable()
@@ -145,6 +154,9 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         upgradeButton.onClick.RemoveListener(OnUpgrade);
         levelTabButton.onClick.RemoveListener(OnLevelTab);
         starsTabButton.onClick.RemoveListener(OnStarsTab);
+        foreach (StarPerkRowView row in perkRows)
+            row.Clicked -= OnPerkRowClicked;
+        infoPopup.Hide();
         // Lần mở sau là "lần đầu": không trượt tab, không nhảy số so với lần xem trước.
         hasBound = false;
         hasShownTab = false;
@@ -162,6 +174,8 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     {
         bool sameCharacter = hasBound && model.Type == boundType;
         hasBound = true;
+        // Vẽ lại (đổi nhân vật, đổi lựa chọn, nâng cấp) có thể đổi nội dung ô: popup cũ không còn đúng.
+        infoPopup.Hide();
         boundType = model.Type;
         BindHeader(model);
         BindTabs(model.Tab);
@@ -211,7 +225,7 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         }
     }
 
-    // Mỗi dòng ứng với một sao; sao chưa có perk trong config thì ẩn dòng.
+    // Mỗi dòng ứng với một sao; controller luôn gửi đủ số sao, dòng thừa (nếu scene có nhiều hơn) thì ẩn.
     private void BindStarPerks(IReadOnlyList<StarPerkModel> perks)
     {
         for (int i = 0; i < perkRows.Length; i++)
@@ -278,13 +292,30 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
             statRows[i].gameObject.SetActive(used);
             if (used) statRows[i].Bind(model.Stats[i], sameCharacter);
         }
-        for (int i = 0; i < skillIcons.Length; i++)
+        BindSkillSlots(model.SkillSlots);
+    }
+
+    // Đủ một ô cho mỗi skill: thiếu thì tạo thêm từ prefab, thừa thì ẩn (không Destroy để đổi nhân vật không tạo rác).
+    private void BindSkillSlots(IReadOnlyList<SkillSlotModel> models)
+    {
+        while (skillSlots.Count < models.Count)
         {
-            Sprite icon = i < model.SkillIcons.Count ? model.SkillIcons[i] : null;
-            skillIcons[i].sprite = icon;
-            skillIcons[i].enabled = icon != null;
+            SkillSlotView slot = Instantiate(skillSlotPrefab, skillSlotContainer);
+            slot.Clicked += OnSkillSlotClicked;
+            skillSlots.Add(slot);
+        }
+        for (int i = 0; i < skillSlots.Count; i++)
+        {
+            bool used = i < models.Count;
+            skillSlots[i].gameObject.SetActive(used);
+            if (used)
+                skillSlots[i].Bind(models[i]);
         }
     }
+
+    private void OnSkillSlotClicked(SkillSlotView slot) => infoPopup.Show(slot.Model.Info);
+
+    private void OnPerkRowClicked(StarPerkRowView row) => infoPopup.Show(row.Model.Info);
 
     // Thanh chạy mượt tới giá trị mới, giống thanh EXP trong trận. Đổi nhân vật thì đặt ngay, không chạy.
     // Lên cấp: chạy đầy thanh cũ → về 0 với thanh của cấp mới → chạy tới phần dư.

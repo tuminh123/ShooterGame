@@ -27,6 +27,9 @@ MonoBehaviour:
     HealthBarOffset: {x: 0, y: -0.04, z: 0}
     HealthBarScale: 0.0035
     ShieldThickness: 3
+  portrait: {fileID: 0}
+  uiVisualPrefab: {fileID: 0}
+  rarity: 0
   baseStats:
     maxHealth: 20
     damage: 10
@@ -38,3 +41,4 @@ MonoBehaviour:
     effectHit: 0
   skills:
   - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
+  skillProgression: []

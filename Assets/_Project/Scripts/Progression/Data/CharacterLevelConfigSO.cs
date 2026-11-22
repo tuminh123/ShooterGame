@@ -71,27 +71,13 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #endregion
 
-    #region Star Perks
+    #region Stars
 
-    /// <summary>Số sao tối đa; mỗi sao mở đúng một perk theo thứ tự.</summary>
+    /// <summary>
+    /// Số sao tối đa của mọi nhân vật. Sao không cộng chỉ số: phần thưởng của từng sao là các bước
+    /// tiến trình skill trong <see cref="CharacterDataSO"/> (điều kiện Stars).
+    /// </summary>
     public const int MaxStars = 5;
-
-    [Tooltip("Perk mở theo sao: phần tử 1 mở ở sao 1, phần tử 2 ở sao 2… Tối đa 5. Sao chưa có perk vẫn nâng được nhưng không cộng gì.")]
-    [SerializeField] private StarPerk[] starPerks = Array.Empty<StarPerk>();
-
-    /// <summary>Perk theo thứ tự sao (chỉ đọc).</summary>
-    public IReadOnlyList<StarPerk> StarPerks => starPerks;
-
-    /// <summary>Tổng bonus của các perk đã mở với <paramref name="stars"/> sao.</summary>
-    public StatBonus GetStarBonus(int stars)
-    {
-        ValidateConfiguration();
-        StatBonus total = default;
-        int unlocked = Mathf.Clamp(stars, 0, starPerks.Length);
-        for (int i = 0; i < unlocked; i++)
-            if (starPerks[i] != null) total += starPerks[i].Bonus;
-        return total;
-    }
 
     #endregion
 
@@ -101,10 +87,6 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
     private void ValidateConfiguration()
     {
         bonusPerLevel.Validate();
-        if (starPerks != null && starPerks.Length > MaxStars)
-            throw new InvalidOperationException($"Character level config supports at most {MaxStars} star perks.");
-        if (starPerks != null)
-            foreach (StarPerk perk in starPerks) perk?.Bonus.Validate();
         if (maxLevel < 1 || initialRequired < 1 || requiredIncreasePerLevel < 0 || amountPerUpgrade < 1)
             throw new InvalidOperationException("Character level config requires MaxLevel >= 1, initial required >= 1, increase >= 0 and amount per upgrade >= 1.");
     }

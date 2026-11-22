@@ -14,5 +14,14 @@ public sealed class SkillLevelData
     [Tooltip("Thông số của các hành vi được bật ở cấp này. Bỏ một entry để hành vi chưa mở ở cấp này.")]
     [SerializeReference] private SkillBehaviourData[] behaviours = Array.Empty<SkillBehaviourData>(); // Các loại có mặt tại cấp này mới được mở.
     public string Description => description;
-    public IReadOnlyList<SkillBehaviourData> Behaviours => behaviours == null ? null : Array.AsReadOnly(behaviours);
+    public IReadOnlyList<SkillBehaviourData> Behaviours
+    {
+        get
+        {
+            // Giữ null để Validate của skill báo lỗi cấu hình thay vì giả là danh sách rỗng.
+            if (behaviours == null)
+                return null;
+            return Array.AsReadOnly(behaviours);
+        }
+    }
 }

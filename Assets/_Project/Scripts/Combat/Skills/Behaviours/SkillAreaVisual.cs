@@ -39,7 +39,30 @@ public sealed class SkillAreaVisual : MonoBehaviour
         if (meshRenderer != null) return;
         MeshFilter filter = gameObject.AddComponent<MeshFilter>();
         meshRenderer = gameObject.AddComponent<MeshRenderer>();
-        meshRenderer.sortingOrder = sawBlade ? 3 : -1; // Default layer: băng dưới nhân vật, trên layer Ground.
+        // Hai kiểu hình: lưỡi cưa (đặc, có răng, nằm trên nhân vật) và vùng băng (mờ, tròn, nằm dưới nhân vật).
+        int sortingOrder;
+        Color tint;
+        Color centerColor;
+        float toothRadius;
+        string meshName;
+        if (sawBlade)
+        {
+            sortingOrder = 3;
+            tint = new Color(0.85f, 0.9f, 1f, 1f);
+            centerColor = new Color(0.25f, 0.35f, 0.45f, 1f);
+            toothRadius = 0.72f; // Đỉnh lõm giữa các răng cưa.
+            meshName = "Orbit Saw Mesh";
+        }
+        else
+        {
+            sortingOrder = -1; // Default layer: băng dưới nhân vật, trên layer Ground.
+            tint = new Color(0.25f, 0.75f, 1f, 0.2f);
+            centerColor = new Color(0.4f, 0.9f, 1f, 0.04f);
+            toothRadius = 1f; // Vùng băng tròn đều, không có răng.
+            meshName = "Frost Aura Mesh";
+        }
+
+        meshRenderer.sortingOrder = sortingOrder;
         meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         meshRenderer.receiveShadows = false;
         material = new Material(Shader.Find("Sprites/Default"));
@@ -48,19 +71,21 @@ public sealed class SkillAreaVisual : MonoBehaviour
         var vertices = new Vector3[segments + 1];
         var colors = new Color[segments + 1];
         var triangles = new int[segments * 3];
-        Color tint = sawBlade ? new Color(0.85f, 0.9f, 1f, 1f) : new Color(0.25f, 0.75f, 1f, 0.2f);
-        colors[0] = sawBlade ? new Color(0.25f, 0.35f, 0.45f, 1f) : new Color(0.4f, 0.9f, 1f, 0.04f);
+        colors[0] = centerColor;
         for (int i = 0; i < segments; i++)
         {
             float angle = i * Mathf.PI * 2f / segments;
-            float radius = sawBlade && i % 4 < 2 ? 0.72f : 1f;
+            // Cứ 4 đỉnh thì 2 đỉnh lõm vào để tạo răng; vùng băng có toothRadius = 1 nên vẫn tròn.
+            float radius = 1f;
+            if (i % 4 < 2)
+                radius = toothRadius;
             vertices[i + 1] = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * radius;
             colors[i + 1] = tint;
             triangles[i * 3] = 0;
             triangles[i * 3 + 1] = i + 1;
             triangles[i * 3 + 2] = (i + 1) % segments + 1;
         }
-        mesh = new Mesh { name = sawBlade ? "Orbit Saw Mesh" : "Frost Aura Mesh" };
+        mesh = new Mesh { name = meshName };
         mesh.vertices = vertices;
         mesh.colors = colors;
         mesh.triangles = triangles;

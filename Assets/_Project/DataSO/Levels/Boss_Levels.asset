@@ -23,5 +23,6 @@ MonoBehaviour:
     critDamageMultiplier: 0
     effectResistance: 0
     effectHit: 0
-  initialUpgradeCost: 100
-  upgradeCostMultiplier: 1.2
+  initialRequired: 100
+  requiredIncreasePerLevel: 50
+  amountPerUpgrade: 25

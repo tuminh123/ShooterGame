@@ -23,10 +23,11 @@ public sealed class SkillFactory
     /// <summary>
     /// Tạo một skill hoàn chỉnh cho <paramref name="owner"/>. Runtime tự mở các hành vi có data ở cấp bắt đầu.
     /// </summary>
-    public SkillRuntime Create(SkillDataSO definition, CharacterSkills owner)
+    /// <param name="startLevel">Cấp bắt đầu do nơi tạo quyết định (skill trong màn: 1; skill nhân vật: xem CharacterSkillSystem).</param>
+    public SkillRuntime Create(SkillDataSO definition, CharacterSkills owner, int startLevel)
     {
         definition.Validate();
-        return new SkillRuntime(definition, owner, this);
+        return new SkillRuntime(definition, owner, this, startLevel);
     }
 
     /// <summary>Tạo hành vi <paramref name="type"/> mới cho <paramref name="owner"/>; mỗi lần gọi là một object riêng.</summary>

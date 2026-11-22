@@ -44,6 +44,8 @@ public sealed class CharacterSkillSystem : IDisposable
     private readonly ICharacterRegistry characters;
     private readonly ICharacterDeathEvents deaths;
     private readonly SkillFactory factory;
+    private readonly ICharacterProgress progress; // Level/sao đã lưu của Player (miền Progression), đọc lúc spawn.
+    private readonly List<SkillGrant> grantBuffer = new List<SkillGrant>(8); // Dùng lại mỗi lần spawn, không cấp phát mới.
     private readonly SkillSystem gameplaySkills;
     private readonly EffectSystem effects;
     private readonly Dictionary<CharacterView, Entry> entries = new Dictionary<CharacterView, Entry>(128);
@@ -54,11 +56,12 @@ public sealed class CharacterSkillSystem : IDisposable
 
     #region Constructor
 
-    public CharacterSkillSystem(ICharacterRegistry characters, ICharacterDeathEvents deaths,
+    public CharacterSkillSystem(ICharacterRegistry characters, ICharacterDeathEvents deaths, ICharacterProgress progress,
         SkillFactory factory, SkillSystem gameplaySkills, EffectSystem effects)
     {
         this.characters = characters ?? throw new ArgumentNullException(nameof(characters));
         this.deaths = deaths ?? throw new ArgumentNullException(nameof(deaths));
+        this.progress = progress ?? throw new ArgumentNullException(nameof(progress));
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         this.gameplaySkills = gameplaySkills ?? throw new ArgumentNullException(nameof(gameplaySkills));
         this.effects = effects ?? throw new ArgumentNullException(nameof(effects));
@@ -73,7 +76,15 @@ public sealed class CharacterSkillSystem : IDisposable
 
     /// <summary>Context skill của lượt spawn hiện tại của <paramref name="owner"/>; null nếu nhân vật không còn hợp lệ.</summary>
     public CharacterSkills GetContext(CharacterView owner)
-        => owner != null && entries.TryGetValue(owner, out Entry entry) && entry.Skills.IsValid ? entry.Skills : null;
+    {
+        if (owner == null)
+            return null;
+        if (!entries.TryGetValue(owner, out Entry entry))
+            return null;
+        if (!entry.Skills.IsValid)
+            return null;
+        return entry.Skills;
+    }
 
     #endregion
 
@@ -112,12 +123,40 @@ public sealed class CharacterSkillSystem : IDisposable
         // Phòng trường hợp không nhận được CharacterRemoved của lượt spawn trước trên cùng vỏ.
         if (entries.ContainsKey(view)) Release(view);
 
-        CharacterSkills skills = new CharacterSkills(view, template.Skills, factory);
+        CollectSkillGrants(template, grantBuffer);
+        CharacterSkills skills = new CharacterSkills(view, grantBuffer, factory);
         Action activated = () => SetPaused(view, false);
         Action deactivated = () => SetPaused(view, true);
         entries.Add(view, new Entry(new CharacterHandle(view), skills, activated, deactivated));
         view.Activated += activated;
         view.Deactivated += deactivated;
+    }
+
+    /// <summary>
+    /// Nơi duy nhất quyết định skill vốn có của một nhân vật bắt đầu ở cấp mấy khi vào trận.
+    /// Skill nhận trong màn không đi qua đây: SkillSystem luôn tạo ở <see cref="SkillSystem.GameplayStartLevel"/>.
+    /// </summary>
+    private void CollectSkillGrants(CharacterDataSO template, List<SkillGrant> result)
+    {
+        switch (template.Team)
+        {
+            case CharacterTeam.Player:
+                // Player: skill mở và cấp skill suy ra từ level + sao đã lưu (không lưu riêng cấp skill).
+                int level = progress.GetLevel(template.CharacterType);
+                int stars = progress.GetStars(template.CharacterType);
+                template.GetSkillGrants(level, stars, result);
+                break;
+
+            case CharacterTeam.Enemy:
+                // Enemy và boss: mọi skill có sẵn, ở cấp mặc định ghi trong asset của skill.
+                result.Clear();
+                foreach (SkillDataSO skill in template.Skills)
+                    result.Add(new SkillGrant(skill, skill.Level));
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(template), template.Team, "Unknown character team.");
+        }
     }
 
     // Chết không phải là thu hồi: vỏ còn ở lại để phát animation chết, nhưng mọi skill và effect phải dừng ngay.

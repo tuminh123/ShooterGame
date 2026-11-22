@@ -1,3 +1,4 @@
+using System;
 using PrimeTween;
 using TMPro;
 using UnityEngine;
@@ -8,7 +9,10 @@ using UnityEngine.UI;
 /// đã mở (sáng), kế tiếp (nền cam để người chơi biết sao sau mở gì) và khóa. Mọi perk chưa mở (kế tiếp lẫn khóa)
 /// bị phủ lớp tối có biểu tượng khóa, chữ xám đi nhưng vẫn đọc được. Vừa mở thì dòng nảy lên một lần (<see cref="PlayUnlock"/>).
 /// </summary>
-/// <remarks>Chỉ hiển thị model; không đọc service, không giữ trạng thái giữa các lần Bind.</remarks>
+/// <remarks>
+/// Chạm vào dòng thì báo lên để mở popup thông tin đầy đủ (chữ trên dòng ngắn để đọc được trên điện thoại).
+/// Chỉ hiển thị model; không đọc service.
+/// </remarks>
 public sealed class StarPerkRowView : MonoBehaviour
 {
     #region References
@@ -19,6 +23,18 @@ public sealed class StarPerkRowView : MonoBehaviour
     [SerializeField] private TMP_Text description;
     [Tooltip("Lớp tối + icon khóa phủ lên dòng; bật cho mọi perk chưa mở.")]
     [SerializeField] private GameObject lockOverlay;
+    [Tooltip("Button trên dòng; chạm để mở popup thông tin nâng cấp của sao này.")]
+    [SerializeField] private Button button;
+
+    #endregion
+
+    #region State And Events
+
+    /// <summary>Model của lần Bind gần nhất; popup đọc khi dòng được chạm.</summary>
+    public StarPerkModel Model { get; private set; }
+
+    /// <summary>Dòng được chạm.</summary>
+    public event Action<StarPerkRowView> Clicked;
 
     #endregion
 
@@ -48,9 +64,12 @@ public sealed class StarPerkRowView : MonoBehaviour
 
     #region Lifecycle
 
+    private void OnEnable() => button.onClick.AddListener(OnClick);
+
     // Bị tắt giữa chừng (đổi tab, rời màn) thì trả về kích thước gốc.
     private void OnDisable()
     {
+        button.onClick.RemoveListener(OnClick);
         unlockSequence.Stop();
         transform.localScale = Vector3.one;
     }
@@ -62,6 +81,7 @@ public sealed class StarPerkRowView : MonoBehaviour
     /// <summary>Hiện một perk theo trạng thái mở của nó.</summary>
     public void Bind(StarPerkModel model)
     {
+        Model = model;
         if (model.Icon != null) icon.sprite = model.Icon;
         description.text = model.Description;
 
@@ -91,6 +111,8 @@ public sealed class StarPerkRowView : MonoBehaviour
             .Chain(Tween.Scale(transform, unlockPeakScale, unlockGrowDuration, Ease.OutBack))
             .Chain(Tween.Scale(transform, 1f, unlockSettleDuration, Ease.OutQuad));
     }
+
+    private void OnClick() => Clicked?.Invoke(this);
 
     private void Apply(Color backgroundColor, Color titleColor, bool locked)
     {
