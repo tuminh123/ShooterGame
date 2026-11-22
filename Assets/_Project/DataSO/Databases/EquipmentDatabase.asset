@@ -24,15 +24,13 @@ MonoBehaviour:
   sets:
   - set: 1
     displayName: Samurai
-    description: "M\u1EB7c 2 m\xF3n Samurai: v\xF2ng b\u0103ng l\xE0m ch\u1EADm qu\xE1i
-      quanh ng\u01B0\u1EDDi."
+    description: 'Wear 2 Samurai pieces: a frost aura slows nearby enemies.'
     icon: {fileID: 21300000, guid: 97aeaf017389e4efdb679f7db8867011, type: 3}
     requiredPieces: 2
     skill: {fileID: 11400000, guid: b3936f56d8a184c41a698296c1c1dcfa, type: 2}
   - set: 2
     displayName: Witch
-    description: "M\u1EB7c 3 m\xF3n Witch: khi\xEAn kh\u1EA9n c\u1EA5p khi m\xE1u
-      th\u1EA5p."
+    description: 'Wear 3 Witch pieces: an emergency shield when your HP is low.'
     icon: {fileID: 21300000, guid: 3ec1c34ce60524f4085075a7f0c10e9d, type: 3}
     requiredPieces: 3
     skill: {fileID: 11400000, guid: 11c46b700b9ba47448cf84efc2ed13d7, type: 2}

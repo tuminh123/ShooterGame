@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: samurai_sword
   displayName: Samurai Sword
-  description: "Thanh ki\u1EBFm c\u1EE7a samurai r\u1EEBng l\xE1; l\u01B0\u1EE1i
-    xoay quanh ch\u1EE7 nh\xE2n khi \u0111\u1EA1t Lv.5."
+  description: Blade of the forest samurai. Spinning saws orbit you once it reaches
+    Lv.5.
   icon: {fileID: 21300000, guid: 41bc376691e7a4aef8398c3f84ee249f, type: 3}
   slot: 0
   set: 1

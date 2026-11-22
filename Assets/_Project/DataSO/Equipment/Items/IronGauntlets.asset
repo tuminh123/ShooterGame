@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: iron_gauntlets
   displayName: Iron Gauntlets
-  description: "G\u0103ng s\u1EAFt c\u1EE7a l\xEDnh g\xE1c, kh\xF4ng thu\u1ED9c set
-    n\xE0o."
+  description: Steel gauntlets of a gate guard. Not part of any set.
   icon: {fileID: 21300000, guid: 8795d976aed5d430280d75d083fcb5b0, type: 3}
   slot: 3
   set: 0

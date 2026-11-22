@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: witch_hat
   displayName: Witch Hat
-  description: "M\u0169 ph\xF9 th\u1EE7y c\u1ED5, th\xEC th\u1EA7m b\xF9a ch\xFA."
+  description: An old witch hat that whispers spells.
   icon: {fileID: 21300000, guid: 859e506a04bfc4c86904f22ddd99f128, type: 3}
   slot: 1
   set: 2

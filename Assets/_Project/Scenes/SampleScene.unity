@@ -10840,9 +10840,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Gacha: nh\u1EADn 1 b\u1EA3n m\u1ED7i m\u1EABu \u0111\u1ED3, \u0111\u1ED9
-    hi\u1EBFm ng\u1EABu nhi\xEAn.\nReset: x\xF3a save r\u1ED3i t\u1EA3i l\u1EA1i
-    scene."
+  m_text: 'Gacha: get 1 copy of every item, random rarity.
+
+    Reset: delete save
+    and reload the scene.'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1b5c9a7370e424d53a1b8a999cf54a02, type: 2}
   m_sharedMaterial: {fileID: 7512481295523713106, guid: 1b5c9a7370e424d53a1b8a999cf54a02, type: 2}

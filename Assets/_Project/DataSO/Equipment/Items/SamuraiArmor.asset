@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: samurai_armor
   displayName: Samurai Armor
-  description: "Gi\xE1p samurai l\xE0m t\u1EEB l\xE1 \u0111an, r\u1EA5t ch\u1EAFc
-    trong r\u1EEBng; h\u1ED3i m\xE1u khi \u0111\u1EA1t Lv.10."
+  description: Samurai armor woven from leaves, sturdy in the forest. Heals you once
+    it reaches Lv.10.
   icon: {fileID: 21300000, guid: 3a3a5d970e2d94998818421e4e0e384b, type: 3}
   slot: 2
   set: 1

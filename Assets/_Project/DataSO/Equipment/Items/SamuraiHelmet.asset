@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: samurai_helmet
   displayName: Samurai Helmet
-  description: "M\u0169 tr\u1EE5 \u0111an t\u1EEB l\xE1, nh\u1EB9 m\xE0 b\u1EC1n."
+  description: A light yet sturdy helmet woven from leaves.
   icon: {fileID: 21300000, guid: 3eafb270868ab3e409183eec5020b8e6, type: 3}
   slot: 1
   set: 1

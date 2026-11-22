@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: witch_boots
   displayName: Witch Boots
-  description: "Gi\xE0y b\u01B0\u1EDBc nh\u1EB9 nh\u01B0 kh\xF3i."
+  description: Boots that step as lightly as smoke.
   icon: {fileID: 21300000, guid: e07c16cced13542f59c7400aff52d8a7, type: 3}
   slot: 4
   set: 2
