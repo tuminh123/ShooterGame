@@ -27,7 +27,7 @@
 | Epic | 3 | cộng | cộng | cộng | mở #4 |
 | Legendary | 4 | cộng | cộng | cộng | cộng |
 
-## 1. Data (`Scripts/Progression/Data/`)
+## 1. Data (`Scripts/Progression/Equipment/Data/`)
 
 - Enum trong `GameEnums.cs` (region Progression): `EquipmentSlot`, `EquipmentRarity`, `EquipmentSet`. Không dùng lại
   `CharacterRarity` vì enum đó không có `Uncommon` (chèn vào giữa sẽ lệch số đã lưu).
@@ -56,12 +56,12 @@
 ProgressionManager
 ├── EquipmentGrowth      luật thuần: chỉ số chính, roll dòng phụ, mốc 5/10/15/20, sửa dòng phụ khi load
 ├── EquipmentInventory   các món, Grant (nội bộ), quote + TryLevelUp, starter items  → key equipment_items
-└── Loadout              slot → uid, Equip/Unequip/UnequipAll, CountEquipped, set đang bật, TotalBonus → key equipment_slots
+└── EquipmentLoadout              slot → uid, Equip/Unequip/UnequipAll, CountEquipped, set đang bật, TotalBonus → key equipment_slots
 ```
 
 ## 4. Contract (`ProgressionContracts.cs`)
 
-- `IPermanentBonuses`: không đổi (GetBonus đã gồm `Loadout.TotalBonus`).
+- `IPermanentBonuses`: không đổi (GetBonus đã gồm `EquipmentLoadout.TotalBonus`).
 - `ICharacterProgress` (+2 hàm, cùng nơi dùng là spawn Player): `GetEquippedItems`, `GetActiveSets`.
 - `IEquipment` (màn Equipment): `Items`, `GetEquipped`, `CountEquipped`, `Equip`, `Unequip`, `UnequipAll`, `GetQuote`, `TryUpgrade`, `Changed`.
 - `IEquipmentGrant` (`Grant(item, rarity)`): thêm 2026-11-22 khi có nơi dùng đầu tiên là nút Gacha của panel test (`UI/Debug/GachaEquipmentButton`). Thưởng Stage/loot sau này dùng cùng vai trò.
@@ -84,7 +84,7 @@ Skill trong trận là asset nguồn Gameplay khác hẳn nên luôn đứng sau
 | Task | Nội dung | Trạng thái |
 |---|---|---|
 | E1 Data | enum, `EquipmentDataSO`, `EquipmentRulesSO`, `EquipmentDatabaseSO`, inspector, asset mẫu |✅ |
-| E2 Logic + Save | `EquipmentItem`, `EquipmentGrowth`, `EquipmentInventory`, `Loadout`, save section, contract, nối `ProgressionManager` |✅ |
+| E2 Logic + Save | `EquipmentItem`, `EquipmentGrowth`, `EquipmentInventory`, `EquipmentLoadout`, save section, contract, nối `ProgressionManager` |✅ |
 | E3 Skill | Combat cấp skill đồ + set theo thứ tự ưu tiên |✅ |
 | E4 UI màn chính | theme, thẻ, ô, tab, lưới, controller, tab Home |✅ |
 | E5 UI popup | popup chi tiết, popup Property |✅ |

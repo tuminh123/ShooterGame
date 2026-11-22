@@ -13,7 +13,7 @@ using Zenject;
 /// ├── Wallet           ví vàng/kim cương (key currencies)
 /// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels)
 /// ├── EquipmentInventory  túi đồ: các bản trang bị, nhận đồ, nâng cấp (key equipment_items)
-/// ├── Loadout          đồ đang mặc theo ô, set đang bật, tổng bonus trang bị (key equipment_slots)
+/// ├── EquipmentLoadout đồ đang mặc theo ô, set đang bật, tổng bonus trang bị (key equipment_slots)
 /// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
 /// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
 /// └── StarTrack        nâng sao (dùng CharacterLevels); tạm miễn phí để test, giá mảnh làm ở Task S2
@@ -29,7 +29,7 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     private readonly Wallet wallet;
     private readonly CharacterLevels levels;
     private readonly EquipmentInventory equipment;
-    private readonly Loadout loadout;
+    private readonly EquipmentLoadout loadout;
     private readonly StageProgress stages;
     private readonly LevelTrack levelTrack;
     private readonly StarTrack starTrack;
@@ -72,7 +72,7 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         wallet = new Wallet(saves);
         levels = new CharacterLevels(saves, characterDatabase, levelDatabase);
         equipment = new EquipmentInventory(saves, equipmentDatabase, new System.Random());
-        loadout = new Loadout(saves, equipment);
+        loadout = new EquipmentLoadout(saves, equipment);
         stages = new StageProgress(saves, wallet);
         levelTrack = new LevelTrack(levels);
         starTrack = new StarTrack(levels);
@@ -174,8 +174,10 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     {
         saved = false;
         if (disposed || !Track(kind).TryUpgrade(type, out saved)) return false;
-        // Sao không đổi chỉ số (sao nâng skill, đọc lúc spawn) nên không phát BonusesChanged.
+        // Sao có thể cộng chỉ số dự phòng (sao không có bước skill) nên báo Player tính lại bonus.
         // Level chỉ đổi bonus khi thật sự lên cấp, đã báo qua CharacterLevels.LevelChanged.
+        if (kind == CharacterUpgradeKind.Star)
+            OnBonusSourceChanged();
         Upgraded?.Invoke(type, kind);
         return true;
     }

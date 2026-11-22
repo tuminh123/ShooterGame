@@ -125,7 +125,7 @@ public sealed class EquipmentItemsSaveData
     }
 }
 
-/// <summary>Đồ đang mặc: ô → UID (key <c>equipment_slots</c>). Do Loadout sở hữu.</summary>
+/// <summary>Đồ đang mặc: ô → UID (key <c>equipment_slots</c>). Do EquipmentLoadout sở hữu.</summary>
 [Serializable]
 public sealed class EquipmentSlotsSaveData
 {
@@ -146,7 +146,7 @@ public sealed class EquipmentSlotsSaveData
         return copy;
     }
 
-    /// <summary>Mỗi ô tối đa một món, mỗi món tối đa một ô, UID dương. Việc UID còn trong túi và đúng loại ô do Loadout kiểm tra.</summary>
+    /// <summary>Mỗi ô tối đa một món, mỗi món tối đa một ô, UID dương. Việc UID còn trong túi và đúng loại ô do EquipmentLoadout kiểm tra.</summary>
     public static void Validate(EquipmentSlotsSaveData value)
     {
         if (value == null || value.slots == null)

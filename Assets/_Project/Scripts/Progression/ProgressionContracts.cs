@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 
 // Ranh giới của miền Progression: đây là TẤT CẢ những gì miền khác được phép dùng.
-// Mọi interface trong file này do ProgressionManager implement. Wallet, CharacterLevels, EquipmentInventory, Loadout
+// Mọi interface trong file này do ProgressionManager implement. Wallet, CharacterLevels, EquipmentInventory, EquipmentLoadout
 // và StageProgress nằm bên trong miền, không được bind vào Zenject.
 // Progression giữ dữ liệu còn lại giữa các lượt chơi (ví, level vĩnh viễn, trang bị, mốc vượt màn) và chỉ phụ thuộc Save.
 // Mỗi vai trò ứng với một nhóm nơi dùng thực tế. Nâng level/sao đi qua ICharacterUpgrades (màn Character), túi đồ và
@@ -38,7 +38,7 @@ public interface IWallet
 #region Permanent Bonuses (PlayerSystem)
 
 /// <summary>
-/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + trang bị (sao không cộng chỉ số).
+/// Tổng bonus chỉ số vĩnh viễn của một nhân vật Player: level vĩnh viễn + chỉ số dự phòng của sao (sao không có bước skill) + trang bị.
 /// Dùng bởi PlayerSystem, màn Character và màn Equipment.
 /// </summary>
 /// <remarks>PlayerSystem chỉ cần một con số tổng, nên vai trò này gộp sẵn thay vì lộ hai system riêng.</remarks>
@@ -47,7 +47,7 @@ public interface IPermanentBonuses
     /// <summary>Bonus cộng thẳng của <paramref name="type"/>; type không có cấu hình level thì ném lỗi.</summary>
     StatBonus GetBonus(CharacterType type);
 
-    /// <summary>Level của một nhân vật, đồ đang mặc hoặc level của một món đang mặc vừa đổi: Player cần tính lại nguồn bonus.</summary>
+    /// <summary>Level/sao của một nhân vật, đồ đang mặc hoặc level của một món đang mặc vừa đổi: Player cần tính lại nguồn bonus.</summary>
     event Action BonusesChanged;
 }
 

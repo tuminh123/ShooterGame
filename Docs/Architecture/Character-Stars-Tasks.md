@@ -1,10 +1,27 @@
 # Hệ thống Sao nhân vật (nâng bằng mảnh) — kế hoạch task
 
-> **Trạng thái:** 🚧 Đang làm · S1 ✅ code xong (2026-11-20) · S2a ✅ mở nút nâng sao để test (2026-11-20) · S2b ✅ perk sao cộng chỉ số thật (2026-11-21) · S3 ✅ tab Stars bind perk (2026-11-21) · S2 phần giá mảnh chưa làm · S4 📝 yêu cầu đã ghi, chưa thiết kế · Ngày lập: 2026-11-20
+## Thiết kế hiện hành (2026-11-22) — đọc phần này trước
 
-## S4 — perk sao nối với skill + perk gắn với data nhân vật (người dùng yêu cầu 2026-11-21, CHƯA LÀM)
+Mọi phần thưởng của sao nằm trong **`CharacterDataSO`** (`Characters/Data/`); `CharacterLevelConfigSO` không còn perk sao.
 
-> Mới ghi lại yêu cầu. **Chưa thiết kế, chưa code.** Phải chốt thiết kế với người dùng trước khi bắt đầu.
+- **`skills`** = MỌI skill của nhân vật, mỗi skill một lần. Skill không có bước mở khóa là skill có sẵn.
+- **`skillProgression`** = các bước "skill X đạt cấp Y khi thỏa điều kiện Z". Skill của bước **chọn bằng dropdown** từ `skills`
+  (`Editor/SkillProgressStepDrawer.cs`), giá trị vẫn lưu tham chiếu asset nên đổi thứ tự `skills` không làm bước trỏ sai.
+  Luật: Character Level chỉ để mở khóa (Skill Level = 1); Stars mở hoặc nâng cấp; sao trong 1..5; skill của bước phải nằm trong `skills`.
+- **`starStats[5]`** (`StarStatReward`: chỉ số + giá trị cộng thẳng) = **chỉ số dự phòng**: sao n chỉ cộng chỉ số này khi
+  **không có bước skill nào ở sao n**. Nút Inspector **"Random chỉ số sao"** điền cho các sao chưa có skill: chỉ số ngẫu nhiên
+  trong các chỉ số gốc > 0, giá trị 5–10% chỉ số gốc. Kết quả nằm trong asset (không random lúc chơi, save không lưu thêm).
+- Một chỗ tính duy nhất: `GetSkillGrants(level, stars)` (Combat lúc spawn + ô skill), `TryGetStarStat(star)` / `GetStarBonus(stars)`
+  (bonus vĩnh viễn + tab Stars). `CharacterLevels.GetTotalBonus` = bonus level + `GetStarBonus`; nâng sao phát `BonusesChanged`.
+- Tab Stars: sao có skill hiện "HolyBolt Lv.3"; sao chỉ có chỉ số hiện "+10 Defense" (tên/icon/định dạng từ `CharacterScreenThemeSO`);
+  sao không có gì hiện "No reward yet". Inspector cảnh báo (vàng) nhân vật Player chưa có skill hoặc sao không có thưởng.
+
+Các mục bên dưới là lịch sử kế hoạch; S2b (perk cộng chỉ số trong `CharacterLevelConfigSO.starPerks`) đã được thay bằng thiết kế trên.
+
+
+> **Trạng thái:** 🚧 Đang làm · S1 ✅ · S2a ✅ · S3 ✅ · **S4 ✅ (2026-11-22: sao nâng skill + chỉ số dự phòng, dữ liệu nằm trong CharacterDataSO)** · S2 phần giá mảnh chưa làm · Ngày lập: 2026-11-20
+
+## S4 — perk sao nối với skill + perk gắn với data nhân vật (người dùng yêu cầu 2026-11-21) — ✅ ĐÃ LÀM 2026-11-22, xem "Thiết kế hiện hành" ở đầu file
 
 **Yêu cầu của người dùng:**
 1. Nâng sao không chỉ cộng chỉ số mà còn **kết nối với skill của nhân vật** (ví dụ mở/nâng cấp một skill của chính nhân vật đó).

@@ -18,7 +18,7 @@
 | IO hồ sơ | SaveManager | Đọc/ghi Easy Save 3 theo key, giữ snapshot chưa ghi được để retry |
 | Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
 | Danh mục trang bị | EquipmentDatabaseSO (+ EquipmentDataSO, EquipmentRulesSO) | Mẫu đồ, set, luật tăng trưởng dùng chung, đồ khởi đầu |
-| Túi đồ / đồ đang mặc | EquipmentInventory, Loadout (miền Progression) | Bản đồ đang sở hữu (key `equipment_items`), ô → bản đồ (key `equipment_slots`), tổng bonus, set đang bật |
+| Túi đồ / đồ đang mặc | EquipmentInventory, EquipmentLoadout (miền Progression) | Bản đồ đang sở hữu (key `equipment_items`), ô → bản đồ (key `equipment_slots`), tổng bonus, set đang bật |
 
 PlayerSystem tạo CharacterRuntimeData từ template, bonus level và loadout đã load. Player sử dụng runtime làm nguồn chỉ số. Trang bị hiện có danh mục ID/bonus và danh sách đang mặc chung cho người chơi; chưa có inventory, slot, mở khóa hoặc nâng cấp vật phẩm. Skin, tiền tệ và EXP vĩnh viễn chưa được thêm. Hai config không tự thực thi skill.
 
@@ -177,7 +177,7 @@ equippedItemIds là field tùy chọn bổ sung cho schema 2: file cũ thiếu f
 
 ## 7. SaveManager, Easy Save và Zenject
 
-SaveManager (miền Save) chỉ xử lý lưu trữ: `ISaveStore` (Load<T>(key, defaultData, validate), Save<T>, SaveBatch) và `ISaveMaintenance` (SaveIfDirty, ResetData). Wallet, CharacterLevels, Loadout, StageProgress (bên trong ProgressionManager) và PlayerSystem sở hữu dữ liệu và quyết định thời điểm lưu; mỗi section tự kiểm tra bằng `XxxSaveData.Validate`. Thứ tự khởi tạo: SaveManager (-200, mở file rồi chạy SaveMigration ngay bên trong) → ProgressionManager (-160) → CharacterManager (-150) → gameplay.
+SaveManager (miền Save) chỉ xử lý lưu trữ: `ISaveStore` (Load<T>(key, defaultData, validate), Save<T>, SaveBatch) và `ISaveMaintenance` (SaveIfDirty, ResetData). Wallet, CharacterLevels, EquipmentLoadout, StageProgress (bên trong ProgressionManager) và PlayerSystem sở hữu dữ liệu và quyết định thời điểm lưu; mỗi section tự kiểm tra bằng `XxxSaveData.Validate`. Thứ tự khởi tạo: SaveManager (-200, mở file rồi chạy SaveMigration ngay bên trong) → ProgressionManager (-160) → CharacterManager (-150) → gameplay.
 
 Mặc định dùng chung file `PlayerSave.es3`, các key `player_selection`, `character_levels`, `equipment_items`, `equipment_slots`, `currencies`, và marker `save_format` phiên bản 4. Hằng số ở GameConstants.SaveKeys. `player_data` chỉ còn phục vụ migration. Field Player Save File trên installer cho phép đổi tên file; tên khác không tự di chuyển save cũ.
 
@@ -201,7 +201,7 @@ Gameplay/UI
         → CharacterLevels
             → dictionary template/config
             → ISaveStore (SaveManager → Easy Save 3)
-        → Loadout, Wallet, StageProgress
+        → EquipmentLoadout, Wallet, StageProgress
     → RunManager (IRunReader, IRunLifecycle)   level trong trận (miền Run, GĐ 4)
         → RunLevel
             → RunLevelProgress
@@ -317,7 +317,7 @@ Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng ch
 
 PlayerSave.example.json chỉ minh họa hồ sơ phiên bản 2, chọn type BlessedGladiator (1) ở level vĩnh viễn 5. Không phải file ES3 có thể chép trực tiếp vào thư mục save, SaveManager không tự đọc nó. Chưa ghi đè hoặc tạo hồ sơ save thật.
 
-CharacterDataSO stores one Skills list of SkillDataSO assets. Each CharacterView owns CharacterSkills and advances its innate cooldowns. The scene SkillSystem independently schedules run instances supplied by a future external card/reward source. It does not receive a character or use player stats; that integration is deferred. SkillFactory creates fresh behaviors through an explicit switch; each behavior owns its gameplay logic. CharacterView initializes and disposes innate skills; CharacterControllerBase updates them; CharacterManager only tracks characters. Character cleanup never removes run skills. HolyBolt and enemy normal attack execute automatically. See Docs/Architecture/Skill-Shooting-Pipeline.md.
+CharacterDataSO.Skills chứa MỌI skill của nhân vật; Skill Progression chọn skill từ danh sách này (dropdown) để mở/nâng theo level hoặc sao, và Star Stats là chỉ số dự phòng cho sao không có bước skill (xem Docs/Architecture/Character-Stars-Tasks.md). Each CharacterView owns CharacterSkills and advances its innate cooldowns. The scene SkillSystem independently schedules run instances supplied by a future external card/reward source. It does not receive a character or use player stats; that integration is deferred. SkillFactory creates fresh behaviors through an explicit switch; each behavior owns its gameplay logic. CharacterView initializes and disposes innate skills; CharacterControllerBase updates them; CharacterManager only tracks characters. Character cleanup never removes run skills. HolyBolt and enemy normal attack execute automatically. See Docs/Architecture/Skill-Shooting-Pipeline.md.
 
 ## 10. Phạm vi kết nối gameplay
 

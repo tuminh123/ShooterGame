@@ -26,8 +26,10 @@ public sealed class CharacterScreenController : UIPanelController
     [SerializeField] private string upgradeLabel = "UPGRADE";
     [SerializeField] private string maxLabel = "MAX";
     [SerializeField] private string lockedLabel = "LOCKED";
-    [Tooltip("Chữ trên dòng sao chưa cấu hình bước skill nào.")]
-    [SerializeField] private string emptyStarText = "—";
+    [Tooltip("Chữ trên dòng sao không có phần thưởng (không có bước skill và không có Star Stats).")]
+    [SerializeField] private string emptyStarText = "No reward yet";
+    [Tooltip("Dòng sao cộng chỉ số dự phòng; {0} = lượng đã định dạng, {1} = tên chỉ số.")]
+    [SerializeField] private string starStatFormat = "+{0} {1}";
 
     [Tooltip("Một bước trên dòng sao (ngắn để đọc được trên điện thoại); {0} = tên skill, {1} = cấp skill.")]
     [SerializeField] private string starRowFormat = "{0} Lv.{1}";
@@ -359,11 +361,28 @@ public sealed class CharacterScreenController : UIPanelController
             int star = i + 1;
             character.GetStarSteps(star, stepBuffer);
             StarPerkState state = GetStarState(star, stars);
+            // Sao không có bước skill: hiện chỉ số dự phòng nếu có (cùng luật TryGetStarStat mà bonus dùng).
+            if (stepBuffer.Count == 0 && character.TryGetStarStat(star, out StarStatReward reward))
+            {
+                models[i] = BuildStarStatPerk(star, state, reward);
+                continue;
+            }
             // Chưa có sprite riêng cho perk: icon null để dòng giữ icon mặc định.
             string row = DescribeStarSteps(stepBuffer, false);
             models[i] = new StarPerkModel(star, null, row, state, BuildStarInfo(star, state));
         }
         return models;
+    }
+
+    // Dòng sao cộng chỉ số: icon và tên chỉ số lấy từ theme, cùng định dạng số với bảng chỉ số tab Level.
+    private StarPerkModel BuildStarStatPerk(int star, StarPerkState state, StarStatReward reward)
+    {
+        CharacterScreenThemeSO.StatEntry entry = theme.GetStat(reward.Stat);
+        string text = string.Format(CultureInfo.InvariantCulture, starStatFormat,
+            CharacterScreenThemeSO.FormatValue(reward.Value, entry.Format), entry.DisplayName);
+        string title = string.Format(CultureInfo.InvariantCulture, starTitleFormat, star);
+        var info = new InfoPopupModel(entry.Icon, title, GetStarStatus(state), state == StarPerkState.Unlocked, text);
+        return new StarPerkModel(star, entry.Icon, text, state, info);
     }
 
     // Popup của dòng sao: icon skill đầu tiên mà sao nâng, mô tả đầy đủ từng skill (stepBuffer vừa được điền).

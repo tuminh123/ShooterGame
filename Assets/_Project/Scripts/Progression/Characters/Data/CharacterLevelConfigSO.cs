@@ -74,8 +74,8 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
     #region Stars
 
     /// <summary>
-    /// Số sao tối đa của mọi nhân vật. Sao không cộng chỉ số: phần thưởng của từng sao là các bước
-    /// tiến trình skill trong <see cref="CharacterDataSO"/> (điều kiện Stars).
+    /// Số sao tối đa của mọi nhân vật. Phần thưởng của từng sao nằm trong <see cref="CharacterDataSO"/>:
+    /// các bước tiến trình skill (điều kiện Stars), hoặc chỉ số dự phòng (Star Stats) khi sao không có bước skill nào.
     /// </summary>
     public const int MaxStars = 5;
 

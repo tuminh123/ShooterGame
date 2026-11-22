@@ -30,10 +30,10 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | --- | --- | --- |
 | Khởi tạo | GameSceneInstaller, Zenject | Bind dependency, thứ tự khởi tạo và dọn dịch vụ. |
 | **Save** (kiến trúc mới) | **SaveManager**, SaveContracts, SaveStorage, SaveMigration | Manager duy nhất được bind: mở file, migration ngay trong Initialize, đọc/ghi theo key, retry snapshot lỗi. Miền khác chỉ dùng `ISaveStore`/`ISaveMaintenance`. |
-| **Progression** (kiến trúc mới) | **ProgressionManager**, ProgressionContracts | Manager duy nhất được bind; tự tạo Wallet, CharacterLevels, EquipmentInventory, Loadout, StageProgress. Miền khác chỉ dùng `IWallet`, `IPermanentBonuses`, `ICharacterProgress`, `ICharacterUpgrades`, `IStageProgress`, `IEquipment`. |
+| **Progression** (kiến trúc mới) | **ProgressionManager**, ProgressionContracts | Manager duy nhất được bind; tự tạo Wallet, CharacterLevels, EquipmentInventory, EquipmentLoadout, StageProgress. Miền khác chỉ dùng `IWallet`, `IPermanentBonuses`, `ICharacterProgress`, `ICharacterUpgrades`, `IStageProgress`, `IEquipment`. |
 | ↳ Ví | Wallet, CurrencyType | Số dư vàng/kim cương; cộng/trừ và lưu ví ngay khi thay đổi. |
 | ↳ Level vĩnh viễn | CharacterLevels, CharacterLevelConfigSO, LevelDatabaseSO | Level vĩnh viễn theo nhân vật, bonus, chi phí nâng cấp. |
-| ↳ Trang bị | EquipmentInventory, EquipmentGrowth, Loadout, EquipmentDatabaseSO/DataSO/RulesSO; UI: EquipmentScreenController | Túi đồ, 6 ô mặc, độ hiếm, dòng phụ theo mốc, set, skill đồ; màn Equipment mở từ nút Bag. Xem `Equipment-Tasks.md`. |
+| ↳ Trang bị | EquipmentInventory, EquipmentGrowth, EquipmentLoadout, EquipmentDatabaseSO/DataSO/RulesSO; UI: EquipmentScreenController | Túi đồ, 6 ô mặc, độ hiếm, dòng phụ theo mốc, set, skill đồ; màn Equipment mở từ nút Bag. Xem `Equipment-Tasks.md`. |
 | ↳ Mốc vượt màn | StageProgress | Đánh dấu màn đã thắng lần đầu và cấp thưởng thắng trong cùng một lần lưu. |
 | **Character** (kiến trúc mới) | **CharacterManager**, CharacterContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng CharacterContracts.cs. |
 | ↳ Spawn | CharacterFactory, CharacterRegistry, CharacterRuntimePool | Ghép vỏ, runtime và hành vi; danh sách nhân vật đang sống; phát CharacterAdded/Removed/Died. |

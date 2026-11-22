@@ -4,7 +4,8 @@ using System.Globalization;
 using UnityEngine;
 
 /// <summary>
-/// Cấu hình hiển thị của màn Character: icon và cách định dạng từng chỉ số, nhãn độ hiếm, icon tiền.
+/// Cấu hình hiển thị của màn Character: tên, icon và cách định dạng từng chỉ số, nhãn độ hiếm, icon tiền.
+/// Màn Equipment dùng chung phần chỉ số (qua EquipmentThemeSO) để mỗi chỉ số chỉ khai báo một chỗ.
 /// Chỉ chứa dữ liệu trình bày, không chứa trạng thái runtime.
 /// </summary>
 [CreateAssetMenu(fileName = "CharacterScreenTheme", menuName = "Shooter Game/UI/Character Screen Theme")]
@@ -17,10 +18,13 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
     public sealed class StatEntry
     {
         [SerializeField] private StatType stat;
+        [Tooltip("Tên hiển thị (\"HP\", \"Damage\"...), dùng ở dòng sao và popup trang bị.")]
+        [SerializeField] private string displayName;
         [SerializeField] private Sprite icon;
         [SerializeField] private StatFormat format = StatFormat.Integer;
 
         public StatType Stat => stat;
+        public string DisplayName => displayName;
         public Sprite Icon => icon;
         public StatFormat Format => format;
     }
@@ -69,6 +73,17 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
 
     #region Lookups
 
+    /// <summary>Tên, icon và định dạng của một chỉ số; ném lỗi nếu thiếu cấu hình (Validate đã chặn trước).</summary>
+    public StatEntry GetStat(StatType stat)
+    {
+        foreach (StatEntry entry in stats)
+        {
+            if (entry != null && entry.Stat == stat)
+                return entry;
+        }
+        throw new KeyNotFoundException($"Character Screen Theme is missing stat {stat}.");
+    }
+
     /// <summary>Nhãn của độ hiếm; ném lỗi nếu thiếu cấu hình (Validate đã chặn trước).</summary>
     public RarityEntry GetRarity(CharacterRarity rarity)
     {
@@ -101,13 +116,13 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
 
     #region Validation
 
-    /// <summary>Kiểm tra đủ 8 StatType (không trùng), đủ mọi CharacterRarity và mọi CurrencyType.</summary>
+    /// <summary>Kiểm tra đủ 8 StatType (không trùng, có tên), đủ mọi CharacterRarity và mọi CurrencyType.</summary>
     public void Validate()
     {
         var seen = new HashSet<StatType>();
         foreach (StatEntry entry in stats)
-            if (entry == null || !seen.Add(entry.Stat))
-                throw new InvalidOperationException("Character Screen Theme has an empty or duplicate stat entry.");
+            if (entry == null || !seen.Add(entry.Stat) || string.IsNullOrWhiteSpace(entry.DisplayName))
+                throw new InvalidOperationException("Character Screen Theme has an empty, duplicate or unnamed stat entry.");
         foreach (StatType type in (StatType[])Enum.GetValues(typeof(StatType)))
             if (!seen.Contains(type))
                 throw new InvalidOperationException($"Character Screen Theme is missing stat {type}.");

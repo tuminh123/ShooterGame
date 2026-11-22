@@ -71,7 +71,7 @@ internal sealed class LevelTrack : IUpgradeTrack
 
 /// <summary>
 /// Sao vĩnh viễn: đọc/ghi số sao qua <see cref="CharacterLevels"/>. Mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>.
-/// Phần thưởng của mỗi sao là các bước skill (điều kiện Stars) trong CharacterDataSO; sao không cộng chỉ số.
+/// Phần thưởng của mỗi sao nằm trong CharacterDataSO: các bước skill (điều kiện Stars), hoặc chỉ số dự phòng khi sao không có skill.
 /// Giá bằng mảnh nhân vật làm ở Task S2 (Docs/Architecture/Character-Stars-Tasks.md).
 /// </summary>
 internal sealed class StarTrack : IUpgradeTrack

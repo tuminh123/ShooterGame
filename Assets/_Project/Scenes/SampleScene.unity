@@ -20390,7 +20390,8 @@ MonoBehaviour:
   upgradeLabel: UPGRADE
   maxLabel: MAX
   lockedLabel: LOCKED
-  emptyStarText: "\u2014"
+  emptyStarText: No reward yet
+  starStatFormat: +{0} {1}
   starRowFormat: '{0} Lv.{1}'
   starStepFormat: '<b>{0} Lv.{1}</b>: {2}'
   starTitleFormat: STAR {0}

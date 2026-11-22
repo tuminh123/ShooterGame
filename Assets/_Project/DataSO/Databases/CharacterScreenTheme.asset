@@ -14,27 +14,35 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stats:
   - stat: 0
+    displayName: HP
     icon: {fileID: 21300000, guid: ae898e04b74ec47d8bb33582fcf24b12, type: 3}
     format: 0
   - stat: 2
+    displayName: Defense
     icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
     format: 0
   - stat: 1
+    displayName: Damage
     icon: {fileID: 21300000, guid: 97aeaf017389e4efdb679f7db8867011, type: 3}
     format: 0
   - stat: 3
+    displayName: Move Speed
     icon: {fileID: 21300000, guid: 75f85e7319b51fc4291f7f0de9bbb57e, type: 3}
     format: 1
   - stat: 4
+    displayName: Crit Chance
     icon: {fileID: 21300000, guid: 5864b32a142be4809ab2ccc225cae6bf, type: 3}
     format: 2
   - stat: 5
+    displayName: Crit Damage
     icon: {fileID: 21300000, guid: 9c5f1b7307f6ee545a3830c89966e310, type: 3}
     format: 2
   - stat: 6
+    displayName: Effect Resist
     icon: {fileID: 21300000, guid: ae4d1b1b5272e144d95859fab36be95c, type: 3}
     format: 2
   - stat: 7
+    displayName: Effect Hit
     icon: {fileID: 21300000, guid: 513ea8fe830927342a48b1c209618927, type: 3}
     format: 2
   rarities:

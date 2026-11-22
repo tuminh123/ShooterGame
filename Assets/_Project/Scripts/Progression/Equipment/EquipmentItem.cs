@@ -6,7 +6,7 @@ using System.Collections.Generic;
 /// </summary>
 /// <remarks>
 /// Đi theo luồng Definition (<see cref="EquipmentDataSO"/>) → Runtime (class này) → View. Mẫu đồ và set được tra một lần lúc load,
-/// chỉ số chính được tính sẵn, nên UI, <see cref="Loadout"/> và Combat chỉ đọc. Ra ngoài chỉ có getter;
+/// chỉ số chính được tính sẵn, nên UI, <see cref="EquipmentLoadout"/> và Combat chỉ đọc. Ra ngoài chỉ có getter;
 /// chỉ <see cref="EquipmentInventory"/> (qua <see cref="EquipmentGrowth"/>) được đổi level và dòng phụ.
 /// </remarks>
 public sealed class EquipmentItem

@@ -44,10 +44,15 @@ public abstract class ProjectDataSOEditor : Editor
             if (GUILayout.Button("Mở Character UI Exporter")) CharacterUIExporter.Open();
             Section("BASE STATS", "Chỉ số cấp 1 trước bonus. Defense là giáp tiêu hao; các tỷ lệ dùng thang 100 = 100%.",
                 DataInspectorTone.Stats, "baseStats");
-            Section("INNATE SKILLS", "Skill vốn có của nhân vật. Cấp ban đầu đọc từ từng SkillDataSO; skill nhận trong màn nằm ở Skill Database.",
+            Section("SKILLS", "MỌI skill của nhân vật, mỗi skill một lần. Skill không có bước mở khóa bên dưới là skill có sẵn; cấp ban đầu đọc từ từng SkillDataSO. Danh sách rỗng thì màn Character không có ô skill.",
                 DataInspectorTone.Advanced, "skills");
-            Section("SKILL PROGRESSION (PLAYER)", "Mỗi bước: skill đạt Skill Level khi thỏa điều kiện. Character Level ≥ N chỉ dùng để mở khóa (Skill Level = 1); Stars ≥ N mở hoặc nâng cấp, một sao có thể nâng nhiều skill. Skill chưa có trong Innate Skills cần một bước mở khóa. Cấp skill = cấp cao nhất trong các bước đã thỏa. Enemy bỏ qua phần này.",
+            Section("SKILL PROGRESSION (PLAYER)", "Mỗi bước chọn một skill trong SKILLS (dropdown): skill đạt Skill Level khi thỏa điều kiện. Character Level ≥ N chỉ dùng để mở khóa (Skill Level = 1); Stars ≥ N mở hoặc nâng cấp, một sao có thể nâng nhiều skill. Cấp skill = cấp cao nhất trong các bước đã thỏa. Enemy bỏ qua phần này.",
                 DataInspectorTone.Advanced, "skillProgression");
+            Section("STAR STATS (PLAYER)", "Chỉ số dự phòng của sao 1..5 (phần tử 0 = sao 1), chỉ có tác dụng khi sao đó không có bước skill nào. Cộng thẳng vào bonus vĩnh viễn; Value = 0 là không có.",
+                DataInspectorTone.Stats, "starStats");
+            if (GUILayout.Button("Random chỉ số sao (sao chưa có skill)"))
+                RandomizeStarStats();
+            DrawCharacterWarnings();
         }
         else if (target is CharacterDatabaseSO)
             Section("CHARACTER CATALOG", "Mỗi Character Type chỉ khai báo một template. Bao gồm Player, Enemy thường và Boss; không để reference trống.",
@@ -134,6 +139,63 @@ public abstract class ProjectDataSOEditor : Editor
         else if (target is EnemyFormationSO) DrawFormation();
         else if (target is EnemyPathSO) DrawPath();
         else if (target is BossSpawnDataSO) DrawSpecialSpawns();
+    }
+
+    #endregion
+
+    #region Character Stars
+
+    // Điền chỉ số dự phòng cho các sao chưa có skill: chỉ số ngẫu nhiên trong các chỉ số gốc > 0 của nhân vật,
+    // giá trị 5–10% chỉ số gốc đó. Kết quả ghi vào asset (Undo được), không random lúc chơi.
+    private void RandomizeStarStats()
+    {
+        foreach (UnityEngine.Object item in targets)
+        {
+            var character = (CharacterDataSO)item;
+            var data = new SerializedObject(character);
+            SerializedProperty stars = data.FindProperty("starStats");
+            stars.arraySize = CharacterLevelConfigSO.MaxStars;
+            BaseStats baseStats = character.BaseStats;
+            var pool = new System.Collections.Generic.List<StatType>();
+            foreach (StatType stat in (StatType[])Enum.GetValues(typeof(StatType)))
+            {
+                if (baseStats.Get(stat) > 0f)
+                    pool.Add(stat);
+            }
+            for (int star = 1; star <= CharacterLevelConfigSO.MaxStars && pool.Count > 0; star++)
+            {
+                if (character.HasStarSkillReward(star))
+                    continue;
+                StatType stat = pool[UnityEngine.Random.Range(0, pool.Count)];
+                float value = baseStats.Get(stat) * UnityEngine.Random.Range(0.05f, 0.10f);
+                // Chỉ số lớn làm tròn số nguyên (tối thiểu 1), chỉ số nhỏ như MoveSpeed giữ hai chữ số thập phân.
+                value = baseStats.Get(stat) >= 10f ? Mathf.Max(1f, Mathf.Round(value)) : Mathf.Max(0.01f, Mathf.Round(value * 100f) / 100f);
+                SerializedProperty entry = stars.GetArrayElementAtIndex(star - 1);
+                entry.FindPropertyRelative("stat").intValue = (int)stat;
+                entry.FindPropertyRelative("value").floatValue = value;
+            }
+            data.ApplyModifiedProperties();
+        }
+    }
+
+    // Cảnh báo (không phải lỗi) cho nhân vật Player: chưa có skill, hoặc sao không có thưởng skill lẫn chỉ số.
+    private void DrawCharacterWarnings()
+    {
+        if (targets.Length != 1)
+            return;
+        var character = (CharacterDataSO)target;
+        if (character.Team != CharacterTeam.Player)
+            return;
+        if (character.Skills.Count == 0)
+            EditorGUILayout.HelpBox("Nhân vật Player chưa có skill nào: màn Character sẽ không có ô skill.", MessageType.Warning);
+        var empty = new System.Collections.Generic.List<int>();
+        for (int star = 1; star <= CharacterLevelConfigSO.MaxStars; star++)
+        {
+            if (!character.HasStarSkillReward(star) && !character.TryGetStarStat(star, out _))
+                empty.Add(star);
+        }
+        if (empty.Count > 0)
+            EditorGUILayout.HelpBox("Sao " + string.Join(", ", empty) + " chưa có phần thưởng (không có bước skill và Star Stats = 0).", MessageType.Warning);
     }
 
     #endregion

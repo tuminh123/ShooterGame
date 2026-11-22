@@ -41,6 +41,7 @@ MonoBehaviour:
     effectHit: 0
   skills:
   - {fileID: 11400000, guid: 171c962c52064f03aef7d1cca624af5c, type: 2}
+  - {fileID: 11400000, guid: bae4ee25694773b479f65b80fcd84d7a, type: 2}
   skillProgression:
   - skill: {fileID: 11400000, guid: bae4ee25694773b479f65b80fcd84d7a, type: 2}
     skillLevel: 1
@@ -66,3 +67,14 @@ MonoBehaviour:
     skillLevel: 6
     condition: 1
     required: 5
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

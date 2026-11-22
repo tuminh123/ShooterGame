@@ -1,6 +1,6 @@
 # Cấu trúc thư mục script
 
-> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-19. Mọi file `.cs` được nhắc tới đều tồn tại.
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code: 2026-11-22. Mọi file `.cs` được nhắc tới đều tồn tại.
 
 Mã gameplay nằm trong `Assets/_Project/Scripts`, nhóm theo chức năng. Interface, factory và strategy của cùng hệ thống được đặt gần nhau.
 
@@ -43,8 +43,11 @@ Scripts/
 │   └── GameConstants.cs
 ├── Save/                         SaveManager, SaveContracts.cs, SaveStorage, SaveMigration
 │   └── Data/                     Các section save (tự Validate) và PlayerSaveData cũ cho migration
-├── Progression/                  ProgressionManager, ProgressionContracts.cs, Wallet, CharacterLevels, Loadout, StageProgress, CurrencyType
-│   └── Data/                     CharacterLevelConfigSO, LevelDatabaseSO, EquipmentDatabaseSO
+├── Progression/                  ProgressionManager, ProgressionContracts.cs, Wallet (ví), StageProgress (mốc vượt màn)
+│   ├── Characters/               CharacterLevels (level/EXP nâng cấp/sao), CharacterUpgradeTracks (LevelTrack, StarTrack)
+│   │   └── Data/                 CharacterLevelConfigSO, LevelDatabaseSO
+│   └── Equipment/                EquipmentItem, EquipmentGrowth, EquipmentInventory (túi đồ), EquipmentLoadout (đồ đang mặc)
+│       └── Data/                 EquipmentDataSO, EquipmentRulesSO, EquipmentDatabaseSO (+ EquipmentSetData)
 ├── Pooling/                      PoolManager, PoolContracts.cs, PoolPrewarmSettingsSO
 ├── Infrastructure/
 │   └── Zenject/                  GameSceneInstaller (một file: bind một Manager/miền + thứ tự lifecycle)
@@ -55,7 +58,7 @@ Scripts/
 │   ├── Patterns/                 Pattern/Formation/Path (xem README trong thư mục)
 │   ├── Bosses/                   BossSpawnDataSO, BossSpawnSystem, BossArena
 │   └── Data/                     StageDataSO, StageDatabaseSO
-└── UI/                           UIContracts.cs (IScreenTransition); UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI (thanh máu world); CharacterScreen/ chứa toàn bộ màn Character (Controller, View, Theme, model)
+└── UI/                           UIContracts.cs (IScreenTransition); UIManager điều phối; Views/ chứa view chung; Character/ chứa CharacterUI (thanh máu world); CharacterScreen/ chứa toàn bộ màn Character; Equipment/ chứa toàn bộ màn Equipment (Controller, View, Theme, model); Debug/ chứa panel test (Gacha, Reset Data)
 ```
 
 Asset của miền Stage vẫn nằm ở `Assets/_Project/DataSO/Spawning/` (giữ tên cũ để không phải dời

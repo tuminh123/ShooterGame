@@ -10,7 +10,7 @@ using UnityEngine;
 /// Miền khác thấy tổng bonus qua <see cref="IPermanentBonuses"/>, đồ/set đang mặc qua <see cref="ICharacterProgress"/>,
 /// và mặc/tháo qua <see cref="IEquipment"/>.
 /// </remarks>
-public sealed class Loadout : IDisposable
+public sealed class EquipmentLoadout : IDisposable
 {
     #region Fields
 
@@ -35,7 +35,7 @@ public sealed class Loadout : IDisposable
 
     #region Constructor / Lifecycle
 
-    public Loadout(ISaveStore saves, EquipmentInventory inventory)
+    public EquipmentLoadout(ISaveStore saves, EquipmentInventory inventory)
     {
         this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
         this.inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
@@ -233,7 +233,7 @@ public sealed class Loadout : IDisposable
 
     private void EnsureAvailable()
     {
-        if (disposed) throw new ObjectDisposedException(nameof(Loadout));
+        if (disposed) throw new ObjectDisposedException(nameof(EquipmentLoadout));
         if (!loaded || !saves.IsLoaded) throw new InvalidOperationException("Equipment slots have not loaded.");
     }
 

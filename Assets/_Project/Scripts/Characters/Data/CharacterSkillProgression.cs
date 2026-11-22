@@ -69,3 +69,35 @@ public readonly struct SkillGrant
         Level = level;
     }
 }
+
+/// <summary>
+/// Thưởng chỉ số dự phòng của một sao: chỉ có tác dụng khi sao đó không có bước skill nào trong tiến trình.
+/// Giá trị cộng thẳng (cùng đường bonus vĩnh viễn với level); 0 = sao này không có chỉ số dự phòng.
+/// </summary>
+/// <remarks>
+/// Kết quả nằm trong asset (nhập tay hoặc bấm "Random chỉ số sao" trong Inspector), không random lúc chơi,
+/// nên mọi người chơi nhận cùng chỉ số và save không phải lưu thêm gì.
+/// </remarks>
+[Serializable]
+public struct StarStatReward
+{
+    [Tooltip("Chỉ số được cộng.")]
+    [SerializeField] private StatType stat;
+    [Tooltip("Lượng cộng thẳng; 0 = không có. Tỷ lệ dùng điểm phần trăm (5 = +5%).")]
+    [SerializeField, Min(0f)] private float value;
+
+    public StarStatReward(StatType stat, float value)
+    {
+        this.stat = stat;
+        this.value = value;
+    }
+
+    /// <summary>Chỉ số được cộng.</summary>
+    public StatType Stat => stat;
+
+    /// <summary>Lượng cộng thẳng; 0 = không có.</summary>
+    public float Value => value;
+
+    /// <summary>Có chỉ số để cộng hay không.</summary>
+    public bool HasValue => value > 0f;
+}

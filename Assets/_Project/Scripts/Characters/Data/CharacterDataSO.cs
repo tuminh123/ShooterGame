@@ -58,17 +58,19 @@ public sealed class CharacterDataSO : ScriptableObject
 
     #endregion
 
-    #region Innate Skills
+    #region Skills (mọi skill của nhân vật)
 
-    [Tooltip("Skill vốn có của nhân vật, dùng asset nguồn Character/Equipment. Cấp ban đầu đọc từ từng SkillDataSO; không lưu cooldown ở đây.")]
+    [Tooltip("MỌI skill của nhân vật (nguồn Character/Equipment), mỗi skill một lần. Skill không có bước mở khóa trong Skill Progression là skill có sẵn; cấp ban đầu đọc từ từng SkillDataSO. Enemy/Boss: mọi skill đều có sẵn.")]
     [SerializeField] private SkillDataSO[] skills = System.Array.Empty<SkillDataSO>();
-    public System.Collections.Generic.IReadOnlyList<SkillDataSO> Skills => skills; // Bridge đọc skill của từng nhân vật từ cấu hình này.
+
+    /// <summary>Mọi skill của nhân vật, theo thứ tự khai báo (cũng là thứ tự ô skill trên màn Character).</summary>
+    public System.Collections.Generic.IReadOnlyList<SkillDataSO> Skills => skills;
 
     #endregion
 
     #region Skill Progression (chỉ Player)
 
-    [Tooltip("Các bước mở/nâng skill của Player theo level hoặc sao, ví dụ: Skill2 cấp 1 khi Character Level ≥ 20; HolyBolt cấp 3 khi Stars ≥ 2. Enemy bỏ qua.")]
+    [Tooltip("Các bước mở/nâng skill của Player, chọn skill trong danh sách Skills ở trên. Ví dụ: EmergencyShield cấp 1 khi Character Level ≥ 15 (mở khóa); HolyBolt cấp 3 khi Stars ≥ 2 (nâng cấp). Enemy bỏ qua.")]
     [SerializeField] private SkillProgressStep[] skillProgression = System.Array.Empty<SkillProgressStep>();
 
     /// <summary>Các bước tiến trình skill (chỉ đọc), để UI liệt kê điều kiện mở/nâng.</summary>
@@ -79,7 +81,7 @@ public sealed class CharacterDataSO : ScriptableObject
     /// nên hai bên không bao giờ lệch nhau.
     /// </summary>
     /// <remarks>
-    /// Skill có sẵn luôn có; skill chỉ nằm trong tiến trình thì có khi một bước mở khóa (Skill Level = 1) đã thỏa.
+    /// Skill không có bước mở khóa thì luôn có; skill có bước mở khóa (Skill Level = 1) chỉ có khi một bước đó đã thỏa.
     /// Cấp mỗi skill = cấp cao nhất trong các bước đã thỏa, không thấp hơn cấp mặc định của skill.
     /// Ghi vào <paramref name="result"/> do caller sở hữu (xóa trước khi ghi) để không cấp phát mỗi lần gọi.
     /// </remarks>
@@ -91,32 +93,70 @@ public sealed class CharacterDataSO : ScriptableObject
             throw new System.ArgumentOutOfRangeException(nameof(characterLevel));
         ValidateSkillProgression();
         result.Clear();
-
         foreach (SkillDataSO skill in skills)
-            result.Add(new SkillGrant(skill, GetProgressLevel(skill, characterLevel, stars)));
-
-        for (int i = 0; i < skillProgression.Length; i++)
         {
-            SkillDataSO skill = skillProgression[i].Skill;
-            // Mỗi skill chỉ thêm một lần: bỏ qua skill có sẵn và skill đã gặp ở bước trước.
-            if (IsInnate(skill) || AppearsBefore(skill, i))
-                continue;
-            if (!IsUnlocked(skill, characterLevel, stars))
-                continue;
-            result.Add(new SkillGrant(skill, GetProgressLevel(skill, characterLevel, stars)));
+            if (IsUnlocked(skill, characterLevel, stars))
+                result.Add(new SkillGrant(skill, GetProgressLevel(skill, characterLevel, stars)));
         }
     }
 
-    // Skill chưa có sẵn chỉ mở khi một bước mở khóa (Skill Level = 1) của nó đã thỏa;
-    // bước nâng cấp đã thỏa không tự mở skill còn khóa.
-    private bool IsUnlocked(SkillDataSO skill, int characterLevel, int stars)
+    /// <summary>
+    /// Mọi skill của nhân vật (chính là danh sách Skills). Màn Character dùng để vẽ đủ ô skill, kể cả ô còn khóa;
+    /// danh sách rỗng thì không có ô nào.
+    /// </summary>
+    public void GetAllSkills(System.Collections.Generic.List<SkillDataSO> result)
+    {
+        if (result == null)
+            throw new System.ArgumentNullException(nameof(result));
+        result.Clear();
+        result.AddRange(skills);
+    }
+
+    /// <summary>
+    /// Bước mở khóa (Skill Level = 1) đầu tiên của <paramref name="skill"/>; false với skill có sẵn (không cần mở).
+    /// Màn Character dùng để hiện điều kiện như "Lv 15" trên ô còn khóa.
+    /// </summary>
+    public bool TryGetUnlockStep(SkillDataSO skill, out SkillProgressStep unlock)
     {
         foreach (SkillProgressStep step in skillProgression)
         {
-            if (step.Skill == skill && step.SkillLevel == 1 && step.IsMet(characterLevel, stars))
+            if (step.Skill == skill && step.SkillLevel == 1)
+            {
+                unlock = step;
+                return true;
+            }
+        }
+        unlock = default;
+        return false;
+    }
+
+    /// <summary>Các bước skill ở đúng sao <paramref name="star"/> (một sao có thể nâng nhiều skill), theo thứ tự khai báo.</summary>
+    public void GetStarSteps(int star, System.Collections.Generic.List<SkillProgressStep> result)
+    {
+        if (result == null)
+            throw new System.ArgumentNullException(nameof(result));
+        result.Clear();
+        foreach (SkillProgressStep step in skillProgression)
+        {
+            if (step.Condition == SkillConditionType.Stars && step.Required == star)
+                result.Add(step);
+        }
+    }
+
+    // Skill không có bước mở khóa là skill có sẵn; có bước mở khóa thì chỉ mở khi một bước đó đã thỏa.
+    // Bước nâng cấp đã thỏa không tự mở skill còn khóa.
+    private bool IsUnlocked(SkillDataSO skill, int characterLevel, int stars)
+    {
+        bool hasUnlockStep = false;
+        foreach (SkillProgressStep step in skillProgression)
+        {
+            if (step.Skill != skill || step.SkillLevel != 1)
+                continue;
+            hasUnlockStep = true;
+            if (step.IsMet(characterLevel, stars))
                 return true;
         }
-        return false;
+        return !hasUnlockStep;
     }
 
     // Cấp cao nhất trong các bước đã thỏa; không có bước nào thì dùng cấp mặc định ghi trong asset của skill.
@@ -131,68 +171,48 @@ public sealed class CharacterDataSO : ScriptableObject
         return level;
     }
 
-    /// <summary>
-    /// Mọi skill của nhân vật, mỗi skill một lần: skill có sẵn trước, rồi skill trong tiến trình theo thứ tự khai báo.
-    /// Màn Character dùng để vẽ đủ ô skill, kể cả ô còn khóa.
-    /// </summary>
-    public void GetAllSkills(System.Collections.Generic.List<SkillDataSO> result)
-    {
-        if (result == null)
-            throw new System.ArgumentNullException(nameof(result));
-        result.Clear();
-        result.AddRange(skills);
-        for (int i = 0; i < skillProgression.Length; i++)
-        {
-            SkillDataSO skill = skillProgression[i].Skill;
-            if (IsInnate(skill) || AppearsBefore(skill, i))
-                continue;
-            result.Add(skill);
-        }
-    }
+    #endregion
 
-    /// <summary>
-    /// Bước mở khóa (Skill Level = 1) đầu tiên của <paramref name="skill"/>; false với skill có sẵn (không cần mở).
-    /// Màn Character dùng để hiện điều kiện như "Lv 20" trên ô còn khóa.
-    /// </summary>
-    public bool TryGetUnlockStep(SkillDataSO skill, out SkillProgressStep unlock)
-    {
-        unlock = default;
-        if (IsInnate(skill))
-            return false;
-        foreach (SkillProgressStep step in skillProgression)
-        {
-            if (step.Skill == skill && step.SkillLevel == 1)
-            {
-                unlock = step;
-                return true;
-            }
-        }
-        return false;
-    }
+    #region Star Stats (thưởng dự phòng của sao, chỉ Player)
 
-    /// <summary>Các bước mở ở đúng sao <paramref name="star"/> (một sao có thể nâng nhiều skill), theo thứ tự khai báo.</summary>
-    public void GetStarSteps(int star, System.Collections.Generic.List<SkillProgressStep> result)
+    [Tooltip("Chỉ số dự phòng của sao 1..5 (phần tử 0 = sao 1). Chỉ có tác dụng khi sao đó không có bước skill nào trong Skill Progression. Value = 0 là không có.")]
+    [SerializeField] private StarStatReward[] starStats = new StarStatReward[CharacterLevelConfigSO.MaxStars];
+
+    /// <summary>Sao <paramref name="star"/> có ít nhất một bước skill (mở hoặc nâng) hay không.</summary>
+    public bool HasStarSkillReward(int star)
     {
-        if (result == null)
-            throw new System.ArgumentNullException(nameof(result));
-        result.Clear();
         foreach (SkillProgressStep step in skillProgression)
         {
             if (step.Condition == SkillConditionType.Stars && step.Required == star)
-                result.Add(step);
-        }
-    }
-
-    private bool IsInnate(SkillDataSO skill) => System.Array.IndexOf(skills, skill) >= 0;
-
-    private bool AppearsBefore(SkillDataSO skill, int index)
-    {
-        for (int i = 0; i < index; i++)
-        {
-            if (skillProgression[i].Skill == skill)
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Nơi DUY NHẤT quyết định sao <paramref name="star"/> có cộng chỉ số dự phòng không:
+    /// chỉ khi sao không có bước skill nào và đã nhập chỉ số. Progression (bonus) và màn Character (tab Stars) cùng gọi.
+    /// </summary>
+    public bool TryGetStarStat(int star, out StarStatReward reward)
+    {
+        reward = default;
+        if (star < 1 || star > starStats.Length || HasStarSkillReward(star))
+            return false;
+        reward = starStats[star - 1];
+        return reward.HasValue;
+    }
+
+    /// <summary>Tổng chỉ số dự phòng của các sao đã mở (1..<paramref name="stars"/>); cộng thẳng vào bonus vĩnh viễn.</summary>
+    public StatBonus GetStarBonus(int stars)
+    {
+        StatBonus total = default;
+        int opened = Mathf.Min(stars, CharacterLevelConfigSO.MaxStars);
+        for (int star = 1; star <= opened; star++)
+        {
+            if (TryGetStarStat(star, out StarStatReward reward))
+                total += StatBonus.Of(reward.Stat, reward.Value);
+        }
+        return total;
     }
 
     #endregion
@@ -200,26 +220,29 @@ public sealed class CharacterDataSO : ScriptableObject
     #region Configuration Validation
 
     /// <summary>
-    /// Chặn cấu hình skill sai trước khi dùng: skill trống/trùng/nguồn Gameplay, cấp vượt số cấp của skill,
-    /// điều kiện sao ngoài 1..5, hoặc skill chưa có sẵn mà thiếu bước mở khóa. Không tự sửa asset.
+    /// Chặn cấu hình skill sai trước khi dùng: skill trống/trùng/nguồn Gameplay, bước chọn skill không có trong Skills,
+    /// cấp vượt số cấp của skill, điều kiện sao ngoài 1..5, chỉ số sao sai. Không tự sửa asset.
     /// </summary>
     public void ValidateSkillProgression()
     {
-        var innate = new System.Collections.Generic.HashSet<SkillDataSO>();
+        var known = new System.Collections.Generic.HashSet<SkillDataSO>();
         foreach (SkillDataSO skill in skills)
         {
             ValidateCharacterSkill(skill);
-            if (!innate.Add(skill))
+            if (!known.Add(skill))
                 throw new System.InvalidOperationException($"{name}: {skill.name} khai báo trùng trong Skills.");
         }
 
         foreach (SkillProgressStep step in skillProgression)
         {
-            ValidateCharacterSkill(step.Skill);
+            if (step.Skill == null)
+                throw new System.InvalidOperationException($"{name}: một bước Skill Progression chưa chọn skill.");
+            if (!known.Contains(step.Skill))
+                throw new System.InvalidOperationException($"{name}: {step.Skill.name} không có trong Skills; kéo skill vào Skills rồi chọn lại.");
             ValidateStep(step);
-            if (!innate.Contains(step.Skill) && !HasUnlockStep(step.Skill))
-                throw new System.InvalidOperationException($"{name}: {step.Skill.name} chưa có trong Skills nên cần một bước Skill Level = 1 để mở khóa.");
         }
+
+        ValidateStarStats();
     }
 
     // Một bước hợp lệ: cấp nằm trong số cấp của skill, điều kiện thuộc enum, sao trong 1..MaxStars.
@@ -238,14 +261,17 @@ public sealed class CharacterDataSO : ScriptableObject
             throw new System.InvalidOperationException($"{name}: điều kiện sao của {step.Skill.name} phải trong 1..{CharacterLevelConfigSO.MaxStars}.");
     }
 
-    private bool HasUnlockStep(SkillDataSO skill)
+    // Tối đa một mục mỗi sao; chỉ số thuộc enum, giá trị hữu hạn và không âm.
+    private void ValidateStarStats()
     {
-        foreach (SkillProgressStep step in skillProgression)
+        if (starStats.Length > CharacterLevelConfigSO.MaxStars)
+            throw new System.InvalidOperationException($"{name}: Star Stats tối đa {CharacterLevelConfigSO.MaxStars} mục (mỗi sao một mục).");
+        foreach (StarStatReward reward in starStats)
         {
-            if (step.Skill == skill && step.SkillLevel == 1)
-                return true;
+            if (!System.Enum.IsDefined(typeof(StatType), reward.Stat) || float.IsNaN(reward.Value) ||
+                float.IsInfinity(reward.Value) || reward.Value < 0f)
+                throw new System.InvalidOperationException($"{name}: Star Stats có chỉ số không hợp lệ hoặc giá trị âm.");
         }
-        return false;
     }
 
     // Skill của nhân vật phải có và là definition riêng (nguồn Character/Equipment), không dùng chung asset Gameplay.
