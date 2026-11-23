@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5da027e7ab841ae891c32d8155a09df, type: 3}
   m_Name: Shared_RunLevels
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   maxLevel: 20
   bonusPerLevel:
     maxHealth: 5
@@ -22,5 +22,13 @@ MonoBehaviour:
     critDamageMultiplier: 0
     effectResistance: 0
     effectHit: 0
-  initialExperience: 10
-  experienceIncreasePerLevel: 5
+  experienceFormula:
+    rid: 8867964228872699912
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964228872699912
+      type: {class: LinearFormula, ns: , asm: Assembly-CSharp}
+      data:
+        baseValue: 10
+        step: 5

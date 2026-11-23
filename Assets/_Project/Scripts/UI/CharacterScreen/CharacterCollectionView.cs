@@ -6,8 +6,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// View màn Collection: lưới thẻ nhân vật. Tự sinh và tái dùng thẻ từ prefab,
-/// thêm thẻ trống cho đủ hàng. Không gọi service. Về Home bằng thanh bar dưới (<see cref="HomeNavigationBar"/>).
+/// View màn Collection: lưới thẻ nhân vật, đúng một thẻ cho mỗi nhân vật Player trong Character Database.
+/// Tự sinh và tái dùng thẻ từ prefab. Không gọi service. Về Home bằng thanh bar dưới (<see cref="HomeNavigationBar"/>).
 /// </summary>
 public sealed class CharacterCollectionView : MonoBehaviour
 {
@@ -18,8 +18,8 @@ public sealed class CharacterCollectionView : MonoBehaviour
     [SerializeField] private RectTransform content;
     [Tooltip("Chữ \"đã có/tổng\".")]
     [SerializeField] private TMP_Text countText;
-    [Tooltip("Số cột của lưới; thẻ trống được thêm cho đủ hàng cuối.")]
-    [SerializeField, Min(1)] private int columns = 3;
+    [Tooltip("Nút mở popup phân rã bản trùng thành mảnh.")]
+    [SerializeField] private Button dismantleButton;
 
     #endregion
 
@@ -28,7 +28,26 @@ public sealed class CharacterCollectionView : MonoBehaviour
     /// <summary>Chạm vào thẻ thứ <c>index</c> (theo thứ tự model truyền vào).</summary>
     public event Action<int> CardClicked;
 
+    /// <summary>Bấm nút DISMANTLE (mở popup phân rã).</summary>
+    public event Action DismantleClicked;
+
     private readonly List<CharacterCardView> cards = new List<CharacterCardView>(); // Thẻ đã sinh, tái dùng giữa các lần Bind.
+
+    #endregion
+
+    #region Lifecycle
+
+    private void OnEnable()
+    {
+        if (dismantleButton != null) dismantleButton.onClick.AddListener(OnDismantle);
+    }
+
+    private void OnDisable()
+    {
+        if (dismantleButton != null) dismantleButton.onClick.RemoveListener(OnDismantle);
+    }
+
+    private void OnDismantle() => DismantleClicked?.Invoke();
 
     #endregion
 
@@ -39,14 +58,13 @@ public sealed class CharacterCollectionView : MonoBehaviour
     {
         countText.text = owned.ToString(CultureInfo.InvariantCulture) + "/" + total.ToString(CultureInfo.InvariantCulture);
 
-        int rows = Mathf.Max(1, Mathf.CeilToInt(models.Count / (float)columns));
-        int slotCount = rows * columns;
-        EnsureCards(slotCount);
+        // Đúng một thẻ cho mỗi nhân vật trong Character Database; không lấp thẻ trống cho đủ hàng.
+        EnsureCards(models.Count);
         for (int i = 0; i < cards.Count; i++)
         {
-            bool used = i < slotCount;
+            bool used = i < models.Count;
             cards[i].gameObject.SetActive(used);
-            if (used) cards[i].Bind(i < models.Count ? models[i] : CharacterCardModel.Empty);
+            if (used) cards[i].Bind(models[i]);
         }
     }
 

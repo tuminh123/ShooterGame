@@ -4,7 +4,8 @@ using System.Globalization;
 using UnityEngine;
 
 /// <summary>
-/// Cấu hình hiển thị của màn Character: tên, icon và cách định dạng từng chỉ số, nhãn độ hiếm, icon tiền.
+/// Cấu hình hiển thị của màn Character: tên, icon và cách định dạng từng chỉ số, icon tiền.
+/// Nhãn và màu theo độ hiếm nằm ở phần Character của <see cref="RarityStyleDatabaseSO"/> (theme chỉ tham chiếu).
 /// Màn Equipment dùng chung phần chỉ số (qua EquipmentThemeSO) để mỗi chỉ số chỉ khai báo một chỗ.
 /// Chỉ chứa dữ liệu trình bày, không chứa trạng thái runtime.
 /// </summary>
@@ -29,30 +30,18 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
         public StatFormat Format => format;
     }
 
-    /// <summary>Nhãn của một độ hiếm.</summary>
-    [Serializable]
-    public sealed class RarityEntry
-    {
-        [SerializeField] private CharacterRarity rarity;
-        [SerializeField] private Sprite label;
-        [SerializeField] private string text = "COMMON";
-        [SerializeField] private Color textColor = Color.white;
-
-        public CharacterRarity Rarity => rarity;
-        public Sprite Label => label;
-        public string Text => text;
-        public Color TextColor => textColor;
-    }
-
-    /// <summary>Icon của một loại tiền, dùng cho giá trên nút UPGRADE.</summary>
+    /// <summary>Icon và tên hiển thị của một loại tiền, dùng cho giá trên nút UPGRADE, thanh mảnh và thông báo thiếu tiền.</summary>
     [Serializable]
     public sealed class CurrencyEntry
     {
         [SerializeField] private CurrencyType currency;
         [SerializeField] private Sprite icon;
+        [Tooltip("Tên hiện cho người chơi (\"Gold\", \"Rare Shard\"...). Để trống thì dùng tên enum.")]
+        [SerializeField] private string displayName;
 
         public CurrencyType Currency => currency;
         public Sprite Icon => icon;
+        public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? currency.ToString() : displayName;
     }
 
     #endregion
@@ -61,8 +50,8 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
 
     [Tooltip("Đủ 8 StatType, mỗi loại một lần. Thứ tự = thứ tự StatRow_1..8 trên màn Detail.")]
     [SerializeField] private List<StatEntry> stats = new List<StatEntry>();
-    [Tooltip("Mỗi CharacterRarity một mục.")]
-    [SerializeField] private List<RarityEntry> rarities = new List<RarityEntry>();
+    [Tooltip("Màu và nhãn theo độ hiếm: sửa ở phần Character của asset RarityStyleDatabase (dùng chung một asset với màn Equipment).")]
+    [SerializeField] private RarityStyleDatabaseSO rarityStyles;
     [Tooltip("Mỗi CurrencyType một mục.")]
     [SerializeField] private List<CurrencyEntry> currencies = new List<CurrencyEntry>();
 
@@ -84,13 +73,8 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
         throw new KeyNotFoundException($"Character Screen Theme is missing stat {stat}.");
     }
 
-    /// <summary>Nhãn của độ hiếm; ném lỗi nếu thiếu cấu hình (Validate đã chặn trước).</summary>
-    public RarityEntry GetRarity(CharacterRarity rarity)
-    {
-        foreach (RarityEntry entry in rarities)
-            if (entry != null && entry.Rarity == rarity) return entry;
-        throw new KeyNotFoundException($"Character Screen Theme is missing rarity {rarity}.");
-    }
+    /// <summary>Nhãn và màu của độ hiếm nhân vật (đọc từ RarityStyleDatabase); ném lỗi nếu thiếu (Validate đã chặn trước).</summary>
+    public RarityStyleDatabaseSO.CharacterStyle GetRarity(CharacterRarity rarity) => rarityStyles.GetCharacter(rarity);
 
     /// <summary>Icon của loại tiền; null nếu thiếu.</summary>
     public Sprite GetCurrencyIcon(CurrencyType currency)
@@ -98,6 +82,14 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
         foreach (CurrencyEntry entry in currencies)
             if (entry != null && entry.Currency == currency) return entry.Icon;
         return null;
+    }
+
+    /// <summary>Tên hiển thị của loại tiền ("Gold", "Rare Shard"...); thiếu mục thì dùng tên enum.</summary>
+    public string GetCurrencyName(CurrencyType currency)
+    {
+        foreach (CurrencyEntry entry in currencies)
+            if (entry != null && entry.Currency == currency) return entry.DisplayName;
+        return currency.ToString();
     }
 
     /// <summary>Định dạng giá trị theo kiểu của chỉ số. Dùng InvariantCulture để dấu thập phân không đổi theo máy.</summary>
@@ -126,8 +118,9 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
         foreach (StatType type in (StatType[])Enum.GetValues(typeof(StatType)))
             if (!seen.Contains(type))
                 throw new InvalidOperationException($"Character Screen Theme is missing stat {type}.");
-        foreach (CharacterRarity rarity in (CharacterRarity[])Enum.GetValues(typeof(CharacterRarity)))
-            GetRarity(rarity);
+        if (rarityStyles == null)
+            throw new InvalidOperationException("Assign Rarity Styles (RarityStyleDatabase) on Character Screen Theme.");
+        rarityStyles.Validate();
         foreach (CurrencyType currency in (CurrencyType[])Enum.GetValues(typeof(CurrencyType)))
             if (GetCurrencyIcon(currency) == null)
                 throw new InvalidOperationException($"Character Screen Theme is missing icon for currency {currency}.");

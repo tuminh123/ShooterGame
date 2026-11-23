@@ -31,6 +31,18 @@ public sealed class EquipmentCardView : MonoBehaviour
 
     #endregion
 
+    #region State
+
+    // Các lớp khung được tô theo độ hiếm; tạo ở lần Bind đầu để nhớ sprite gốc của prefab.
+    private StyledImage styledBackground;
+    private StyledImage styledCornerDeco;
+    private StyledImage styledLight;
+    private StyledImage styledBorder;
+    private StyledImage styledGlow;
+    private StyledImage styledSlotCircle;
+
+    #endregion
+
     #region Events
 
     /// <summary>Người dùng chạm vào thẻ (kể cả thẻ trống: ô trống dùng để chuyển tab).</summary>
@@ -71,23 +83,37 @@ public sealed class EquipmentCardView : MonoBehaviour
             emptyIcon.gameObject.SetActive(empty);
             emptyIcon.sprite = model.EmptyIcon;
         }
+        EnsureStyledImages();
         if (empty)
         {
-            background.color = emptyBackground;
-            border.color = emptyBorder;
+            styledBackground.Reset(emptyBackground);
+            styledBorder.Reset(emptyBorder);
             return;
         }
 
-        EquipmentThemeSO.RarityEntry rarity = model.Rarity;
-        background.color = rarity.Background;
-        cornerDeco.color = rarity.CornerDeco;
-        lightLayer.color = rarity.Light;
-        border.color = rarity.Border;
-        glow.color = rarity.Glow;
-        slotCircle.color = rarity.SlotCircle;
+        // Mỗi lớp khung tô theo độ hiếm: màu (giữ sprite gốc) hoặc sprite kéo vào RarityStyleDatabase.
+        RarityStyleDatabaseSO.EquipmentStyle rarity = model.Rarity;
+        styledBackground.Apply(rarity.Background);
+        styledCornerDeco.Apply(rarity.CornerDeco);
+        styledLight.Apply(rarity.Light);
+        styledBorder.Apply(rarity.Border);
+        styledGlow.Apply(rarity.Glow);
+        styledSlotCircle.Apply(rarity.SlotCircle);
         itemIcon.sprite = model.Icon;
         slotIcon.sprite = model.SlotIcon;
         levelText.text = model.LevelText;
+    }
+
+    // Chụp sprite gốc của prefab ở lần Bind đầu, trước khi có style nào đổi sprite.
+    private void EnsureStyledImages()
+    {
+        if (styledBackground != null) return;
+        styledBackground = new StyledImage(background);
+        styledCornerDeco = new StyledImage(cornerDeco);
+        styledLight = new StyledImage(lightLayer);
+        styledBorder = new StyledImage(border);
+        styledGlow = new StyledImage(glow);
+        styledSlotCircle = new StyledImage(slotCircle);
     }
 
     private static void SetActive(Component part, bool active)

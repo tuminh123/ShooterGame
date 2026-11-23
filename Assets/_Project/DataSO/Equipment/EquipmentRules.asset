@@ -161,5 +161,20 @@ MonoBehaviour:
     min: 2
     max: 4
   levelUpCurrency: 0
-  levelUpCostBase: 100
-  levelUpCostPerLevel: 50
+  levelUpCost:
+    formula:
+      rid: 8867964228872699906
+    rarityMultipliers:
+    - 1
+    - 1.5
+    - 2.5
+    - 3.5
+    - 5
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964228872699906
+      type: {class: LinearFormula, ns: , asm: Assembly-CSharp}
+      data:
+        baseValue: 100
+        step: 50

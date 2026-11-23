@@ -41,8 +41,9 @@ public sealed class EquipmentGrowth
     /// <summary>Giá trị chỉ số chính.</summary>
     public float GetMainValue(EquipmentSlot slot, EquipmentRarity rarity, int level) => rules.GetMainValue(slot, rarity, level);
 
-    /// <summary>Giá nâng từ level hiện tại lên cấp kế tiếp.</summary>
-    public CurrencyCost GetLevelUpCost(int currentLevel) => new CurrencyCost(rules.LevelUpCurrency, rules.GetLevelUpCost(currentLevel));
+    /// <summary>Giá nâng một món độ hiếm <paramref name="rarity"/> từ level hiện tại lên cấp kế tiếp.</summary>
+    public CurrencyCost GetLevelUpCost(int currentLevel, EquipmentRarity rarity)
+        => new CurrencyCost(rules.LevelUpCurrency, rules.GetLevelUpCost(currentLevel, rarity));
 
     #endregion
 

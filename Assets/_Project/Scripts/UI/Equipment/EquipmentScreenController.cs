@@ -24,12 +24,18 @@ public sealed class EquipmentScreenController : UIPanelController
     [SerializeField] private EquipmentInfoPopupView infoPopup;
     [SerializeField] private EquipmentStatsPopupView statsPopup;
     [SerializeField] private EquipmentThemeSO theme;
+    [Tooltip("Thông báo nổi dùng chung (\"Not enough Gold\"); có thể để trống, khi đó chỉ rung nút.")]
+    [SerializeField] private NoticeToastView notice;
 
     [Header("Text")]
     [Tooltip("Nhãn level trên thẻ; {0} = level.")]
     [SerializeField] private string levelFormat = "Lv.{0}";
     [Tooltip("Xem trước chỉ số chính ở cấp tới; {0} = lượng tăng.")]
     [SerializeField] private string previewFormat = "+{0}";
+    [Tooltip("Lượng vừa cộng vào dòng phụ khi lên mốc; {0} = lượng cộng.")]
+    [SerializeField] private string substatBoostFormat = "+{0}";
+    [Tooltip("Màu lượng vừa cộng vào dòng phụ (mã hex, không có #).")]
+    [SerializeField] private string substatBoostColor = "8CFF73";
     [Tooltip("Tên dòng phụ chưa mở.")]
     [SerializeField] private string lockedSubstatName = "Substat";
     [Tooltip("Điều kiện mở dòng phụ; {0} = level.")]
@@ -52,6 +58,10 @@ public sealed class EquipmentScreenController : UIPanelController
     [SerializeField] private string unequipLabel = "Unequip";
     [Tooltip("Nút Level Up; {0} = giá.")]
     [SerializeField] private string upgradeFormat = "Level Up {0}";
+    [Tooltip("Thông báo khi bấm Level Up mà không đủ tiền; {0} = tên loại tiền.")]
+    [SerializeField] private string notEnoughFormat = "Not enough {0}";
+    [Tooltip("Màu giá trên nút Level Up khi không đủ tiền (mã hex, không có #).")]
+    [SerializeField] private string notEnoughCurrencyColor = "FF6B6B";
     [SerializeField] private string maxLabel = "MAX";
 
     #endregion
@@ -62,6 +72,7 @@ public sealed class EquipmentScreenController : UIPanelController
 
     private IEquipment equipment;
     private IPermanentBonuses bonuses;
+    private IWallet wallet; // Nghe số dư đổi để vẽ lại nút Level Up và biết thiếu loại tiền nào; điều kiện vẫn đọc từ quote.
     private IPlayerSelection selection;
     private IGameState game;
     private EquipmentRulesSO rules;
@@ -73,6 +84,10 @@ public sealed class EquipmentScreenController : UIPanelController
     private readonly List<EquipmentItem> gridItems = new List<EquipmentItem>(32); // Thứ tự = thứ tự thẻ trên lưới.
     private readonly List<EquipmentCardModel> gridModels = new List<EquipmentCardModel>(32);
     private readonly List<float> substatsBefore = new List<float>(4); // Giá trị dòng phụ trước khi nâng, để biết dòng nào đổi.
+    // Dòng phụ vừa được cộng ở lần Level Up gần nhất của popupItem (-1 = không có) và lượng cộng.
+    // Giữ ở controller (không ở View) để mọi lần vẽ lại popup qua Changed/BonusesChanged vẫn hiện số xanh.
+    private int boostedSubstat = -1;
+    private float boostedAmount;
 
     #endregion
 
@@ -90,12 +105,13 @@ public sealed class EquipmentScreenController : UIPanelController
 
     /// <summary>Zenject inject cả object đang tắt; đăng ký event khi object được bật.</summary>
     [Inject]
-    public void Construct(IEquipment equipmentService, IPermanentBonuses permanentBonuses, IPlayerSelection playerSelection,
-        IGameState gameState, EquipmentDatabaseSO equipmentDatabase)
+    public void Construct(IEquipment equipmentService, IPermanentBonuses permanentBonuses, IWallet walletService,
+        IPlayerSelection playerSelection, IGameState gameState, EquipmentDatabaseSO equipmentDatabase)
     {
         Unsubscribe();
         equipment = equipmentService;
         bonuses = permanentBonuses;
+        wallet = walletService;
         selection = playerSelection;
         game = gameState;
         rules = equipmentDatabase.Rules;
@@ -129,6 +145,7 @@ public sealed class EquipmentScreenController : UIPanelController
         subscribed = true;
         equipment.Changed += Redraw;
         bonuses.BonusesChanged += Redraw;
+        wallet.BalanceChanged += OnBalanceChanged;
         selection.SelectionChanged += OnSelectionChanged;
 
         loadout.SlotClicked += OnSlotClicked;
@@ -148,6 +165,7 @@ public sealed class EquipmentScreenController : UIPanelController
         subscribed = false;
         equipment.Changed -= Redraw;
         bonuses.BonusesChanged -= Redraw;
+        wallet.BalanceChanged -= OnBalanceChanged;
         selection.SelectionChanged -= OnSelectionChanged;
 
         loadout.SlotClicked -= OnSlotClicked;
@@ -276,25 +294,69 @@ public sealed class EquipmentScreenController : UIPanelController
     {
         EquipmentItem item = popupItem;
         if (item == null) return;
+        UpgradeQuote quote = equipment.GetQuote(item);
+        // Thiếu tiền: nút vẫn sáng để bấm được, nhưng không nâng mà rung nút và báo thiếu loại tiền nào.
+        if (quote.Block == UpgradeBlock.NotEnoughCurrency)
+        {
+            infoPopup.PlayUpgradeDenied();
+            ShowNotEnough(quote);
+            return;
+        }
         int countBefore = item.Substats.Count;
         substatsBefore.Clear();
         foreach (StatModifier substat in item.Substats)
             substatsBefore.Add(substat.value);
+        // Số xanh chỉ nói về lần nâng gần nhất: xóa trước khi nâng để cấp thường (không phải mốc) cũng ẩn nó đi.
+        ClearBoost();
         bool upgraded = equipment.TryUpgrade(item, out bool saved);
         if (upgraded && !saved)
             Debug.LogWarning($"Level up of {item.Definition.Id} was applied but not saved yet; it will be retried.", this);
         if (!upgraded) return;
-        // Popup đã vẽ lại qua Changed; giờ chỉ báo dòng nào vừa mở hoặc vừa được cộng.
-        infoPopup.PlayLevelUp(FindChangedSubstat(item, countBefore));
+        int changed = FindChangedSubstat(item, countBefore);
+        // Chỉ dòng đã có từ trước mới là "được cộng"; dòng vừa mở thì cả giá trị đều mới nên không hiện "+X".
+        if (changed >= 0 && changed < substatsBefore.Count)
+        {
+            boostedSubstat = changed;
+            boostedAmount = item.Substats[changed].value - substatsBefore[changed];
+        }
+        // Popup đã vẽ lại qua Changed trước khi biết dòng nào được cộng; vẽ lại tại chỗ để hiện số xanh, rồi nảy dòng đó.
+        if (popupItem == item)
+            ShowPopup(item, false);
+        infoPopup.PlayLevelUp(changed);
     }
 
-    private void OnPopupClosed() => popupItem = null;
+    // Báo loại tiền đầu tiên còn thiếu trong giá (giá hiện chỉ có một mục).
+    private void ShowNotEnough(UpgradeQuote quote)
+    {
+        if (notice == null) return;
+        foreach (CurrencyCost cost in quote.Costs)
+        {
+            if (wallet.GetBalance(cost.Currency) >= cost.Amount) continue;
+            notice.Show(string.Format(CultureInfo.InvariantCulture, notEnoughFormat, theme.StatTheme.GetCurrencyName(cost.Currency)));
+            return;
+        }
+    }
+
+    private void OnPopupClosed()
+    {
+        popupItem = null;
+        ClearBoost();
+    }
+
+    private void ClearBoost()
+    {
+        boostedSubstat = -1;
+        boostedAmount = 0f;
+    }
 
     #endregion
 
     #region Service Events
 
     private void OnSelectionChanged(CharacterType type) => Redraw();
+
+    // Có thêm/bớt tiền thì nút Level Up trong popup có thể đổi giữa sáng và tắt.
+    private void OnBalanceChanged(CurrencyType type, long balance) => Redraw();
 
     #endregion
 
@@ -382,6 +444,9 @@ public sealed class EquipmentScreenController : UIPanelController
 
     private void ShowPopup(EquipmentItem item, bool animate)
     {
+        // Mở món khác thì số xanh của món cũ không còn đúng.
+        if (popupItem != item)
+            ClearBoost();
         popupItem = item;
         infoPopup.Show(BuildInfo(item), animate);
     }
@@ -407,14 +472,15 @@ public sealed class EquipmentScreenController : UIPanelController
     {
         EquipmentDataSO definition = item.Definition;
         EquipmentThemeSO.SlotEntry slot = theme.GetSlot(definition.Slot);
-        EquipmentThemeSO.RarityEntry rarity = theme.GetRarity(item.Rarity);
+        RarityStyleDatabaseSO.EquipmentStyle rarity = theme.GetRarity(item.Rarity);
         UpgradeQuote quote = equipment.GetQuote(item);
         bool atMax = quote.Block == UpgradeBlock.MaxReached;
         bool wearing = equipment.GetEquipped(definition.Slot) == item;
         return new EquipmentInfoModel(slot.Icon, slot.Text, definition.DisplayName, rarity.Text, rarity.TextColor,
             BuildCard(item), definition.Description, BuildMainLine(item, atMax), BuildSubstatLines(item),
             BuildSkillBlock(item), BuildSetBlock(item), BuildHint(item, atMax),
-            wearing ? unequipLabel : equipLabel, BuildUpgradeLabel(quote), quote.CanUpgrade);
+            wearing ? unequipLabel : equipLabel, BuildUpgradeLabel(quote),
+            quote.CanUpgrade || quote.Block == UpgradeBlock.NotEnoughCurrency);
     }
 
     // Dòng chính kèm "+X" là lượng tăng ở cấp tới (đọc từ cùng công thức với gameplay).
@@ -439,8 +505,9 @@ public sealed class EquipmentScreenController : UIPanelController
             if (i < item.Substats.Count)
             {
                 StatModifier substat = item.Substats[i];
+                string boost = i == boostedSubstat ? FormatBoost(substat.stat) : string.Empty;
                 lines[i] = new EquipmentStatLineModel(theme.GetStatIcon(substat.stat), theme.GetStatName(substat.stat),
-                    theme.FormatStat(substat.stat, substat.value), string.Empty, false);
+                    theme.FormatStat(substat.stat, substat.value), boost, false);
                 continue;
             }
             string condition = string.Empty;
@@ -449,6 +516,13 @@ public sealed class EquipmentScreenController : UIPanelController
             lines[i] = new EquipmentStatLineModel(null, lockedSubstatName, string.Empty, condition, true);
         }
         return lines;
+    }
+
+    // "+X" tô màu bằng rich text để luôn xanh, không phụ thuộc màu sẵn của ô chữ phụ (ô này cũng hiện "Unlocks at Lv.X").
+    private string FormatBoost(StatType stat)
+    {
+        string amount = string.Format(CultureInfo.InvariantCulture, substatBoostFormat, theme.FormatStat(stat, boostedAmount));
+        return "<color=#" + substatBoostColor + ">" + amount + "</color>";
     }
 
     private EquipmentBonusBlockModel BuildSkillBlock(EquipmentItem item)
@@ -491,6 +565,9 @@ public sealed class EquipmentScreenController : UIPanelController
         if (quote.Block == UpgradeBlock.MaxReached || quote.Costs.Count == 0)
             return maxLabel;
         string cost = quote.Costs[0].Amount.ToString("N0", CultureInfo.InvariantCulture);
+        // Thiếu tiền: nút vẫn bấm được (bấm thì rung + báo); tô đỏ giá để người chơi biết trước khi bấm.
+        if (quote.Block == UpgradeBlock.NotEnoughCurrency)
+            cost = "<color=#" + notEnoughCurrencyColor + ">" + cost + "</color>";
         return string.Format(CultureInfo.InvariantCulture, upgradeFormat, cost);
     }
 

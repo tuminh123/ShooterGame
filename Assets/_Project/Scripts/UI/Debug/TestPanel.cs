@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Panel test gom các nút debug (Gacha trang bị, Reset Data). Thu gọn thành một nút "TEST" nhỏ ở mép màn để không che UI;
+/// Panel test gom các nút debug (Gacha trang bị, cộng Gold/Diamond, Reset Data). Thu gọn thành một nút "TEST" nhỏ ở mép màn để không che UI;
 /// bấm vào thì mở hoặc đóng panel. Chỉ bật/tắt hiển thị, không gọi service.
 /// </summary>
 public sealed class TestPanel : MonoBehaviour

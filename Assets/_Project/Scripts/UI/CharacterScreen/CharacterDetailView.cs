@@ -27,6 +27,10 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
 
     #region Header References
 
+    [Tooltip("Nền cả màn Detail (Image trên DetailScreen); đổi màu theo độ hiếm của nhân vật đang xem.")]
+    [SerializeField] private Image screenBackground;
+    [Tooltip("Lớp phát sáng của màn Detail (PanelEffect/PanelGlow); đổi màu cùng tông với nền.")]
+    [SerializeField] private Image screenGlow;
     [SerializeField] private Image rarityLabel;
     [SerializeField] private TMP_Text rarityText;
     [SerializeField] private TMP_Text nameText;
@@ -115,6 +119,9 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
 
     #region Bind State
 
+    // Nền và lớp phát sáng được tô theo độ hiếm (màu hoặc sprite); tạo ở lần Bind đầu để nhớ sprite gốc trong scene.
+    private StyledImage styledBackground;
+    private StyledImage styledGlow;
     // Nhận ra "vẫn nhân vật cũ" để chỉ cho số nhảy khi nâng cấp, không nhảy khi bấm ←/→.
     private bool hasBound;
     private CharacterType boundType;
@@ -193,6 +200,10 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
 
     private void BindHeader(CharacterDetailModel model)
     {
+        styledBackground ??= new StyledImage(screenBackground);
+        styledGlow ??= new StyledImage(screenGlow);
+        styledBackground.Apply(model.ScreenBackground);
+        styledGlow.Apply(model.ScreenGlow);
         if (model.RarityLabel != null) rarityLabel.sprite = model.RarityLabel;
         rarityText.text = model.RarityText;
         rarityText.color = model.RarityTextColor;
@@ -347,6 +358,9 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
 
     private void BindFooter(CharacterDetailModel model)
     {
+        // Nhân vật chưa sở hữu chỉ để xem thông tin: không chọn, không nâng cấp.
+        selectButton.gameObject.SetActive(model.Owned);
+        upgradeButton.gameObject.SetActive(model.Owned);
         selectButton.interactable = !model.IsSelected;
         selectText.text = model.IsSelected ? inUseLabel : selectLabel;
 
@@ -394,6 +408,16 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
     private void OnBack() => BackClicked?.Invoke();
     private void OnSelect() => SelectClicked?.Invoke();
     private void OnUpgrade() => UpgradeClicked?.Invoke();
+
+    /// <summary>
+    /// Nút UPGRADE rung ngang khi lần bấm bị từ chối (không đủ tiền), và dừng bấm lặp nếu đang giữ nút,
+    /// để giữ tay không rung liên tục.
+    /// </summary>
+    public void PlayUpgradeDenied()
+    {
+        if (upgradeButton.TryGetComponent(out ButtonDeniedShake shake)) shake.Shake();
+        if (upgradeButton.TryGetComponent(out ButtonHoldRepeat holdRepeat)) holdRepeat.Cancel();
+    }
     private void OnLevelTab() => TabChanged?.Invoke(CharacterScreenTab.Level);
     private void OnStarsTab() => TabChanged?.Invoke(CharacterScreenTab.Stars);
 

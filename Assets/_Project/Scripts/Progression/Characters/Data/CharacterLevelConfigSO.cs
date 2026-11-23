@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-// Bonus theo cấp dùng chung cho player và enemy. Phần EXP nâng cấp (nguyên liệu) chỉ dùng cho player.
+// Bonus theo cấp dùng chung cho player và enemy. Amount Per Upgrade chỉ dùng cho player; Gold cần cho mỗi mốc nằm trong LevelDatabaseSO.
 [CreateAssetMenu(fileName = "CharacterLevelConfig", menuName = "Shooter Game/Levels/Character Level Config")]
 public sealed class CharacterLevelConfigSO : ScriptableObject
 {
@@ -22,38 +21,16 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
 
     #endregion
 
-    #region Upgrade Experience
+    #region Upgrade Per Click
 
-    [Tooltip("Nguyên liệu (EXP vĩnh viễn) cần để lên từ cấp 1 lên 2; không phải EXP trong trận.")]
-    [FormerlySerializedAs("initialUpgradeCost")]
-    [SerializeField, Min(1)] private int initialRequired = 100; // Hệ số A; nhận lại giá trị Initial Upgrade Cost cũ trong asset.
-    [Tooltip("Nguyên liệu cần từ cấp L lên L+1 = Initial Required + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng.")]
-    [SerializeField, Min(0)] private int requiredIncreasePerLevel = 50; // Hệ số B; thanh của cấp sau dài hơn nên cần bấm nhiều lần hơn.
-    [Tooltip("Lượng nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade (tỉ lệ 1:1).")]
-    [SerializeField, Min(1)] private int amountPerUpgrade = 25; // Một lần bấm = một lần tiêu = một lần cộng EXP, giống nhặt EXP trong trận.
+    // Gold cần cho mỗi mốc level KHÔNG nằm ở đây: công thức chung theo độ hiếm nằm trong LevelDatabaseSO (Permanent Level Cost),
+    // để mọi nhân vật cùng độ hiếm có cùng bảng giá. Config này chỉ giữ cảm giác bấm riêng của nhân vật.
+    [Tooltip("Số lần bấm Upgrade để đầy thanh một mốc. Giá mỗi lần bấm = Gold cần cho mốc ÷ số này (làm tròn lên), " +
+             "nên giá trên nút tăng theo level và độ hiếm. Ví dụ mốc cần 200, 4 lần → mỗi lần 50 Gold.")]
+    [SerializeField, Min(1)] private int clicksPerLevel = 4; // Mọi mốc bấm cùng số lần: level cao hay nhân vật hiếm không bắt bấm nhiều hơn, chỉ đắt hơn.
 
-    /// <summary>Hệ số A của công thức A + B × (level - 1).</summary>
-    public int InitialRequired => initialRequired;
-    /// <summary>Hệ số B của công thức A + B × (level - 1).</summary>
-    public int RequiredIncreasePerLevel => requiredIncreasePerLevel;
-    /// <summary>Lượng nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade.</summary>
-    public int AmountPerUpgrade => amountPerUpgrade;
-
-    /// <summary>
-    /// Nguyên liệu cần từ <paramref name="currentLevel"/> lên cấp kế tiếp = A + B × (L - 1);
-    /// false nếu level không hợp lệ hoặc đã đạt trần. Cùng dạng công thức với EXP trong trận (RunLevelConfigSO).
-    /// </summary>
-    // Lưu ý: Trả yêu cầu riêng của một cấp, không phải tổng tích lũy; overflow int sẽ báo lỗi thay vì thành số âm.
-    public bool TryGetRequired(int currentLevel, out int required)
-    {
-        required = 0;
-        ValidateConfiguration();
-        if (currentLevel < 1 || currentLevel >= maxLevel)
-            return false;
-
-        required = checked((int)(initialRequired + (long)requiredIncreasePerLevel * (currentLevel - 1)));
-        return true;
-    }
+    /// <summary>Số lần bấm Upgrade để đầy thanh một mốc.</summary>
+    public int ClicksPerLevel => clicksPerLevel;
 
     #endregion
 
@@ -87,8 +64,8 @@ public sealed class CharacterLevelConfigSO : ScriptableObject
     private void ValidateConfiguration()
     {
         bonusPerLevel.Validate();
-        if (maxLevel < 1 || initialRequired < 1 || requiredIncreasePerLevel < 0 || amountPerUpgrade < 1)
-            throw new InvalidOperationException("Character level config requires MaxLevel >= 1, initial required >= 1, increase >= 0 and amount per upgrade >= 1.");
+        if (maxLevel < 1 || clicksPerLevel < 1)
+            throw new InvalidOperationException("Character level config requires MaxLevel >= 1 and clicks per level >= 1.");
     }
 
     #endregion

@@ -36,6 +36,15 @@ public sealed class ButtonDeniedShake : MonoBehaviour, IPointerClickHandler
     public void OnPointerClick(PointerEventData eventData)
     {
         if (button.IsInteractable()) return;
+        Shake();
+    }
+
+    /// <summary>
+    /// Rung ngang ngay. Controller gọi qua View khi nút vẫn bấm được nhưng thao tác bị từ chối (ví dụ không đủ tiền),
+    /// để người chơi thấy cùng một phản hồi với nút đang khóa.
+    /// </summary>
+    public void Shake()
+    {
         if (!restCached)
         {
             restPosition = transform.localPosition;

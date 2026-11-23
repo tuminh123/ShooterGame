@@ -1,0 +1,271 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a28b29a2a34d667458646dd45a5f9908, type: 3}
+  m_Name: RarityStyleDatabase
+  m_EditorClassIdentifier: 
+  characterRarities:
+  - rarity: 0
+    label: {fileID: 21300000, guid: 0eaf6715a248844b3b94a9d322d282c4, type: 3}
+    text: COMMON
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    cardBackground:
+      mode: 0
+      color: {r: 0.38039216, g: 0.49411765, b: 0.5411765, a: 1}
+      sprite: {fileID: 0}
+    cardLight:
+      mode: 0
+      color: {r: 0.50980395, g: 0.627451, b: 0.67058825, a: 1}
+      sprite: {fileID: 0}
+    cardGlow:
+      mode: 0
+      color: {r: 0.5137255, g: 0.6509804, b: 0.7058824, a: 1}
+      sprite: {fileID: 0}
+    screenBackground:
+      mode: 0
+      color: {r: 0.23529412, g: 0.32156864, b: 0.36078432, a: 1}
+      sprite: {fileID: 0}
+    screenGlow:
+      mode: 0
+      color: {r: 0.40784314, g: 0.5294118, b: 0.5803922, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 1
+    label: {fileID: 21300000, guid: dad47e9b3f72d4253bd4959b57289345, type: 3}
+    text: UNCOMMON
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    cardBackground:
+      mode: 0
+      color: {r: 0.11372549, g: 0.7529412, b: 0.3372549, a: 1}
+      sprite: {fileID: 0}
+    cardLight:
+      mode: 0
+      color: {r: 0.69803923, g: 0.94509804, b: 0.12156863, a: 1}
+      sprite: {fileID: 0}
+    cardGlow:
+      mode: 0
+      color: {r: 0.7529412, g: 1, b: 0.31764707, a: 1}
+      sprite: {fileID: 0}
+    screenBackground:
+      mode: 0
+      color: {r: 0.101960786, g: 0.36078432, b: 0.19215687, a: 1}
+      sprite: {fileID: 0}
+    screenGlow:
+      mode: 0
+      color: {r: 0.18431373, g: 0.5803922, b: 0.3254902, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 2
+    label: {fileID: 21300000, guid: e0387aa3821274a35b00020e1848abc5, type: 3}
+    text: RARE
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    cardBackground:
+      mode: 0
+      color: {r: 0, g: 0.65882355, b: 1, a: 1}
+      sprite: {fileID: 0}
+    cardLight:
+      mode: 0
+      color: {r: 0.20784314, g: 0.9843137, b: 1, a: 1}
+      sprite: {fileID: 0}
+    cardGlow:
+      mode: 0
+      color: {r: 0.03137255, g: 0.9372549, b: 1, a: 1}
+      sprite: {fileID: 0}
+    screenBackground:
+      mode: 0
+      color: {r: 0.05490196, g: 0.25490198, b: 0.36078432, a: 1}
+      sprite: {fileID: 0}
+    screenGlow:
+      mode: 0
+      color: {r: 0.11764706, g: 0.42352942, b: 0.5803922, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 3
+    label: {fileID: 21300000, guid: fb3e8ff77824f466aa94f46ebe089001, type: 3}
+    text: EPIC
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    cardBackground:
+      mode: 0
+      color: {r: 0.69803923, g: 0.3764706, b: 0.99215686, a: 1}
+      sprite: {fileID: 0}
+    cardLight:
+      mode: 0
+      color: {r: 1, g: 0.5411765, b: 1, a: 1}
+      sprite: {fileID: 0}
+    cardGlow:
+      mode: 0
+      color: {r: 0.7254902, g: 0.5882353, b: 1, a: 1}
+      sprite: {fileID: 0}
+    screenBackground:
+      mode: 0
+      color: {r: 0.27058825, g: 0.16862746, b: 0.36078432, a: 1}
+      sprite: {fileID: 0}
+    screenGlow:
+      mode: 0
+      color: {r: 0.44313726, g: 0.2901961, b: 0.5803922, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 4
+    label: {fileID: 21300000, guid: d96f1c6be6b8d42e7a8e1d30ba2f963f, type: 3}
+    text: LEGENDARY
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    cardBackground:
+      mode: 0
+      color: {r: 1, g: 0.7882353, b: 0, a: 1}
+      sprite: {fileID: 0}
+    cardLight:
+      mode: 0
+      color: {r: 0.99607843, g: 0.99215686, b: 0.30588236, a: 1}
+      sprite: {fileID: 0}
+    cardGlow:
+      mode: 0
+      color: {r: 0.9529412, g: 1, b: 0.19215687, a: 1}
+      sprite: {fileID: 0}
+    screenBackground:
+      mode: 0
+      color: {r: 0.36078432, g: 0.29411766, b: 0.05490196, a: 1}
+      sprite: {fileID: 0}
+    screenGlow:
+      mode: 0
+      color: {r: 0.5803922, g: 0.48235294, b: 0.11764706, a: 1}
+      sprite: {fileID: 0}
+  equipmentRarities:
+  - rarity: 0
+    text: COMMON
+    textColor: {r: 0.78431374, g: 0.83137256, b: 0.85490197, a: 1}
+    background:
+      mode: 0
+      color: {r: 0.38039216, g: 0.49411765, b: 0.5411765, a: 1}
+      sprite: {fileID: 0}
+    light:
+      mode: 0
+      color: {r: 0.50980395, g: 0.627451, b: 0.67058825, a: 1}
+      sprite: {fileID: 0}
+    border:
+      mode: 0
+      color: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    glow:
+      mode: 0
+      color: {r: 0.5137255, g: 0.6509804, b: 0.7058824, a: 1}
+      sprite: {fileID: 0}
+    cornerDeco:
+      mode: 0
+      color: {r: 0.44313726, g: 0.5568628, b: 0.6, a: 1}
+      sprite: {fileID: 0}
+    slotCircle:
+      mode: 0
+      color: {r: 0.38039216, g: 0.49411765, b: 0.5411765, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 1
+    text: UNCOMMON
+    textColor: {r: 0.36078432, g: 0.9019608, b: 0.41568628, a: 1}
+    background:
+      mode: 0
+      color: {r: 0.11372549, g: 0.7529412, b: 0.3372549, a: 1}
+      sprite: {fileID: 0}
+    light:
+      mode: 0
+      color: {r: 0.69803923, g: 0.94509804, b: 0.12156863, a: 1}
+      sprite: {fileID: 0}
+    border:
+      mode: 0
+      color: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    glow:
+      mode: 0
+      color: {r: 0.7529412, g: 1, b: 0.31764707, a: 1}
+      sprite: {fileID: 0}
+    cornerDeco:
+      mode: 0
+      color: {r: 0.20392157, g: 0.8509804, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    slotCircle:
+      mode: 0
+      color: {r: 0.13333334, g: 0.9372549, b: 0.11372549, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 2
+    text: RARE
+    textColor: {r: 0.30980393, g: 0.7647059, b: 1, a: 1}
+    background:
+      mode: 0
+      color: {r: 0, g: 0.65882355, b: 1, a: 1}
+      sprite: {fileID: 0}
+    light:
+      mode: 0
+      color: {r: 0.20784314, g: 0.9843137, b: 1, a: 1}
+      sprite: {fileID: 0}
+    border:
+      mode: 0
+      color: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    glow:
+      mode: 0
+      color: {r: 0.03137255, g: 0.9372549, b: 1, a: 1}
+      sprite: {fileID: 0}
+    cornerDeco:
+      mode: 0
+      color: {r: 0.17254902, g: 0.74509805, b: 1, a: 1}
+      sprite: {fileID: 0}
+    slotCircle:
+      mode: 0
+      color: {r: 0.05490196, g: 0.50980395, b: 0.9764706, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 3
+    text: EPIC
+    textColor: {r: 0.78431374, g: 0.5019608, b: 0.99607843, a: 1}
+    background:
+      mode: 0
+      color: {r: 0.69803923, g: 0.3764706, b: 0.99215686, a: 1}
+      sprite: {fileID: 0}
+    light:
+      mode: 0
+      color: {r: 1, g: 0.5411765, b: 1, a: 1}
+      sprite: {fileID: 0}
+    border:
+      mode: 0
+      color: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    glow:
+      mode: 0
+      color: {r: 0.7254902, g: 0.5882353, b: 1, a: 1}
+      sprite: {fileID: 0}
+    cornerDeco:
+      mode: 0
+      color: {r: 0.78431374, g: 0.5019608, b: 0.99607843, a: 1}
+      sprite: {fileID: 0}
+    slotCircle:
+      mode: 0
+      color: {r: 0.6392157, g: 0.24313726, b: 1, a: 1}
+      sprite: {fileID: 0}
+  - rarity: 4
+    text: LEGENDARY
+    textColor: {r: 1, g: 0.8235294, b: 0.22745098, a: 1}
+    background:
+      mode: 0
+      color: {r: 1, g: 0.7882353, b: 0, a: 1}
+      sprite: {fileID: 0}
+    light:
+      mode: 0
+      color: {r: 0.99607843, g: 0.99215686, b: 0.30588236, a: 1}
+      sprite: {fileID: 0}
+    border:
+      mode: 0
+      color: {r: 0.09411765, g: 0.09411765, b: 0.20392157, a: 1}
+      sprite: {fileID: 0}
+    glow:
+      mode: 0
+      color: {r: 0.9529412, g: 1, b: 0.19215687, a: 1}
+      sprite: {fileID: 0}
+    cornerDeco:
+      mode: 0
+      color: {r: 1, g: 0.87058824, b: 0, a: 1}
+      sprite: {fileID: 0}
+    slotCircle:
+      mode: 0
+      color: {r: 1, g: 0.87058824, b: 0, a: 1}
+      sprite: {fileID: 0}

@@ -13,10 +13,10 @@ public readonly struct EquipmentCardModel
     public readonly string LevelText;
     public readonly Sprite SlotIcon;
     public readonly Sprite EmptyIcon;
-    public readonly EquipmentThemeSO.RarityEntry Rarity; // null khi thẻ trống.
+    public readonly RarityStyleDatabaseSO.EquipmentStyle Rarity; // null khi thẻ trống.
 
     public EquipmentCardModel(bool isEmpty, Sprite icon, string levelText, Sprite slotIcon, Sprite emptyIcon,
-        EquipmentThemeSO.RarityEntry rarity)
+        RarityStyleDatabaseSO.EquipmentStyle rarity)
     {
         IsEmpty = isEmpty;
         Icon = icon;
@@ -113,11 +113,11 @@ public readonly struct EquipmentInfoModel
     public readonly string Hint; // Gợi ý mốc của cấp tới; trống nếu không phải mốc.
     public readonly string EquipLabel;
     public readonly string UpgradeLabel;
-    public readonly bool CanUpgrade;
+    public readonly bool UpgradeInteractable; // Còn bấm được khi thiếu tiền (bấm thì rung + báo); tắt khi MAX.
 
     public EquipmentInfoModel(Sprite slotIcon, string slotText, string title, string rarityText, Color rarityColor,
         EquipmentCardModel card, string description, EquipmentStatLineModel mainStat, EquipmentStatLineModel[] substats,
-        EquipmentBonusBlockModel skill, EquipmentBonusBlockModel set, string hint, string equipLabel, string upgradeLabel, bool canUpgrade)
+        EquipmentBonusBlockModel skill, EquipmentBonusBlockModel set, string hint, string equipLabel, string upgradeLabel, bool upgradeInteractable)
     {
         SlotIcon = slotIcon;
         SlotText = slotText;
@@ -133,7 +133,7 @@ public readonly struct EquipmentInfoModel
         Hint = hint;
         EquipLabel = equipLabel;
         UpgradeLabel = upgradeLabel;
-        CanUpgrade = canUpgrade;
+        UpgradeInteractable = upgradeInteractable;
     }
 }
 

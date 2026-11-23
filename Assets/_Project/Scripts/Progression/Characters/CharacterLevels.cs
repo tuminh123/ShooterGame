@@ -13,10 +13,13 @@ public sealed class CharacterLevels : IDisposable
 {
     #region Dependencies & Character Lookups
     private readonly ISaveStore saves; // Chỉ đọc/ghi payload; system này sở hữu tiến trình level.
+    private readonly Wallet wallet; // Trừ tiền nâng level và ghi cùng một lần với tiến trình (giống StageProgress).
     private CharacterLevelsSaveData progress;
     private readonly Dictionary<CharacterType, CharacterLevelsSaveData.Entry> progressLookup = new Dictionary<CharacterType, CharacterLevelsSaveData.Entry>();
     private readonly Dictionary<CharacterType, CharacterDataSO> characters; // Tra template theo type, trung bình O(1).
     private readonly Dictionary<CharacterType, CharacterLevelConfigSO> levelConfigs; // Tra config vĩnh viễn riêng theo cùng type.
+    private readonly RarityScaledFormula<CharacterRarity> levelCost; // Gold cần cho mỗi mốc, chung mọi nhân vật, theo độ hiếm.
+    private readonly HashSet<CharacterType> starterCharacters; // Sở hữu sẵn từ đầu, không cần cờ owned trong save.
     private bool changingLevel; // Chặn gọi tăng cấp lồng nhau từ callback sự kiện.
     private bool disposed; // Chặn dùng lại sau khi ProgressionManager đã Dispose.
 
@@ -34,14 +37,28 @@ public sealed class CharacterLevels : IDisposable
         }
     }
 
-    // Config có thể bị chỉnh A/B sau khi người chơi đã lưu: ép điểm về trong thanh hiện tại thay vì báo lỗi,
+    // Công thức giá có thể bị chỉnh sau khi người chơi đã lưu: ép điểm về trong thanh hiện tại thay vì báo lỗi,
     // để save không bị hỏng. Chỉ sửa RAM; lần lưu kế tiếp sẽ ghi giá trị đã ép.
     private void ClampUpgradePoints(CharacterLevelsSaveData.Entry entry)
     {
-        if (!levelConfigs.TryGetValue(entry.characterType, out CharacterLevelConfigSO config)) return;
-        entry.upgradePoints = config.TryGetRequired(entry.permanentLevel, out int required)
+        if (!levelConfigs.ContainsKey(entry.characterType)) return;
+        entry.upgradePoints = TryGetRequired(entry.characterType, entry.permanentLevel, out int required)
             ? Math.Min(entry.upgradePoints, required - 1)
             : 0;
+    }
+
+    /// <summary>
+    /// Một chỗ tính duy nhất "Gold cần cho mốc <paramref name="level"/> → level + 1" của một nhân vật:
+    /// công thức chung trong LevelDatabaseSO × hệ số theo độ hiếm của nhân vật. False khi đã chạm Max Level của config.
+    /// </summary>
+    private bool TryGetRequired(CharacterType characterType, int level, out int required)
+    {
+        required = 0;
+        if (level < 1 || level >= levelConfigs[characterType].MaxLevel)
+            return false;
+        // Thanh và điểm đã lưu là int: giá vượt int là cấu hình sai, báo lỗi tràn số thay vì thành số âm.
+        required = checked((int)levelCost.Evaluate(level, characters[characterType].Rarity));
+        return true;
     }
 
     private int ReadLevel(CharacterType type)
@@ -69,17 +86,22 @@ public sealed class CharacterLevels : IDisposable
     // Chỉ dựng cache và kiểm tra cấu hình; không đọc hồ sơ trước khi SaveManager.Initialize chạy.
     public CharacterLevels(
         ISaveStore saves,
+        Wallet wallet,
         CharacterDatabaseSO characterDatabase,
         LevelDatabaseSO levelDatabase)
     {
         this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
+        this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         if (characterDatabase == null)
             throw new ArgumentNullException(nameof(characterDatabase));
         if (levelDatabase == null)
             throw new ArgumentNullException(nameof(levelDatabase));
 
         characters = characterDatabase.CreateLookup();
-        Dictionary<CharacterType, CharacterLevelConfigSO> configsByType = levelDatabase.CreateTypeLookup();
+        Dictionary<CharacterType, CharacterLevelConfigSO> configsByType = levelDatabase.CreateTypeLookup(); // Cũng kiểm tra công thức giá.
+        levelCost = levelDatabase.PermanentLevelCost;
+        starterCharacters = new HashSet<CharacterType>(levelDatabase.StarterCharacters);
+        UpgradeCurrency = levelDatabase.PermanentLevelCurrency;
         levelConfigs = new Dictionary<CharacterType, CharacterLevelConfigSO>(characters.Count);
 
         // Vòng duyệt thứ hai ghép type nhân vật với config, dùng chính enum đó làm key runtime/save.
@@ -132,25 +154,14 @@ public sealed class CharacterLevels : IDisposable
         return ReadUpgradePoints(characterType);
     }
 
-    /// <summary>Nguyên liệu cần để đầy thanh của cấp hiện tại; false nếu đã đạt hoặc vượt trần config.</summary>
+    /// <summary>Loại tiền nâng level vĩnh viễn (chung mọi nhân vật, đọc từ LevelDatabaseSO).</summary>
+    public CurrencyType UpgradeCurrency { get; }
+
+    /// <summary>Gold cần để đầy thanh của cấp hiện tại; false nếu đã đạt hoặc vượt trần config.</summary>
     public bool TryGetRequiredPoints(CharacterType characterType, out int required)
     {
-        CharacterLevelConfigSO config = GetConfig(characterType);
-        return config.TryGetRequired(ReadLevel(characterType), out required);
-    }
-
-    /// <summary>
-    /// Tổng nguyên liệu còn thiếu để chạm level tối đa; 0 khi đã ở trần.
-    /// Dùng để lần nạp cuối chỉ tốn đúng phần còn thiếu, không làm mất tiền thật của người chơi.
-    /// </summary>
-    public long GetPointsToMaxLevel(CharacterType characterType)
-    {
-        CharacterLevelConfigSO config = GetConfig(characterType);
-        int level = ReadLevel(characterType);
-        long remaining = -ReadUpgradePoints(characterType);
-        for (int current = level; config.TryGetRequired(current, out int required); current++)
-            remaining += required;
-        return Math.Max(0L, remaining);
+        GetConfig(characterType);
+        return TryGetRequired(characterType, ReadLevel(characterType), out required);
     }
 
     // Đọc config để UI hiển thị trần, bonus mỗi cấp và công thức giá.
@@ -176,15 +187,15 @@ public sealed class CharacterLevels : IDisposable
     }
 
     /// <summary>
-    /// Nạp <paramref name="amount"/> nguyên liệu vào thanh: đầy thanh thì lên cấp và chuyển phần dư sang cấp sau
-    /// (có thể lên nhiều cấp một lần), chạm trần thì bỏ phần dư. Level và điểm được ghi trong <b>một lần save</b>.
-    /// True nghĩa là đã nạp; <paramref name="saved"/> cho biết đã ghi file thành công hay chưa.
+    /// Trả <paramref name="costs"/> rồi nạp <paramref name="amount"/> nguyên liệu vào thanh: đầy thanh thì lên cấp và chuyển phần dư
+    /// sang cấp sau (có thể lên nhiều cấp một lần), chạm trần thì bỏ phần dư. Tiền, level và điểm được ghi trong <b>một lần save</b>.
+    /// True nghĩa là đã trả tiền và nạp; false nếu đã ở trần hoặc không đủ tiền. <paramref name="saved"/> cho biết đã ghi file chưa.
     /// </summary>
     /// <remarks>
-    /// Bên gọi kiểm tra điều kiện/thanh toán; system này chỉ đổi tiến trình. <see cref="LevelChanged"/> chỉ phát khi thật sự lên cấp.
-    /// Nếu saved=false, chỉ thử save lại, không nạp lại để tránh nhận thêm điểm ngoài ý muốn.
+    /// Kiểm tra đủ tiền trước khi đổi RAM nên thiếu tiền thì không có gì thay đổi. <see cref="LevelChanged"/> chỉ phát khi thật sự lên cấp.
+    /// Nếu saved=false, chỉ thử save lại, không nạp lại để tránh trừ tiền hai lần.
     /// </remarks>
-    public bool TryAddUpgradePoints(CharacterType characterType, int amount, out bool saved)
+    public bool TryAddUpgradePoints(CharacterType characterType, int amount, IReadOnlyList<CurrencyCost> costs, out bool saved)
     {
         EnsureAvailable();
         if (changingLevel)
@@ -194,7 +205,7 @@ public sealed class CharacterLevels : IDisposable
         saved = false;
         CharacterLevelConfigSO config = GetConfig(characterType);
         int previousLevel = ReadLevel(characterType);
-        if (previousLevel >= config.MaxLevel)
+        if (previousLevel >= config.MaxLevel || !wallet.CanAfford(costs))
             return false;
 
         changingLevel = true;
@@ -203,7 +214,7 @@ public sealed class CharacterLevels : IDisposable
             // Cùng thuật toán với RunLevelProgress.AddExperience: trừ dần yêu cầu từng cấp cho tới khi không đủ.
             long remaining = (long)ReadUpgradePoints(characterType) + amount;
             int newLevel = previousLevel;
-            while (config.TryGetRequired(newLevel, out int required) && remaining >= required)
+            while (TryGetRequired(characterType, newLevel, out int required) && remaining >= required)
             {
                 remaining -= required;
                 newLevel++;
@@ -212,7 +223,8 @@ public sealed class CharacterLevels : IDisposable
             CharacterLevelsSaveData.Entry entry = GetOrAddEntry(characterType);
             entry.permanentLevel = newLevel;
             entry.upgradePoints = newLevel >= config.MaxLevel ? 0 : (int)remaining;
-            saved = SaveProgress();
+            CharacterLevelsSaveData.Validate(progress);
+            saved = wallet.SpendWith(costs, GameConstants.SaveKeys.CharacterLevels, progress.Clone());
             Exception saveError = saves.LastError;
             if (newLevel != previousLevel)
                 LevelChanged?.Invoke(characterType, previousLevel, newLevel);
@@ -237,21 +249,47 @@ public sealed class CharacterLevels : IDisposable
         return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) ? entry.stars : 0;
     }
 
-    /// <summary>
-    /// Mở thêm một sao nếu chưa tới <paramref name="maxStars"/> rồi save; true nghĩa là đã tăng,
-    /// <paramref name="saved"/> cho biết đã ghi file chưa. Bên gọi kiểm tra điều kiện/thanh toán.
-    /// </summary>
-    // Lưu cùng key với level vì system này là chủ duy nhất của character_levels (hai chủ cùng ghi một key sẽ đè nhau).
-    public bool TryAddStar(CharacterType characterType, int maxStars, out bool saved)
+    #endregion
+
+    #region Collection Storage (CharacterCollection dùng)
+
+    // Sở hữu, bản trùng và sao lưu cùng Entry với level vì system này là chủ duy nhất của key character_levels
+    // (hai chủ cùng ghi một key sẽ đè nhau). Luật ghép/phân rã/nâng sao nằm ở CharacterCollection; ở đây chỉ đọc/ghi dữ liệu.
+
+    /// <summary>Đã sở hữu: nhân vật khởi đầu (LevelDatabaseSO) hoặc đã gacha/ghép.</summary>
+    public bool IsOwned(CharacterType characterType)
+    {
+        GetConfig(characterType);
+        if (starterCharacters.Contains(characterType)) return true;
+        return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) && entry.owned;
+    }
+
+    /// <summary>Số bản trùng đang giữ; nhân vật chưa có bản ghi là 0.</summary>
+    public int GetCopies(CharacterType characterType)
+    {
+        GetConfig(characterType);
+        return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) ? entry.copies : 0;
+    }
+
+    /// <summary>Bản ghi để CharacterCollection sửa tại chỗ (tạo nếu chưa có); sửa xong phải ghi bằng snapshot.</summary>
+    internal CharacterLevelsSaveData.Entry EditEntry(CharacterType characterType)
     {
         EnsureAvailable();
-        saved = false;
-        if (GetStars(characterType) >= maxStars) return false;
-        GetOrAddEntry(characterType).stars++;
-        saved = SaveProgress();
-        if (!saved) SaveFailed?.Invoke(characterType, ReadLevel(characterType), saves.LastError);
-        return true;
+        GetConfig(characterType);
+        return GetOrAddEntry(characterType);
     }
+
+    /// <summary>Bản sao tiến trình đã kiểm tra, để ghi cùng một lần với ví.</summary>
+    internal CharacterLevelsSaveData CreateSnapshot()
+    {
+        EnsureAvailable();
+        CharacterLevelsSaveData.Validate(progress);
+        return progress.Clone();
+    }
+
+    /// <summary>Báo lỗi ghi file (RAM đã đổi, snapshot chờ ghi lại) theo cùng event với nâng level.</summary>
+    internal void ReportSaveFailure(CharacterType characterType)
+        => SaveFailed?.Invoke(characterType, ReadLevel(characterType), saves.LastError);
 
     #endregion
 

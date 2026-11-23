@@ -15,6 +15,7 @@ public sealed class EquipmentInventory : IDisposable
     #region Fields
 
     private readonly ISaveStore saves;
+    private readonly Wallet wallet; // Trừ tiền lên cấp và ghi cùng một lần với túi đồ (giống StageProgress).
     private readonly EquipmentDatabaseSO database;
     private readonly Dictionary<string, EquipmentDataSO> definitions;
     private readonly Dictionary<EquipmentSet, EquipmentSetData> sets;
@@ -38,9 +39,10 @@ public sealed class EquipmentInventory : IDisposable
     #region Constructor / Lifecycle
 
     /// <summary>Kiểm tra database và dựng bảng tra; chưa đọc save (SaveManager.Initialize chưa chạy).</summary>
-    public EquipmentInventory(ISaveStore saves, EquipmentDatabaseSO database, System.Random random)
+    public EquipmentInventory(ISaveStore saves, Wallet wallet, EquipmentDatabaseSO database, System.Random random)
     {
         this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
+        this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         this.database = database != null ? database : throw new ArgumentNullException(nameof(database));
         database.Validate();
         definitions = database.CreateItemLookup();
@@ -139,20 +141,22 @@ public sealed class EquipmentInventory : IDisposable
         finally { changing = false; }
     }
 
-    /// <summary>Level hiện tại/tối đa và giá nâng; MaxReached khi đã ở level tối đa.</summary>
+    /// <summary>Level hiện tại/tối đa và giá nâng; MaxReached khi đã ở level tối đa, NotEnoughCurrency khi thiếu tiền.</summary>
     public UpgradeQuote GetQuote(EquipmentItem item)
     {
         EnsureOwned(item);
         int max = growth.MaxLevel;
         if (item.Level >= max)
             return new UpgradeQuote(item.Level, max, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.MaxReached);
-        var costs = new[] { growth.GetLevelUpCost(item.Level) };
-        // TODO: kiểm tra số dư qua Wallet; thiếu tiền thì trả UpgradeBlock.NotEnoughCurrency (giống LevelTrack).
-        return new UpgradeQuote(item.Level, max, 0, 0, costs, UpgradeBlock.None);
+        // Món càng hiếm càng đắt: hệ số theo độ hiếm nằm trong EquipmentRulesSO.
+        var costs = new[] { growth.GetLevelUpCost(item.Level, item.Rarity) };
+        UpgradeBlock block = wallet.CanAfford(costs) ? UpgradeBlock.None : UpgradeBlock.NotEnoughCurrency;
+        return new UpgradeQuote(item.Level, max, 0, 0, costs, block);
     }
 
     /// <summary>
-    /// Nâng một level nếu quote cho phép: tăng chỉ số chính, áp mốc dòng phụ, ghi file.
+    /// Nâng một level nếu quote cho phép (chưa tối đa, đủ tiền): tăng chỉ số chính, áp mốc dòng phụ, trừ tiền,
+    /// rồi ghi ví và túi đồ trong <b>một lần lưu</b>.
     /// Trả về đã nâng hay chưa; <paramref name="saved"/> = false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
     /// </summary>
     public bool TryLevelUp(EquipmentItem item, out bool saved)
@@ -160,13 +164,13 @@ public sealed class EquipmentInventory : IDisposable
         EnsureCanChange();
         saved = false;
         // Kiểm tra lại: UI có thể đang giữ một quote cũ.
-        if (!GetQuote(item).CanUpgrade) return false;
-        // TODO: trừ tiền trong cùng một lần save với việc lên cấp (SaveBatch currencies + equipment_items).
+        UpgradeQuote quote = GetQuote(item);
+        if (!quote.CanUpgrade) return false;
         changing = true;
         try
         {
             growth.LevelUp(item);
-            saved = Save();
+            saved = wallet.SpendWith(quote.Costs, GameConstants.SaveKeys.EquipmentItems, CreateSaveData());
             Notify();
             return true;
         }
@@ -177,11 +181,17 @@ public sealed class EquipmentInventory : IDisposable
     public bool Save()
     {
         EnsureAvailable();
+        return saves.Save(GameConstants.SaveKeys.EquipmentItems, CreateSaveData());
+    }
+
+    // Chép toàn bộ runtime ra snapshot độc lập đã kiểm tra; dùng chung cho Save và lần ghi cùng ví khi lên cấp.
+    private EquipmentItemsSaveData CreateSaveData()
+    {
         var data = new EquipmentItemsSaveData { nextUid = nextUid, starterItemsGranted = starterItemsGranted };
         foreach (EquipmentItem item in items)
             data.items.Add(item.ToSaveData());
         EquipmentItemsSaveData.Validate(data);
-        return saves.Save(GameConstants.SaveKeys.EquipmentItems, data);
+        return data;
     }
 
     #endregion

@@ -1,6 +1,6 @@
 # Hệ thống Trang bị (Equipment) — thiết kế và kế hoạch task
 
-> **Trạng thái:** ✅ E1–E5 code xong (2026-11-22) · compile sạch, Check Service Contracts PASS 57, Zenject Validate OK, 0 Missing Script, play test qua MCP OK · Chờ người dùng kiểm tra. Còn lại: trừ tiền thật, Fuse, nguồn rơi đồ
+> **Trạng thái:** ✅ E1–E5 code xong (2026-11-22) · compile sạch, Check Service Contracts PASS 57, Zenject Validate OK, 0 Missing Script, play test qua MCP OK · Chờ người dùng kiểm tra · **Trừ tiền thật ✅ (2026-11-23)** · Còn lại: Fuse, nguồn rơi đồ
 
 ## 0. Quyết định đã chốt
 
@@ -10,7 +10,7 @@
 | 2 | Chỉ số chính cố định theo slot: Vũ khí → Damage · Mũ → MaxHealth · Giáp → Defense · Găng → CritChance · Giày → MoveSpeed · Nhẫn → CritDamageMultiplier |
 | 3 | 5 độ hiếm nằm **trên từng bản đồ** (cùng một mẫu mũ có thể ra 5 độ hiếm). Số dòng phụ ban đầu: 0 / 1 / 2 / 3 / 4 |
 | 4 | Tối đa Lv.20. Chỉ số chính tăng mỗi cấp. Ở mốc 5/10/15/20: mốc thứ k mà số dòng phụ < k thì **mở dòng mới**, đủ rồi thì **cộng vào một dòng phụ ngẫu nhiên** |
-| 5 | Giá nâng cấp giống nâng anh hùng: có hàm, **chưa trừ tiền** (TODO) |
+| 5 | Giá nâng cấp giống nâng anh hùng. Từ 2026-11-23: thiếu tiền thì quote trả `NotEnoughCurrency` (nút tắt, giá đỏ); đủ thì trừ tiền và lên cấp trong **một lần save** (`Wallet.SpendWith`, key `currencies` + `equipment_items`) |
 | 6 | Mỗi món có **tối đa 1 skill, 1 cấp**, mở khi món đạt `skillUnlockLevel` |
 | 7 | Mỗi món thuộc 0 hoặc 1 **set** (enum `EquipmentSet`). Mỗi set có **1 skill, 1 cấp**, bật khi mặc đủ `requiredPieces` món |
 | 8 | Skill trùng là lỗi game design, không chặn trong data. Lúc spawn ưu tiên **Character > Equipment (món theo thứ tự slot, rồi set) > skill trong trận** |
@@ -34,7 +34,7 @@
 - `EquipmentDataSO` (mỗi mẫu một asset): `id`, tên, mô tả, icon, `slot`, `set`, `skill`, `skillUnlockLevel`.
   Luật skill ở một chỗ: `TryGetSkill(itemLevel, out skill)`.
 - `EquipmentRulesSO` (một asset): chỉ số chính theo slot × độ hiếm (gốc + mỗi cấp), số dòng phụ ban đầu theo độ hiếm,
-  `maxLevel`, `milestoneInterval`, `maxSubstats`, khoảng roll theo `StatType`, giá nâng (TODO).
+  `maxLevel`, `milestoneInterval`, `maxSubstats`, khoảng roll theo `StatType`, giá nâng (`levelUpCurrency` + `levelUpCost`: công thức `ILevelFormula` × hệ số theo `EquipmentRarity`, xem `DataSO/README.md` mục 4b).
 - Luật mốc dòng phụ (`IsMilestone`, `WillUnlockSubstat`, `TryGetSubstatUnlockLevel`) nằm trên `EquipmentRulesSO`, để `EquipmentGrowth`
   và popup đọc chung một chỗ.
 - `EquipmentDatabaseSO` (giữ GUID): `rules`, `items`, `sets` (`EquipmentSetData`: tên, icon, mô tả, `requiredPieces`, `skill`;
@@ -88,4 +88,4 @@ Skill trong trận là asset nguồn Gameplay khác hẳn nên luôn đứng sau
 | E3 Skill | Combat cấp skill đồ + set theo thứ tự ưu tiên |✅ |
 | E4 UI màn chính | theme, thẻ, ô, tab, lưới, controller, tab Home |✅ |
 | E5 UI popup | popup chi tiết, popup Property |✅ |
-| Sau | trừ tiền thật, Fuse, nguồn rơi đồ, bán/phân rã | |
+| Sau | Fuse, nguồn rơi đồ, bán/phân rã | |

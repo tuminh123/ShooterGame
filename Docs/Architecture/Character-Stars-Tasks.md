@@ -19,7 +19,7 @@ Mọi phần thưởng của sao nằm trong **`CharacterDataSO`** (`Characters/
 Các mục bên dưới là lịch sử kế hoạch; S2b (perk cộng chỉ số trong `CharacterLevelConfigSO.starPerks`) đã được thay bằng thiết kế trên.
 
 
-> **Trạng thái:** 🚧 Đang làm · S1 ✅ · S2a ✅ · S3 ✅ · **S4 ✅ (2026-11-22: sao nâng skill + chỉ số dự phòng, dữ liệu nằm trong CharacterDataSO)** · S2 phần giá mảnh chưa làm · Ngày lập: 2026-11-20
+> **Trạng thái:** 🚧 Đang làm · S1 ✅ · S2a ✅ · S3 ✅ · **S4 ✅ (2026-11-22: sao nâng skill + chỉ số dự phòng, dữ liệu nằm trong CharacterDataSO)** · **S2 thay bằng bộ sưu tập (2026-11-23): mảnh theo độ hiếm thay cho mảnh riêng từng nhân vật, xem [Character-Collection-Tasks](Character-Collection-Tasks.md)** · Ngày lập: 2026-11-20
 
 ## S4 — perk sao nối với skill + perk gắn với data nhân vật (người dùng yêu cầu 2026-11-21) — ✅ ĐÃ LÀM 2026-11-22, xem "Thiết kế hiện hành" ở đầu file
 
@@ -101,7 +101,7 @@ Làm trước một phần của S2 để test UI: số sao lưu thật (`Charac
 | **S1** ✅ | 5 ô sao luôn hiện: sao đã có màu vàng, sao chưa có làm mờ bằng màu `Image` (project không có sprite sao xám). Áp dụng header Detail và thẻ Collection. | Sửa: `UI/CharacterScreen/CharacterDetailView.cs`, `UI/CharacterScreen/CharacterCardView.cs` |
 | **S2** | `CurrencyType.Shard`; mảnh theo nhân vật trong ví; `CharacterStarConfigSO`; `stars` trong save; `StarTrack` thật; bonus sao vào `IPermanentBonuses`; nút debug "+10 mảnh". | Mới: `Progression/Data/CharacterStarConfigSO.cs`, `UI/Debug/AddShardsButton.cs`. Sửa: `Progression/CurrencyType.cs`, `Progression/Wallet.cs`, `Progression/ProgressionContracts.cs`, `Progression/ProgressionManager.cs`, `Progression/CharacterLevels.cs`, `Progression/CharacterUpgradeTracks.cs`, `Progression/Data/LevelDatabaseSO.cs`, `Save/Data/SaveSections.cs`, `Editor/ProjectDataSOEditor.cs`. Asset: `BlessedGladiator_Stars.asset`, `LevelDatabase.asset`, icon mảnh trong `CharacterScreenTheme`. |
 | **S3** | Tab Stars bind perk thật: `StarPerkRowView` trên `PerkRow_1..5` (icon, mô tả; trạng thái đã mở / kế tiếp / khóa); nút UPGRADE tab Stars hiện giá mảnh. | Mới: `UI/CharacterScreen/StarPerkRowView.cs`. Sửa: `CharacterScreenModels.cs`, `CharacterScreenController.cs`, `CharacterDetailView.cs`. Scene: gắn component lên `PerkRow_1..5`. |
-| L1 (hỏi lại sau S2) | Level trừ vàng thật bằng cùng cơ chế ghi một lần, xóa TODO trong `LevelTrack`. | `CharacterUpgradeTracks.cs`, `Wallet.cs` |
+| L1 ✅ (2026-11-23, làm trước S2) | Level trừ tiền thật (`CharacterLevelConfigSO.upgradeCurrency`, mặc định Gold): thiếu tiền → `NotEnoughCurrency`; đủ → trừ tiền + nạp điểm trong một lần save qua `Wallet.CanAfford` / `Wallet.SpendWith`. S2 dùng lại đúng hai hàm này cho mảnh. | `Wallet.cs`, `CharacterLevels.cs`, `CharacterUpgradeTracks.cs`, `CharacterLevelConfigSO.cs`, `ProgressionManager.cs`, `CharacterScreenController.cs` |
 | S4 📝 (chưa thiết kế) | Perk sao nối với skill nhân vật + dữ liệu perk truy cập / kéo từ data nhân vật. Xem mục **S4** ở trên. | Chốt thiết kế trước |
 
 Mỗi task: compile sạch, Check Service Contracts, Zenject Validate; báo người dùng trước khi sang task kế tiếp. Người dùng play test.

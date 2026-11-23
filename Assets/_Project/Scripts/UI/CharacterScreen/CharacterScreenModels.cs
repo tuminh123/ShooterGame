@@ -7,7 +7,25 @@ using UnityEngine;
 
 #region Collection Models
 
-/// <summary>Dữ liệu một thẻ nhân vật. Thẻ Empty chỉ để lấp cho đủ hàng.</summary>
+/// <summary>Thanh mảnh trên thẻ nhân vật chưa sở hữu: icon mảnh cùng độ hiếm, số đang có / số cần để ghép.</summary>
+public readonly struct ShardBarModel
+{
+    public readonly Sprite Icon;
+    public readonly long Current;
+    public readonly int Required;
+
+    /// <summary>Đủ mảnh để ghép: thanh và viền thẻ sáng lên, chạm vào là ghép.</summary>
+    public bool Ready => Current >= Required;
+
+    public ShardBarModel(Sprite icon, long current, int required)
+    {
+        Icon = icon;
+        Current = current;
+        Required = required;
+    }
+}
+
+/// <summary>Dữ liệu một thẻ nhân vật. Thẻ Locked = chưa sở hữu (xám, thanh mảnh thay cho level/sao).</summary>
 public readonly struct CharacterCardModel
 {
     public readonly Sprite Portrait; // null thì giữ ảnh mặc định của prefab.
@@ -15,18 +33,42 @@ public readonly struct CharacterCardModel
     public readonly int Level;
     public readonly int Stars;
     public readonly CharacterCardState State;
+    public readonly RarityStyleDatabaseSO.CharacterStyle Rarity; // Nhãn + màu nền theo độ hiếm; null khi thẻ trống.
+    public readonly ShardBarModel Shards; // Chỉ dùng khi State = Locked.
 
-    public CharacterCardModel(Sprite portrait, string name, int level, int stars, CharacterCardState state)
+    public CharacterCardModel(Sprite portrait, string name, int level, int stars, CharacterCardState state,
+        RarityStyleDatabaseSO.CharacterStyle rarity, ShardBarModel shards = default)
     {
         Portrait = portrait;
         Name = name;
         Level = level;
         Stars = stars;
         State = state;
+        Rarity = rarity;
+        Shards = shards;
     }
 
-    /// <summary>Thẻ trống dùng để lấp hàng.</summary>
-    public static CharacterCardModel Empty => new CharacterCardModel(null, string.Empty, 0, 0, CharacterCardState.Empty);
+    /// <summary>Thẻ trống (không có nhân vật). Collection hiện đúng số nhân vật nên không còn dùng để lấp hàng.</summary>
+    public static CharacterCardModel Empty => new CharacterCardModel(null, string.Empty, 0, 0, CharacterCardState.Empty, null);
+}
+
+/// <summary>Một dòng trong popup phân rã: nhân vật có bản trùng và số mảnh nhận được nếu phân rã hết.</summary>
+public readonly struct DismantleRowModel
+{
+    public readonly Sprite Portrait;
+    public readonly string Name;
+    public readonly int Copies;
+    public readonly Sprite ShardIcon;
+    public readonly long ShardTotal; // Copies × Shards Per Copy.
+
+    public DismantleRowModel(Sprite portrait, string name, int copies, Sprite shardIcon, long shardTotal)
+    {
+        Portrait = portrait;
+        Name = name;
+        Copies = copies;
+        ShardIcon = shardIcon;
+        ShardTotal = shardTotal;
+    }
 }
 
 #endregion
@@ -139,6 +181,8 @@ public readonly struct CharacterDetailModel
     public readonly Sprite RarityLabel;
     public readonly string RarityText;
     public readonly Color RarityTextColor;
+    public readonly ImageStyle ScreenBackground; // Nền cả màn Detail theo độ hiếm (màu hoặc sprite).
+    public readonly ImageStyle ScreenGlow; // Lớp phát sáng (PanelEffect/PanelGlow), cùng tông với nền.
     public readonly string Name;
     public readonly Sprite Portrait; // Ảnh dự phòng khi chưa có nhân vật UI.
     public readonly CharacterUIVisual UIVisual; // Prefab nhân vật UI (Idle); null thì hiện Portrait.
@@ -158,19 +202,22 @@ public readonly struct CharacterDetailModel
 
     // Footer
     public readonly bool IsSelected;
+    public readonly bool Owned; // Chưa sở hữu thì chỉ xem: ẩn nút chọn và nút nâng cấp.
     public readonly UpgradeButtonModel Upgrade;
 
     public CharacterDetailModel(
-        CharacterType type, Sprite rarityLabel, string rarityText, Color rarityTextColor, string name, Sprite portrait,
+        CharacterType type, Sprite rarityLabel, string rarityText, Color rarityTextColor, ImageStyle screenBackground, ImageStyle screenGlow, string name, Sprite portrait,
         CharacterUIVisual uiVisual, int stars,
         CharacterScreenTab tab, int level, int maxLevel, int levelProgress, int levelProgressRequired,
         IReadOnlyList<StatRowModel> stats, IReadOnlyList<SkillSlotModel> skillSlots, IReadOnlyList<StarPerkModel> starPerks,
-        bool isSelected, UpgradeButtonModel upgrade)
+        bool isSelected, UpgradeButtonModel upgrade, bool owned)
     {
         Type = type;
         RarityLabel = rarityLabel;
         RarityText = rarityText;
         RarityTextColor = rarityTextColor;
+        ScreenBackground = screenBackground;
+        ScreenGlow = screenGlow;
         Name = name;
         Portrait = portrait;
         UIVisual = uiVisual;
@@ -184,6 +231,7 @@ public readonly struct CharacterDetailModel
         SkillSlots = skillSlots ?? Array.Empty<SkillSlotModel>();
         StarPerks = starPerks ?? Array.Empty<StarPerkModel>();
         IsSelected = isSelected;
+        Owned = owned;
         Upgrade = upgrade;
     }
 }

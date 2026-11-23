@@ -61,19 +61,43 @@ public abstract class ProjectDataSOEditor : Editor
         {
             Section("CHARACTER GROWTH", "Cấp 1 chưa có bonus; cấp L nhận Bonus Per Level × (L - 1), giới hạn ở Max Level.",
                 DataInspectorTone.Stats, "characterType", "maxLevel", "bonusPerLevel");
-            Section("PERMANENT UPGRADE EXP", "Thanh cấp L cần Initial Required + Increase Per Level × (L - 1) nguyên liệu. Mỗi lần bấm tiêu và nạp Amount Per Upgrade (1:1); đầy thanh thì lên cấp, phần dư chuyển sang cấp sau. Chỉ dùng cho Player, không phải EXP trận.",
-                DataInspectorTone.Rewards, "initialRequired", "requiredIncreasePerLevel", "amountPerUpgrade");        }
+            Section("PERMANENT UPGRADE CLICKS", "Mỗi mốc chia đều cho Clicks Per Level lần bấm: giá mỗi lần = Gold cần cho mốc ÷ số lần (làm tròn lên), lần cuối chỉ tốn phần còn thiếu. Gold cần cho mỗi mốc (độ dài thanh) đặt chung theo độ hiếm trong Level Database → PERMANENT LEVEL COST. Chỉ dùng cho Player.",
+                DataInspectorTone.Rewards, "clicksPerLevel");
+        }
         else if (target is RunLevelConfigSO)
         {
             Section("RUN LEVEL GROWTH", "Cấp và bonus trong một lượt chơi. Bonus cố định này cộng thêm bên cạnh phần thưởng skill được chọn.",
                 DataInspectorTone.Stats, "maxLevel", "bonusPerLevel");
-            Section("EXPERIENCE FORMULA", "EXP từ cấp L lên L+1 = Initial Experience + Increase Per Level × (L - 1). Đây là EXP cho từng lần lên cấp.",
-                DataInspectorTone.Rewards, "initialExperience", "experienceIncreasePerLevel");
+            using (DataInspectorGUI.Section("EXPERIENCE FORMULA", "EXP cần cho từng mốc Lv → Lv+1 trong trận. Chọn kiểu công thức rồi chỉnh tham số; bảng bên dưới là EXP của các mốc.", DataInspectorTone.Rewards))
+            {
+                LevelFormulaField("experienceFormula", "Experience Formula");
+                if (!serializedObject.isEditingMultipleObjects)
+                {
+                    var run = (RunLevelConfigSO)target;
+                    DrawFormulaPreview(run.ExperienceFormula, run.MaxLevel);
+                }
+            }
         }
         else if (target is LevelDatabaseSO)
         {
             Section("CHARACTER LEVEL CONFIGS", "Ghép cấu hình tăng trưởng bằng Character Type, không dùng vị trí trong danh sách. Mỗi type chỉ có một config.",
                 DataInspectorTone.Stats, "characterLevels");
+            using (DataInspectorGUI.Section("PERMANENT LEVEL COST", "Gold cần cho mỗi mốc level vĩnh viễn Lv → Lv+1 = công thức chung × hệ số theo độ hiếm của nhân vật (Character Data → Rarity), làm tròn lên. Chung mọi nhân vật Player; hệ số phải tăng dần (nhân vật hiếm hơn tốn hơn).", DataInspectorTone.Rewards))
+            {
+                Field("permanentLevelCurrency");
+                RarityFormulaFields<CharacterRarity>("permanentLevelCost");
+                if (!serializedObject.isEditingMultipleObjects)
+                    DrawRarityPreview(((LevelDatabaseSO)target).PermanentLevelCost, PreviewMaxLevel);
+            }
+            using (DataInspectorGUI.Section("CHARACTER COLLECTION", "Mảnh theo độ hiếm, chung mọi nhân vật cùng độ hiếm. Unlock Shards = mảnh để ghép nhân vật chưa có; Shards Per Copy = mảnh nhận khi phân rã một bản trùng (cũng là giá trị bản trùng khi nâng sao). Star Cost: mảnh để mở sao thứ n (bảng dưới: mốc Lv n → n+1 = sao n). Starter = sở hữu sẵn.", DataInspectorTone.Rewards))
+            {
+                Field("starterCharacters");
+                Field("collectionRules");
+                EditorGUILayout.LabelField("Star Cost (mảnh)", EditorStyles.boldLabel);
+                RarityFormulaFields<CharacterRarity>("starCost");
+                if (!serializedObject.isEditingMultipleObjects)
+                    DrawRarityPreview(((LevelDatabaseSO)target).StarCost, CharacterLevelConfigSO.MaxStars + 1);
+            }
             Section("SHARED RUN LEVELS", "Công thức EXP và bonus cấp trong trận dùng chung cho Player; tiến trình runtime được reset theo lượt chơi.",
                 DataInspectorTone.Rewards, "runLevelConfig");
         }
@@ -110,8 +134,16 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Stats, "slots");
             Section("SUBSTATS", "Số dòng phụ ban đầu theo độ hiếm. Mốc thứ k (Lv = k × Interval): ít hơn k dòng thì mở dòng mới, đủ rồi thì cộng một lần roll vào một dòng ngẫu nhiên.",
                 DataInspectorTone.Advanced, "rarities", "maxLevel", "milestoneInterval", "maxSubstats", "substatRolls");
-            Section("LEVEL UP COST", "Giá = Base + Per Level × (level hiện tại - 1). TODO: chưa kiểm tra và trừ tiền.",
-                DataInspectorTone.Rewards, "levelUpCurrency", "levelUpCostBase", "levelUpCostPerLevel");
+            using (DataInspectorGUI.Section("LEVEL UP COST", "Giá Gold mỗi mốc Lv → Lv+1 = công thức chung × hệ số độ hiếm của món, làm tròn lên. Hệ số phải tăng dần (món hiếm hơn tốn hơn). Thiếu tiền thì nút Level Up rung và báo.", DataInspectorTone.Rewards))
+            {
+                Field("levelUpCurrency");
+                RarityFormulaFields<EquipmentRarity>("levelUpCost");
+                if (!serializedObject.isEditingMultipleObjects)
+                {
+                    var rules = (EquipmentRulesSO)target;
+                    DrawRarityPreview(rules.LevelUpCost, rules.MaxLevel);
+                }
+            }
         }
         else if (target is CombatAssetsSO)
         {
@@ -139,6 +171,102 @@ public abstract class ProjectDataSOEditor : Editor
         else if (target is EnemyFormationSO) DrawFormation();
         else if (target is EnemyPathSO) DrawPath();
         else if (target is BossSpawnDataSO) DrawSpecialSpawns();
+    }
+
+    #endregion
+
+    #region Level Formulas
+
+    // Mốc hiện trong bảng xem trước: vài mốc đầu, giữa và mốc cuối trước Max Level, để thấy được độ dốc của đường giá.
+    private static readonly int[] PreviewLevels = { 1, 2, 3, 5, 10, 20, 50, 100 };
+    private const float PreviewLevelWidth = 80f;
+    // Bảng giá nhân vật dùng chung cho mọi Max Level (mỗi nhân vật một trần riêng), nên xem trước tới Lv100.
+    private const int PreviewMaxLevel = 101;
+
+    /// <summary>
+    /// Vẽ một field <see cref="ILevelFormula"/> (lưu bằng SerializeReference): danh sách chọn kiểu công thức
+    /// rồi các tham số của đúng công thức đó.
+    /// </summary>
+    private void LevelFormulaField(string path, string label)
+    {
+        SerializedProperty formula = serializedObject.FindProperty(path);
+        // Sửa nhiều asset cùng lúc mà mỗi asset chọn kiểu khác nhau thì không gộp được: dùng field chuẩn của Unity.
+        if (serializedObject.isEditingMultipleObjects) { EditorGUILayout.PropertyField(formula, new GUIContent(label), true); return; }
+        StrategySelector.Draw(formula, StrategySelector.GetTypes<ILevelFormula>(), label);
+    }
+
+    /// <summary>
+    /// Vẽ một field <see cref="RarityScaledFormula{TRarity}"/>: công thức chung + một ô hệ số cho mỗi độ hiếm (ghi đúng tên độ hiếm).
+    /// Số ô hệ số luôn khớp số độ hiếm; ô mới thêm (khi enum có thêm độ hiếm) chép giá trị ô cuối để vẫn tăng dần.
+    /// </summary>
+    private void RarityFormulaFields<TRarity>(string path) where TRarity : struct, Enum
+    {
+        LevelFormulaField(path + ".formula", "Formula");
+        SerializedProperty multipliers = serializedObject.FindProperty(path + ".rarityMultipliers");
+        string[] rarities = Enum.GetNames(typeof(TRarity));
+        if (!serializedObject.isEditingMultipleObjects && multipliers.arraySize != rarities.Length)
+            multipliers.arraySize = rarities.Length;
+        EditorGUILayout.LabelField("Rarity Multipliers", EditorStyles.boldLabel);
+        using (new EditorGUI.IndentLevelScope())
+        {
+            for (int i = 0; i < multipliers.arraySize && i < rarities.Length; i++)
+                EditorGUILayout.PropertyField(multipliers.GetArrayElementAtIndex(i), new GUIContent(rarities[i] + " ×"));
+        }
+    }
+
+    /// <summary>Bảng xem trước: mỗi hàng một mốc (Lv → Lv+1), mỗi cột một độ hiếm. Cấu hình lỗi thì không vẽ (khung lỗi đã báo).</summary>
+    private static void DrawRarityPreview<TRarity>(RarityScaledFormula<TRarity> formula, int maxLevel) where TRarity : struct, Enum
+    {
+        if (formula == null) return;
+        string[] rarities = Enum.GetNames(typeof(TRarity));
+        try
+        {
+            formula.Validate();
+            EditorGUILayout.LabelField("Preview (lượng cần cho mốc)", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("Mốc", EditorStyles.miniBoldLabel, GUILayout.Width(PreviewLevelWidth));
+                foreach (string rarity in rarities) EditorGUILayout.LabelField(rarity, EditorStyles.miniBoldLabel);
+            }
+            foreach (int level in PreviewLevels)
+            {
+                if (level >= maxLevel) break;
+                DrawPreviewRow(level, rarities.Length, i => formula.Evaluate(level, (TRarity)Enum.ToObject(typeof(TRarity), i)));
+            }
+            // Mốc cuối (Max Level − 1 → Max Level) luôn hiện, để thấy giá lớn nhất.
+            if (maxLevel > 1 && Array.IndexOf(PreviewLevels, maxLevel - 1) < 0)
+                DrawPreviewRow(maxLevel - 1, rarities.Length, i => formula.Evaluate(maxLevel - 1, (TRarity)Enum.ToObject(typeof(TRarity), i)));
+        }
+        catch (Exception) { /* Lỗi cấu hình đã hiện ở khung kiểm tra phía dưới Inspector. */ }
+    }
+
+    /// <summary>Bảng xem trước của một công thức không có độ hiếm (EXP trong trận).</summary>
+    private static void DrawFormulaPreview(ILevelFormula formula, int maxLevel)
+    {
+        if (formula == null) return;
+        try
+        {
+            formula.Validate();
+            EditorGUILayout.LabelField("Preview (lượng cần cho mốc)", EditorStyles.boldLabel);
+            foreach (int level in PreviewLevels)
+            {
+                if (level >= maxLevel) break;
+                DrawPreviewRow(level, 1, _ => formula.Evaluate(level));
+            }
+            if (maxLevel > 1 && Array.IndexOf(PreviewLevels, maxLevel - 1) < 0)
+                DrawPreviewRow(maxLevel - 1, 1, _ => formula.Evaluate(maxLevel - 1));
+        }
+        catch (Exception) { /* Lỗi cấu hình đã hiện ở khung kiểm tra phía dưới Inspector. */ }
+    }
+
+    private static void DrawPreviewRow(int level, int columns, Func<int, long> evaluate)
+    {
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            EditorGUILayout.LabelField("Lv" + level + " → " + (level + 1), GUILayout.Width(PreviewLevelWidth));
+            for (int i = 0; i < columns; i++)
+                EditorGUILayout.LabelField(evaluate(i).ToString("N0", System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     #endregion

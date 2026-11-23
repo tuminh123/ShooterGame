@@ -42,3 +42,14 @@ MonoBehaviour:
   skills:
   - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
   skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

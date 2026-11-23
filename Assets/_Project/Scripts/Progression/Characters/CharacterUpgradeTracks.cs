@@ -2,7 +2,7 @@ using System;
 
 // Họ strategy NỘI BỘ của Progression: mỗi loại nâng cấp (CharacterUpgradeKind) là một track.
 // ProgressionManager chọn track bằng một switch; miền khác chỉ thấy ICharacterUpgrades.
-// Không bind Zenject. Demo chưa kiểm tra và chưa trừ tiền (xem các TODO).
+// Không bind Zenject. Level trả Gold, sao trả mảnh theo độ hiếm (bản trùng dùng trước); nhân vật chưa sở hữu thì không nâng được.
 
 #region Track Contract
 
@@ -21,17 +21,24 @@ internal interface IUpgradeTrack
 #region Level Track
 
 /// <summary>
-/// Level vĩnh viễn theo thanh EXP: mỗi lần bấm tiêu <c>AmountPerUpgrade</c> nguyên liệu và nạp đúng lượng đó
-/// vào thanh (1:1), giống nhặt EXP trong trận. Trần và công thức đọc từ CharacterLevelConfigSO qua <see cref="CharacterLevels"/>.
+/// Level vĩnh viễn theo thanh: mỗi mốc cần một lượng Gold (công thức theo độ hiếm trong LevelDatabaseSO),
+/// chia đều cho <c>ClicksPerLevel</c> lần bấm. Mỗi lần bấm tiêu một phần Gold và nạp đúng lượng đó vào thanh (1:1),
+/// giống nhặt EXP trong trận; đầy thanh thì lên cấp. Giá trên nút vì vậy tăng theo level và độ hiếm.
 /// </summary>
+/// <remarks>
+/// Ví dụ 4 lần bấm: Common Lv1 (cần 100) → 25 mỗi lần; Rare Lv1 (cần 200) → 50; Common Lv10 (cần 550) → 138, 138, 138, 136.
+/// Lần bấm cuối của mốc chỉ tốn phần còn thiếu, nên tổng Gold của mốc đúng bằng công thức và một lần bấm không bao giờ tràn sang mốc sau.
+/// </remarks>
 internal sealed class LevelTrack : IUpgradeTrack
 {
     private readonly CharacterLevels levels;
+    private readonly Wallet wallet; // Chỉ đọc số dư để báo NotEnoughCurrency; việc trừ tiền do CharacterLevels làm cùng lần save.
 
-    /// <summary>Dùng chung CharacterLevels của ProgressionManager, không giữ bản sao tiến trình.</summary>
-    public LevelTrack(CharacterLevels levels)
+    /// <summary>Dùng chung CharacterLevels và Wallet của ProgressionManager, không giữ bản sao tiến trình.</summary>
+    public LevelTrack(CharacterLevels levels, Wallet wallet)
     {
         this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
+        this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
     }
 
     /// <inheritdoc/>
@@ -40,15 +47,20 @@ internal sealed class LevelTrack : IUpgradeTrack
         CharacterLevelConfigSO config = levels.GetConfig(type);
         int level = levels.GetLevel(type);
         int max = config.MaxLevel;
+        // Chưa sở hữu thì chỉ xem thông tin, không nâng được.
+        if (!levels.IsOwned(type))
+            return new UpgradeQuote(level, max, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.NotAvailable);
         if (!levels.TryGetRequiredPoints(type, out int required))
             return new UpgradeQuote(Math.Min(level, max), max, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.MaxReached);
 
-        // Lần nạp chạm trần chỉ tốn đúng phần còn thiếu: EXP dư trong trận bị bỏ thì không sao, còn đây là tiền thật.
-        long amount = Math.Min(config.AmountPerUpgrade, levels.GetPointsToMaxLevel(type));
-        // Demo tạm dùng Gold; loại tiền sẽ nằm trong config khi làm phần trả tiền.
-        var costs = new[] { new CurrencyCost(CurrencyType.Gold, amount) };
-        // TODO: kiểm tra số dư qua Wallet; thiếu tiền thì trả UpgradeBlock.NotEnoughCurrency.
-        return new UpgradeQuote(level, max, levels.GetUpgradePoints(type), required, costs, UpgradeBlock.None);
+        int progress = levels.GetUpgradePoints(type);
+        // Giá một lần bấm = Gold của mốc chia đều cho số lần bấm (làm tròn lên).
+        // Lần cuối chỉ tốn phần còn thiếu của thanh: đây là tiền thật nên không được thu dư.
+        long perClick = (required + (long)config.ClicksPerLevel - 1) / config.ClicksPerLevel;
+        long amount = Math.Min(perClick, required - progress);
+        var costs = new[] { new CurrencyCost(levels.UpgradeCurrency, amount) };
+        UpgradeBlock block = wallet.CanAfford(costs) ? UpgradeBlock.None : UpgradeBlock.NotEnoughCurrency;
+        return new UpgradeQuote(level, max, progress, required, costs, block);
     }
 
     /// <inheritdoc/>
@@ -58,10 +70,9 @@ internal sealed class LevelTrack : IUpgradeTrack
         // Kiểm tra lại: UI có thể đang giữ một quote cũ.
         UpgradeQuote quote = GetQuote(type);
         if (!quote.CanUpgrade) return false;
-        // Nguyên liệu tiêu chính là EXP nạp vào thanh (1:1).
+        // Gold tiêu chính là lượng nạp vào thanh (1:1); tiền và điểm được ghi cùng một lần save.
         int amount = (int)quote.Costs[0].Amount;
-        // TODO: trừ tiền trong cùng một lần save với việc nạp điểm.
-        return levels.TryAddUpgradePoints(type, amount, out saved);
+        return levels.TryAddUpgradePoints(type, amount, quote.Costs, out saved);
     }
 }
 
@@ -70,26 +81,24 @@ internal sealed class LevelTrack : IUpgradeTrack
 #region Star Track
 
 /// <summary>
-/// Sao vĩnh viễn: đọc/ghi số sao qua <see cref="CharacterLevels"/>. Mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>.
+/// Sao vĩnh viễn: mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>, trả bằng mảnh cùng độ hiếm với nhân vật
+/// (Star Cost trong LevelDatabaseSO). Bản trùng của chính nhân vật được dùng trước, mỗi bản tính bằng Shards Per Copy mảnh.
 /// Phần thưởng của mỗi sao nằm trong CharacterDataSO: các bước skill (điều kiện Stars), hoặc chỉ số dự phòng khi sao không có skill.
-/// Giá bằng mảnh nhân vật làm ở Task S2 (Docs/Architecture/Character-Stars-Tasks.md).
 /// </summary>
+/// <remarks>Luật trả giá nằm ở <see cref="CharacterCollection"/>; track này chỉ dựng quote và chặn nhân vật chưa sở hữu.</remarks>
 internal sealed class StarTrack : IUpgradeTrack
 {
     /// <summary>Số sao tối đa, khớp 5 ô sao trên UI.</summary>
     public const int MaxStars = CharacterLevelConfigSO.MaxStars;
 
-    // Lưu ý: CỜ TEST TẠM: true = nâng sao miễn phí để test UI và save trước khi có mảnh nhân vật.
-    // Task S2 thay bằng giá mảnh thật (CurrencyType.Shard) và xóa cờ này; đặt false để khóa lại nút nâng sao.
-    // static readonly thay vì const để compiler không báo "unreachable code" cho nhánh còn lại.
-    private static readonly bool FreeUpgradesForTesting = true;
-
     private readonly CharacterLevels levels;
+    private readonly CharacterCollection collection;
 
-    /// <summary>Dùng chung CharacterLevels của ProgressionManager (chủ duy nhất của key character_levels).</summary>
-    public StarTrack(CharacterLevels levels)
+    /// <summary>Dùng chung CharacterLevels và CharacterCollection của ProgressionManager.</summary>
+    public StarTrack(CharacterLevels levels, CharacterCollection collection)
     {
         this.levels = levels ?? throw new ArgumentNullException(nameof(levels));
+        this.collection = collection ?? throw new ArgumentNullException(nameof(collection));
     }
 
     /// <inheritdoc/>
@@ -97,12 +106,14 @@ internal sealed class StarTrack : IUpgradeTrack
     {
         // Save cũ có thể nhiều sao hơn trần hiện tại; chỉ hiển thị tới trần, không tự sửa save.
         int stars = Math.Min(levels.GetStars(type), MaxStars);
-        if (!FreeUpgradesForTesting)
+        if (!collection.IsOwned(type))
             return new UpgradeQuote(stars, MaxStars, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.NotAvailable);
         if (stars >= MaxStars)
             return new UpgradeQuote(stars, MaxStars, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.MaxReached);
-        // Chưa có giá: danh sách Costs rỗng nên nút chỉ hiện chữ UPGRADE.
-        return new UpgradeQuote(stars, MaxStars, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.None);
+        // Giá hiện trên nút là tổng mảnh của sao kế tiếp; bản trùng (nếu có) được trừ vào lúc trả.
+        var costs = new[] { new CurrencyCost(collection.GetStatus(type).ShardCurrency, collection.GetNextStarCost(type)) };
+        UpgradeBlock block = collection.CanAffordNextStar(type) ? UpgradeBlock.None : UpgradeBlock.NotEnoughCurrency;
+        return new UpgradeQuote(stars, MaxStars, 0, 0, costs, block);
     }
 
     /// <inheritdoc/>
@@ -111,7 +122,7 @@ internal sealed class StarTrack : IUpgradeTrack
         saved = false;
         // Kiểm tra lại: UI có thể đang giữ một quote cũ.
         if (!GetQuote(type).CanUpgrade) return false;
-        return levels.TryAddStar(type, MaxStars, out saved);
+        return collection.TryAddStar(type, out saved);
     }
 }
 

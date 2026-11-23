@@ -146,6 +146,62 @@ public interface ICharacterUpgrades
 
 #endregion
 
+#region Character Collection (màn Character, panel test; sau này gacha thật)
+
+/// <summary>Trạng thái bộ sưu tập của một nhân vật: đã có chưa, bản trùng, mảnh cùng độ hiếm đang có và số cần để ghép.</summary>
+public readonly struct CharacterCollectionStatus
+{
+    public readonly bool Owned;
+    /// <summary>Số bản trùng đang giữ (phân rã được, hoặc dùng để nâng sao).</summary>
+    public readonly int Copies;
+    /// <summary>Loại mảnh của độ hiếm nhân vật này.</summary>
+    public readonly CurrencyType ShardCurrency;
+    /// <summary>Số mảnh cùng độ hiếm đang có trong ví.</summary>
+    public readonly long Shards;
+    /// <summary>Số mảnh để ghép (chỉ có nghĩa khi chưa sở hữu).</summary>
+    public readonly int UnlockShards;
+    /// <summary>Số mảnh nhận được khi phân rã một bản trùng.</summary>
+    public readonly int ShardsPerCopy;
+
+    /// <summary>Chưa sở hữu và đủ mảnh để ghép.</summary>
+    public bool CanAssemble => !Owned && Shards >= UnlockShards;
+
+    public CharacterCollectionStatus(bool owned, int copies, CurrencyType shardCurrency, long shards, int unlockShards, int shardsPerCopy)
+    {
+        Owned = owned;
+        Copies = copies;
+        ShardCurrency = shardCurrency;
+        Shards = shards;
+        UnlockShards = unlockShards;
+        ShardsPerCopy = shardsPerCopy;
+    }
+}
+
+/// <summary>
+/// Bộ sưu tập nhân vật Player: sở hữu, bản trùng, ghép bằng mảnh, phân rã bản trùng thành mảnh.
+/// Mảnh theo độ hiếm, chung mọi nhân vật cùng độ hiếm (luật trong LevelDatabaseSO). Dùng bởi màn Character và panel test.
+/// </summary>
+/// <remarks>Mỗi thao tác đổi RAM rồi ghi ví + tiến trình trong một lần save; saved = false thì không gọi lại lệnh.</remarks>
+public interface ICharacterCollection
+{
+    /// <summary>Trạng thái bộ sưu tập của <paramref name="type"/>.</summary>
+    CharacterCollectionStatus GetStatus(CharacterType type);
+
+    /// <summary>Nhận một nhân vật (gacha): chưa có thì sở hữu luôn, đã có thì thêm một bản trùng.</summary>
+    CharacterGrantResult Grant(CharacterType type, out bool saved);
+
+    /// <summary>Ghép nhân vật chưa có bằng mảnh cùng độ hiếm; false nếu đã có hoặc chưa đủ mảnh.</summary>
+    bool TryAssemble(CharacterType type, out bool saved);
+
+    /// <summary>Phân rã <paramref name="count"/> bản trùng thành mảnh cùng độ hiếm; false nếu không đủ bản trùng.</summary>
+    bool TryDismantle(CharacterType type, int count, out bool saved);
+
+    /// <summary>Phát sau khi sở hữu, bản trùng hoặc mảnh của bộ sưu tập đổi (đã thử lưu).</summary>
+    event Action Changed;
+}
+
+#endregion
+
 #region Stage Progress (StageRewards)
 
 /// <summary>Mốc vượt màn lần đầu và thưởng thắng. Dùng bởi StageRewards (miền Stage).</summary>

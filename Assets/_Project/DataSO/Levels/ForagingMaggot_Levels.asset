@@ -23,6 +23,4 @@ MonoBehaviour:
     critDamageMultiplier: 0
     effectResistance: 0
     effectHit: 0
-  initialRequired: 100
-  requiredIncreasePerLevel: 50
-  amountPerUpgrade: 25
+  clicksPerLevel: 4

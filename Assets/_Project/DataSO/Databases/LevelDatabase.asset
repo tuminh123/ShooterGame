@@ -11,9 +11,58 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c646afe990ac4340be6d3bd76021b394, type: 3}
   m_Name: LevelDatabase
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   characterLevels:
   - {fileID: 11400000, guid: b888c6c1969665e8025f68393d43f7a1, type: 2}
   - {fileID: 11400000, guid: ecd8e1f477d6477fb00d63a3ca42d7e2, type: 2}
   - {fileID: 11400000, guid: 5c1f8f5ab34a4a51a2d05544873bed92, type: 2}
+  permanentLevelCurrency: 0
+  permanentLevelCost:
+    formula:
+      rid: 8867964228872699909
+    rarityMultipliers:
+    - 1
+    - 1.5
+    - 2
+    - 3.5
+    - 5
+  starterCharacters: 01000000
+  collectionRules:
+  - rarity: 0
+    unlockShards: 30
+    shardsPerCopy: 10
+  - rarity: 1
+    unlockShards: 45
+    shardsPerCopy: 15
+  - rarity: 2
+    unlockShards: 75
+    shardsPerCopy: 25
+  - rarity: 3
+    unlockShards: 120
+    shardsPerCopy: 40
+  - rarity: 4
+    unlockShards: 180
+    shardsPerCopy: 60
+  starCost:
+    formula:
+      rid: 8867964228872699918
+    rarityMultipliers:
+    - 1
+    - 1.5
+    - 2.5
+    - 4
+    - 6
   runLevelConfig: {fileID: 11400000, guid: 93efe895ced70c8395eb4eac439696dc, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964228872699909
+      type: {class: LinearFormula, ns: , asm: Assembly-CSharp}
+      data:
+        baseValue: 100
+        step: 50
+    - rid: 8867964228872699918
+      type: {class: LinearFormula, ns: , asm: Assembly-CSharp}
+      data:
+        baseValue: 10
+        step: 10

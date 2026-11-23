@@ -128,7 +128,7 @@ public sealed class EquipmentInfoPopupView : MonoBehaviour
         hintText.gameObject.SetActive(!string.IsNullOrEmpty(model.Hint));
         equipLabel.text = model.EquipLabel;
         upgradeLabel.text = model.UpgradeLabel;
-        upgradeButton.interactable = model.CanUpgrade;
+        upgradeButton.interactable = model.UpgradeInteractable;
 
         bool wasOpen = IsOpen;
         SetVisible(true);
@@ -144,6 +144,13 @@ public sealed class EquipmentInfoPopupView : MonoBehaviour
         mainRow.Flash();
         if (changedSubstat >= 0 && changedSubstat < substatRows.Length)
             substatRows[changedSubstat].Flash();
+    }
+
+    /// <summary>Nút Level Up rung ngang khi lần bấm bị từ chối (không đủ tiền); cần <see cref="ButtonDeniedShake"/> trên nút.</summary>
+    public void PlayUpgradeDenied()
+    {
+        if (upgradeButton.TryGetComponent(out ButtonDeniedShake shake))
+            shake.Shake();
     }
 
     /// <summary>Đóng popup.</summary>

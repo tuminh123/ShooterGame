@@ -183,7 +183,7 @@ public static class ServiceContractVerification
         Require(!container.HasBinding<ScreenTransitionController>(), "Unexpected concrete binding: ScreenTransitionController");
         CheckDomainManager(container, typeof(SaveManager), typeof(ISaveStore), typeof(ISaveMaintenance));
         CheckDomainManager(container, typeof(ProgressionManager), typeof(IWallet), typeof(IPermanentBonuses), typeof(ICharacterProgress),
-            typeof(IStageProgress), typeof(ICharacterUpgrades), typeof(IEquipment), typeof(IEquipmentGrant));
+            typeof(IStageProgress), typeof(ICharacterUpgrades), typeof(ICharacterCollection), typeof(IEquipment), typeof(IEquipmentGrant));
         CheckDomainManager(container, typeof(PoolManager), typeof(IGameObjectPool), typeof(IPoolPreparation), typeof(IPoolCleanup));
     }
 

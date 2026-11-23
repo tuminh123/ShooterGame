@@ -87,13 +87,11 @@ public sealed class EquipmentRulesSO : ScriptableObject
     [Tooltip("Các chỉ số có thể ra ở dòng phụ, kèm khoảng roll. Chỉ số chính của ô không bao giờ ra ở dòng phụ.")]
     [SerializeField] private List<SubstatRoll> substatRolls = new List<SubstatRoll>();
 
-    [Header("Level Up Cost (TODO: chưa trừ tiền)")]
-    [Tooltip("Loại tiền hiện trên nút Level Up.")]
+    [Header("Level Up Cost")]
+    [Tooltip("Loại tiền bị trừ khi Level Up (cũng hiện trên nút).")]
     [SerializeField] private CurrencyType levelUpCurrency = CurrencyType.Gold;
-    [Tooltip("Giá nâng từ Lv.1 lên Lv.2.")]
-    [SerializeField, Min(0)] private int levelUpCostBase = 100;
-    [Tooltip("Giá tăng thêm cho mỗi cấp hiện tại sau Lv.1.")]
-    [SerializeField, Min(0)] private int levelUpCostPerLevel = 50;
+    [Tooltip("Giá Gold của mỗi mốc Lv → Lv+1 = công thức chung × hệ số của độ hiếm món đồ. Độ hiếm cao phải có hệ số lớn hơn.")]
+    [SerializeField] private RarityScaledFormula<EquipmentRarity> levelUpCost = new RarityScaledFormula<EquipmentRarity>();
 
     /// <summary>Level tối đa của trang bị.</summary>
     public int MaxLevel => maxLevel;
@@ -109,6 +107,9 @@ public sealed class EquipmentRulesSO : ScriptableObject
 
     /// <summary>Loại tiền của giá nâng cấp.</summary>
     public CurrencyType LevelUpCurrency => levelUpCurrency;
+
+    /// <summary>Công thức giá nâng cấp theo độ hiếm (Inspector dùng để hiện bảng xem trước).</summary>
+    public RarityScaledFormula<EquipmentRarity> LevelUpCost => levelUpCost;
 
     #endregion
 
@@ -154,8 +155,8 @@ public sealed class EquipmentRulesSO : ScriptableObject
         return false;
     }
 
-    /// <summary>Giá nâng từ <paramref name="currentLevel"/> lên cấp kế tiếp.</summary>
-    public long GetLevelUpCost(int currentLevel) => levelUpCostBase + (long)levelUpCostPerLevel * (Math.Max(1, currentLevel) - 1);
+    /// <summary>Giá nâng một món độ hiếm <paramref name="rarity"/> từ <paramref name="currentLevel"/> lên cấp kế tiếp.</summary>
+    public long GetLevelUpCost(int currentLevel, EquipmentRarity rarity) => levelUpCost.Evaluate(Math.Max(1, currentLevel), rarity);
 
     /// <summary>Số mốc dòng phụ đã qua ở <paramref name="level"/> (Lv.12 với mốc 5 → 2).</summary>
     public int GetMilestonesReached(int level) => Mathf.Clamp(level, 1, maxLevel) / milestoneInterval;
@@ -204,6 +205,7 @@ public sealed class EquipmentRulesSO : ScriptableObject
         ValidateSlots();
         ValidateRarities();
         ValidateRolls();
+        levelUpCost.Validate();
         foreach (EquipmentSlot slot in (EquipmentSlot[])Enum.GetValues(typeof(EquipmentSlot)))
         {
             // Dòng phụ không trùng nhau và không trùng chỉ số chính: cần đủ chỉ số khác chỉ số chính.

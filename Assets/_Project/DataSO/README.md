@@ -78,11 +78,9 @@ Mỗi nhân vật có thể có CharacterLevelConfigSO riêng. Một config ch�
 | Character Type | Nhân vật cụ thể dùng config này, khớp type trên template | BlessedGladiator |
 | Max Level | Level vĩnh viễn tối đa | 10 |
 | Bonus Per Level | Một bộ chỉ số cộng thêm cho mỗi lần lên cấp | +20 HP, +2 damage, ... |
-| Initial Required | Nguyên liệu cần để đầy thanh từ level 1 lên 2 (hệ số A) | 100 |
-| Required Increase Per Level | Lượng cần tăng thêm mỗi cấp (hệ số B) | 50 |
-| Amount Per Upgrade | Nguyên liệu tiêu và nạp vào thanh mỗi lần bấm Upgrade (1:1) | 25 |
+| Clicks Per Level | Số lần bấm Upgrade để đầy thanh một mốc | 4 |
 
-Enemy/Boss cũng dùng CharacterLevelConfigSO nhưng chỉ đọc Max Level và Bonus Per Level (bonus theo wave); ba field EXP nâng cấp bỏ qua với quái.
+Gold cần cho mỗi mốc (độ dài thanh) **không** nằm trong config này mà nằm chung trong **LevelDatabaseSO → Permanent Level Cost**, theo độ hiếm của nhân vật (xem mục 4b). Enemy/Boss cũng dùng CharacterLevelConfigSO nhưng chỉ đọc Max Level và Bonus Per Level (bonus theo wave); Clicks Per Level bỏ qua với quái.
 
 Không còn danh sách Element 0/1/2. Level 1 dùng chỉ số gốc, nên:
 
@@ -96,28 +94,67 @@ Ví dụ HP gốc 100, bonus mỗi cấp 20: level 1 có 100 HP; level 2 có 120
 Nâng cấp vĩnh viễn dùng **cùng cơ chế với thanh EXP trong trận**, chỉ thay EXP bằng nguyên liệu:
 
 ```text
-Nguyên liệu cần để đầy thanh từ level L lên L+1
-    = Initial Required + Required Increase Per Level × (L − 1)
-Mỗi lần bấm Upgrade: tiêu Amount Per Upgrade → nạp đúng lượng đó vào thanh
-Đầy thanh → lên cấp, phần dư chuyển sang thanh cấp sau (có thể lên nhiều cấp một lần)
+Gold cần để đầy thanh từ level L lên L+1 = Permanent Level Cost (công thức × hệ số độ hiếm của nhân vật)
+Giá mỗi lần bấm = Gold cần cho mốc ÷ Clicks Per Level (làm tròn lên); lần cuối của mốc chỉ tốn phần còn thiếu
+Mỗi lần bấm: tiêu giá đó → nạp đúng lượng đó vào thanh; đầy thanh → lên cấp (một lần bấm không tràn sang mốc sau)
 ```
 
-| Chuyển cấp | Cần (A = 100, B = 50) | Số lần bấm (25 mỗi lần) |
-|---|---:|---:|
-| 1 → 2 | 100 | 4 |
-| 2 → 3 | 150 | 6 |
-| 3 → 4 | 200 | 8 |
-| 9 → 10 | 500 | 20 |
+Số lần bấm mỗi mốc luôn bằng nhau; **giá trên nút tăng theo level và độ hiếm** (Clicks Per Level = 4, Linear 100 / 50):
 
-Giá mỗi lần bấm không đổi; cấp cao đắt hơn vì thanh dài hơn. B = 0 thì mọi cấp cần cùng lượng. Lần bấm chạm Max Level chỉ tốn đúng phần còn thiếu (không làm mất nguyên liệu của người chơi). Demo tạm dùng Gold, **chưa kiểm tra số dư và chưa trừ tiền** (TODO trong `LevelTrack`). Tham số phải thỏa MaxLevel >= 1, Initial Required >= 1, Increase >= 0, Amount Per Upgrade >= 1; overflow int sẽ báo lỗi thay vì trả số âm.
+| Chuyển cấp | Common ×1 (cần → mỗi lần) | Rare ×2 | Legendary ×5 |
+|---|---:|---:|---:|
+| 1 → 2 | 100 → 25 | 200 → 50 | 500 → 125 |
+| 2 → 3 | 150 → 38 (lần cuối 36) | 300 → 75 | 750 → 188 (lần cuối 186) |
+| 10 → 11 | 550 → 138 (lần cuối 136) | 1,100 → 275 | 2,750 → 688 (lần cuối 686) |
 
-Asset cũ: field Initial Required nhận lại giá trị Initial Upgrade Cost cũ (`FormerlySerializedAs`); Upgrade Cost Multiplier không còn dùng.
+Thiếu tiền thì nút vẫn bấm được nhưng rung và báo "Not enough Gold" (`NotEnoughCurrency`). Tiền, level và điểm được ghi trong một lần save, nên lỗi IO không làm mất tiền mà không lên cấp. Tham số phải thỏa MaxLevel >= 1, Clicks Per Level >= 1; giá vượt int sẽ báo lỗi tràn số thay vì trả số âm.
 
 GetTotalBonus(level) tính tổng bằng phép nhân struct, không duyệt bảng. Nếu save cao hơn MaxLevel mới, chỉ tính bonus tới trần hiện tại, không tự sửa level trong save. Level dưới 1 bị từ chối.
 
-Save giữ `permanentLevel` và `upgradePoints` (nguyên liệu đã nạp vào thanh của cấp hiện tại) cho từng CharacterType. Save cũ không có `upgradePoints` được đọc là 0. Khi load, nếu config bị chỉnh khiến điểm đã lưu vượt thanh hiện tại thì điểm được ép về trong thanh (ở trần thì về 0) thay vì báo lỗi.
+Save giữ `permanentLevel` và `upgradePoints` (Gold đã nạp vào thanh của cấp hiện tại) cho từng CharacterType. Save cũ không có `upgradePoints` được đọc là 0. Khi load, nếu công thức bị chỉnh khiến điểm đã lưu vượt thanh hiện tại thì điểm được ép về trong thanh (ở trần thì về 0) thay vì báo lỗi.
 
-## 5. Level trong trận: bonus cố định và EXP tuyến tính
+## 4b. Công thức "lượng cần cho mốc cấp" (`ILevelFormula`)
+
+Mọi chỗ "mỗi mốc Lv → Lv+1 cần bao nhiêu" dùng chung một họ công thức (`Scripts/Progression/Formulas/`), chọn trong Inspector bằng danh sách:
+
+| Công thức | Tham số | Lượng cần ở level L | Ví dụ |
+|---|---|---|---|
+| `LinearFormula` | Base, Step | `Base + Step × (L − 1)` | 100, 150, 200, ... |
+| `GeometricFormula` | Base, Multiplier | `Base × Multiplier^(L − 1)`, làm tròn lên | 100, 115, 133, ... (×1.15) |
+
+| Nơi dùng | Asset → field | Theo độ hiếm? |
+|---|---|---|
+| Gold nâng level vĩnh viễn nhân vật | LevelDatabase → Permanent Level Cost | Có, `CharacterRarity` của CharacterDataSO |
+| Gold nâng cấp trang bị | EquipmentRules → Level Up Cost | Có, `EquipmentRarity` của món |
+| EXP lên cấp trong trận | RunLevelConfig → Experience Formula | Không |
+
+Có độ hiếm thì lượng cần = `công thức × hệ số của độ hiếm`, làm tròn lên (`RarityScaledFormula`). Ví dụ Linear Base 10, Step 5; Common ×1, Legendary ×5 → Lv1 → 2: Common cần 10, Legendary cần 50. Tỉ lệ giữa các độ hiếm giữ nguyên ở mọi mốc nên dễ cân bằng. **Hệ số phải tăng dần** theo độ hiếm (độ hiếm cao không được rẻ hơn), sai thì validate báo lỗi. Inspector có bảng **Preview** hiện lượng cần của các mốc cho từng độ hiếm.
+
+Thêm cách tính mới để cân bằng: viết một class `[Serializable]` có constructor mặc định, implement `ILevelFormula` (đặt trong `LevelFormulas.cs`); nó tự xuất hiện trong danh sách chọn, code nơi dùng không phải sửa.
+
+Asset cũ: các field A/B (`initialRequired`, `requiredIncreasePerLevel`, `initialExperience`, `experienceIncreasePerLevel`, `levelUpCostBase`, `levelUpCostPerLevel`) đã bỏ; các asset mẫu được điền lại bằng Linear với đúng số cũ, nên game chạy như trước với độ hiếm Common.
+
+## 4c. Bộ sưu tập nhân vật: sở hữu, mảnh theo độ hiếm, ghép, bản trùng
+
+Cấu hình ở **LevelDatabase → CHARACTER COLLECTION** (chung mọi nhân vật cùng độ hiếm; độ hiếm đọc từ CharacterDataSO.Rarity):
+
+| Field | Ý nghĩa | Mẫu (Common / Uncommon / Rare / Epic / Legendary) |
+|---|---|---|
+| Starter Characters | Nhân vật sở hữu sẵn từ đầu, không cần ghép | BlessedGladiator |
+| Collection Rules → Unlock Shards | Mảnh cùng độ hiếm để **ghép** nhân vật chưa có | 30 / 45 / 75 / 120 / 180 |
+| Collection Rules → Shards Per Copy | Mảnh nhận khi **phân rã** một bản trùng; cũng là giá trị một bản trùng khi nâng sao | 10 / 15 / 25 / 40 / 60 |
+| Star Cost | Mảnh để mở sao thứ n (`ILevelFormula` × hệ số độ hiếm) | Linear 10 / 10 × 1 · 1.5 · 2.5 · 4 · 6 → Common: 10, 20, 30, 40, 50 |
+
+- **Mảnh là tiền tệ** (`CurrencyType.ShardCommon..ShardLegendary`), nằm trong ví. Icon + tên hiển thị ở CharacterScreenTheme → Currencies.
+- **Gacha** (`ICharacterCollection.Grant`): chưa có → sở hữu luôn; đã có → +1 bản trùng.
+- **Ghép**: thẻ chưa sở hữu đủ mảnh thì sáng lên, chạm vào là trừ Unlock Shards và sở hữu.
+- **Phân rã**: nút DISMANTLE ở màn Collection → popup, mỗi nhân vật có bản trùng một dòng, bấm để đổi hết bản trùng thành mảnh.
+- **Nâng sao**: dùng bản trùng của chính nhân vật trước (mỗi bản = Shards Per Copy mảnh, phần dư vào ví), thiếu thì trừ mảnh. Level vẫn trả Gold.
+- Nhân vật chưa sở hữu: thẻ xám (material `Shaders/UIGrayscale.mat`), thanh mảnh thay level/sao; Detail chỉ xem (ẩn nút chọn và nâng cấp).
+- Save: `owned`, `copies` trong `character_levels` (cùng Entry với level/sao). Save cũ đọc ra chưa sở hữu, 0 bản trùng; nhân vật khởi đầu luôn tính là đã có.
+- Thêm nhân vật Player mới: thêm template vào CharacterDatabase **và** một CharacterLevelConfigSO vào LevelDatabase (bắt buộc, thiếu thì báo lỗi khi vào game).
+
+## 5. Level trong trận: bonus cố định và công thức EXP
 
 RunLevelConfigSO được gán một lần vào LevelDatabaseSO và dùng chung cho level người chơi trong trận:
 
@@ -125,15 +162,14 @@ RunLevelConfigSO được gán một lần vào LevelDatabaseSO và dùng chung 
 |---|---|---:|
 | Max Level | Level tối đa của lượt chơi | 10 |
 | Bonus Per Level | Bộ chỉ số cộng y nguyên mỗi lần lên cấp | +5 HP, +1 damage |
-| Initial Experience | EXP từ level 1 lên 2, hệ số A | 10 |
-| Experience Increase Per Level | Lượng EXP yêu cầu tăng thêm mỗi cấp, hệ số B | 5 |
+| Experience Formula | Công thức EXP cho mỗi mốc (xem mục 4b) | Linear 10 / 5 |
 
 ```text
-EXP từ level L lên L+1 = A + B × (L − 1)
+EXP từ level L lên L+1 = Experience Formula (mẫu: Linear Base 10, Step 5 → 10 + 5 × (L − 1))
 Bonus tích lũy = Bonus Per Level × (L − 1)
 ```
 
-| Chuyển cấp | EXP cần riêng với A = 10, B = 5 |
+| Chuyển cấp | EXP cần riêng (Linear Base 10, Step 5) |
 |---|---:|
 | 1 → 2 | 10 |
 | 2 → 3 | 15 |
@@ -219,10 +255,9 @@ và `BonusesChanged`. Màn Character nâng cấp qua `ICharacterUpgrades` (`GetQ
 | GetConfig(type) | Tra config vĩnh viễn |
 | GetLevel(type) | Đọc level vĩnh viễn |
 | GetTotalBonus(type) | Tính tổng bonus vĩnh viễn |
-| GetUpgradePoints(type) | Nguyên liệu đã nạp vào thanh của cấp hiện tại |
-| TryGetRequiredPoints(type, out required) | Lượng cần để đầy thanh cấp hiện tại; false khi đạt trần |
-| GetPointsToMaxLevel(type) | Tổng còn thiếu để chạm trần (giới hạn giá lần bấm cuối) |
-| TryAddUpgradePoints(type, amount, out saved) | Nạp điểm, lên cấp khi đầy thanh, ghi level + điểm trong một lần save; phát LevelChanged chỉ khi lên cấp |
+| GetUpgradePoints(type) | Gold đã nạp vào thanh của cấp hiện tại |
+| TryGetRequiredPoints(type, out required) | Gold cần để đầy thanh cấp hiện tại (công thức × hệ số độ hiếm); false khi đạt trần |
+| TryAddUpgradePoints(type, amount, costs, out saved) | Trả `costs`, nạp điểm, lên cấp khi đầy thanh; tiền + level + điểm ghi trong một lần save; phát LevelChanged chỉ khi lên cấp |
 | SaveProgress() | Thử lưu lại hồ sơ, không nạp thêm điểm |
 
 Chỉ gọi API đọc/thay đổi save sau ProgressionManager.Initialize. Không đọc tiến trình trong constructor của class khác.
@@ -311,7 +346,7 @@ Khi tự setup, gán Character Database, Level Database và Equipment Database t
 | Effect resistance | 0% | +1 điểm phần trăm | 4% |
 | Effect hit | 0% | +1 điểm phần trăm | 4% |
 
-Level vĩnh viễn mẫu dùng giá đầu 100, hệ số 1.2, trần 10. Level trong trận mẫu dùng A = 10, B = 5, trần 10, mỗi cấp +5 HP và +1 damage. Nhân vật vĩnh viễn level 5, trong trận level 3 có maxHealth = 100 + 4×20 + 2×5 = 190; damage = 10 + 4×2 + 2×1 = 20.
+Level vĩnh viễn mẫu dùng Permanent Level Cost Linear 100 / 50 (Common ×1), trần 20. Level trong trận mẫu dùng Experience Formula Linear 10 / 5, trần 20, mỗi cấp +5 HP và +1 damage. Nhân vật vĩnh viễn level 5, trong trận level 3 có maxHealth = 100 + 4×20 + 2×5 = 190; damage = 10 + 4×2 + 2×1 = 20.
 
 Các giá trị là ví dụ để chỉnh, chưa được cân bằng bằng chơi thử.
 

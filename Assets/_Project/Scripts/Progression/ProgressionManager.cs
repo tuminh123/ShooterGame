@@ -11,23 +11,25 @@ using Zenject;
 /// <code>
 /// ProgressionManager
 /// ├── Wallet           ví vàng/kim cương (key currencies)
-/// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels)
-/// ├── EquipmentInventory  túi đồ: các bản trang bị, nhận đồ, nâng cấp (key equipment_items)
+/// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels); nhận Wallet để trừ tiền cùng lần
+/// ├── EquipmentInventory  túi đồ: các bản trang bị, nhận đồ, nâng cấp (key equipment_items); nhận Wallet để trừ tiền cùng lần
 /// ├── EquipmentLoadout đồ đang mặc theo ô, set đang bật, tổng bonus trang bị (key equipment_slots)
 /// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
 /// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
-/// └── StarTrack        nâng sao (dùng CharacterLevels); tạm miễn phí để test, giá mảnh làm ở Task S2
+/// ├── CharacterCollection  sở hữu, bản trùng, ghép/phân rã bằng mảnh theo độ hiếm (dữ liệu nằm trong CharacterLevels)
+/// └── StarTrack        nâng sao bằng mảnh + bản trùng (qua CharacterCollection)
 /// </code>
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
 public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, ICharacterProgress, IStageProgress, ICharacterUpgrades,
-    IEquipment, IEquipmentGrant, IInitializable, IDisposable
+    ICharacterCollection, IEquipment, IEquipmentGrant, IInitializable, IDisposable
 {
     #region Fields
 
     private readonly Wallet wallet;
     private readonly CharacterLevels levels;
+    private readonly CharacterCollection collection;
     private readonly EquipmentInventory equipment;
     private readonly EquipmentLoadout loadout;
     private readonly StageProgress stages;
@@ -57,6 +59,14 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     /// <inheritdoc/>
     public event Action Changed;
 
+    // Tên trùng với IEquipment.Changed nên khai báo tường minh: hai event khác nhau, không lẫn listener.
+    /// <inheritdoc/>
+    event Action ICharacterCollection.Changed
+    {
+        add => collection.Changed += value;
+        remove => collection.Changed -= value;
+    }
+
     #endregion
 
     #region Constructor / Lifecycle
@@ -70,12 +80,13 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     {
         if (saves == null) throw new ArgumentNullException(nameof(saves));
         wallet = new Wallet(saves);
-        levels = new CharacterLevels(saves, characterDatabase, levelDatabase);
-        equipment = new EquipmentInventory(saves, equipmentDatabase, new System.Random());
+        levels = new CharacterLevels(saves, wallet, characterDatabase, levelDatabase);
+        equipment = new EquipmentInventory(saves, wallet, equipmentDatabase, new System.Random());
         loadout = new EquipmentLoadout(saves, equipment);
         stages = new StageProgress(saves, wallet);
-        levelTrack = new LevelTrack(levels);
-        starTrack = new StarTrack(levels);
+        collection = new CharacterCollection(levels, wallet, levelDatabase);
+        levelTrack = new LevelTrack(levels, wallet);
+        starTrack = new StarTrack(levels, collection);
 
         // Gộp các nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
         // Túi đồ đổi (lên cấp một món đang mặc) cũng có thể đổi bonus, nên cũng báo tính lại.
@@ -192,6 +203,22 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
             default: throw new ArgumentOutOfRangeException(nameof(kind));
         }
     }
+
+    #endregion
+
+    #region ICharacterCollection
+
+    /// <inheritdoc/>
+    public CharacterCollectionStatus GetStatus(CharacterType type) => collection.GetStatus(type);
+
+    /// <inheritdoc/>
+    public CharacterGrantResult Grant(CharacterType type, out bool saved) => collection.Grant(type, out saved);
+
+    /// <inheritdoc/>
+    public bool TryAssemble(CharacterType type, out bool saved) => collection.TryAssemble(type, out saved);
+
+    /// <inheritdoc/>
+    public bool TryDismantle(CharacterType type, int count, out bool saved) => collection.TryDismantle(type, count, out saved);
 
     #endregion
 

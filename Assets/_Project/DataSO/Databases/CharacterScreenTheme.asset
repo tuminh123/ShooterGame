@@ -45,25 +45,26 @@ MonoBehaviour:
     displayName: Effect Hit
     icon: {fileID: 21300000, guid: 513ea8fe830927342a48b1c209618927, type: 3}
     format: 2
-  rarities:
-  - rarity: 0
-    label: {fileID: 21300000, guid: 0eaf6715a248844b3b94a9d322d282c4, type: 3}
-    text: COMMON
-    textColor: {r: 1, g: 1, b: 1, a: 1}
-  - rarity: 1
-    label: {fileID: 21300000, guid: e0387aa3821274a35b00020e1848abc5, type: 3}
-    text: RARE
-    textColor: {r: 1, g: 1, b: 1, a: 1}
-  - rarity: 2
-    label: {fileID: 21300000, guid: fb3e8ff77824f466aa94f46ebe089001, type: 3}
-    text: EPIC
-    textColor: {r: 1, g: 1, b: 1, a: 1}
-  - rarity: 3
-    label: {fileID: 21300000, guid: d96f1c6be6b8d42e7a8e1d30ba2f963f, type: 3}
-    text: LEGENDARY
-    textColor: {r: 1, g: 1, b: 1, a: 1}
+  rarityStyles: {fileID: 11400000, guid: 74dd2e4aefe5da8488e1b55303791e62, type: 2}
   currencies:
   - currency: 0
     icon: {fileID: 21300000, guid: e3a3f6e5da08f46c895f632eccceb676, type: 3}
+    displayName: Gold
   - currency: 1
     icon: {fileID: 21300000, guid: cf2410e7bf3cc4958a916d3cce42b7d9, type: 3}
+    displayName: Diamond
+  - currency: 2
+    icon: {fileID: 21300000, guid: 42854c0d5a9654da395ed40f0e7443ed, type: 3}
+    displayName: Common Shard
+  - currency: 3
+    icon: {fileID: 21300000, guid: 43c0de96d4eadca42af0e2ce29dd20eb, type: 3}
+    displayName: Uncommon Shard
+  - currency: 4
+    icon: {fileID: 21300000, guid: 1ed419fc6a38bd34a96709691ed94337, type: 3}
+    displayName: Rare Shard
+  - currency: 5
+    icon: {fileID: 21300000, guid: e46182da94bdf904ebd481aff963175d, type: 3}
+    displayName: Epic Shard
+  - currency: 6
+    icon: {fileID: 21300000, guid: 4489a584739874fb58fb42eb191b095a, type: 3}
+    displayName: Legendary Shard

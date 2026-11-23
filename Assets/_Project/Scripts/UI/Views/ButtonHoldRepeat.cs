@@ -60,6 +60,12 @@ public sealed class ButtonHoldRepeat : MonoBehaviour, IPointerDownHandler, IPoin
     /// <summary>Kéo tay ra khỏi nút thì dừng lặp.</summary>
     public void OnPointerExit(PointerEventData eventData) => holding = false;
 
+    /// <summary>
+    /// Dừng lặp dù tay vẫn giữ, ví dụ khi lần bấm vừa rồi bị từ chối vì hết tiền (nút vẫn sáng nên Update không tự dừng).
+    /// Lần thả tay sau khi đã lặp vẫn không tính thêm một lần bấm.
+    /// </summary>
+    public void Cancel() => holding = false;
+
     private void Update()
     {
         if (!holding) return;

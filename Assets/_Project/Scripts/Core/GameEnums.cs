@@ -16,13 +16,22 @@ public enum CharacterSearchType { Nearest, AllInCircle, FirstOnPath }
 /// <summary>Loại phản hồi hình ảnh mà controller báo cho view (nháy trắng khi trúng đòn, màu của trạng thái).</summary>
 public enum CharacterFeedbackKind { Hit, Poison, Burn, Slow }
 
-/// <summary>Độ hiếm của nhân vật, dùng cho nhãn trên màn Character. ID được lưu trong asset: loại mới thêm vào cuối, không đổi số cũ.</summary>
+/// <summary>
+/// Độ hiếm của nhân vật: nhãn, màu thẻ và màu nền màn Character, hệ số giá nâng level (LevelDatabaseSO).
+/// Cùng thứ tự và cùng số với <see cref="EquipmentRarity"/>; số phải liên tục từ 0 theo thứ tự hiếm dần vì hệ số giá lưu theo vị trí.
+/// </summary>
+/// <remarks>
+/// 2026-11-23: chen Uncommon vào số 1 (Rare/Epic/Legendary dời lên +1) để khớp trang bị. Chỉ asset lưu số này
+/// (CharacterData, CharacterScreenTheme, LevelDatabase); save không lưu độ hiếm nhân vật. Các asset đã được chuyển cùng lúc.
+/// Từ nay chỉ thêm loại mới ở cuối, không đổi số cũ.
+/// </remarks>
 public enum CharacterRarity
 {
     Common = 0,
-    Rare = 1,
-    Epic = 2,
-    Legendary = 3
+    Uncommon = 1,
+    Rare = 2,
+    Epic = 3,
+    Legendary = 4
 }
 
 /// <summary>Phe dùng để phân biệt player với enemy; boss cũng thuộc phe Enemy.</summary>
@@ -137,8 +146,17 @@ public enum PoolGroup
 public enum CurrencyType
 {
     Gold = 0,
-    Diamond = 1
+    Diamond = 1,
+    // Mảnh nhân vật theo độ hiếm (dùng chung mọi nhân vật cùng độ hiếm): ghép nhân vật chưa có và nâng sao.
+    ShardCommon = 2,
+    ShardUncommon = 3,
+    ShardRare = 4,
+    ShardEpic = 5,
+    ShardLegendary = 6
 }
+
+/// <summary>Kết quả nhận một nhân vật (gacha): chưa có thì sở hữu luôn, đã có thì thành một bản trùng.</summary>
+public enum CharacterGrantResult { NewCharacter, Duplicate }
 
 /// <summary>Loại nâng cấp vĩnh viễn của một nhân vật. Mỗi loại ứng với một track trong ProgressionManager.</summary>
 public enum CharacterUpgradeKind { Level, Star }
@@ -151,7 +169,7 @@ public enum EquipmentSlot { Weapon = 0, Helmet = 1, Armor = 2, Gloves = 3, Boots
 
 /// <summary>
 /// Độ hiếm của một bản trang bị (cùng một mẫu đồ có thể ra mọi độ hiếm). Quyết định số dòng phụ ban đầu và chỉ số chính.
-/// Không dùng chung CharacterRarity vì enum đó không có Uncommon.
+/// Tách riêng với CharacterRarity (cùng số, cùng thứ tự) để mỗi miền tự thêm độ hiếm của mình mà không ảnh hưởng miền kia.
 /// </summary>
 public enum EquipmentRarity { Common = 0, Uncommon = 1, Rare = 2, Epic = 3, Legendary = 4 }
 
@@ -248,8 +266,8 @@ public enum CharacterScreenPage { Collection, Detail }
 /// <summary>Tab đang mở ở màn Detail. Mỗi tab ứng với một loại nâng cấp.</summary>
 public enum CharacterScreenTab { Level, Stars }
 
-/// <summary>Trạng thái một thẻ trong lưới Collection.</summary>
-public enum CharacterCardState { Normal, Selected, Empty }
+/// <summary>Trạng thái một thẻ trong lưới Collection. Locked = chưa sở hữu (thẻ xám, thanh mảnh thay cho level/sao).</summary>
+public enum CharacterCardState { Normal, Selected, Empty, Locked }
 
 /// <summary>Hướng trượt của <see cref="SlideTransition"/>: phía màn hình mà panel trượt vào từ đó hoặc trượt ra về đó.</summary>
 public enum SlideDirection
@@ -269,6 +287,16 @@ public enum StatFormat
     Integer, // 750
     Decimal, // 3.5
     Percent  // 5%
+}
+
+/// <summary>
+/// Cách tô một lớp hình theo độ hiếm (<see cref="ImageStyle"/>): giữ sprite gốc và đổi màu, hoặc thay bằng sprite kéo vào.
+/// Số được lưu trong asset RarityStyleDatabase: thêm cách mới ở cuối, không đổi số cũ.
+/// </summary>
+public enum ImageStyleMode
+{
+    Color = 0,  // Giữ sprite gốc của prefab, tô màu.
+    Sprite = 1  // Thay bằng sprite kéo vào, giữ nguyên màu của sprite (không tô).
 }
 
 #endregion

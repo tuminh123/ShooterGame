@@ -65,6 +65,10 @@ public sealed class Wallet
         return balances.TryGetValue(type, out CurrencySaveData.Balance entry) ? entry.balance : 0L;
     }
 
+    /// <summary>Đủ tiền cho mọi mục của <paramref name="costs"/> chưa (nhiều mục cùng loại tiền được cộng gộp).</summary>
+    /// <remarks>Dùng trong GetQuote để trả <see cref="UpgradeBlock.NotEnoughCurrency"/>; chỉ đọc nên gọi được từ callback.</remarks>
+    public bool CanAfford(IReadOnlyList<CurrencyCost> costs) => TryGetSpendTargets(costs, out _);
+
     #endregion
 
     #region Change
@@ -126,6 +130,69 @@ public sealed class Wallet
         return true;
     }
 
+    /// <summary>
+    /// Trừ <paramref name="costs"/> và ghi ví cùng snapshot <paramref name="otherSnapshot"/> của key <paramref name="otherKey"/>
+    /// trong <b>một lần lưu</b>, để tiền đã trừ và tiến trình đã nâng (level, trang bị) không bao giờ lệch nhau khi IO lỗi.
+    /// Trả về kết quả ghi file; false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
+    /// </summary>
+    /// <remarks>
+    /// Bên gọi kiểm tra <see cref="CanAfford"/> trước khi đổi tiến trình trong RAM, rồi gọi hàm này với snapshot mới.
+    /// Game chạy một luồng nên giữa hai bước không có gì chen vào; vẫn kiểm tra lại và ném lỗi nếu bị gọi sai thứ tự.
+    /// </remarks>
+    internal bool SpendWith<T>(IReadOnlyList<CurrencyCost> costs, string otherKey, T otherSnapshot) where T : class
+    {
+        if (!TryGetSpendTargets(costs, out Dictionary<CurrencyType, long> targets))
+            throw new InvalidOperationException("Not enough currency; check CanAfford before changing progress.");
+        return WriteWith(targets, otherKey, otherSnapshot);
+    }
+
+    /// <summary>
+    /// Như <see cref="SpendWith{T}"/> nhưng mỗi loại tiền đổi một lượng <b>có dấu</b> (âm = trừ, dương = cộng), ghi cùng một lần
+    /// với snapshot tiến trình. Dùng khi một thao tác vừa trừ vừa cộng: ghép nhân vật (trừ mảnh), phân rã bản trùng (cộng mảnh),
+    /// nâng sao bằng bản trùng (giá trị bản trùng dư thì cộng lại mảnh).
+    /// </summary>
+    /// <remarks>Số dư sau khi đổi phải không âm; bên gọi kiểm tra trước khi đổi tiến trình trong RAM, sai thì ném lỗi.</remarks>
+    internal bool ApplyWith<T>(IReadOnlyDictionary<CurrencyType, long> deltas, string otherKey, T otherSnapshot) where T : class
+    {
+        EnsureAvailable();
+        if (deltas == null) throw new ArgumentNullException(nameof(deltas));
+        var targets = new Dictionary<CurrencyType, long>(deltas.Count);
+        foreach (KeyValuePair<CurrencyType, long> delta in deltas)
+        {
+            if (delta.Value == 0) continue;
+            long balance = checked(GetBalance(delta.Key) + delta.Value);
+            if (balance < 0)
+                throw new InvalidOperationException($"Not enough {delta.Key}; check the balance before changing progress.");
+            targets[delta.Key] = balance;
+        }
+        return WriteWith(targets, otherKey, otherSnapshot);
+    }
+
+    // Ghi số dư mới (đã kiểm tra) và snapshot tiến trình trong một lần lưu, rồi báo số dư đổi.
+    private bool WriteWith<T>(Dictionary<CurrencyType, long> targets, string otherKey, T otherSnapshot) where T : class
+    {
+        EnsureCanChange(0);
+        if (otherSnapshot == null) throw new ArgumentNullException(nameof(otherSnapshot));
+        changing = true;
+        try
+        {
+            foreach (KeyValuePair<CurrencyType, long> target in targets)
+                GetOrCreateEntry(target.Key).balance = target.Value;
+            CurrencySaveData.Validate(data);
+            // Giá 0 thì ví không đổi: chỉ cần ghi tiến trình.
+            bool saved = targets.Count > 0
+                ? saves.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(), otherKey, otherSnapshot)
+                : saves.Save(otherKey, otherSnapshot);
+            foreach (KeyValuePair<CurrencyType, long> target in targets)
+            {
+                NotifyBalance(target.Key, target.Value);
+                if (!saved) NotifyFailure(target.Key, saves.LastError);
+            }
+            return saved;
+        }
+        finally { changing = false; }
+    }
+
     /// <summary>Thử lưu lại snapshot ví mà không cộng/trừ thêm.</summary>
     public bool Save()
     {
@@ -137,6 +204,24 @@ public sealed class Wallet
     #endregion
 
     #region Private Helpers
+
+    // Số dư mới của từng loại tiền sau khi trừ (bỏ qua mục giá 0); false nếu có loại không đủ.
+    // Gộp các mục cùng loại để giá hai dòng cùng Gold không lọt kiểm tra từng dòng riêng.
+    private bool TryGetSpendTargets(IReadOnlyList<CurrencyCost> costs, out Dictionary<CurrencyType, long> targets)
+    {
+        EnsureAvailable();
+        if (costs == null) throw new ArgumentNullException(nameof(costs));
+        targets = new Dictionary<CurrencyType, long>(costs.Count);
+        foreach (CurrencyCost cost in costs)
+        {
+            if (cost.Amount < 0) throw new ArgumentOutOfRangeException(nameof(costs), "Cost amount must not be negative.");
+            if (cost.Amount == 0) continue;
+            long current = targets.TryGetValue(cost.Currency, out long pending) ? pending : GetBalance(cost.Currency);
+            if (current < cost.Amount) return false;
+            targets[cost.Currency] = current - cost.Amount;
+        }
+        return true;
+    }
 
     private bool Apply(CurrencyType type, long balance)
     {

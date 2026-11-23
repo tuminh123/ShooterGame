@@ -21,19 +21,15 @@ public sealed class RunLevelConfigSO : ScriptableObject
 
     #region Experience Formula
 
-    [Tooltip("EXP cần riêng cho lần từ cấp 1 lên 2; tối thiểu 1.")]
-    [SerializeField, Min(1)] private int initialExperience = 10; // EXP cần từ level 1 lên 2.
-    [Tooltip("EXP yêu cầu từ cấp L lên L+1 = Initial Experience + giá trị này × (L - 1). Đặt 0 để mọi cấp cần cùng lượng EXP.")]
-    [SerializeField, Min(0)] private int experienceIncreasePerLevel = 5; // EXP yêu cầu tăng thêm mỗi cấp; 0 nghĩa là chi phí EXP không đổi.
+    [Tooltip("EXP cần cho mỗi mốc Lv → Lv+1 trong trận. Chọn kiểu công thức (Linear, Geometric...) rồi chỉnh tham số; độc lập với giá nâng level vĩnh viễn.")]
+    [SerializeReference] private ILevelFormula experienceFormula = new LinearFormula(10, 5); // Mặc định 10, 15, 20... EXP.
 
-    /// <summary>Hệ số A của công thức A + B × (level - 1).</summary>
-    public int InitialExperience => initialExperience;
-    /// <summary>Hệ số B, độc lập với chi phí nâng level vĩnh viễn.</summary>
-    public int ExperienceIncreasePerLevel => experienceIncreasePerLevel;
+    /// <summary>Công thức EXP đang chọn (Inspector dùng để hiện bảng xem trước).</summary>
+    public ILevelFormula ExperienceFormula => experienceFormula;
 
     /// <summary>
-    /// EXP từ level L lên L+1 = A + B × (L - 1); false khi cấp không hợp lệ hoặc đạt trần.
-    /// Lưu ý: Trả yêu cầu riêng cho lần lên cấp, không phải tổng EXP cả trận; overflow int sẽ được báo thay vì đổi thành số âm.
+    /// EXP cần để lên từ <paramref name="currentLevel"/> lên cấp kế tiếp (đọc từ công thức EXP); false khi cấp không hợp lệ hoặc đạt trần.
+    /// Lưu ý: Trả yêu cầu riêng cho lần lên cấp, không phải tổng EXP cả trận; vượt int sẽ báo lỗi tràn số thay vì thành số âm.
     /// </summary>
     public bool TryGetNextLevel(int currentLevel, out int experienceRequired, out StatBonus bonus)
     {
@@ -43,7 +39,7 @@ public sealed class RunLevelConfigSO : ScriptableObject
         if (currentLevel < 1 || currentLevel >= maxLevel)
             return false;
 
-        experienceRequired = checked((int)(initialExperience + (long)experienceIncreasePerLevel * (currentLevel - 1)));
+        experienceRequired = checked((int)experienceFormula.Evaluate(currentLevel));
         bonus = bonusPerLevel;
         return true;
     }
@@ -68,8 +64,11 @@ public sealed class RunLevelConfigSO : ScriptableObject
     // Kiểm tra tham số công thức, không sửa template dùng chung.
     private void ValidateConfiguration()
     {
-        if (maxLevel < 1 || initialExperience < 1 || experienceIncreasePerLevel < 0)
-            throw new InvalidOperationException("Run level config requires MaxLevel >= 1, initial EXP >= 1 and EXP increase >= 0.");
+        if (maxLevel < 1)
+            throw new InvalidOperationException("Run level config requires MaxLevel >= 1.");
+        if (experienceFormula == null)
+            throw new InvalidOperationException("Run level config needs an Experience Formula.");
+        experienceFormula.Validate();
     }
 
     #endregion
