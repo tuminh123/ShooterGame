@@ -36,7 +36,7 @@ public sealed class CharacterLevelsSaveData
         public int upgradePoints; // Nguyên liệu đã nạp vào thanh của cấp hiện tại; save cũ không có field này nên đọc ra 0.
         public int stars; // Số sao đã mở; save cũ không có field này nên đọc ra 0.
         public bool owned; // Đã sở hữu (gacha/ghép); save cũ đọc ra false. Nhân vật khởi đầu luôn tính là đã có, không cần cờ này.
-        public int copies; // Số bản trùng đang giữ (để phân rã hoặc nâng sao); save cũ đọc ra 0.
+        public long shards; // Mảnh riêng của nhân vật này (nhận khi gacha trùng; trả cho ghép và nâng sao); save cũ đọc ra 0.
     }
     public List<Entry> characters = new List<Entry>();
     public CharacterLevelsSaveData Clone()
@@ -50,7 +50,7 @@ public sealed class CharacterLevelsSaveData
                 upgradePoints = entry.upgradePoints,
                 stars = entry.stars,
                 owned = entry.owned,
-                copies = entry.copies
+                shards = entry.shards
             });
         return copy;
     }
@@ -63,8 +63,8 @@ public sealed class CharacterLevelsSaveData
         foreach (Entry entry in value.characters)
             if (entry == null || entry.characterType == CharacterType.None ||
                 !Enum.IsDefined(typeof(CharacterType), entry.characterType) || entry.permanentLevel < 1 || entry.upgradePoints < 0 || entry.stars < 0 ||
-                entry.copies < 0 || !types.Add(entry.characterType))
-                throw new InvalidOperationException("Character progress must have unique defined types, positive levels and non-negative upgrade points, stars and copies.");
+                entry.shards < 0 || !types.Add(entry.characterType))
+                throw new InvalidOperationException("Character progress must have unique defined types, positive levels and non-negative upgrade points, stars and shards.");
     }
 }
 

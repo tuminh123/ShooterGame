@@ -2,7 +2,7 @@ using System;
 
 // Họ strategy NỘI BỘ của Progression: mỗi loại nâng cấp (CharacterUpgradeKind) là một track.
 // ProgressionManager chọn track bằng một switch; miền khác chỉ thấy ICharacterUpgrades.
-// Không bind Zenject. Level trả Gold, sao trả mảnh theo độ hiếm (bản trùng dùng trước); nhân vật chưa sở hữu thì không nâng được.
+// Không bind Zenject. Level trả Gold, sao trả mảnh riêng của nhân vật; nhân vật chưa sở hữu thì không nâng được.
 
 #region Track Contract
 
@@ -81,11 +81,12 @@ internal sealed class LevelTrack : IUpgradeTrack
 #region Star Track
 
 /// <summary>
-/// Sao vĩnh viễn: mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>, trả bằng mảnh cùng độ hiếm với nhân vật
-/// (Star Cost trong LevelDatabaseSO). Bản trùng của chính nhân vật được dùng trước, mỗi bản tính bằng Shards Per Copy mảnh.
+/// Sao vĩnh viễn: mỗi lần bấm mở thêm một sao tới <see cref="MaxStars"/>, trả bằng mảnh riêng của chính nhân vật
+/// (Star Cost trong LevelDatabaseSO, theo độ hiếm). Mảnh không nằm trong ví nên quote báo giá qua <see cref="UpgradeQuote.ShardCost"/>.
 /// Phần thưởng của mỗi sao nằm trong CharacterDataSO: các bước skill (điều kiện Stars), hoặc chỉ số dự phòng khi sao không có skill.
 /// </summary>
-/// <remarks>Luật trả giá nằm ở <see cref="CharacterCollection"/>; track này chỉ dựng quote và chặn nhân vật chưa sở hữu.</remarks>
+/// <remarks>Luật trả giá nằm ở <see cref="CharacterCollection"/>; track này chỉ dựng quote và chặn nhân vật chưa sở hữu.
+/// Quote không có <see cref="UpgradeQuote.Costs"/> (không tốn tiền ví), nên UI đọc <see cref="UpgradeQuote.ShardCost"/>.</remarks>
 internal sealed class StarTrack : IUpgradeTrack
 {
     /// <summary>Số sao tối đa, khớp 5 ô sao trên UI.</summary>
@@ -107,13 +108,12 @@ internal sealed class StarTrack : IUpgradeTrack
         // Save cũ có thể nhiều sao hơn trần hiện tại; chỉ hiển thị tới trần, không tự sửa save.
         int stars = Math.Min(levels.GetStars(type), MaxStars);
         if (!collection.IsOwned(type))
-            return new UpgradeQuote(stars, MaxStars, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.NotAvailable);
+            return new UpgradeQuote(stars, MaxStars, default, 0, UpgradeBlock.NotAvailable);
         if (stars >= MaxStars)
-            return new UpgradeQuote(stars, MaxStars, 0, 0, Array.Empty<CurrencyCost>(), UpgradeBlock.MaxReached);
-        // Giá hiện trên nút là tổng mảnh của sao kế tiếp; bản trùng (nếu có) được trừ vào lúc trả.
-        var costs = new[] { new CurrencyCost(collection.GetStatus(type).ShardCurrency, collection.GetNextStarCost(type)) };
-        UpgradeBlock block = collection.CanAffordNextStar(type) ? UpgradeBlock.None : UpgradeBlock.NotEnoughCurrency;
-        return new UpgradeQuote(stars, MaxStars, 0, 0, costs, block);
+            return new UpgradeQuote(stars, MaxStars, default, 0, UpgradeBlock.MaxReached);
+        var cost = new CharacterShards(type, collection.GetNextStarCost(type));
+        UpgradeBlock block = collection.CanAffordNextStar(type) ? UpgradeBlock.None : UpgradeBlock.NotEnoughShards;
+        return new UpgradeQuote(stars, MaxStars, cost, collection.GetStatus(type).Shards, block);
     }
 
     /// <inheritdoc/>

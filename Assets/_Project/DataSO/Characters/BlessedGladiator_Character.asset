@@ -28,6 +28,7 @@ MonoBehaviour:
     HealthBarScale: 0.0035
     ShieldThickness: 3
   portrait: {fileID: 21300000, guid: 29f4cc593f904aa4582198198ebf795c, type: 3}
+  shardIcon: {fileID: 21300000, guid: aa52951c69062c844ad12c6fc5cd9220, type: 3}
   uiVisualPrefab: {fileID: 2437571822067251314, guid: d8849dee1ed55ff47ad348c9ca37cd09, type: 3}
   rarity: 0
   baseStats:

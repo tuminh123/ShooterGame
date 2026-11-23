@@ -375,6 +375,7 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
             costRoots[i].SetActive(used);
             if (!used) continue;
             costIcons[i].sprite = costs[i].Icon;
+            costIcons[i].preserveAspect = true; // Icon mảnh là ảnh vuông; ô icon không vuông thì giữ tỉ lệ thay vì kéo giãn.
             costTexts[i].text = costs[i].Amount;
         }
     }

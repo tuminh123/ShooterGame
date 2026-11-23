@@ -147,7 +147,8 @@ public enum CurrencyType
 {
     Gold = 0,
     Diamond = 1,
-    // Mảnh nhân vật theo độ hiếm (dùng chung mọi nhân vật cùng độ hiếm): ghép nhân vật chưa có và nâng sao.
+    // Không còn dùng: mảnh nay thuộc riêng từng nhân vật (CharacterShards, lưu trong tiến trình nhân vật).
+    // Giữ giá trị vì asset và save lưu enum bằng số; không đổi số.
     ShardCommon = 2,
     ShardUncommon = 3,
     ShardRare = 4,
@@ -161,8 +162,8 @@ public enum CharacterGrantResult { NewCharacter, Duplicate }
 /// <summary>Loại nâng cấp vĩnh viễn của một nhân vật. Mỗi loại ứng với một track trong ProgressionManager.</summary>
 public enum CharacterUpgradeKind { Level, Star }
 
-/// <summary>Lý do không nâng được; <see cref="None"/> nghĩa là nâng được.</summary>
-public enum UpgradeBlock { None, MaxReached, NotEnoughCurrency, NotAvailable }
+/// <summary>Lý do không nâng được; <see cref="None"/> nghĩa là nâng được. Thêm giá trị mới ở cuối.</summary>
+public enum UpgradeBlock { None, MaxReached, NotEnoughCurrency, NotAvailable, NotEnoughShards }
 
 /// <summary>Ô mặc trang bị; mỗi ô có một chỉ số chính cố định (EquipmentRulesSO). Số được lưu trong save.</summary>
 public enum EquipmentSlot { Weapon = 0, Helmet = 1, Armor = 2, Gloves = 3, Boots = 4, Ring = 5 }

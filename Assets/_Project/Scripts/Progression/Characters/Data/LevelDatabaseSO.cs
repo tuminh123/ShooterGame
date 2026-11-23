@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Config cấp theo CharacterType dùng chung cho player/enemy, công thức Gold nâng level vĩnh viễn theo độ hiếm,
-/// luật bộ sưu tập (nhân vật khởi đầu, mảnh để ghép, giá trị bản trùng, mảnh nâng sao) và một config EXP trong trận của player.
+/// luật bộ sưu tập (nhân vật khởi đầu, mảnh để ghép, mảnh nhận khi gacha trùng, mảnh nâng sao) và một config EXP trong trận của player.
 /// </summary>
 [CreateAssetMenu(fileName = "LevelDatabase", menuName = "Shooter Game/Levels/Level Database")]
 public sealed class LevelDatabaseSO : ScriptableObject
@@ -34,26 +35,27 @@ public sealed class LevelDatabaseSO : ScriptableObject
 
     #region Character Collection
 
-    /// <summary>Luật bộ sưu tập của một độ hiếm nhân vật: số mảnh để ghép và giá trị một bản trùng.</summary>
+    /// <summary>Luật bộ sưu tập của một độ hiếm nhân vật: số mảnh để ghép và số mảnh nhận mỗi lần gacha trùng.</summary>
     [Serializable]
     public sealed class CollectionRule
     {
         [SerializeField] private CharacterRarity rarity;
-        [Tooltip("Số mảnh (cùng độ hiếm) để ghép ra một nhân vật chưa sở hữu.")]
+        [Tooltip("Số mảnh riêng của nhân vật để ghép ra nhân vật đó khi chưa sở hữu.")]
         [SerializeField, Min(1)] private int unlockShards = 30;
-        [Tooltip("Số mảnh nhận được khi phân rã một bản trùng; cũng là giá trị một bản trùng khi dùng để nâng sao.")]
-        [SerializeField, Min(1)] private int shardsPerCopy = 10;
+        [Tooltip("Số mảnh riêng nhận được mỗi lần gacha trúng nhân vật đã sở hữu.")]
+        [FormerlySerializedAs("shardsPerCopy")]
+        [SerializeField, Min(1)] private int shardsPerDuplicate = 10;
 
         public CharacterRarity Rarity => rarity;
         public int UnlockShards => unlockShards;
-        public int ShardsPerCopy => shardsPerCopy;
+        public int ShardsPerDuplicate => shardsPerDuplicate;
     }
 
     [Tooltip("Nhân vật sở hữu sẵn từ đầu game (không cần ghép hay gacha).")]
     [SerializeField] private List<CharacterType> starterCharacters = new List<CharacterType> { CharacterType.BlessedGladiator };
-    [Tooltip("Mỗi CharacterRarity một mục: số mảnh để ghép, giá trị một bản trùng. Chung cho mọi nhân vật cùng độ hiếm.")]
+    [Tooltip("Mỗi CharacterRarity một mục: số mảnh để ghép và số mảnh nhận mỗi lần gacha trùng. Chung cho mọi nhân vật cùng độ hiếm.")]
     [SerializeField] private List<CollectionRule> collectionRules = new List<CollectionRule>();
-    [Tooltip("Số mảnh (cùng độ hiếm với nhân vật) để mở sao thứ n = công thức(n) × hệ số độ hiếm. Sao 1 là Evaluate(1).")]
+    [Tooltip("Số mảnh riêng của nhân vật để mở sao thứ n = công thức(n) × hệ số độ hiếm. Sao 1 là Evaluate(1).")]
     [SerializeField] private RarityScaledFormula<CharacterRarity> starCost = new RarityScaledFormula<CharacterRarity>();
 
     /// <summary>Nhân vật sở hữu sẵn từ đầu game.</summary>
@@ -73,31 +75,14 @@ public sealed class LevelDatabaseSO : ScriptableObject
         throw new KeyNotFoundException($"Level Database is missing collection rule for {rarity}.");
     }
 
-    /// <summary>
-    /// Loại mảnh của một độ hiếm nhân vật. Một switch duy nhất cho ánh xạ độ hiếm → tiền mảnh,
-    /// để Progression và UI không tự ghép tên enum.
-    /// </summary>
-    public static CurrencyType ShardOf(CharacterRarity rarity)
-    {
-        switch (rarity)
-        {
-            case CharacterRarity.Common: return CurrencyType.ShardCommon;
-            case CharacterRarity.Uncommon: return CurrencyType.ShardUncommon;
-            case CharacterRarity.Rare: return CurrencyType.ShardRare;
-            case CharacterRarity.Epic: return CurrencyType.ShardEpic;
-            case CharacterRarity.Legendary: return CurrencyType.ShardLegendary;
-            default: throw new ArgumentOutOfRangeException(nameof(rarity));
-        }
-    }
-
     // Đủ luật cho mọi độ hiếm, công thức sao hợp lệ, nhân vật khởi đầu hợp lệ và không trùng.
     private void ValidateCollection()
     {
         foreach (CharacterRarity rarity in (CharacterRarity[])Enum.GetValues(typeof(CharacterRarity)))
         {
             CollectionRule rule = GetCollectionRule(rarity);
-            if (rule.UnlockShards < 1 || rule.ShardsPerCopy < 1)
-                throw new InvalidOperationException($"Collection rule of {rarity} needs Unlock Shards >= 1 and Shards Per Copy >= 1.");
+            if (rule.UnlockShards < 1 || rule.ShardsPerDuplicate < 1)
+                throw new InvalidOperationException($"Collection rule of {rarity} needs Unlock Shards >= 1 and Shards Per Duplicate >= 1.");
         }
         starCost.Validate();
         var starters = new HashSet<CharacterType>();

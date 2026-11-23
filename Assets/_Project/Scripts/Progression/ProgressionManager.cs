@@ -84,7 +84,7 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         equipment = new EquipmentInventory(saves, wallet, equipmentDatabase, new System.Random());
         loadout = new EquipmentLoadout(saves, equipment);
         stages = new StageProgress(saves, wallet);
-        collection = new CharacterCollection(levels, wallet, levelDatabase);
+        collection = new CharacterCollection(levels, levelDatabase);
         levelTrack = new LevelTrack(levels, wallet);
         starTrack = new StarTrack(levels, collection);
 
@@ -212,13 +212,10 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     public CharacterCollectionStatus GetStatus(CharacterType type) => collection.GetStatus(type);
 
     /// <inheritdoc/>
-    public CharacterGrantResult Grant(CharacterType type, out bool saved) => collection.Grant(type, out saved);
+    public CharacterGrantResult Grant(CharacterType type, out CharacterShards gained, out bool saved) => collection.Grant(type, out gained, out saved);
 
     /// <inheritdoc/>
     public bool TryAssemble(CharacterType type, out bool saved) => collection.TryAssemble(type, out saved);
-
-    /// <inheritdoc/>
-    public bool TryDismantle(CharacterType type, int count, out bool saved) => collection.TryDismantle(type, count, out saved);
 
     #endregion
 

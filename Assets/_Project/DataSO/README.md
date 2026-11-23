@@ -134,24 +134,24 @@ Thêm cách tính mới để cân bằng: viết một class `[Serializable]` c
 
 Asset cũ: các field A/B (`initialRequired`, `requiredIncreasePerLevel`, `initialExperience`, `experienceIncreasePerLevel`, `levelUpCostBase`, `levelUpCostPerLevel`) đã bỏ; các asset mẫu được điền lại bằng Linear với đúng số cũ, nên game chạy như trước với độ hiếm Common.
 
-## 4c. Bộ sưu tập nhân vật: sở hữu, mảnh theo độ hiếm, ghép, bản trùng
+## 4c. Bộ sưu tập nhân vật: sở hữu, mảnh riêng của từng nhân vật, ghép
 
-Cấu hình ở **LevelDatabase → CHARACTER COLLECTION** (chung mọi nhân vật cùng độ hiếm; độ hiếm đọc từ CharacterDataSO.Rarity):
+Cấu hình ở **LevelDatabase → CHARACTER COLLECTION** (số theo độ hiếm; độ hiếm đọc từ CharacterDataSO.Rarity):
 
 | Field | Ý nghĩa | Mẫu (Common / Uncommon / Rare / Epic / Legendary) |
 |---|---|---|
 | Starter Characters | Nhân vật sở hữu sẵn từ đầu, không cần ghép | BlessedGladiator |
-| Collection Rules → Unlock Shards | Mảnh cùng độ hiếm để **ghép** nhân vật chưa có | 30 / 45 / 75 / 120 / 180 |
-| Collection Rules → Shards Per Copy | Mảnh nhận khi **phân rã** một bản trùng; cũng là giá trị một bản trùng khi nâng sao | 10 / 15 / 25 / 40 / 60 |
-| Star Cost | Mảnh để mở sao thứ n (`ILevelFormula` × hệ số độ hiếm) | Linear 10 / 10 × 1 · 1.5 · 2.5 · 4 · 6 → Common: 10, 20, 30, 40, 50 |
+| Collection Rules → Unlock Shards | Mảnh riêng của nhân vật để **ghép** ra nhân vật đó khi chưa có | 30 / 45 / 75 / 120 / 180 |
+| Collection Rules → Shards Per Duplicate | Mảnh riêng nhận được mỗi lần gacha trúng nhân vật **đã có** (asset cũ tên `shardsPerCopy`, giữ nguyên giá trị) | 10 / 15 / 25 / 40 / 60 |
+| Star Cost | Mảnh riêng để mở sao thứ n (`ILevelFormula` × hệ số độ hiếm) | Linear 10 / 10 × 1 · 1.5 · 2.5 · 4 · 6 → Common: 10, 20, 30, 40, 50 |
 
-- **Mảnh là tiền tệ** (`CurrencyType.ShardCommon..ShardLegendary`), nằm trong ví. Icon + tên hiển thị ở CharacterScreenTheme → Currencies.
-- **Gacha** (`ICharacterCollection.Grant`): chưa có → sở hữu luôn; đã có → +1 bản trùng.
-- **Ghép**: thẻ chưa sở hữu đủ mảnh thì sáng lên, chạm vào là trừ Unlock Shards và sở hữu.
-- **Phân rã**: nút DISMANTLE ở màn Collection → popup, mỗi nhân vật có bản trùng một dòng, bấm để đổi hết bản trùng thành mảnh.
-- **Nâng sao**: dùng bản trùng của chính nhân vật trước (mỗi bản = Shards Per Copy mảnh, phần dư vào ví), thiếu thì trừ mảnh. Level vẫn trả Gold.
+- **Mảnh thuộc riêng từng nhân vật** (`CharacterShards`: nhân vật + số lượng), lưu trong `character_levels` cùng Entry với level/sao, không nằm trong ví. Mảnh của Hero A không dùng được cho Hero B.
+- **Gacha** (`ICharacterCollection.Grant`): chưa có → sở hữu luôn; đã có → cộng `Shards Per Duplicate` mảnh của nhân vật đó. `Grant` trả lại mảnh vừa nhận (`out CharacterShards gained`) để UI báo, không tự tính lại luật.
+- **Ghép**: thẻ chưa sở hữu đủ `Unlock Shards` mảnh của chính nó thì sáng lên, chạm vào là trừ mảnh và sở hữu.
+- **Nâng sao**: trừ mảnh riêng của nhân vật (`UpgradeQuote.ShardCost` / `ShardsOwned`, nút hiện "cần/có" kèm icon mảnh). Level vẫn trả Gold. Mảnh dư khi đủ 5 sao cứ cộng dồn; cơ chế tiêu thụ làm sau.
+- **Icon mảnh** = đầu nhân vật: `CharacterDataSO.ShardIcon` (chưa xuất thì dùng ảnh chân dung). Xuất bằng nút "Xuất icon mảnh" trong Tools/Shooter Game/Character UI Exporter (khung zoom/lệch riêng cho từng nhân vật).
 - Nhân vật chưa sở hữu: thẻ xám (material `Shaders/UIGrayscale.mat`), thanh mảnh thay level/sao; Detail chỉ xem (ẩn nút chọn và nâng cấp).
-- Save: `owned`, `copies` trong `character_levels` (cùng Entry với level/sao). Save cũ đọc ra chưa sở hữu, 0 bản trùng; nhân vật khởi đầu luôn tính là đã có.
+- Save: `owned`, `shards` trong `character_levels`. Save cũ đọc ra chưa sở hữu, 0 mảnh; nhân vật khởi đầu luôn tính là đã có. Các giá trị `CurrencyType.Shard*` còn trong enum (asset và save lưu enum bằng số) nhưng không còn dùng.
 - Thêm nhân vật Player mới: thêm template vào CharacterDatabase **và** một CharacterLevelConfigSO vào LevelDatabase (bắt buộc, thiếu thì báo lỗi khi vào game).
 
 ## 5. Level trong trận: bonus cố định và công thức EXP

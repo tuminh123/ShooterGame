@@ -20,8 +20,6 @@ public sealed class CharacterScreenController : UIPanelController
 
     [SerializeField] private CharacterCollectionView collection;
     [SerializeField] private CharacterDetailView detail;
-    [Tooltip("Popup phân rã bản trùng thành mảnh (mở từ nút DISMANTLE ở màn Collection).")]
-    [SerializeField] private CharacterDismantlePopupView dismantlePopup;
     [SerializeField] private CharacterScreenThemeSO theme;
     [Tooltip("Thông báo nổi dùng chung (\"Not enough Gold\"); có thể để trống, khi đó chỉ rung nút.")]
     [SerializeField] private NoticeToastView notice;
@@ -30,7 +28,9 @@ public sealed class CharacterScreenController : UIPanelController
     [SerializeField] private string upgradeLabel = "UPGRADE";
     [Tooltip("Thông báo khi bấm UPGRADE mà không đủ tiền; {0} = tên loại tiền.")]
     [SerializeField] private string notEnoughFormat = "Not enough {0}";
-    [Tooltip("Màu giá trên nút khi không đủ tiền (mã hex, không có #).")]
+    [Tooltip("Thông báo khi bấm UPGRADE sao mà không đủ mảnh; {0} = tên nhân vật.")]
+    [SerializeField] private string notEnoughShardsFormat = "Not enough {0} shards";
+    [Tooltip("Màu giá trên nút khi không đủ tiền hoặc mảnh (mã hex, không có #).")]
     [SerializeField] private string notEnoughCurrencyColor = "FF6B6B";
     [SerializeField] private string maxLabel = "MAX";
     [SerializeField] private string lockedLabel = "LOCKED";
@@ -38,8 +38,6 @@ public sealed class CharacterScreenController : UIPanelController
     [Header("Collection Text")]
     [Tooltip("Thông báo khi ghép thành công một nhân vật; {0} = tên nhân vật.")]
     [SerializeField] private string assembledFormat = "{0} unlocked!";
-    [Tooltip("Thông báo sau khi phân rã; {0} = số mảnh nhận, {1} = tên loại mảnh.")]
-    [SerializeField] private string dismantledFormat = "+{0} {1}";
     [Tooltip("Chữ trên dòng sao không có phần thưởng (không có bước skill và không có Star Stats).")]
     [SerializeField] private string emptyStarText = "No reward yet";
     [Tooltip("Dòng sao cộng chỉ số dự phòng; {0} = lượng đã định dạng, {1} = tên chỉ số.")]
@@ -86,8 +84,6 @@ public sealed class CharacterScreenController : UIPanelController
     private readonly List<SkillProgressStep> stepBuffer = new List<SkillProgressStep>(4); // Dùng lại khi dựng dòng sao.
     private readonly List<SkillDataSO> skillBuffer = new List<SkillDataSO>(4); // Dùng lại khi dựng ô skill.
     private readonly List<SkillGrant> grantBuffer = new List<SkillGrant>(4);
-    private readonly List<CharacterType> dismantleTypes = new List<CharacterType>(4); // Thứ tự = thứ tự dòng trong popup phân rã.
-    private readonly List<DismantleRowModel> dismantleRows = new List<DismantleRowModel>(4);
 
     #endregion
 
@@ -153,8 +149,6 @@ public sealed class CharacterScreenController : UIPanelController
         ownership.Changed += Redraw;
 
         collection.CardClicked += OnCardClicked;
-        collection.DismantleClicked += OnDismantleOpen;
-        dismantlePopup.RowClicked += OnDismantleRow;
         detail.PrevClicked += OnPrev;
         detail.NextClicked += OnNext;
         detail.BackClicked += OnDetailBack;
@@ -174,8 +168,6 @@ public sealed class CharacterScreenController : UIPanelController
         ownership.Changed -= Redraw;
 
         collection.CardClicked -= OnCardClicked;
-        collection.DismantleClicked -= OnDismantleOpen;
-        dismantlePopup.RowClicked -= OnDismantleRow;
         detail.PrevClicked -= OnPrev;
         detail.NextClicked -= OnNext;
         detail.BackClicked -= OnDetailBack;
@@ -204,7 +196,6 @@ public sealed class CharacterScreenController : UIPanelController
         NavigationChanged?.Invoke();
         if (!visible)
         {
-            dismantlePopup.Hide();
             PlayOut(this);
             return;
         }
@@ -220,22 +211,6 @@ public sealed class CharacterScreenController : UIPanelController
     #endregion
 
     #region View Events
-
-    private void OnDismantleOpen() => dismantlePopup.Show(BuildDismantleRows());
-
-    // Phân rã hết bản trùng của nhân vật ở dòng đó thành mảnh cùng độ hiếm; popup vẽ lại qua ownership.Changed → Redraw.
-    private void OnDismantleRow(int index)
-    {
-        if (index < 0 || index >= dismantleTypes.Count) return;
-        CharacterType type = dismantleTypes[index];
-        CharacterCollectionStatus status = ownership.GetStatus(type);
-        if (status.Copies <= 0) return;
-        if (!ownership.TryDismantle(type, status.Copies, out bool saved)) return;
-        if (!saved) Debug.LogWarning($"Dismantling {type} was applied but not saved yet; it will be retried.", this);
-        if (notice != null)
-            notice.Show(string.Format(CultureInfo.InvariantCulture, dismantledFormat,
-                ((long)status.Copies * status.ShardsPerCopy).ToString("N0", CultureInfo.InvariantCulture), theme.GetCurrencyName(status.ShardCurrency)));
-    }
 
     // Thẻ chưa sở hữu mà đủ mảnh: chạm là ghép luôn (không mở Detail). Còn lại: mở Detail để xem thông tin.
     private void OnCardClicked(int index)
@@ -322,11 +297,11 @@ public sealed class CharacterScreenController : UIPanelController
         if (!TryGetViewing(out CharacterDataSO character)) return;
         CharacterUpgradeKind kind = KindOf(tab);
         UpgradeQuote quote = upgrades.GetQuote(character.CharacterType, kind);
-        // Thiếu tiền: nút vẫn sáng để bấm được, nhưng không nâng mà rung nút và báo thiếu loại tiền nào.
-        if (quote.Block == UpgradeBlock.NotEnoughCurrency)
+        // Thiếu tiền hoặc mảnh: nút vẫn sáng để bấm được, nhưng không nâng mà rung nút và báo thiếu gì.
+        if (quote.Block == UpgradeBlock.NotEnoughCurrency || quote.Block == UpgradeBlock.NotEnoughShards)
         {
             detail.PlayUpgradeDenied();
-            ShowNotEnough(quote);
+            ShowNotEnough(character, quote);
             return;
         }
         // Một lần bấm Level chỉ nạp điểm; chỉ ăn mừng khi cấp (hoặc sao) thật sự tăng.
@@ -365,23 +340,6 @@ public sealed class CharacterScreenController : UIPanelController
         collection.gameObject.SetActive(true);
         if (showDetail) DrawDetail();
         else DrawCollection();
-        if (dismantlePopup.IsOpen) dismantlePopup.Refresh(BuildDismantleRows());
-    }
-
-    // Mỗi nhân vật đã sở hữu có bản trùng một dòng; dismantleTypes giữ cùng thứ tự để biết dòng nào là ai.
-    private IReadOnlyList<DismantleRowModel> BuildDismantleRows()
-    {
-        dismantleTypes.Clear();
-        dismantleRows.Clear();
-        foreach (CharacterDataSO character in selection.PlayableCharacters)
-        {
-            CharacterCollectionStatus status = ownership.GetStatus(character.CharacterType);
-            if (!status.Owned || status.Copies <= 0) continue;
-            dismantleTypes.Add(character.CharacterType);
-            dismantleRows.Add(new DismantleRowModel(character.Portrait, character.DisplayName, status.Copies,
-                theme.GetCurrencyIcon(status.ShardCurrency), (long)status.Copies * status.ShardsPerCopy));
-        }
-        return dismantleRows;
     }
 
     private void DrawCollection()
@@ -405,7 +363,7 @@ public sealed class CharacterScreenController : UIPanelController
                 upgrades.GetQuote(type, CharacterUpgradeKind.Star).Current,
                 state,
                 theme.GetRarity(character.Rarity), // Nền thẻ đổi màu theo độ hiếm, cùng bảng màu với thẻ trang bị.
-                new ShardBarModel(theme.GetCurrencyIcon(status.ShardCurrency), status.Shards, status.UnlockShards));
+                new ShardBarModel(character.ShardIcon, status.Shards, status.UnlockShards));
         }
         collection.Bind(cards, owned, characters.Count);
     }
@@ -425,7 +383,7 @@ public sealed class CharacterScreenController : UIPanelController
             tab, level.Current, level.Max, level.Progress, level.ProgressRequired,
             BuildStats(character), BuildSkillSlots(character, level.Current, star.Current), BuildStarPerks(character, star.Current),
             type == selection.SelectedCharacterType,
-            BuildUpgradeButton(tab == CharacterScreenTab.Level ? level : star),
+            BuildUpgradeButton(character, tab == CharacterScreenTab.Level ? level : star),
             ownership.GetStatus(type).Owned));
     }
 
@@ -598,10 +556,15 @@ public sealed class CharacterScreenController : UIPanelController
         }
     }
 
-    // Báo loại tiền đầu tiên còn thiếu trong giá (giá hiện chỉ có một mục).
-    private void ShowNotEnough(UpgradeQuote quote)
+    // Báo thiếu mảnh của nhân vật, hoặc loại tiền đầu tiên còn thiếu trong giá (giá hiện chỉ có một mục).
+    private void ShowNotEnough(CharacterDataSO character, UpgradeQuote quote)
     {
         if (notice == null) return;
+        if (quote.HasShardCost)
+        {
+            notice.Show(string.Format(CultureInfo.InvariantCulture, notEnoughShardsFormat, character.DisplayName));
+            return;
+        }
         foreach (CurrencyCost cost in quote.Costs)
         {
             if (wallet.GetBalance(cost.Currency) >= cost.Amount) continue;
@@ -611,28 +574,37 @@ public sealed class CharacterScreenController : UIPanelController
     }
 
     // Chữ và giá của nút UPGRADE theo lý do bị chặn của tab đang mở.
-    private UpgradeButtonModel BuildUpgradeButton(UpgradeQuote quote)
+    private UpgradeButtonModel BuildUpgradeButton(CharacterDataSO character, UpgradeQuote quote)
     {
-        bool notEnough = quote.Block == UpgradeBlock.NotEnoughCurrency;
-        var costs = new CostModel[quote.Costs.Count];
-        for (int i = 0; i < costs.Length; i++)
-        {
-            string amount = quote.Costs[i].Amount.ToString("N0", CultureInfo.InvariantCulture);
-            // Thiếu tiền thì tô đỏ giá để người chơi biết trước khi bấm.
-            if (notEnough) amount = "<color=#" + notEnoughCurrencyColor + ">" + amount + "</color>";
-            costs[i] = new CostModel(theme.GetCurrencyIcon(quote.Costs[i].Currency), amount);
-        }
-
         switch (quote.Block)
         {
-            case UpgradeBlock.None: return new UpgradeButtonModel(upgradeLabel, true, costs);
-            // Vẫn bấm được: OnUpgrade rung nút và báo thiếu tiền thay vì nút xám im lặng.
-            case UpgradeBlock.NotEnoughCurrency: return new UpgradeButtonModel(upgradeLabel, true, costs);
+            case UpgradeBlock.None: return new UpgradeButtonModel(upgradeLabel, true, BuildCosts(character, quote, false));
+            // Vẫn bấm được: OnUpgrade rung nút và báo thiếu tiền/mảnh thay vì nút xám im lặng.
+            case UpgradeBlock.NotEnoughCurrency:
+            case UpgradeBlock.NotEnoughShards:
+                return new UpgradeButtonModel(upgradeLabel, true, BuildCosts(character, quote, true));
             case UpgradeBlock.MaxReached: return new UpgradeButtonModel(maxLabel, false, null);
             case UpgradeBlock.NotAvailable: return new UpgradeButtonModel(lockedLabel, false, null);
             default: throw new ArgumentOutOfRangeException(nameof(quote));
         }
     }
+
+    // Giá một lần nâng: mảnh dạng "cần/có" kèm icon nhân vật, hoặc tiền trong ví. Thiếu thì tô đỏ để người chơi biết trước khi bấm.
+    private CostModel[] BuildCosts(CharacterDataSO character, UpgradeQuote quote, bool notEnough)
+    {
+        if (quote.HasShardCost)
+            return new[] { new CostModel(character.ShardIcon, Tint(FormatAmount(quote.ShardCost.Amount) + "/" + FormatAmount(quote.ShardsOwned), notEnough)) };
+
+        var costs = new CostModel[quote.Costs.Count];
+        for (int i = 0; i < costs.Length; i++)
+            costs[i] = new CostModel(theme.GetCurrencyIcon(quote.Costs[i].Currency), Tint(FormatAmount(quote.Costs[i].Amount), notEnough));
+        return costs;
+    }
+
+    private string Tint(string amount, bool notEnough)
+        => notEnough ? "<color=#" + notEnoughCurrencyColor + ">" + amount + "</color>" : amount;
+
+    private static string FormatAmount(long amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 
     #endregion
 

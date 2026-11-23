@@ -21,6 +21,8 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private CharacterVisualSettings visualSettings = CharacterVisualSettings.Default;
     [Tooltip("Ảnh chân dung trên màn Character (thẻ Collection). Xuất bằng Tools/Shooter Game/Character UI Exporter.")]
     [SerializeField] private Sprite portrait;
+    [Tooltip("Icon mảnh của nhân vật (đầu nhân vật) trên giá nâng sao và thanh mảnh. Xuất bằng Tools/Shooter Game/Character UI Exporter; để trống thì dùng ảnh chân dung.")]
+    [SerializeField] private Sprite shardIcon;
     [Tooltip("Nhân vật dạng UI (Image theo bộ phận, đứng Idle) cho màn Detail. Xuất bằng Tools/Shooter Game/Character UI Exporter.")]
     [SerializeField] private CharacterUIVisual uiVisualPrefab;
     [Tooltip("Độ hiếm hiển thị trên màn Character. Chỉ là thông tin hiển thị, không đổi chỉ số.")]
@@ -37,6 +39,8 @@ public sealed class CharacterDataSO : ScriptableObject
     public HitboxData Hitbox => visualSettings.Hitbox;
     /// <summary>Ảnh chân dung cho UI; null thì UI giữ ảnh mặc định của prefab.</summary>
     public Sprite Portrait => portrait;
+    /// <summary>Icon mảnh của nhân vật; chưa xuất thì dùng ảnh chân dung (có thể null nếu cả hai chưa có).</summary>
+    public Sprite ShardIcon => shardIcon != null ? shardIcon : portrait;
     /// <summary>Prefab nhân vật dạng UI cho màn Detail; null khi chưa xuất.</summary>
     public CharacterUIVisual UIVisualPrefab => uiVisualPrefab;
     /// <summary>Độ hiếm chỉ để hiển thị.</summary>

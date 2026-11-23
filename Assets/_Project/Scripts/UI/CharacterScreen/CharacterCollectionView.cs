@@ -18,8 +18,6 @@ public sealed class CharacterCollectionView : MonoBehaviour
     [SerializeField] private RectTransform content;
     [Tooltip("Chữ \"đã có/tổng\".")]
     [SerializeField] private TMP_Text countText;
-    [Tooltip("Nút mở popup phân rã bản trùng thành mảnh.")]
-    [SerializeField] private Button dismantleButton;
 
     #endregion
 
@@ -28,26 +26,7 @@ public sealed class CharacterCollectionView : MonoBehaviour
     /// <summary>Chạm vào thẻ thứ <c>index</c> (theo thứ tự model truyền vào).</summary>
     public event Action<int> CardClicked;
 
-    /// <summary>Bấm nút DISMANTLE (mở popup phân rã).</summary>
-    public event Action DismantleClicked;
-
     private readonly List<CharacterCardView> cards = new List<CharacterCardView>(); // Thẻ đã sinh, tái dùng giữa các lần Bind.
-
-    #endregion
-
-    #region Lifecycle
-
-    private void OnEnable()
-    {
-        if (dismantleButton != null) dismantleButton.onClick.AddListener(OnDismantle);
-    }
-
-    private void OnDisable()
-    {
-        if (dismantleButton != null) dismantleButton.onClick.RemoveListener(OnDismantle);
-    }
-
-    private void OnDismantle() => DismantleClicked?.Invoke();
 
     #endregion
 

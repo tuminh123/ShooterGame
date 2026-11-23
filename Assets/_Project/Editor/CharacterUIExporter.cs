@@ -26,7 +26,9 @@ public sealed class CharacterUIExporter : EditorWindow
     private const string IdleClipName = "Idle";
     private const string VictoryClipName = "Victory";
     private const string CelebrateTrigger = "Celebrate"; // Khớp CharacterUIVisual.Celebrate.
+    private const string ShardIconFolder = "Assets/_Project/Graphic/ShardIcons";
     private const int PortraitSize = 512;
+    private const int ShardIconSize = 256;
     private const int PreviewSize = 256;
     private const string PrefsPrefix = "ShooterGame.CharacterUIExporter.";
 
@@ -45,6 +47,14 @@ public sealed class CharacterUIExporter : EditorWindow
     private float zoom = DefaultZoom;   // Phần chiều cao nhân vật lọt vào khung: 1 = vừa khít toàn thân.
     private Vector2 offset;             // Lệch tâm khung, tính theo chiều cao nhân vật.
     private float idleTime;         // Giây trong clip Idle dùng làm tư thế chụp.
+
+    // Icon mảnh = chỉ phần đầu: giữ các bộ phận có tên chứa một trong các từ khóa, tắt mọi bộ phận khác lúc chụp
+    // (cây gậy, thân... lọt vào khung sẽ làm icon không còn là "đầu"). Khung tự ôm sát phần đầu nên không cần chỉnh zoom/lệch.
+    private const string DefaultHeadKeywords = "Head,Helmet,Eye,Beard,Hair";
+    private const float DefaultShardPadding = 1.15f;
+    private string headKeywords = DefaultHeadKeywords; // Dùng chung mọi nhân vật (quy ước đặt tên bộ phận), lưu trong EditorPrefs.
+    private float shardPadding = DefaultShardPadding;  // Lề quanh đầu: 1 = vừa khít.
+    private bool previewShardIcon;                     // Ô xem trước đang hiện icon mảnh hay ảnh chân dung.
 
     private Scene previewScene;
     private GameObject previewInstance;
@@ -98,11 +108,21 @@ public sealed class CharacterUIExporter : EditorWindow
         if (previewInstance == null) return;
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Khung ảnh chân dung (thẻ Collection)", EditorStyles.boldLabel);
         EditorGUI.BeginChangeCheck();
-        zoom = EditorGUILayout.Slider("Zoom (1 = toàn thân)", zoom, 0.2f, 1.3f);
-        offset.x = EditorGUILayout.Slider("Lệch ngang", offset.x, -0.5f, 0.5f);
-        offset.y = EditorGUILayout.Slider("Lệch dọc", offset.y, -0.5f, 0.5f);
+        previewShardIcon = EditorGUILayout.Toggle("Xem icon mảnh (chỉ đầu)", previewShardIcon);
+        if (previewShardIcon)
+        {
+            EditorGUILayout.LabelField("Icon mảnh (đầu nhân vật)", EditorStyles.boldLabel);
+            headKeywords = EditorGUILayout.TextField(new GUIContent("Từ khóa bộ phận đầu", "Tên bộ phận chứa một trong các từ này (cách nhau bằng dấu phẩy) sẽ được giữ lại; bộ phận khác bị tắt."), headKeywords);
+            shardPadding = EditorGUILayout.Slider("Lề quanh đầu (1 = vừa khít)", shardPadding, 1f, 2f);
+        }
+        else
+        {
+            EditorGUILayout.LabelField("Khung ảnh chân dung (thẻ Collection)", EditorStyles.boldLabel);
+            zoom = EditorGUILayout.Slider("Zoom (1 = toàn thân)", zoom, 0.2f, 1.3f);
+            offset.x = EditorGUILayout.Slider("Lệch ngang", offset.x, -0.5f, 0.5f);
+            offset.y = EditorGUILayout.Slider("Lệch dọc", offset.y, -0.5f, 0.5f);
+        }
         AnimationClip idle = FindClip(previewInstance, IdleClipName);
         idleTime = EditorGUILayout.Slider("Frame Idle (giây)", idleTime, 0f, idle != null ? idle.length : 0f);
         if (EditorGUI.EndChangeCheck())
@@ -118,10 +138,11 @@ public sealed class CharacterUIExporter : EditorWindow
         using (new EditorGUILayout.HorizontalScope())
         {
             if (GUILayout.Button("Xuất ảnh")) Run(() => ExportPortrait(character));
+            if (GUILayout.Button("Xuất icon mảnh")) Run(() => ExportShardIcon(character));
             if (GUILayout.Button("Xuất prefab UI")) Run(() => ExportUIPrefab(character));
-            if (GUILayout.Button("Xuất cả hai")) Run(() => { ExportPortrait(character); ExportUIPrefab(character); });
         }
-        if (GUILayout.Button($"Xuất cả hai cho tất cả ({characters.Count} nhân vật)")) Run(ExportAll);
+        if (GUILayout.Button("Xuất tất cả (ảnh, icon mảnh, prefab UI)")) Run(() => ExportEverything(character));
+        if (GUILayout.Button($"Xuất tất cả cho {characters.Count} nhân vật")) Run(ExportAll);
         if (!string.IsNullOrEmpty(status)) EditorGUILayout.HelpBox(status, MessageType.None);
     }
 
@@ -194,11 +215,31 @@ public sealed class CharacterUIExporter : EditorWindow
     {
         if (previewInstance == null) return;
         ApplyIdlePose(idleTime);
-        FrameCamera();
-        previewCamera.backgroundColor = new Color(0.18f, 0.18f, 0.2f, 1f);
-        previewCamera.targetTexture = previewTexture;
-        previewCamera.Render();
-        previewCamera.targetTexture = null;
+        List<SpriteRenderer> hidden = null;
+        try
+        {
+            if (previewShardIcon)
+            {
+                hidden = HideNonHead();
+                FrameHead();
+            }
+            else
+            {
+                FrameCamera(zoom, offset);
+            }
+            previewCamera.backgroundColor = new Color(0.18f, 0.18f, 0.2f, 1f);
+            previewCamera.targetTexture = previewTexture;
+            previewCamera.Render();
+            previewCamera.targetTexture = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            status = "Lỗi: " + exception.Message; // Từ khóa sai thì chỉ báo trên cửa sổ, không văng lỗi mỗi lần vẽ.
+        }
+        finally
+        {
+            RestoreRenderers(hidden);
+        }
         Repaint();
     }
 
@@ -210,12 +251,58 @@ public sealed class CharacterUIExporter : EditorWindow
         previewBounds = CalculateBounds(previewInstance);
     }
 
-    private void FrameCamera()
+    private void FrameCamera(float frameZoom, Vector2 frameOffset)
     {
         float height = Mathf.Max(0.01f, previewBounds.size.y);
-        Vector3 center = previewBounds.center + new Vector3(offset.x * height, offset.y * height, 0f);
-        previewCamera.orthographicSize = height * zoom * 0.5f;
+        Vector3 center = previewBounds.center + new Vector3(frameOffset.x * height, frameOffset.y * height, 0f);
+        previewCamera.orthographicSize = height * frameZoom * 0.5f;
         previewCamera.transform.position = new Vector3(center.x, center.y, -10f);
+    }
+
+    #endregion
+
+    #region Head Framing (icon mảnh)
+
+    // Tắt mọi bộ phận đang hiện mà không phải đầu, để cây gậy/thân không lọt vào icon. Trả danh sách đã tắt để bật lại.
+    private List<SpriteRenderer> HideNonHead()
+    {
+        var hidden = new List<SpriteRenderer>();
+        foreach (SpriteRenderer renderer in CollectVisibleRenderers(previewInstance))
+        {
+            if (IsHeadPart(renderer)) continue;
+            renderer.enabled = false;
+            hidden.Add(renderer);
+        }
+        return hidden;
+    }
+
+    private static void RestoreRenderers(List<SpriteRenderer> hidden)
+    {
+        if (hidden == null) return;
+        foreach (SpriteRenderer renderer in hidden) renderer.enabled = true;
+    }
+
+    private bool IsHeadPart(SpriteRenderer renderer)
+    {
+        foreach (string keyword in headKeywords.Split(','))
+        {
+            string trimmed = keyword.Trim();
+            if (trimmed.Length > 0 && renderer.name.IndexOf(trimmed, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        }
+        return false;
+    }
+
+    // Khung vuông ôm sát các bộ phận đầu còn hiện (gọi sau HideNonHead), có lề shardPadding.
+    private void FrameHead()
+    {
+        List<SpriteRenderer> head = CollectVisibleRenderers(previewInstance);
+        if (head.Count == 0)
+            throw new InvalidOperationException($"Không có bộ phận nào khớp từ khóa đầu \"{headKeywords}\" đang hiện trong Idle.");
+        Bounds bounds = head[0].bounds;
+        for (int i = 1; i < head.Count; i++) bounds.Encapsulate(head[i].bounds);
+        float side = Mathf.Max(bounds.size.x, bounds.size.y, 0.01f);
+        previewCamera.orthographicSize = side * shardPadding * 0.5f;
+        previewCamera.transform.position = new Vector3(bounds.center.x, bounds.center.y, -10f);
     }
 
     #endregion
@@ -223,16 +310,33 @@ public sealed class CharacterUIExporter : EditorWindow
     #region Portrait Export
 
     private void ExportPortrait(CharacterDataSO character)
+        => ExportSprite(character, PortraitSize, PortraitFolder, "Portrait", "portrait", () => FrameCamera(zoom, offset));
+
+    // Icon mảnh = chỉ đầu nhân vật: tắt các bộ phận khác trong lúc chụp rồi bật lại.
+    private void ExportShardIcon(CharacterDataSO character)
+        => ExportSprite(character, ShardIconSize, ShardIconFolder, "Shard", "shardIcon", FrameHead, headOnly: true);
+
+    // Chụp nhân vật theo khung do frame đặt, lưu thành sprite và gán vào field của CharacterDataSO.
+    private void ExportSprite(CharacterDataSO character, int size, string folder, string suffix, string field, Action frame, bool headOnly = false)
     {
         if (previewFor != character) OpenPreview(character);
         ApplyIdlePose(idleTime);
-        FrameCamera();
-        Texture2D portrait = CaptureTransparent(PortraitSize);
+        List<SpriteRenderer> hidden = headOnly ? HideNonHead() : null;
+        Texture2D image;
         try
         {
-            EnsureFolder(PortraitFolder);
-            string path = $"{PortraitFolder}/{character.CharacterType}_Portrait.png";
-            File.WriteAllBytes(path, portrait.EncodeToPNG());
+            frame();
+            image = CaptureTransparent(size);
+        }
+        finally
+        {
+            RestoreRenderers(hidden);
+        }
+        try
+        {
+            EnsureFolder(folder);
+            string path = $"{folder}/{character.CharacterType}_{suffix}.png";
+            File.WriteAllBytes(path, image.EncodeToPNG());
             AssetDatabase.ImportAsset(path);
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
             importer.textureType = TextureImporterType.Sprite;
@@ -241,12 +345,12 @@ public sealed class CharacterUIExporter : EditorWindow
             importer.mipmapEnabled = false;
             importer.SaveAndReimport();
             // Tên file cố định: xuất lại ghi đè cùng GUID nên mọi reference giữ nguyên.
-            AssignReference(character, "portrait", AssetDatabase.LoadAssetAtPath<Sprite>(path));
+            AssignReference(character, field, AssetDatabase.LoadAssetAtPath<Sprite>(path));
             status = $"Đã xuất ảnh: {path}";
         }
         finally
         {
-            DestroyImmediate(portrait);
+            DestroyImmediate(image);
         }
     }
 
@@ -466,12 +570,19 @@ public sealed class CharacterUIExporter : EditorWindow
         {
             EditorUtility.DisplayProgressBar("Character UI Exporter", character.name, (float)done / characters.Count);
             OpenPreview(character);
-            ExportPortrait(character);
-            ExportUIPrefab(character);
+            ExportEverything(character);
             done++;
         }
         EditorUtility.ClearProgressBar();
         status = $"Đã xuất {done} nhân vật.";
+    }
+
+    // Ảnh chân dung, icon mảnh và prefab UI của một nhân vật.
+    private void ExportEverything(CharacterDataSO character)
+    {
+        ExportPortrait(character);
+        ExportShardIcon(character);
+        ExportUIPrefab(character);
     }
 
     #endregion
@@ -539,6 +650,8 @@ public sealed class CharacterUIExporter : EditorWindow
         zoom = EditorPrefs.GetFloat(key + ".zoom", DefaultZoom);
         offset = new Vector2(EditorPrefs.GetFloat(key + ".offsetX", 0f), EditorPrefs.GetFloat(key + ".offsetY", 0f));
         idleTime = EditorPrefs.GetFloat(key + ".idleTime", 0f);
+        shardPadding = EditorPrefs.GetFloat(key + ".shardPadding", DefaultShardPadding);
+        headKeywords = EditorPrefs.GetString(PrefsPrefix + "headKeywords", DefaultHeadKeywords);
     }
 
     private void SaveFraming(CharacterDataSO character)
@@ -548,6 +661,8 @@ public sealed class CharacterUIExporter : EditorWindow
         EditorPrefs.SetFloat(key + ".offsetX", offset.x);
         EditorPrefs.SetFloat(key + ".offsetY", offset.y);
         EditorPrefs.SetFloat(key + ".idleTime", idleTime);
+        EditorPrefs.SetFloat(key + ".shardPadding", shardPadding);
+        EditorPrefs.SetString(PrefsPrefix + "headKeywords", headKeywords);
     }
 
     #endregion

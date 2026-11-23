@@ -108,11 +108,19 @@ public readonly struct UpgradeQuote
     /// <summary>Điểm cần để đầy thanh; 0 khi đã ở trần hoặc loại nâng cấp không có thanh.</summary>
     public readonly int ProgressRequired;
     public readonly IReadOnlyList<CurrencyCost> Costs;
+    /// <summary>Mảnh cần để nâng (nâng sao trả bằng mảnh riêng của nhân vật, không đi qua ví). Type = None khi không tốn mảnh.</summary>
+    public readonly CharacterShards ShardCost;
+    /// <summary>Mảnh nhân vật đang có, để UI hiện "cần/có"; chỉ có nghĩa khi <see cref="HasShardCost"/>.</summary>
+    public readonly long ShardsOwned;
     public readonly UpgradeBlock Block;
+
+    /// <summary>True khi lần nâng này tốn mảnh riêng của nhân vật.</summary>
+    public bool HasShardCost => ShardCost.Type != CharacterType.None;
 
     /// <summary>True khi không có lý do nào chặn.</summary>
     public bool CanUpgrade => Block == UpgradeBlock.None;
 
+    /// <summary>Lần nâng trả bằng tiền trong ví (level, trang bị).</summary>
     public UpgradeQuote(int current, int max, int progress, int progressRequired,
         IReadOnlyList<CurrencyCost> costs, UpgradeBlock block)
     {
@@ -121,6 +129,21 @@ public readonly struct UpgradeQuote
         Progress = progress;
         ProgressRequired = progressRequired;
         Costs = costs ?? Array.Empty<CurrencyCost>();
+        ShardCost = default;
+        ShardsOwned = 0;
+        Block = block;
+    }
+
+    /// <summary>Lần nâng trả bằng mảnh riêng của nhân vật (sao); không có thanh tiến độ và không tốn tiền ví.</summary>
+    public UpgradeQuote(int current, int max, CharacterShards shardCost, long shardsOwned, UpgradeBlock block)
+    {
+        Current = current;
+        Max = max;
+        Progress = 0;
+        ProgressRequired = 0;
+        Costs = Array.Empty<CurrencyCost>();
+        ShardCost = shardCost;
+        ShardsOwned = shardsOwned;
         Block = block;
     }
 }
@@ -148,55 +171,66 @@ public interface ICharacterUpgrades
 
 #region Character Collection (màn Character, panel test; sau này gacha thật)
 
-/// <summary>Trạng thái bộ sưu tập của một nhân vật: đã có chưa, bản trùng, mảnh cùng độ hiếm đang có và số cần để ghép.</summary>
+/// <summary>
+/// Một lượng mảnh của một nhân vật cụ thể. Mảnh thuộc riêng từng nhân vật (không dùng chung theo độ hiếm),
+/// nên mọi nơi nói về mảnh (giá, kết quả gacha) đều mang theo nhân vật nó thuộc về.
+/// </summary>
+public readonly struct CharacterShards
+{
+    public readonly CharacterType Type;
+    public readonly long Amount;
+
+    public CharacterShards(CharacterType type, long amount)
+    {
+        Type = type;
+        Amount = amount;
+    }
+}
+
+/// <summary>Trạng thái bộ sưu tập của một nhân vật: đã có chưa, mảnh riêng đang có, số mảnh cần để ghép và nhận mỗi lần trùng.</summary>
 public readonly struct CharacterCollectionStatus
 {
     public readonly bool Owned;
-    /// <summary>Số bản trùng đang giữ (phân rã được, hoặc dùng để nâng sao).</summary>
-    public readonly int Copies;
-    /// <summary>Loại mảnh của độ hiếm nhân vật này.</summary>
-    public readonly CurrencyType ShardCurrency;
-    /// <summary>Số mảnh cùng độ hiếm đang có trong ví.</summary>
+    /// <summary>Mảnh riêng của nhân vật này (nhận khi gacha trùng).</summary>
     public readonly long Shards;
     /// <summary>Số mảnh để ghép (chỉ có nghĩa khi chưa sở hữu).</summary>
     public readonly int UnlockShards;
-    /// <summary>Số mảnh nhận được khi phân rã một bản trùng.</summary>
-    public readonly int ShardsPerCopy;
+    /// <summary>Số mảnh nhận được mỗi lần gacha trúng nhân vật đã có.</summary>
+    public readonly int ShardsPerDuplicate;
 
     /// <summary>Chưa sở hữu và đủ mảnh để ghép.</summary>
     public bool CanAssemble => !Owned && Shards >= UnlockShards;
 
-    public CharacterCollectionStatus(bool owned, int copies, CurrencyType shardCurrency, long shards, int unlockShards, int shardsPerCopy)
+    public CharacterCollectionStatus(bool owned, long shards, int unlockShards, int shardsPerDuplicate)
     {
         Owned = owned;
-        Copies = copies;
-        ShardCurrency = shardCurrency;
         Shards = shards;
         UnlockShards = unlockShards;
-        ShardsPerCopy = shardsPerCopy;
+        ShardsPerDuplicate = shardsPerDuplicate;
     }
 }
 
 /// <summary>
-/// Bộ sưu tập nhân vật Player: sở hữu, bản trùng, ghép bằng mảnh, phân rã bản trùng thành mảnh.
-/// Mảnh theo độ hiếm, chung mọi nhân vật cùng độ hiếm (luật trong LevelDatabaseSO). Dùng bởi màn Character và panel test.
+/// Bộ sưu tập nhân vật Player: sở hữu, nhận mảnh khi gacha trùng, ghép bằng mảnh.
+/// Mảnh thuộc riêng từng nhân vật; số mảnh mỗi lần trùng và để ghép theo độ hiếm (luật trong LevelDatabaseSO).
+/// Dùng bởi màn Character và panel test.
 /// </summary>
-/// <remarks>Mỗi thao tác đổi RAM rồi ghi ví + tiến trình trong một lần save; saved = false thì không gọi lại lệnh.</remarks>
+/// <remarks>Mỗi thao tác đổi RAM rồi ghi tiến trình trong một lần save; saved = false thì không gọi lại lệnh.</remarks>
 public interface ICharacterCollection
 {
     /// <summary>Trạng thái bộ sưu tập của <paramref name="type"/>.</summary>
     CharacterCollectionStatus GetStatus(CharacterType type);
 
-    /// <summary>Nhận một nhân vật (gacha): chưa có thì sở hữu luôn, đã có thì thêm một bản trùng.</summary>
-    CharacterGrantResult Grant(CharacterType type, out bool saved);
+    /// <summary>
+    /// Nhận một nhân vật (gacha): chưa có thì sở hữu luôn, đã có thì thành mảnh riêng của nhân vật đó.
+    /// <paramref name="gained"/> là mảnh vừa nhận (Amount = 0 khi là nhân vật mới), để nơi gọi báo người chơi mà không tự tính lại luật.
+    /// </summary>
+    CharacterGrantResult Grant(CharacterType type, out CharacterShards gained, out bool saved);
 
-    /// <summary>Ghép nhân vật chưa có bằng mảnh cùng độ hiếm; false nếu đã có hoặc chưa đủ mảnh.</summary>
+    /// <summary>Ghép nhân vật chưa có bằng mảnh riêng của nó; false nếu đã có hoặc chưa đủ mảnh.</summary>
     bool TryAssemble(CharacterType type, out bool saved);
 
-    /// <summary>Phân rã <paramref name="count"/> bản trùng thành mảnh cùng độ hiếm; false nếu không đủ bản trùng.</summary>
-    bool TryDismantle(CharacterType type, int count, out bool saved);
-
-    /// <summary>Phát sau khi sở hữu, bản trùng hoặc mảnh của bộ sưu tập đổi (đã thử lưu).</summary>
+    /// <summary>Phát sau khi sở hữu hoặc mảnh của bộ sưu tập đổi (đã thử lưu).</summary>
     event Action Changed;
 }
 

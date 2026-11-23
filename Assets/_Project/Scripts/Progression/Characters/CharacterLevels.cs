@@ -253,8 +253,8 @@ public sealed class CharacterLevels : IDisposable
 
     #region Collection Storage (CharacterCollection dùng)
 
-    // Sở hữu, bản trùng và sao lưu cùng Entry với level vì system này là chủ duy nhất của key character_levels
-    // (hai chủ cùng ghi một key sẽ đè nhau). Luật ghép/phân rã/nâng sao nằm ở CharacterCollection; ở đây chỉ đọc/ghi dữ liệu.
+    // Sở hữu, mảnh riêng và sao lưu cùng Entry với level vì system này là chủ duy nhất của key character_levels
+    // (hai chủ cùng ghi một key sẽ đè nhau). Luật gacha/ghép/nâng sao nằm ở CharacterCollection; ở đây chỉ đọc/ghi dữ liệu.
 
     /// <summary>Đã sở hữu: nhân vật khởi đầu (LevelDatabaseSO) hoặc đã gacha/ghép.</summary>
     public bool IsOwned(CharacterType characterType)
@@ -264,11 +264,11 @@ public sealed class CharacterLevels : IDisposable
         return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) && entry.owned;
     }
 
-    /// <summary>Số bản trùng đang giữ; nhân vật chưa có bản ghi là 0.</summary>
-    public int GetCopies(CharacterType characterType)
+    /// <summary>Mảnh riêng đang giữ của nhân vật; chưa có bản ghi là 0.</summary>
+    public long GetShards(CharacterType characterType)
     {
         GetConfig(characterType);
-        return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) ? entry.copies : 0;
+        return TryReadEntry(characterType, out CharacterLevelsSaveData.Entry entry) ? entry.shards : 0;
     }
 
     /// <summary>Bản ghi để CharacterCollection sửa tại chỗ (tạo nếu chưa có); sửa xong phải ghi bằng snapshot.</summary>

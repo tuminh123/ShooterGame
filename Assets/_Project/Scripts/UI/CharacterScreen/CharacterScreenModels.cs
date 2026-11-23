@@ -7,7 +7,7 @@ using UnityEngine;
 
 #region Collection Models
 
-/// <summary>Thanh mảnh trên thẻ nhân vật chưa sở hữu: icon mảnh cùng độ hiếm, số đang có / số cần để ghép.</summary>
+/// <summary>Thanh mảnh trên thẻ nhân vật chưa sở hữu: icon mảnh của nhân vật, số mảnh riêng đang có / số cần để ghép.</summary>
 public readonly struct ShardBarModel
 {
     public readonly Sprite Icon;
@@ -50,25 +50,6 @@ public readonly struct CharacterCardModel
 
     /// <summary>Thẻ trống (không có nhân vật). Collection hiện đúng số nhân vật nên không còn dùng để lấp hàng.</summary>
     public static CharacterCardModel Empty => new CharacterCardModel(null, string.Empty, 0, 0, CharacterCardState.Empty, null);
-}
-
-/// <summary>Một dòng trong popup phân rã: nhân vật có bản trùng và số mảnh nhận được nếu phân rã hết.</summary>
-public readonly struct DismantleRowModel
-{
-    public readonly Sprite Portrait;
-    public readonly string Name;
-    public readonly int Copies;
-    public readonly Sprite ShardIcon;
-    public readonly long ShardTotal; // Copies × Shards Per Copy.
-
-    public DismantleRowModel(Sprite portrait, string name, int copies, Sprite shardIcon, long shardTotal)
-    {
-        Portrait = portrait;
-        Name = name;
-        Copies = copies;
-        ShardIcon = shardIcon;
-        ShardTotal = shardTotal;
-    }
 }
 
 #endregion

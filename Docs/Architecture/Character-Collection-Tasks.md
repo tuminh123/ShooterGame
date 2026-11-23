@@ -1,47 +1,46 @@
-# Bộ sưu tập nhân vật: sở hữu, mảnh theo độ hiếm, ghép, bản trùng — kế hoạch task
+# Bộ sưu tập nhân vật: sở hữu, mảnh riêng của từng nhân vật, ghép — kế hoạch task
 
-> **Trạng thái:** ✅ K1–K9 code xong (2026-11-23) · compile sạch, Check Service Contracts PASS · Chờ người dùng play-test. Người dùng yêu cầu làm lần lượt mọi task, không cần duyệt từng bước.
+> **Trạng thái:** ✅ Đã đổi sang mảnh riêng của từng nhân vật (2026-11-23) · compile sạch, Check Service Contracts PASS, Report Missing Scripts 0 · test Play Mode qua MCP đạt (gacha trùng, nâng sao, nút UPGRADE hiện "cần/có").
+> Phiên bản trước (mảnh dùng chung theo độ hiếm + bản trùng + phân rã) đã bị thay thế; xem mục Lịch sử.
 
-## Yêu cầu (người dùng, 2026-11-23)
+## Yêu cầu (người dùng)
 
 - Collection hiện **đúng số nhân vật Player trong CharacterDatabase**, không lấp thẻ trống.
 - **Đã sở hữu**: thẻ màu như cũ (level, sao). **Chưa sở hữu**: thẻ xám, ẩn level/sao, thay bằng **thanh mảnh**.
   Đủ mảnh → thanh và viền thẻ sáng lên, chạm vào là **ghép** ra nhân vật. Chưa đủ → chạm chỉ xem Detail, **không có nút nâng cấp**.
-- Gacha ra nhân vật: chưa có thì **sở hữu luôn**; đã có thì vẫn cộng vào bộ sưu tập (**bản trùng**).
-- **Mảnh theo độ hiếm** (dùng chung mọi nhân vật cùng độ hiếm). Nhân vật Common nâng cấp bằng mảnh Common.
-- Bản trùng: **phân rã thành mảnh ở một chỗ riêng**; ra trùng thì **nâng cấp được luôn**.
-- Số mảnh ghi trong database **theo độ hiếm, chung mọi nhân vật** (phù thủy Common và kỵ sĩ Common cùng là 10 mảnh).
-- Giá nâng cấp bằng mảnh dùng **công thức** (`ILevelFormula`, như trang bị).
-
-## Giả định đã chọn (người dùng không trả lời câu hỏi, chọn hướng hợp lý nhất — đổi được trong data)
-
-1. **"10 mảnh" = giá trị một bản trùng khi phân rã** (Common 10). Ghép và nâng sao có số riêng trong database.
-2. **Mảnh dùng để nâng sao.** Level vẫn trả Gold như cũ.
-3. **Bản trùng được giữ lại.** Khi nâng sao: dùng bản trùng của chính nhân vật đó trước (mỗi bản = giá trị phân rã), thiếu thì trừ mảnh;
-   giá trị dư của bản trùng vào ví mảnh, không mất.
-4. **Chỗ phân rã**: popup riêng mở từ nút trên đầu màn Collection; mỗi nhân vật có bản trùng một dòng, nút phân rã hết.
-5. **Nhân vật khởi đầu** (sở hữu sẵn, không cần lưu): danh sách trong LevelDatabaseSO, mặc định BlessedGladiator.
+- Gacha ra nhân vật: chưa có thì **sở hữu luôn**; đã có thì thành **mảnh riêng của nhân vật đó** (số mảnh theo độ hiếm).
+- Mảnh dùng để **ghép** (khi chưa có) và **nâng sao**. Level vẫn trả Gold.
+- Số mảnh ghi trong database **theo độ hiếm** (hai nhân vật cùng độ hiếm cùng số mảnh).
+- Giá nâng sao dùng **công thức** (`ILevelFormula`, như trang bị).
+- Icon mảnh là **đầu nhân vật**, xuất từ Character UI Exporter.
+- Mảnh thừa khi đủ 5 sao: cộng dồn, cơ chế tiêu thụ/ghép làm sau.
 
 ## Thiết kế
 
-- **Mảnh là tiền tệ**: `CurrencyType.ShardCommon..ShardLegendary` (thêm ở cuối enum). Dùng lại Wallet: `CanAfford`, trừ/cộng và
-  ghi cùng một lần save với tiến trình nhân vật.
-- **Sở hữu + bản trùng** lưu trong `character_levels` (cùng Entry với level/sao), vì `CharacterLevels` là chủ duy nhất của key này
-  (hai chủ cùng ghi một key sẽ đè nhau). Save cũ không có field → chưa sở hữu, 0 bản trùng; nhân vật khởi đầu luôn được tính là đã có.
-- **Luật bộ sưu tập** trong `LevelDatabaseSO`: mỗi độ hiếm có `unlockShards` (ghép), `shardsPerCopy` (phân rã);
-  `starCost` = `RarityScaledFormula<CharacterRarity>` (mảnh cho sao kế tiếp); danh sách nhân vật khởi đầu.
-- Logic nằm trong `CharacterCollection` (Progression, do ProgressionManager tạo); miền khác dùng `ICharacterCollection`.
+- **`CharacterShards`** (`ProgressionContracts.cs`): struct `Type` + `Amount`. Chỉ có hai trường vì độ hiếm suy ra được từ nhân vật
+  (CharacterDataSO.Rarity), lưu thêm sẽ có hai nguồn sự thật cho cùng một thông tin.
+- **Lưu trữ**: `long shards` trong `CharacterLevelsSaveData.Entry` (cùng Entry với level/sao), vì `CharacterLevels` là chủ duy nhất của
+  key `character_levels`. Mảnh không đi qua ví nên mỗi thao tác chỉ ghi tiến trình một lần save.
+- **Luật** trong `CharacterCollection`: `Grant`, `TryAssemble`, `GetNextStarCost`, `CanAffordNextStar`, `TryAddStar`.
+  Luật số liệu trong `LevelDatabaseSO` (`unlockShards`, `shardsPerDuplicate`, `starCost`, nhân vật khởi đầu).
+- **Giá nâng sao**: `StarTrack` trả `UpgradeQuote` bằng `ShardCost` + `ShardsOwned` (không dùng `Costs`, vì mảnh không phải tiền ví);
+  lý do chặn mới `UpgradeBlock.NotEnoughShards` (thêm ở cuối enum). Level và trang bị không đổi.
+- **`Grant` trả `out CharacterShards gained`**: nơi gọi (nút gacha, sau này gacha thật) báo người chơi mà không tự tính lại luật.
+- **Icon mảnh**: `CharacterDataSO.ShardIcon` (field `shardIcon`, thiếu thì dùng `Portrait`).
 
-## Task
+## Task đã làm
 
 | Task | Nội dung |
 |---|---|
-| K1 | 5 loại mảnh trong `CurrencyType`; icon + tên hiển thị tiền trong CharacterScreenTheme; thông báo "Not enough ..." dùng tên hiển thị. |
-| K2 | Luật bộ sưu tập trong `LevelDatabaseSO` + Inspector. |
-| K3 | Save (`owned`, `copies`), `Wallet.ApplyWith` (cộng/trừ có dấu, ghi cùng tiến trình), `CharacterCollection`, `ICharacterCollection`. |
-| K4 | `StarTrack` thật (mảnh + bản trùng), xóa `FreeUpgradesForTesting`; `LevelTrack`/`StarTrack` chặn khi chưa sở hữu. |
-| K5 | UI Collection: đủ số thẻ, thẻ xám + thanh mảnh, sáng khi đủ, chạm để ghép, đếm "đã có/tổng". |
-| K6 | UI Detail: chưa sở hữu thì ẩn nút nâng cấp và nút chọn. |
-| K7 | Popup phân rã bản trùng. |
-| K8 | Nút debug: gacha nhân vật ngẫu nhiên, +mảnh mọi độ hiếm. |
-| K9 | Docs. |
+| T1 | Save `shards`, `CharacterShards`, `CharacterCollection` mới, bỏ `TryDismantle`/`Copies`/`StarShards`/`ShardOf`, đổi tên `shardsPerCopy` → `shardsPerDuplicate` (`FormerlySerializedAs`). |
+| T2 | `UpgradeQuote.ShardCost`/`ShardsOwned`, `UpgradeBlock.NotEnoughShards`, `StarTrack`. |
+| T3 | UI Character: nút UPGRADE hiện "cần/có" + icon, báo thiếu mảnh, thanh mảnh thẻ xám theo mảnh riêng, nút gacha debug báo mảnh nhận được. |
+| T4 | Gỡ DISMANTLE: code (`CharacterDismantlePopupView`, `DismantleRowView`, model, nút) và scene (`Popup_Dismantle`, `Button_Dismantle`). |
+| T5 | Character UI Exporter: nút "Xuất icon mảnh", khung zoom/lệch riêng, "Xuất tất cả". |
+| T6 | Kiểm tra + tài liệu. |
+
+## Lịch sử
+
+Bản K1–K9 (2026-11-23, trước đó): mảnh là tiền ví theo độ hiếm (`CurrencyType.Shard*`), bản trùng lưu thành `copies`, phân rã bằng popup
+DISMANTLE, nâng sao dùng bản trùng trước rồi trừ mảnh ví. Đã thay bằng thiết kế trên vì người chơi không thấy bản trùng ở đâu và có hai kho mảnh
+cho cùng một việc nâng sao.

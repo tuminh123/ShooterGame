@@ -4,7 +4,7 @@ using Zenject;
 
 /// <summary>
 /// Nút debug của panel test: mỗi lần bấm "gacha" ra một nhân vật Player ngẫu nhiên trong Character Database.
-/// Chưa có thì sở hữu luôn, đã có thì thành một bản trùng (để test thẻ xám, ghép, phân rã và nâng sao bằng bản trùng).
+/// Chưa có thì sở hữu luôn, đã có thì thành mảnh riêng của nhân vật đó (để test thẻ xám, ghép và nâng sao bằng mảnh).
 /// </summary>
 [RequireComponent(typeof(Button))]
 public sealed class GachaCharacterButton : MonoBehaviour
@@ -44,8 +44,8 @@ public sealed class GachaCharacterButton : MonoBehaviour
         if (selection == null || collection == null || selection.PlayableCharacters.Count == 0)
             return;
         CharacterDataSO character = selection.PlayableCharacters[Random.Range(0, selection.PlayableCharacters.Count)];
-        CharacterGrantResult result = collection.Grant(character.CharacterType, out bool saved);
-        Debug.Log($"[Test] Gacha hero: {character.DisplayName} → {result}.", this);
+        CharacterGrantResult result = collection.Grant(character.CharacterType, out CharacterShards gained, out bool saved);
+        Debug.Log($"[Test] Gacha hero: {character.DisplayName} → {result}, +{gained.Amount} shards.", this);
         if (!saved)
             Debug.LogWarning("[Test] Gacha hero was applied but not saved yet; SaveManager will retry.", this);
     }

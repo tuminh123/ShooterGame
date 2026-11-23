@@ -144,7 +144,11 @@ public sealed class CharacterCardView : MonoBehaviour
         }
         if (!locked) return;
 
-        if (shardIcon != null && shards.Icon != null) shardIcon.sprite = shards.Icon;
+        if (shardIcon != null && shards.Icon != null)
+        {
+            shardIcon.sprite = shards.Icon;
+            shardIcon.preserveAspect = true; // Giữ tỉ lệ ảnh vuông của icon mảnh, không kéo giãn theo ô.
+        }
         if (shardFill != null)
         {
             shardFill.fillAmount = shards.Required > 0 ? Mathf.Clamp01(shards.Current / (float)shards.Required) : 1f;
