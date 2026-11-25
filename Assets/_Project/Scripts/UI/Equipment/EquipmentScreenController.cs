@@ -183,6 +183,10 @@ public sealed class EquipmentScreenController : UIPanelController
 
     #region Open And Visibility
 
+    /// <inheritdoc/>
+    // Là một tab của menu: mở khi tab Character đang đứng trên thì thay thế nó, Home không bật lại giữa hai tab.
+    public override bool IsMenuTab => true;
+
     /// <summary>Mở màn Equipment. Chỉ mở được khi game đang ở Home.</summary>
     public void Open()
     {
@@ -202,12 +206,10 @@ public sealed class EquipmentScreenController : UIPanelController
         {
             infoPopup.Hide();
             statsPopup.Hide();
-            if (TryGetComponent(out SlideTransition slideOut)) slideOut.PlayOut();
-            else gameObject.SetActive(false);
+            ApplyScreenVisibility(false);
             return;
         }
-        if (TryGetComponent(out SlideTransition slideIn)) slideIn.PlayIn();
-        else gameObject.SetActive(true);
+        ApplyScreenVisibility(true);
         Redraw();
     }
 

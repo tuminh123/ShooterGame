@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 // Ranh giới của miền Save: đây là TẤT CẢ những gì miền khác được phép dùng.
 // Mọi interface trong file này do SaveManager implement. SaveStorage (Easy Save 3) và SaveMigration
@@ -20,6 +21,12 @@ public interface ISaveStore
     /// <summary>Lỗi đọc/ghi gần nhất; null nếu lần gần nhất thành công.</summary>
     Exception LastError { get; }
 
+    /// <summary>
+    /// App sắp ẩn hoặc thoát: miền nào còn dữ liệu trong RAM thì ghi ngay trong callback. Chỉ phát khi file đã đọc được;
+    /// không phát lúc đóng scene, nên Reset Data không bị ghi lại dữ liệu cũ.
+    /// </summary>
+    event Action Saving;
+
     /// <summary>Đọc key; chưa có thì trả <paramref name="defaultData"/>. <paramref name="validate"/> ném lỗi nếu dữ liệu sai.</summary>
     T Load<T>(string key, T defaultData, Action<T> validate = null);
 
@@ -29,8 +36,8 @@ public interface ISaveStore
     /// </summary>
     bool Save<T>(string key, T snapshot);
 
-    /// <summary>Ghi hai section trong cùng một lần ghi file (ví dụ ví + mốc vượt màn), để không lệch nhau khi lỗi.</summary>
-    bool SaveBatch<TFirst, TSecond>(string firstKey, TFirst first, string secondKey, TSecond second);
+    /// <summary>Ghi nhiều section (key khác nhau) trong cùng một lần ghi file (ví dụ ví + mốc vượt màn), để không lệch nhau khi lỗi.</summary>
+    bool SaveBatch(IReadOnlyList<SaveEntry> entries);
 }
 
 #endregion
@@ -40,7 +47,7 @@ public interface ISaveStore
 /// <summary>Thử ghi lại phần đang chờ, hoặc xóa hồ sơ. Dùng bởi GameSceneInstaller (pause/mất focus/thoát) và ResetSaveButton.</summary>
 public interface ISaveMaintenance
 {
-    /// <summary>Ghi lại snapshot đang chờ (nếu có) mà không áp dụng lại nghiệp vụ.</summary>
+    /// <summary>Phát <see cref="ISaveStore.Saving"/> cho các miền ghi phần còn trong RAM, rồi ghi lại snapshot đang chờ (nếu có).</summary>
     bool SaveIfDirty();
 
     /// <summary>Xóa file save. Bên gọi reload scene sau đó để các system đọc lại dữ liệu mặc định.</summary>

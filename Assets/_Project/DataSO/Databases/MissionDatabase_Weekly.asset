@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68d93a2534ed30f4290a18837580523f, type: 3}
+  m_Name: MissionDatabase_Weekly
+  m_EditorClassIdentifier: 
+  id: weekly
+  displayName: Weekly
+  category: 1
+  eventStart: 
+  eventEnd: 
+  missions:
+  - {fileID: 11400000, guid: eca6eb9e627f7084e87f83b5c0f02580, type: 2}
+  finalMission: {fileID: 11400000, guid: c9a4fc841bfafb5409c29399e6626971, type: 2}

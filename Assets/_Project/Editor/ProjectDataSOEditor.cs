@@ -167,6 +167,8 @@ public abstract class ProjectDataSOEditor : Editor
         else if (target is MapDatabaseSO)
             Section("MAP CATALOG", "Key phân biệt hoa/thường và phải khớp Map Key của Stage. Sprite chỉ đổi hình nền; kích thước chunk cấu hình ở manager nền.",
                 DataInspectorTone.Visual, "maps");
+        else if (target is MissionDatabaseSO) DrawMissionDatabase();
+        else if (target is MissionDataSO) DrawMission();
         else if (target is PoolPrewarmSettingsSO) DrawPrewarm();
         else if (target is EnemyFormationSO) DrawFormation();
         else if (target is EnemyPathSO) DrawPath();
@@ -328,6 +330,34 @@ public abstract class ProjectDataSOEditor : Editor
 
     #endregion
 
+    #region Missions
+
+    private void DrawMissionDatabase()
+    {
+        Section("MISSION GROUP", "ID được lưu trong save. Category quyết định kỳ reset: Daily 0 giờ UTC, Weekly thứ Hai 0 giờ UTC, Event theo ngày.",
+            DataInspectorTone.Info, "id", "displayName", "category");
+        SerializedProperty category = serializedObject.FindProperty("category");
+        if (category.hasMultipleDifferentValues || category.intValue == (int)MissionCategory.Event)
+            Section("EVENT DATES (UTC)", "Dạng yyyy-MM-dd. Ngày End không được tính.", DataInspectorTone.Spawn, "eventStart", "eventEnd");
+        Section("MISSIONS", "Thứ tự danh sách là thứ tự trên UI. ID mission không trùng trong cùng database.", DataInspectorTone.Rewards, "missions");
+        Section("FINAL MISSION", "Thẻ lớn đầu tab. Target của Complete Mission không vượt số mission ở trên.", DataInspectorTone.Rewards, "finalMission");
+    }
+
+    private void DrawMission()
+    {
+        Section("MISSION INFO", "ID được lưu trong save: đổi ID thì tiến độ đã lưu của mission về 0.",
+            DataInspectorTone.Info, "id", "displayName", "description", "icon");
+        Section("TASKS", "Mission con, chạy song song, không có thưởng riêng. Xong hết mới nhận được thưởng.", DataInspectorTone.Stats, "tasks");
+        using (DataInspectorGUI.Section("REWARDS", "Gói thưởng lắp từ nhiều phần. Nhân vật đã có thì thành mảnh.", DataInspectorTone.Rewards))
+        {
+            SerializedProperty list = serializedObject.FindProperty("rewards");
+            if (serializedObject.isEditingMultipleObjects) { Field("rewards"); return; }
+            RewardListGUI.Draw(list);
+        }
+    }
+
+    #endregion
+
     #region Pool Preparation
 
     private void DrawPrewarm()
@@ -457,6 +487,8 @@ public abstract class ProjectDataSOEditor : Editor
         else if (data is LootDatabaseSO loot) loot.CreateLookup();
         else if (data is SkillDatabaseSO skills) skills.Validate();
         else if (data is StageDatabaseSO stages) stages.Validate();
+        else if (data is MissionDatabaseSO missionDatabase) missionDatabase.Validate();
+        else if (data is MissionDataSO mission) mission.Validate();
         else if (data is PoolPrewarmSettingsSO pools) pools.Validate();
         else if (data is EnemyFormationSO formation) formation.Validate();
         else if (data is EnemyPathSO path) path.Validate();
@@ -492,6 +524,8 @@ public abstract class ProjectDataSOEditor : Editor
 [CustomEditor(typeof(LootDatabaseSO)), CanEditMultipleObjects] public sealed class LootDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(SkillDatabaseSO)), CanEditMultipleObjects] public sealed class SkillDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(StageDatabaseSO)), CanEditMultipleObjects] public sealed class StageDatabaseInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(MissionDatabaseSO)), CanEditMultipleObjects] public sealed class MissionDatabaseInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(MissionDataSO)), CanEditMultipleObjects] public sealed class MissionInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(MapDatabaseSO)), CanEditMultipleObjects] public sealed class MapDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(PoolPrewarmSettingsSO)), CanEditMultipleObjects] public sealed class PoolPrewarmInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EnemyFormationSO)), CanEditMultipleObjects] public sealed class EnemyFormationInspector : ProjectDataSOEditor { }

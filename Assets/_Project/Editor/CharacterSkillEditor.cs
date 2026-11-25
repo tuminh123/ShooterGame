@@ -154,6 +154,11 @@ internal static class StrategySelector
     private static void DrawField(SerializedProperty property)
     {
         if (property.isArray && property.name == "effects") { DrawEffects(property); return; }
+        if (property.propertyType == SerializedPropertyType.ManagedReference && property.name == "substats")
+        {
+            Draw(property, GetTypes<IEquipmentSubstats>());
+            return;
+        }
         if (property.propertyType == SerializedPropertyType.ManagedReference &&
             (property.name == "shooter" || property.name == "projectileMove"))
         {

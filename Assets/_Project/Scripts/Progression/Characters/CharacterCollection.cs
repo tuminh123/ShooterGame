@@ -58,6 +58,14 @@ public sealed class CharacterCollection
     /// </summary>
     public CharacterGrantResult Grant(CharacterType type, out CharacterShards gained, out bool saved)
     {
+        CharacterGrantResult result = ApplyGrant(type, out gained);
+        saved = Save(type);
+        return result;
+    }
+
+    /// <summary>Như <see cref="Grant"/> nhưng chỉ đổi RAM; RewardGranter ghi cùng các phần thưởng khác rồi gọi <see cref="PublishChanged"/>.</summary>
+    internal CharacterGrantResult ApplyGrant(CharacterType type, out CharacterShards gained)
+    {
         bool owned = levels.IsOwned(type);
         CharacterLevelsSaveData.Entry entry = levels.EditEntry(type);
         gained = default;
@@ -71,9 +79,19 @@ public sealed class CharacterCollection
         {
             entry.owned = true;
         }
-        saved = Save(type);
         return owned ? CharacterGrantResult.Duplicate : CharacterGrantResult.NewCharacter;
     }
+
+    /// <summary>Cộng mảnh riêng của một nhân vật, chỉ đổi RAM (xem <see cref="ApplyGrant"/>).</summary>
+    internal void ApplyShards(CharacterType type, long amount)
+    {
+        if (amount < 1) throw new ArgumentOutOfRangeException(nameof(amount));
+        CharacterLevelsSaveData.Entry entry = levels.EditEntry(type);
+        entry.shards = checked(entry.shards + amount);
+    }
+
+    /// <summary>Báo bộ sưu tập đổi sau khi đã thử lưu.</summary>
+    internal void PublishChanged() => Changed?.Invoke();
 
     /// <summary>Ghép nhân vật chưa có: trừ đủ mảnh riêng của nó rồi sở hữu. False nếu đã có hoặc chưa đủ mảnh (không đổi gì).</summary>
     public bool TryAssemble(CharacterType type, out bool saved)
@@ -127,7 +145,7 @@ public sealed class CharacterCollection
     {
         bool saved = levels.SaveProgress();
         if (!saved) levels.ReportSaveFailure(type);
-        Changed?.Invoke();
+        PublishChanged();
         return saved;
     }
 

@@ -4,24 +4,24 @@ using System.Collections.Generic;
 /// <summary>Mốc thắng lần đầu của từng màn (key <c>stage_progress</c>) và giao dịch thưởng thắng đi kèm.</summary>
 /// <remarks>
 /// Do <see cref="ProgressionManager"/> tạo; thay cho StageProgressService cũ (trước đây tạm nằm trong Scripts/Stage).
-/// Nhận <see cref="Wallet"/> qua constructor: thưởng và cờ "đã thắng" phải ghi trong cùng một lần lưu.
+/// Nhận <see cref="RewardGranter"/> qua constructor: thưởng và cờ "đã thắng" phải ghi trong cùng một lần lưu.
 /// </remarks>
 public sealed class StageProgress
 {
     #region Fields
 
     private readonly ISaveStore saves;
-    private readonly Wallet wallet;
+    private readonly RewardGranter granter;
     private StageProgressSaveData data;
 
     #endregion
 
     #region Constructor / Load
 
-    public StageProgress(ISaveStore saves, Wallet wallet)
+    internal StageProgress(ISaveStore saves, RewardGranter granter)
     {
         this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
-        this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
+        this.granter = granter ?? throw new ArgumentNullException(nameof(granter));
     }
 
     /// <summary>Đọc cờ một lần sau khi Save đã mở file. Save cũ chưa có section này nghĩa là chưa thắng màn nào.</summary>
@@ -43,17 +43,17 @@ public sealed class StageProgress
         return data.firstClearStages.TryGetValue(stageId, out bool cleared) && cleared;
     }
 
-    /// <summary>Cộng thưởng cùng snapshot tiến trình; false nghĩa là snapshot đang chờ ghi lại (không cấp lại).</summary>
-    public bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards)
+    /// <summary>Trao thưởng cùng snapshot tiến trình; <paramref name="saved"/> = false nghĩa là đang chờ ghi lại (không trao lại).</summary>
+    internal RewardResult GrantRewards(string stageId, IReadOnlyList<IReward> rewards, bool markCleared, out bool saved)
     {
         EnsureAvailable();
         ValidateStageId(stageId);
         StageProgressSaveData snapshot = data.Clone();
-        snapshot.firstClearStages[stageId] = true;
-        bool saved = wallet.AddBatch(rewards, snapshot);
-        // Ghi nhận cả khi IO lỗi: RAM đã cộng tiền, nên cờ cũng phải đổi để không cấp thưởng lần đầu hai lần.
+        if (markCleared) snapshot.firstClearStages[stageId] = true;
+        RewardResult result = granter.Grant(rewards, SaveEntry.Of(GameConstants.SaveKeys.StageProgress, snapshot), out saved);
+        // Ghi nhận cả khi IO lỗi: RAM đã trao, nên cờ cũng phải đổi để không cấp thưởng lần đầu hai lần.
         data = snapshot;
-        return saved;
+        return result;
     }
 
     #endregion

@@ -123,6 +123,36 @@ public enum GameState
 
 #endregion
 
+#region Mission
+
+/// <summary>Loại nhóm mission, quyết định kỳ reset. Thêm loại mới ở cuối, không đổi số đã dùng.</summary>
+public enum MissionCategory { Daily = 0, Weekly = 1, Event = 2 }
+
+/// <summary>Việc được tính tiến độ của mission con; asset lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
+public enum MissionObjectiveType
+{
+    KillEnemy = 0,            // Hạ quái; nhóm và loại quái lọc ở MissionTask (EnemyKind, CharacterType).
+    KillBoss = 1,             // Không còn dùng (thay bằng KillEnemy + EnemyKind.Boss); giữ số, asset dùng lại sẽ bị báo lỗi.
+    FinishRun = 2,            // Chơi hết một trận, thắng hoặc thua (bỏ giữa chừng không tính).
+    WinRun = 3,
+    CollectRunGold = 4,       // Vàng nhặt trong trận đã chơi hết; không tính thưởng màn.
+    RaiseCharacterLevel = 5,  // Theo level thật tăng, không theo lần bấm.
+    RaiseCharacterStar = 6,
+    RaiseEquipmentLevel = 7,
+    CompleteMission = 8       // Số mission thường đã xong trong nhóm; chỉ dùng ở Final Mission.
+}
+
+/// <summary>Nhóm quái trong nhiệm vụ giết. Any chỉ dùng làm bộ lọc; asset lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
+public enum EnemyKind { Any = 0, Normal = 1, Elite = 2, Boss = 3 }
+
+/// <summary>Trạng thái của một mission trong kỳ hiện tại.</summary>
+public enum MissionState { InProgress, Claimable, Claimed }
+
+/// <summary>Nơi phần thưởng bay tới trên màn nhận thưởng.</summary>
+public enum RewardFlyTarget { Gold, Diamond, Heroes, Bag }
+
+#endregion
+
 #region Pool
 
 /// <summary>

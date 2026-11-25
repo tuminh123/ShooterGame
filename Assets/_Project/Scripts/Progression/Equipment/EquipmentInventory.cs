@@ -130,7 +130,7 @@ public sealed class EquipmentInventory : IDisposable
     public EquipmentItem Grant(EquipmentDataSO definition, EquipmentRarity rarity, out bool saved)
     {
         EnsureCanChange();
-        EquipmentItem item = CreateItem(definition, rarity);
+        EquipmentItem item = CreateItem(definition, rarity, 1, growth.RollInitialSubstats);
         changing = true;
         try
         {
@@ -138,6 +138,31 @@ public sealed class EquipmentInventory : IDisposable
             Notify();
             return item;
         }
+        finally { changing = false; }
+    }
+
+    /// <summary>Kiểm tra một bản đồ thưởng có tạo được không; ném lỗi nếu sai, không đổi gì.</summary>
+    internal void CheckGrant(EquipmentGrant grant)
+    {
+        EnsureDefinition(grant.Item, grant.Rarity);
+        if (grant.Level < 1 || grant.Level > growth.MaxLevel)
+            throw new InvalidOperationException($"Reward {grant.Item.Id}: equipment level must be 1..{growth.MaxLevel}.");
+        grant.Substats.Validate(database.Rules, grant.Item.Slot, grant.Rarity, grant.Level);
+    }
+
+    /// <summary>Thêm bản đồ thưởng vào túi, chỉ đổi RAM; RewardGranter ghi cùng các phần thưởng khác rồi gọi <see cref="PublishChanged"/>.</summary>
+    internal EquipmentItem ApplyGrant(EquipmentGrant grant)
+    {
+        EnsureCanChange();
+        return CreateItem(grant.Item, grant.Rarity, grant.Level,
+            (slot, rarity) => grant.Substats.Create(growth, slot, rarity, grant.Level));
+    }
+
+    /// <summary>Báo túi đồ đổi sau khi đã thử lưu; trong lúc báo thì túi không được đổi tiếp.</summary>
+    internal void PublishChanged()
+    {
+        changing = true;
+        try { Notify(); }
         finally { changing = false; }
     }
 
@@ -184,8 +209,8 @@ public sealed class EquipmentInventory : IDisposable
         return saves.Save(GameConstants.SaveKeys.EquipmentItems, CreateSaveData());
     }
 
-    // Chép toàn bộ runtime ra snapshot độc lập đã kiểm tra; dùng chung cho Save và lần ghi cùng ví khi lên cấp.
-    private EquipmentItemsSaveData CreateSaveData()
+    // Chép toàn bộ runtime ra snapshot độc lập đã kiểm tra; dùng chung cho Save, lần ghi cùng ví khi lên cấp và gói thưởng.
+    internal EquipmentItemsSaveData CreateSaveData()
     {
         var data = new EquipmentItemsSaveData { nextUid = nextUid, starterItemsGranted = starterItemsGranted };
         foreach (EquipmentItem item in items)
@@ -223,20 +248,26 @@ public sealed class EquipmentInventory : IDisposable
     {
         starterItemsGranted = true;
         foreach (EquipmentDatabaseSO.StarterItem starter in database.StarterItems)
-            CreateItem(starter.Item, starter.Rarity);
+            CreateItem(starter.Item, starter.Rarity, 1, growth.RollInitialSubstats);
     }
 
-    private EquipmentItem CreateItem(EquipmentDataSO definition, EquipmentRarity rarity)
+    private EquipmentItem CreateItem(EquipmentDataSO definition, EquipmentRarity rarity, int level,
+        Func<EquipmentSlot, EquipmentRarity, List<StatModifier>> createSubstats)
+    {
+        EnsureDefinition(definition, rarity);
+        List<StatModifier> substats = createSubstats(definition.Slot, rarity);
+        EquipmentItem item = Build(nextUid, definition, rarity, level, substats);
+        nextUid = checked(nextUid + 1);
+        items.Add(item);
+        return item;
+    }
+
+    private void EnsureDefinition(EquipmentDataSO definition, EquipmentRarity rarity)
     {
         if (definition == null || !definitions.TryGetValue(definition.Id, out EquipmentDataSO known) || known != definition)
             throw new ArgumentException("Equipment definition is not in Equipment Database.", nameof(definition));
         if (!Enum.IsDefined(typeof(EquipmentRarity), rarity))
             throw new ArgumentOutOfRangeException(nameof(rarity));
-        List<StatModifier> substats = growth.RollInitialSubstats(definition.Slot, rarity);
-        EquipmentItem item = Build(nextUid, definition, rarity, 1, substats);
-        nextUid = checked(nextUid + 1);
-        items.Add(item);
-        return item;
     }
 
     private EquipmentItem Build(int uid, EquipmentDataSO definition, EquipmentRarity rarity, int level, List<StatModifier> substats)
@@ -267,7 +298,8 @@ public sealed class EquipmentInventory : IDisposable
             throw new ArgumentException("Equipment item is not in the inventory.", nameof(item));
     }
 
-    private void EnsureCanChange()
+    /// <summary>Ném lỗi nếu túi chưa đọc xong hoặc đang trong callback của chính nó.</summary>
+    internal void EnsureCanChange()
     {
         EnsureAvailable();
         if (changing)

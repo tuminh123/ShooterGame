@@ -36,6 +36,8 @@ public static class GameConstants
         public const string Currencies = "currencies";
         /// <summary>Section lưu tiến trình vượt màn và thưởng thắng lần đầu.</summary>
         public const string StageProgress = "stage_progress";
+        /// <summary>Section lưu tiến độ mission theo nhóm và kỳ.</summary>
+        public const string Missions = "missions";
 
         #endregion
     }

@@ -1,19 +1,19 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Zenject;
 
 /// <summary>
 /// Hai thanh dùng chung của các màn chính (Home, Heroes, Equipment, sau này Shop, Map...): thanh dưới (nút Battle về Home,
 /// nút Heroes mở màn Character, nút Bag mở màn Equipment) và thanh trên (tiền tệ, nút menu). Nút của màn đang mở "nổi lên" bằng cách bật bản Focus.
 /// </summary>
 /// <remarks>
-/// Cả hai nằm ngoài MainUI và CharacterScreen (sau chúng trong hierarchy) vì UIManager tắt MainUI khi mở màn Character,
+/// Là panel nền (chrome) của UIManager: UIManager bật/tắt cả khối theo state game (chỉ hiện ở Home), còn việc trượt hai thanh
+/// và tab focus do class này lo. Cả hai thanh nằm ngoài MainUI và CharacterScreen vì UIManager tắt MainUI khi mở màn Character,
 /// mà hai thanh phải đứng yên khi đổi giữa các màn chính. Màn con như Detail thì có header/footer riêng,
 /// nên cả hai thanh cùng ẩn: thanh dưới trượt xuống đáy, thanh trên trượt lên đỉnh; quay lại thì trượt về chỗ cũ.
 /// Component đặt trên object luôn bật (HomeNavigation); hai thanh được bật/tắt bằng SlideTransition.
 /// </remarks>
-public sealed class HomeNavigationBar : MonoBehaviour
+public sealed class HomeNavigationBar : UIPanelController
 {
     #region Types
 
@@ -54,27 +54,38 @@ public sealed class HomeNavigationBar : MonoBehaviour
     [SerializeField] private Button[] lockedButtons = Array.Empty<Button>();
     [SerializeField] private CharacterScreenController characterScreen;
     [SerializeField] private EquipmentScreenController equipmentScreen;
+    [Tooltip("Màn Mission có header riêng nên hai thanh ẩn khi nó mở; để trống thì bỏ qua.")]
+    [SerializeField] private MissionScreenController missionScreen;
 
     #endregion
 
     #region State
 
-    private IGameState game;
+    private bool shown; // UIManager đang cho phép hiện khối thanh bar (state Home); chưa được bật thì mọi thứ ẩn.
     private bool barShown;
     private bool barInitialized; // Lần áp dụng đầu bật/tắt ngay, không trượt.
-    private bool wasHome; // Trạng thái Home lần Refresh trước, để nhận ra lúc vào trận / về Home.
+
+    #endregion
+
+    #region Panel Contract (UIManager)
+
+    /// <inheritdoc/>
+    public override bool IsChrome => true;
+
+    /// <inheritdoc/>
+    public override bool ShowsInState(GameState state) => state == GameState.Home;
+
+    /// <inheritdoc/>
+    // Đổi state (vào trận / về Home) thì bật/tắt ngay lúc màn đã tối, không trượt để khỏi hở đáy màn.
+    public override void SetVisible(bool visible)
+    {
+        shown = visible;
+        Refresh(!PlayTransition);
+    }
 
     #endregion
 
     #region Lifecycle
-
-    [Inject]
-    public void Construct(IGameState gameState)
-    {
-        Unsubscribe();
-        game = gameState;
-        if (isActiveAndEnabled) Subscribe();
-    }
 
     private void OnEnable()
     {
@@ -101,19 +112,18 @@ public sealed class HomeNavigationBar : MonoBehaviour
 
     private void Subscribe()
     {
-        if (game == null) return;
-        Unsubscribe(); // Tránh đăng ký hai lần khi Construct và OnEnable cùng chạy.
-        game.StateChanged += OnGameStateChanged;
-        characterScreen.NavigationChanged += Refresh;
-        equipmentScreen.NavigationChanged += Refresh;
-        Refresh();
+        Unsubscribe(); // Tránh đăng ký hai lần khi OnEnable chạy lại.
+        characterScreen.NavigationChanged += OnNavigationChanged;
+        equipmentScreen.NavigationChanged += OnNavigationChanged;
+        if (missionScreen != null) missionScreen.NavigationChanged += OnNavigationChanged;
+        Refresh(false);
     }
 
     private void Unsubscribe()
     {
-        if (game != null) game.StateChanged -= OnGameStateChanged;
-        if (characterScreen != null) characterScreen.NavigationChanged -= Refresh;
-        if (equipmentScreen != null) equipmentScreen.NavigationChanged -= Refresh;
+        if (characterScreen != null) characterScreen.NavigationChanged -= OnNavigationChanged;
+        if (equipmentScreen != null) equipmentScreen.NavigationChanged -= OnNavigationChanged;
+        if (missionScreen != null) missionScreen.NavigationChanged -= OnNavigationChanged;
     }
 
     #endregion
@@ -121,42 +131,31 @@ public sealed class HomeNavigationBar : MonoBehaviour
     #region Navigation
 
     // Bản Focus không cần listener: bấm vào nút của màn đang mở thì không làm gì.
-    // Mỗi lúc chỉ một màn chính mở: đóng màn còn lại trước rồi mới mở màn được chọn.
+    // Về Battle thì đóng cả hai tab; còn đổi giữa hai tab chỉ cần mở tab mới, UIManager tự thay tab cũ trong một lần cập nhật.
     private void OnBattle()
     {
         characterScreen.Close();
         equipmentScreen.Close();
     }
 
-    private void OnHeroes()
-    {
-        equipmentScreen.Close();
-        characterScreen.Open();
-    }
+    private void OnHeroes() => characterScreen.Open();
 
-    private void OnEquipment()
-    {
-        characterScreen.Close();
-        equipmentScreen.Open();
-    }
+    private void OnEquipment() => equipmentScreen.Open();
 
-    private void OnGameStateChanged(GameState previous, GameState current) => Refresh();
+    // Vào/ra Detail hoặc đổi tab trong menu: vẫn ở Home nên thanh bar trượt chứ không bật/tắt ngay.
+    private void OnNavigationChanged() => Refresh(false);
 
-    // Một chỗ quyết định mọi thứ của thanh bar từ trạng thái game và màn Character.
-    private void Refresh()
+    // Một chỗ quyết định mọi thứ của thanh bar từ việc UIManager cho phép hiện và màn Character/Equipment đang mở.
+    private void Refresh(bool instant)
     {
-        bool home = game != null && game.State == GameState.Home;
         bool heroesOpen = characterScreen.IsShown;
         bool equipmentOpen = equipmentScreen.IsShown;
-        if (sharedBackground != null) sharedBackground.SetActive(home);
+        if (sharedBackground != null) sharedBackground.SetActive(shown);
         battleTab.SetFocused(!heroesOpen && !equipmentOpen);
         heroesTab.SetFocused(heroesOpen);
         equipmentTab.SetFocused(equipmentOpen);
-        // Rời Home (vào trận) hoặc quay về Home: bật/tắt ngay cùng Home lúc màn đã tối, không trượt để khỏi hở đáy màn.
-        // Chỉ trượt khi vẫn ở trong menu (vào/ra Detail).
-        bool instant = home != wasHome;
-        wasHome = home;
-        SetBarsShown(home && !(heroesOpen && characterScreen.IsOnDetail), instant);
+        bool missionOpen = missionScreen != null && missionScreen.IsShown;
+        SetBarsShown(shown && !missionOpen && !(heroesOpen && characterScreen.IsOnDetail), instant);
     }
 
     // Hai thanh luôn hiện/ẩn cùng nhau; hướng trượt do SlideTransition của từng thanh quyết định.

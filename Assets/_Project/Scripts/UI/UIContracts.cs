@@ -6,7 +6,7 @@
 
 #region Screen Transition (Home, menu pause)
 
-/// <summary>Che màn hình rồi gửi lệnh bắt đầu, chơi lại hoặc về Home. Dùng bởi HomeController và PauseUI.</summary>
+/// <summary>Che màn hình rồi gửi lệnh bắt đầu, chơi lại hoặc về Home. Dùng bởi HomeController, PauseUI và ResultController.</summary>
 public interface IScreenTransition
 {
     /// <summary>Đang che/mở màn; các nút nên bỏ qua click trong lúc này.</summary>

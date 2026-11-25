@@ -49,11 +49,9 @@ public sealed class CharacterUIExporter : EditorWindow
     private float idleTime;         // Giây trong clip Idle dùng làm tư thế chụp.
 
     // Icon mảnh = chỉ phần đầu: giữ các bộ phận có tên chứa một trong các từ khóa, tắt mọi bộ phận khác lúc chụp
-    // (cây gậy, thân... lọt vào khung sẽ làm icon không còn là "đầu"). Khung tự ôm sát phần đầu nên không cần chỉnh zoom/lệch.
+    // (cây gậy, thân... lọt vào khung sẽ làm icon không còn là "đầu"). Ảnh được cắt sát điểm ảnh thật nên không cần chỉnh zoom/lệch/lề.
     private const string DefaultHeadKeywords = "Head,Helmet,Eye,Beard,Hair";
-    private const float DefaultShardPadding = 1.15f;
     private string headKeywords = DefaultHeadKeywords; // Dùng chung mọi nhân vật (quy ước đặt tên bộ phận), lưu trong EditorPrefs.
-    private float shardPadding = DefaultShardPadding;  // Lề quanh đầu: 1 = vừa khít.
     private bool previewShardIcon;                     // Ô xem trước đang hiện icon mảnh hay ảnh chân dung.
 
     private Scene previewScene;
@@ -114,7 +112,6 @@ public sealed class CharacterUIExporter : EditorWindow
         {
             EditorGUILayout.LabelField("Icon mảnh (đầu nhân vật)", EditorStyles.boldLabel);
             headKeywords = EditorGUILayout.TextField(new GUIContent("Từ khóa bộ phận đầu", "Tên bộ phận chứa một trong các từ này (cách nhau bằng dấu phẩy) sẽ được giữ lại; bộ phận khác bị tắt."), headKeywords);
-            shardPadding = EditorGUILayout.Slider("Lề quanh đầu (1 = vừa khít)", shardPadding, 1f, 2f);
         }
         else
         {
@@ -292,8 +289,56 @@ public sealed class CharacterUIExporter : EditorWindow
         return false;
     }
 
-    // Khung vuông ôm sát các bộ phận đầu còn hiện (gọi sau HideNonHead), có lề shardPadding.
+    // Alpha nhỏ hơn mức này coi là trống, để rìa khử răng cưa gần như vô hình không giữ lại khoảng trắng.
+    private const float VisibleAlpha = 0.02f;
+
+    // Khung vuông ôm sát phần đầu NHÌN THẤY (gọi sau HideNonHead). Sprite bộ phận có sẵn viền trong suốt nên bounds của
+    // renderer rộng hơn hình thật: chụp thử một lần, đo vùng có điểm ảnh rồi đặt lại khung vào đúng vùng đó.
     private void FrameHead()
+    {
+        FrameHeadBounds();
+        Texture2D probe = CaptureTransparent(ShardIconSize);
+        try
+        {
+            RectInt area = FindVisibleArea(probe);
+            float unitsPerPixel = previewCamera.orthographicSize * 2f / ShardIconSize;
+            Vector2 shift = (area.center - Vector2.one * (ShardIconSize * 0.5f)) * unitsPerPixel;
+            previewCamera.transform.position += (Vector3)shift;
+            previewCamera.orthographicSize = Mathf.Max(area.width, area.height) * unitsPerPixel * 0.5f;
+        }
+        finally { DestroyImmediate(probe); }
+    }
+
+    // Vùng nhỏ nhất chứa mọi điểm ảnh nhìn thấy.
+    private static RectInt FindVisibleArea(Texture2D image)
+    {
+        Color32[] pixels = image.GetPixels32();
+        int minX = image.width, minY = image.height, maxX = -1, maxY = -1;
+        for (int y = 0; y < image.height; y++)
+            for (int x = 0; x < image.width; x++)
+            {
+                if (pixels[y * image.width + x].a <= VisibleAlpha * 255f) continue;
+                minX = Mathf.Min(minX, x);
+                maxX = Mathf.Max(maxX, x);
+                minY = Mathf.Min(minY, y);
+                maxY = Mathf.Max(maxY, y);
+            }
+        if (maxX < 0) throw new InvalidOperationException("Ảnh chụp không có điểm ảnh nào nhìn thấy.");
+        return new RectInt(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    // Cắt bỏ khoảng trống còn lại của khung vuông; ảnh kết quả theo đúng tỉ lệ của hình (có thể không vuông).
+    private static Texture2D CropToVisible(Texture2D image)
+    {
+        RectInt area = FindVisibleArea(image);
+        var cropped = new Texture2D(area.width, area.height, TextureFormat.RGBA32, false);
+        cropped.SetPixels(image.GetPixels(area.x, area.y, area.width, area.height));
+        cropped.Apply();
+        DestroyImmediate(image);
+        return cropped;
+    }
+
+    private void FrameHeadBounds()
     {
         List<SpriteRenderer> head = CollectVisibleRenderers(previewInstance);
         if (head.Count == 0)
@@ -301,7 +346,7 @@ public sealed class CharacterUIExporter : EditorWindow
         Bounds bounds = head[0].bounds;
         for (int i = 1; i < head.Count; i++) bounds.Encapsulate(head[i].bounds);
         float side = Mathf.Max(bounds.size.x, bounds.size.y, 0.01f);
-        previewCamera.orthographicSize = side * shardPadding * 0.5f;
+        previewCamera.orthographicSize = side * 0.5f;
         previewCamera.transform.position = new Vector3(bounds.center.x, bounds.center.y, -10f);
     }
 
@@ -327,6 +372,7 @@ public sealed class CharacterUIExporter : EditorWindow
         {
             frame();
             image = CaptureTransparent(size);
+            if (headOnly) image = CropToVisible(image);
         }
         finally
         {
@@ -343,6 +389,7 @@ public sealed class CharacterUIExporter : EditorWindow
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;
+            if (headOnly) importer.spriteBorder = Vector4.zero; // Viền 9-slice đặt cho ảnh cũ không còn đúng sau khi cắt sát.
             importer.SaveAndReimport();
             // Tên file cố định: xuất lại ghi đè cùng GUID nên mọi reference giữ nguyên.
             AssignReference(character, field, AssetDatabase.LoadAssetAtPath<Sprite>(path));
@@ -650,7 +697,6 @@ public sealed class CharacterUIExporter : EditorWindow
         zoom = EditorPrefs.GetFloat(key + ".zoom", DefaultZoom);
         offset = new Vector2(EditorPrefs.GetFloat(key + ".offsetX", 0f), EditorPrefs.GetFloat(key + ".offsetY", 0f));
         idleTime = EditorPrefs.GetFloat(key + ".idleTime", 0f);
-        shardPadding = EditorPrefs.GetFloat(key + ".shardPadding", DefaultShardPadding);
         headKeywords = EditorPrefs.GetString(PrefsPrefix + "headKeywords", DefaultHeadKeywords);
     }
 
@@ -661,7 +707,6 @@ public sealed class CharacterUIExporter : EditorWindow
         EditorPrefs.SetFloat(key + ".offsetX", offset.x);
         EditorPrefs.SetFloat(key + ".offsetY", offset.y);
         EditorPrefs.SetFloat(key + ".idleTime", idleTime);
-        EditorPrefs.SetFloat(key + ".shardPadding", shardPadding);
         EditorPrefs.SetString(PrefsPrefix + "headKeywords", headKeywords);
     }
 

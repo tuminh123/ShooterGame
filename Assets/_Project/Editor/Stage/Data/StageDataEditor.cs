@@ -19,11 +19,11 @@ public sealed class StageDataEditor : Editor
         using (DataInspectorGUI.Section("SPAWN DATA", "Gán Waves, Pattern hoặc Boss Spawn. Waves tự quản lý chuỗi; Pattern và Elite dùng lịch riêng tính từ đầu Stage.", DataInspectorTone.Spawn))
             DrawSpawnData();
         using (DataInspectorGUI.Section("FIRST CLEAR REWARDS", "Chỉ nhận một lần khi thắng màn lần đầu; cộng thêm với phần thưởng thắng bên dưới.", DataInspectorTone.Rewards))
-            Field("firstClearStageRewards");
-        using (DataInspectorGUI.Section("VICTORY / DEFEAT REWARDS", "Thưởng theo kết quả mỗi lượt. Các dòng cùng loại tiền được cộng lại; số lượng phải từ 0 trở lên.", DataInspectorTone.Rewards))
-        {
-            Field("victoryRewards"); Field("defeatRewards");
-        }
+            RewardListGUI.Draw(serializedObject.FindProperty("firstClearStageRewards"));
+        using (DataInspectorGUI.Section("VICTORY REWARDS", "Nhận mỗi lần thắng. Nút Claim x2 trao cả gói này (và thưởng lần đầu) thêm một lần.", DataInspectorTone.Rewards))
+            RewardListGUI.Draw(serializedObject.FindProperty("victoryRewards"));
+        using (DataInspectorGUI.Section("DEFEAT REWARDS", "Nhận mỗi lần thua.", DataInspectorTone.Rewards))
+            RewardListGUI.Draw(serializedObject.FindProperty("defeatRewards"));
         serializedObject.ApplyModifiedProperties();
         DataInspectorGUI.Validate(() => ((StageDataSO)target).Validate());
     }

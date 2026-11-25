@@ -26,6 +26,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private WorldManager.Settings world = new WorldManager.Settings();
     [Tooltip("Vùng sinh quái và AI quái (tách đàn, phản lực); StageManager dựng EnemySpawner từ cấu hình này.")]
     [SerializeField] private EnemySpawner.Settings stage = new EnemySpawner.Settings();
+    [Tooltip("Các database mission (Daily, Weekly, từng event); để trống thì không có mission.")]
+    [SerializeField] private MissionManager.Settings missions = new MissionManager.Settings();
 
     #endregion
 
@@ -87,6 +89,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         if (stageDatabase == null)
             throw new InvalidOperationException("Assign Stage Database in GameSceneInstaller.");
         stageDatabase.Validate();
+        missions.Validate();
     }
 
     // Dùng đúng asset đã gán trong Inspector; không tạo bản sao hoặc giữ trạng thái trận trên DataSO.
@@ -108,6 +111,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartRun));
         Container.BindInstance(world); // WorldManager.Settings
         Container.BindInstance(stage); // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
+        Container.BindInstance(missions); // MissionManager.Settings
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
     }
 
@@ -130,6 +134,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesTo<StageManager>().AsSingle().NonLazy(); // Stage: wave, đội hình, boss
         Container.BindInterfacesTo<RunManager>().AsSingle().NonLazy(); // Run: đồng hồ, level trận, loot, chọn skill
         Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy(); // Game: luồng scene, pause, prewarm
+        Container.BindInterfacesTo<MissionManager>().AsSingle().NonLazy(); // Mission: nghe mọi miền dưới, chỉ UI dùng
     }
 
     // Binding của tầng UI (ScreenTransitionController…) nằm ở UIInstaller, chạy sau installer này.
@@ -147,6 +152,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(ProgressionManager), // Ví, level vĩnh viễn, trang bị, mốc vượt màn.
         typeof(CharacterManager),   // Nhân vật đang chọn (đọc Progression).
         typeof(WorldManager),       // Map ban đầu trước khi GameManager vào Home.
+        typeof(MissionManager),     // Đọc tiến độ sau Progression, trước khi GameManager vào Home.
         typeof(GameManager),        // Prewarm/spawn sau khi mọi miền đã sẵn sàng.
     };
 
@@ -173,6 +179,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     // Dừng game → thu hồi entity/VFX → trả pool → giải phóng save và buffer Jobs.
     private static readonly Type[] DisposeOrder =
     {
+        typeof(MissionManager),     // Đầu tiên: gỡ listener khỏi mọi miền dưới khi chúng còn sống.
         typeof(GameManager),        // Hủy prewarm, gỡ listener, trả timeScale.
         typeof(StageManager),
         typeof(WorldManager),       // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk về pool).

@@ -52,8 +52,14 @@ public interface IStageResults
     /// <summary>Dừng màn (giữ nhân vật để phát animation kết quả) và cấp thưởng đúng một lần.</summary>
     void FinishRun(bool won);
 
-    /// <summary>Thưởng kết quả đã cấp của một loại tiền; 0 nếu không có.</summary>
-    long GetResultReward(CurrencyType type);
+    /// <summary>Thưởng màn đã trao thực tế ở lượt này (chưa gồm vàng nhặt); null nếu chưa trao.</summary>
+    RewardResult ResultRewards { get; }
+
+    /// <summary>
+    /// Trao thêm một lần nữa toàn bộ thưởng thắng của lượt (nút x2), kèm <paramref name="pickedGold"/> vàng nhặt trong trận.
+    /// Chỉ một lần mỗi lượt; false thì không trao gì.
+    /// </summary>
+    bool TryDoubleRewards(int pickedGold, out RewardResult bonus);
 }
 
 #endregion

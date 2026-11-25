@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: faafd74a7ab356d459cbbde371e1c9a0, type: 3}
+  m_Name: Mission_event_launch
+  m_EditorClassIdentifier: 
+  id: event_launch
+  displayName: Launch Event
+  description: 
+  icon: {fileID: 0}
+  tasks:
+  - id: kill
+    description: Defeat 300 enemies
+    objective: 0
+    target: 300
+  - id: gold
+    description: Collect 1,000 gold in runs
+    objective: 4
+    target: 1000
+  rewards:
+  - rid: 8867964267498569751
+  - rid: 8867964267498569752
+  - rid: 8867964267498569754
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964267498569751
+      type: {class: CharacterReward, ns: , asm: Assembly-CSharp}
+      data:
+        character: {fileID: 11400000, guid: 6d84f6801f502d4d8d8a975dc790c604, type: 2}
+    - rid: 8867964267498569752
+      type: {class: EquipmentReward, ns: , asm: Assembly-CSharp}
+      data:
+        item: {fileID: 11400000, guid: 9aa1780fc4d227a4197d2381118ff6c5, type: 2}
+        rarity: 4
+        level: 1
+        quantity: 1
+        substats:
+          rid: 8867964267498569753
+    - rid: 8867964267498569753
+      type: {class: RolledSubstats, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8867964267498569754
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 1
+        amount: 100

@@ -47,8 +47,9 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     public bool StartRun() => gameState != null && gameState.State == GameState.Home && Begin(runCommands.StartRun);
     /// <summary>Che màn rồi chơi lại lượt hiện tại; chỉ hợp lệ khi đang Playing.</summary>
     public bool RestartRun() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.RestartRun);
-    /// <summary>Che màn rồi về Home; chỉ hợp lệ khi đang Playing.</summary>
-    public bool ReturnHome() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.ReturnHome);
+    /// <summary>Che màn rồi về Home; hợp lệ khi đang Playing hoặc đã thắng.</summary>
+    public bool ReturnHome() => gameState != null &&
+        (gameState.State == GameState.Playing || gameState.State == GameState.Won) && Begin(runCommands.ReturnHome);
 
     // Overlay chặn raycast ngay khi nhận lệnh; token riêng không làm mất pause của popup/Home.
     private bool Begin(Func<bool> command)

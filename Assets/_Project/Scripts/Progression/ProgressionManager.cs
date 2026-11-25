@@ -14,16 +14,17 @@ using Zenject;
 /// ├── CharacterLevels  level, thanh EXP nâng cấp và số sao theo nhân vật (key character_levels); nhận Wallet để trừ tiền cùng lần
 /// ├── EquipmentInventory  túi đồ: các bản trang bị, nhận đồ, nâng cấp (key equipment_items); nhận Wallet để trừ tiền cùng lần
 /// ├── EquipmentLoadout đồ đang mặc theo ô, set đang bật, tổng bonus trang bị (key equipment_slots)
-/// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận Wallet để ghi thưởng cùng lần
+/// ├── StageProgress    mốc thắng lần đầu (key stage_progress); nhận RewardGranter để ghi thưởng cùng lần
 /// ├── LevelTrack       nâng level vĩnh viễn (dùng CharacterLevels) cho ICharacterUpgrades
-/// ├── CharacterCollection  sở hữu, bản trùng, ghép/phân rã bằng mảnh theo độ hiếm (dữ liệu nằm trong CharacterLevels)
-/// └── StarTrack        nâng sao bằng mảnh + bản trùng (qua CharacterCollection)
+/// ├── CharacterCollection  sở hữu, mảnh riêng, ghép bằng mảnh (dữ liệu nằm trong CharacterLevels)
+/// ├── StarTrack        nâng sao bằng mảnh (qua CharacterCollection)
+/// └── RewardGranter    trao gói thưởng nhiều loại trong một lần ghi file
 /// </code>
 /// Thay cho CurrencyService, CharacterLevelService, LevelManager, PlayerEquipmentService và StageProgressService.
 /// Chiều phụ thuộc: Progression → Save. Miền khác chỉ thấy <c>ProgressionContracts.cs</c>.
 /// </remarks>
 public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonuses, ICharacterProgress, IStageProgress, ICharacterUpgrades,
-    ICharacterCollection, IEquipment, IEquipmentGrant, IInitializable, IDisposable
+    ICharacterCollection, IEquipment, IEquipmentGrant, IRewardGrant, IInitializable, IDisposable
 {
     #region Fields
 
@@ -35,6 +36,7 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     private readonly StageProgress stages;
     private readonly LevelTrack levelTrack;
     private readonly StarTrack starTrack;
+    private readonly RewardGranter rewards;
     private bool disposed;
 
     #endregion
@@ -55,6 +57,12 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
 
     /// <inheritdoc/>
     public event Action<CharacterType, CharacterUpgradeKind> Upgraded;
+
+    /// <inheritdoc/>
+    public event Action<CharacterType, CharacterUpgradeKind, int> CharacterRaised;
+
+    /// <inheritdoc/>
+    public event Action<EquipmentItem> EquipmentLeveledUp;
 
     /// <inheritdoc/>
     public event Action Changed;
@@ -83,10 +91,11 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         levels = new CharacterLevels(saves, wallet, characterDatabase, levelDatabase);
         equipment = new EquipmentInventory(saves, wallet, equipmentDatabase, new System.Random());
         loadout = new EquipmentLoadout(saves, equipment);
-        stages = new StageProgress(saves, wallet);
         collection = new CharacterCollection(levels, levelDatabase);
         levelTrack = new LevelTrack(levels, wallet);
         starTrack = new StarTrack(levels, collection);
+        rewards = new RewardGranter(saves, wallet, levels, collection, equipment);
+        stages = new StageProgress(saves, rewards);
 
         // Gộp các nguồn đổi bonus thành một event: PlayerSystem chỉ cần biết "tính lại".
         // Túi đồ đổi (lên cấp một món đang mặc) cũng có thể đổi bonus, nên cũng báo tính lại.
@@ -116,6 +125,8 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
         loadout.EquipmentChanged -= OnEquipmentChanged;
         BonusesChanged = null;
         Upgraded = null;
+        CharacterRaised = null;
+        EquipmentLeveledUp = null;
         Changed = null;
         DisposeSafely(loadout);
         DisposeSafely(equipment);
@@ -170,8 +181,8 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     public bool HasFirstCleared(string stageId) => stages.HasFirstCleared(stageId);
 
     /// <inheritdoc/>
-    public bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards)
-        => stages.GrantVictoryRewards(stageId, rewards);
+    public RewardResult GrantRewards(string stageId, IReadOnlyList<IReward> list, bool markCleared, out bool saved)
+        => stages.GrantRewards(stageId, list, markCleared, out saved);
 
     #endregion
 
@@ -184,12 +195,17 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     public bool TryUpgrade(CharacterType type, CharacterUpgradeKind kind, out bool saved)
     {
         saved = false;
-        if (disposed || !Track(kind).TryUpgrade(type, out saved)) return false;
+        if (disposed) return false;
+        IUpgradeTrack track = Track(kind);
+        int before = track.GetQuote(type).Current;
+        if (!track.TryUpgrade(type, out saved)) return false;
         // Sao có thể cộng chỉ số dự phòng (sao không có bước skill) nên báo Player tính lại bonus.
         // Level chỉ đổi bonus khi thật sự lên cấp, đã báo qua CharacterLevels.LevelChanged.
         if (kind == CharacterUpgradeKind.Star)
             OnBonusSourceChanged();
         Upgraded?.Invoke(type, kind);
+        int raised = track.GetQuote(type).Current - before;
+        if (raised > 0) CharacterRaised?.Invoke(type, kind, raised);
         return true;
     }
 
@@ -243,7 +259,23 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     public UpgradeQuote GetQuote(EquipmentItem item) => equipment.GetQuote(item);
 
     /// <inheritdoc/>
-    public bool TryUpgrade(EquipmentItem item, out bool saved) => equipment.TryLevelUp(item, out saved);
+    public bool TryUpgrade(EquipmentItem item, out bool saved)
+    {
+        if (!equipment.TryLevelUp(item, out saved)) return false;
+        EquipmentLeveledUp?.Invoke(item); // Ngoài vùng khóa của túi đồ: bên nghe được phép lưu phần của mình.
+        return true;
+    }
+
+    #endregion
+
+    #region IRewardGrant
+
+    /// <inheritdoc/>
+    public void ValidateRewards(IReadOnlyList<IReward> list) => rewards.Validate(list);
+
+    /// <inheritdoc/>
+    public RewardResult GrantRewards(IReadOnlyList<IReward> list, SaveEntry progress, out bool saved)
+        => rewards.Grant(list, progress, out saved);
 
     #endregion
 

@@ -180,6 +180,10 @@ public sealed class CharacterScreenController : UIPanelController
 
     #region Open And Visibility
 
+    /// <inheritdoc/>
+    // Là một tab của menu: mở khi tab Equipment đang đứng trên thì thay thế nó, Home không bật lại giữa hai tab.
+    public override bool IsMenuTab => true;
+
     /// <summary>Mở màn Character ở trang Collection. Chỉ mở được khi game đang ở Home.</summary>
     public void Open()
     {
@@ -194,12 +198,8 @@ public sealed class CharacterScreenController : UIPanelController
     public override void SetVisible(bool visible)
     {
         NavigationChanged?.Invoke();
-        if (!visible)
-        {
-            PlayOut(this);
-            return;
-        }
-        PlayIn(this);
+        ApplyScreenVisibility(visible);
+        if (!visible) return;
         // Mở ở trang Collection thì Detail phải tắt (lần trước có thể bị ẩn giữa chừng khi đang ở Detail).
         if (page == CharacterScreenPage.Collection) detail.gameObject.SetActive(false);
         Redraw();

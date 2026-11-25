@@ -30,11 +30,56 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 45c64fe1b2457b646b3396af23a6585f, type: 2}
   - {fileID: 11400000, guid: e841fb297d463274fb3a06e978bcf4d6, type: 2}
   firstClearStageRewards:
-  - type: 0
-    amount: 100
+  - rid: 4100000000000000001
+  - rid: 8867964267498569862
+  - rid: 8867964267498569863
+  - rid: 8867964267498569866
   victoryRewards:
-  - type: 0
-    amount: 50
+  - rid: 4100000000000000002
+  - rid: 8867964267498569865
   defeatRewards:
-  - type: 0
-    amount: 10
+  - rid: 4100000000000000003
+  references:
+    version: 2
+    RefIds:
+    - rid: 4100000000000000001
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 0
+        amount: 100
+    - rid: 4100000000000000002
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 0
+        amount: 50
+    - rid: 4100000000000000003
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 0
+        amount: 10
+    - rid: 8867964267498569862
+      type: {class: CharacterReward, ns: , asm: Assembly-CSharp}
+      data:
+        character: {fileID: 11400000, guid: 6d84f6801f502d4d8d8a975dc790c604, type: 2}
+    - rid: 8867964267498569863
+      type: {class: EquipmentReward, ns: , asm: Assembly-CSharp}
+      data:
+        item: {fileID: 11400000, guid: 51838f7bc0d23274983d7f98d6a24cb0, type: 2}
+        rarity: 0
+        level: 1
+        quantity: 1
+        substats:
+          rid: 8867964267498569864
+    - rid: 8867964267498569864
+      type: {class: RolledSubstats, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8867964267498569865
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 1
+        amount: 10
+    - rid: 8867964267498569866
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 1
+        amount: 50

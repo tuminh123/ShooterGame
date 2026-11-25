@@ -12,7 +12,7 @@ using System.Collections.Generic;
 #region Wallet (Home UI, Run, Stage)
 
 /// <summary>
-/// Ví tiền vĩnh viễn. Dùng bởi Home UI (đọc số dư), RunManager (vàng nhặt trong trận) và StageRewards (thưởng thua).
+/// Ví tiền vĩnh viễn. Dùng bởi Home UI (đọc số dư), RunManager (vàng nhặt trong trận).
 /// Mọi thay đổi được lưu ngay; false nghĩa là IO lỗi, RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
 /// </summary>
 public interface IWallet
@@ -165,6 +165,12 @@ public interface ICharacterUpgrades
 
     /// <summary>Phát sau khi một lần nâng thành công (đã đổi RAM và đã thử lưu).</summary>
     event Action<CharacterType, CharacterUpgradeKind> Upgraded;
+
+    /// <summary>
+    /// (nhân vật, loại, số cấp vừa tăng) — chỉ phát khi level/sao THẬT SỰ tăng, khác <see cref="Upgraded"/> phát mỗi lần bấm.
+    /// Dùng bởi Mission.
+    /// </summary>
+    event Action<CharacterType, CharacterUpgradeKind, int> CharacterRaised;
 }
 
 #endregion
@@ -238,14 +244,17 @@ public interface ICharacterCollection
 
 #region Stage Progress (StageRewards)
 
-/// <summary>Mốc vượt màn lần đầu và thưởng thắng. Dùng bởi StageRewards (miền Stage).</summary>
+/// <summary>Mốc vượt màn lần đầu và thưởng kết quả màn. Dùng bởi StageRewards (miền Stage).</summary>
 public interface IStageProgress
 {
     /// <summary>Màn đã từng được thắng (đã nhận thưởng lần đầu) chưa.</summary>
     bool HasFirstCleared(string stageId);
 
-    /// <summary>Đánh dấu màn đã thắng và cộng thưởng trong <b>cùng một lần ghi file</b>, để hai thứ không lệch nhau.</summary>
-    bool GrantVictoryRewards(string stageId, IReadOnlyDictionary<CurrencyType, long> rewards);
+    /// <summary>
+    /// Trao thưởng kết quả; <paramref name="markCleared"/> thì đánh dấu màn đã thắng trong <b>cùng một lần ghi file</b>,
+    /// để hai thứ không lệch nhau. Trả về kết quả thực tế; <paramref name="saved"/> = false thì không gọi lại.
+    /// </summary>
+    RewardResult GrantRewards(string stageId, IReadOnlyList<IReward> rewards, bool markCleared, out bool saved);
 }
 
 #endregion
@@ -284,6 +293,27 @@ public interface IEquipment
 
     /// <summary>Phát sau khi túi đồ hoặc đồ đang mặc đổi (đã đổi RAM và đã thử lưu).</summary>
     event Action Changed;
+
+    /// <summary>Một món vừa lên một level; tách khỏi <see cref="Changed"/> (cũng phát khi nhận/mặc/tháo). Dùng bởi Mission.</summary>
+    event Action<EquipmentItem> EquipmentLeveledUp;
+}
+
+#endregion
+
+#region Reward Grant (Mission, Stage)
+
+/// <summary>Trao một gói thưởng nhiều loại (tiền, nhân vật, mảnh, trang bị) trong một lần ghi file. Dùng bởi MissionManager và StageRewards (kiểm tra).</summary>
+public interface IRewardGrant
+{
+    /// <summary>Kiểm tra gói trao được không; ném lỗi nếu cấu hình sai, không đổi gì.</summary>
+    void ValidateRewards(IReadOnlyList<IReward> rewards);
+
+    /// <summary>
+    /// Trao gói và ghi cùng <paramref name="progress"/> (snapshot "đã nhận" của bên gọi). Trả về kết quả thực tế;
+    /// <paramref name="saved"/> = false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
+    /// Không gọi từ trong callback của ví hoặc túi đồ.
+    /// </summary>
+    RewardResult GrantRewards(IReadOnlyList<IReward> rewards, SaveEntry progress, out bool saved);
 }
 
 #endregion

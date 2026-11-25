@@ -198,6 +198,58 @@ public sealed class CurrencySaveData
     }
 }
 
+/// <summary>Tiến độ mission theo nhóm (key <c>missions</c>). Do MissionManager sở hữu; khớp theo ID, không theo vị trí.</summary>
+[Serializable]
+public sealed class MissionsSaveData
+{
+    [Serializable]
+    public sealed class Task
+    {
+        public string taskId;
+        public int progress;
+    }
+
+    [Serializable]
+    public sealed class Mission
+    {
+        public string missionId;
+        public bool claimed;
+        public List<Task> tasks = new List<Task>();
+    }
+
+    [Serializable]
+    public sealed class Board
+    {
+        public string databaseId;
+        public long cycle; // Mã kỳ lúc lưu; khác kỳ hiện tại thì cả nhóm reset.
+        public List<Mission> missions = new List<Mission>();
+    }
+
+    public List<Board> boards = new List<Board>();
+
+    /// <summary>ID không trống và không trùng trong cùng cấp, tiến độ không âm.</summary>
+    public static void Validate(MissionsSaveData value)
+    {
+        if (value == null || value.boards == null) throw new InvalidOperationException("Missing mission data.");
+        var boardIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Board board in value.boards)
+        {
+            if (board == null || string.IsNullOrWhiteSpace(board.databaseId) || board.missions == null || !boardIds.Add(board.databaseId))
+                throw new InvalidOperationException("Mission boards must have unique IDs.");
+            var missionIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Mission mission in board.missions)
+            {
+                if (mission == null || string.IsNullOrWhiteSpace(mission.missionId) || mission.tasks == null || !missionIds.Add(mission.missionId))
+                    throw new InvalidOperationException("Missions must have unique IDs within a board.");
+                var taskIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (Task task in mission.tasks)
+                    if (task == null || string.IsNullOrWhiteSpace(task.taskId) || task.progress < 0 || !taskIds.Add(task.taskId))
+                        throw new InvalidOperationException("Mission tasks must have unique IDs and non-negative progress.");
+            }
+        }
+    }
+}
+
 [Serializable]
 public sealed class StageProgressSaveData
 {

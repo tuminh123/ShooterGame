@@ -27,6 +27,13 @@ public sealed class HomeController : UIPanelController
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private string maxLevelText = "MAX";
 
+    [Header("Mission")]
+    [Tooltip("Nút Quest mở màn Mission; để trống thì bỏ qua.")]
+    [SerializeField] private Button questButton;
+    [Tooltip("Chấm báo trên nút Quest khi có thưởng chưa nhận.")]
+    [SerializeField] private GameObject questAlert;
+    [SerializeField] private MissionScreenController missionScreen;
+
     #endregion
 
     #region Dependencies And State
@@ -35,11 +42,10 @@ public sealed class HomeController : UIPanelController
     private IScreenTransition transition;
     private IPlayerSelection selection;
     private ICharacterUpgrades upgrades;
+    private IMissions missions;
     private CharacterPreviewSlot preview;
     private bool starting;
     private bool subscribed;
-    // Home bị ẩn vì mở màn khác trong menu (màn Character) chứ không phải vì vào trận: chỉ trường hợp này mới trượt.
-    private bool hiddenByMenu;
 
     #endregion
 
@@ -48,25 +54,28 @@ public sealed class HomeController : UIPanelController
     /// <summary>SceneContext inject các service cần cho màn Home.</summary>
     [Inject]
     public void Construct(IGameState gameState, IScreenTransition screenTransition,
-        IPlayerSelection playerSelection, ICharacterUpgrades characterUpgrades)
+        IPlayerSelection playerSelection, ICharacterUpgrades characterUpgrades, IMissions missionService)
     {
         Unsubscribe();
         game = gameState;
         transition = screenTransition;
         selection = playerSelection;
         upgrades = characterUpgrades;
+        missions = missionService;
         if (isActiveAndEnabled) Subscribe();
     }
 
     private void OnEnable()
     {
         if (playButton != null) playButton.onClick.AddListener(Play);
+        if (questButton != null) questButton.onClick.AddListener(OpenMissions);
         Subscribe();
     }
 
     private void OnDisable()
     {
         if (playButton != null) playButton.onClick.RemoveListener(Play);
+        if (questButton != null) questButton.onClick.RemoveListener(OpenMissions);
         Unsubscribe();
         starting = false;
         if (playTween != null) playTween.StopAndReset();
@@ -79,6 +88,7 @@ public sealed class HomeController : UIPanelController
         subscribed = true;
         selection.SelectionChanged += OnSelectionChanged;
         upgrades.Upgraded += OnUpgraded;
+        missions.Changed += DrawQuestAlert;
         DrawCharacter();
     }
 
@@ -88,6 +98,7 @@ public sealed class HomeController : UIPanelController
         subscribed = false;
         selection.SelectionChanged -= OnSelectionChanged;
         upgrades.Upgraded -= OnUpgraded;
+        missions.Changed -= DrawQuestAlert;
     }
 
     private void OnSelectionChanged(CharacterType type) => DrawCharacter();
@@ -97,28 +108,26 @@ public sealed class HomeController : UIPanelController
 
     #region Visibility
 
-    // Chỉ trượt khi đổi qua lại với màn Character (UIManager gọi hai bên cùng lúc nên hai màn đẩy nhau).
-    // Vào trận / từ trận về Home thì bật/tắt ngay như cũ: ScreenTransition đã làm màn tối dần.
+    // Chỉ trượt khi đổi qua lại với màn menu (UIManager gọi hai bên cùng lúc nên hai màn đẩy nhau): PlayTransition = true.
+    // Vào trận / từ trận về Home thì bật/tắt ngay: ScreenTransition đã làm màn tối dần, UIManager truyền PlayTransition = false.
     public override void SetVisible(bool visible)
     {
         bool hasSlide = TryGetComponent(out SlideTransition slide);
         if (!visible)
         {
-            // Lúc này state đã đổi nếu là vào trận; còn Home nghĩa là vừa mở màn Character.
-            hiddenByMenu = game != null && game.State == GameState.Home;
-            if (hasSlide && hiddenByMenu) slide.PlayOut();
+            if (hasSlide && PlayTransition) slide.PlayOut();
             else if (hasSlide) slide.SetVisibleInstant(false);
             else gameObject.SetActive(false);
             return;
         }
-        if (hasSlide && hiddenByMenu) slide.PlayIn();
+        if (hasSlide && PlayTransition) slide.PlayIn();
         else if (hasSlide) slide.SetVisibleInstant(true);
         else gameObject.SetActive(true);
-        hiddenByMenu = false;
         // Chỉ các nút đã có chức năng được bấm; phần còn lại của bố cục giữ nguyên nhưng tắt.
         foreach (Selectable control in GetComponentsInChildren<Selectable>(true))
-            control.interactable = control == playButton;
+            control.interactable = control == playButton || control == questButton;
         DrawCharacter();
+        DrawQuestAlert();
     }
 
     #endregion
@@ -164,6 +173,18 @@ public sealed class HomeController : UIPanelController
     #endregion
 
     #region Home Actions
+
+    private void OpenMissions()
+    {
+        if (!starting && missionScreen != null) missionScreen.Open();
+    }
+
+    // Giống DrawCharacter: chỉ đọc tiến độ khi đã tới Home.
+    private void DrawQuestAlert()
+    {
+        if (questAlert == null || missions == null || game == null || game.State != GameState.Home) return;
+        questAlert.SetActive(missions.HasClaimable);
+    }
 
     private void Play()
     {

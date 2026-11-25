@@ -59,6 +59,15 @@ public sealed class EquipmentGrowth
         return substats;
     }
 
+    /// <summary>Dòng phụ của một bản đồ mới ở <paramref name="level"/>: roll ban đầu rồi áp lần lượt mọi mốc tới level đó.</summary>
+    public List<StatModifier> RollSubstats(EquipmentSlot slot, EquipmentRarity rarity, int level)
+    {
+        List<StatModifier> substats = RollInitialSubstats(slot, rarity);
+        for (int next = 2; next <= level; next++)
+            ApplyMilestone(substats, rules.GetMainStat(slot), next);
+        return substats;
+    }
+
     /// <summary>
     /// Tăng một level: cập nhật chỉ số chính và áp mốc dòng phụ nếu level mới là mốc.
     /// Bên gọi đã kiểm tra chưa chạm level tối đa.
@@ -68,13 +77,7 @@ public sealed class EquipmentGrowth
         int level = item.Level + 1;
         EquipmentSlot slot = item.Definition.Slot;
         item.SetLevel(level, rules.GetMainValue(slot, item.Rarity, level));
-        if (!rules.IsMilestone(level))
-            return;
-        List<StatModifier> substats = item.MutableSubstats;
-        if (rules.WillUnlockSubstat(level, substats.Count))
-            AddNewSubstat(substats, item.MainStat);
-        else
-            BoostRandomSubstat(substats);
+        ApplyMilestone(item.MutableSubstats, item.MainStat, level);
     }
 
     /// <summary>
@@ -98,6 +101,17 @@ public sealed class EquipmentGrowth
     #endregion
 
     #region Private Helpers
+
+    // Mốc dòng phụ: mở dòng mới hoặc cộng vào một dòng ngẫu nhiên; level thường thì không làm gì.
+    private void ApplyMilestone(List<StatModifier> substats, StatType mainStat, int level)
+    {
+        if (!rules.IsMilestone(level))
+            return;
+        if (rules.WillUnlockSubstat(level, substats.Count))
+            AddNewSubstat(substats, mainStat);
+        else
+            BoostRandomSubstat(substats);
+    }
 
     // Chỉ số mới: ngẫu nhiên trong các chỉ số được roll, khác chỉ số chính và khác mọi dòng đang có.
     private void AddNewSubstat(List<StatModifier> substats, StatType mainStat)

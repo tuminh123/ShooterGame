@@ -10,34 +10,14 @@ public sealed class SaveStorage
 {
     #region Pending Writes
 
-    // Snapshot đã nhận nhưng chưa ghi được; giữ kiểu T để Easy Save ghi đúng kiểu.
-    private interface IPendingWrite
-    {
-        string Key { get; }
-        void Write(ES3File file);
-    }
-
-    private sealed class PendingWrite<T> : IPendingWrite
-    {
-        public string Key { get; }
-        private readonly T snapshot;
-
-        public PendingWrite(string key, T snapshot)
-        {
-            Key = key;
-            this.snapshot = snapshot;
-        }
-
-        public void Write(ES3File file) => file.Save(Key, snapshot);
-    }
+    // Snapshot đã nhận nhưng chưa ghi được. Chỉ giữ bản mới nhất theo key: retry ghi trạng thái cuối, không phát lại từng thao tác.
+    private readonly Dictionary<string, SaveEntry> pending = new Dictionary<string, SaveEntry>(StringComparer.Ordinal);
 
     #endregion
 
     #region Fields / Properties
 
     private readonly ES3Settings settings;
-    // Chỉ giữ bản mới nhất theo key: retry ghi trạng thái cuối, không phát lại từng thao tác.
-    private readonly Dictionary<string, IPendingWrite> pending = new Dictionary<string, IPendingWrite>(StringComparer.Ordinal);
 
     /// <summary>File đã đọc được; false thì mọi lệnh đọc/ghi bị khóa.</summary>
     public bool IsLoaded { get; private set; }
@@ -110,20 +90,20 @@ public sealed class SaveStorage
     public bool Save<T>(string key, T snapshot)
     {
         EnsureLoaded();
-        Queue(key, snapshot);
+        pending[key] = SaveEntry.Of(key, snapshot);
         return TryWritePending();
     }
 
-    /// <summary>Xếp cả hai section trước khi chạm đĩa; lần thử lại sau lỗi cũng ghi cả hai.</summary>
-    public bool SaveBatch<TFirst, TSecond>(string firstKey, TFirst first, string secondKey, TSecond second)
+    /// <summary>Xếp mọi section trước khi chạm đĩa; lần thử lại sau lỗi cũng ghi đủ.</summary>
+    public bool SaveBatch(IReadOnlyList<SaveEntry> entries)
     {
         EnsureLoaded();
-        ValidateKey(firstKey);
-        ValidateKey(secondKey);
-        if (firstKey == secondKey) throw new ArgumentException("Batch keys must be distinct.");
-        if (first == null || second == null) throw new ArgumentNullException("snapshot");
-        Queue(firstKey, first);
-        Queue(secondKey, second);
+        if (entries == null) throw new ArgumentNullException(nameof(entries));
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (SaveEntry entry in entries)
+            if (entry == null || !keys.Add(entry.Key))
+                throw new ArgumentException("Batch entries must not be null and keys must be distinct.", nameof(entries));
+        foreach (SaveEntry entry in entries) pending[entry.Key] = entry;
         return TryWritePending();
     }
 
@@ -161,26 +141,19 @@ public sealed class SaveStorage
 
     #region Private Helpers
 
-    private void Queue<T>(string key, T snapshot)
-    {
-        ValidateKey(key);
-        if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
-        pending[key] = new PendingWrite<T>(key, snapshot);
-    }
-
     private bool TryWritePending()
     {
         if (pending.Count == 0) return true;
-        var writes = new List<IPendingWrite>(pending.Values);
+        var writes = new List<SaveEntry>(pending.Values);
         try
         {
             // Giữ các key đã có, gom thay đổi trong RAM rồi ghi file một lần.
             var file = new ES3File(settings);
-            foreach (IPendingWrite write in writes) write.Write(file);
+            foreach (SaveEntry write in writes) write.Write(file);
             file.Sync();
             // Chỉ gỡ đúng snapshot vừa ghi: callback có thể đã xếp bản mới hơn cho cùng key.
-            foreach (IPendingWrite write in writes)
-                if (pending.TryGetValue(write.Key, out IPendingWrite latest) && ReferenceEquals(latest, write))
+            foreach (SaveEntry write in writes)
+                if (pending.TryGetValue(write.Key, out SaveEntry latest) && ReferenceEquals(latest, write))
                     pending.Remove(write.Key);
             LastError = null;
             return true;

@@ -1,28 +1,12 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 /// <summary>Cấu hình màn và danh sách DataSO spawn trực tiếp.</summary>
 [CreateAssetMenu(fileName = "Stage", menuName = "Shooter Game/Data/Stage")]
 public sealed class StageDataSO : ScriptableObject
 {
     #region Stage & Reward Configuration
-
-    /// <summary>Một khoản thưởng tiền tệ, chưa chứa trạng thái đã cấp.</summary>
-    [Serializable]
-    public sealed class CurrencyReward
-    {
-        [Tooltip("Loại tiền được cộng khi hoàn tất kết quả tương ứng.")]
-        [SerializeField] private CurrencyType type;
-        [Tooltip("Số tiền thưởng, phải từ 0 trở lên. Các dòng cùng loại tiền được cộng lại.")]
-        [SerializeField] private long amount;
-
-        /// <summary>Loại tiền được cộng khi hoàn tất kết quả tương ứng.</summary>
-        public CurrencyType Type => type;
-        /// <summary>Số tiền thưởng, phải từ 0 trở lên. Các dòng cùng loại tiền được cộng lại.</summary>
-        public long Amount => amount;
-    }
 
     [Tooltip("ID ổn định dùng lưu tiến trình vượt màn và thưởng lần đầu; không đổi sau khi đã phát hành save.")]
     [SerializeField] private string stageId;
@@ -32,13 +16,12 @@ public sealed class StageDataSO : ScriptableObject
     [SerializeField] private string mapKey = GameConstants.MapKeys.Desert;
     [Tooltip("Danh sách trực tiếp các DataSO triển khai IStageSpawnData: Waves, Pattern, Boss hoặc loại mới.")]
     [SerializeField] private List<ScriptableObject> spawnData = new List<ScriptableObject>();
-    [FormerlySerializedAs("clearRewards")]
     [Tooltip("Thưởng bổ sung khi thắng màn lần đầu. Được cộng với Victory Rewards; các lần thắng sau không nhận lại.")]
-    [SerializeField] private CurrencyReward[] firstClearStageRewards = Array.Empty<CurrencyReward>();
+    [SerializeReference] private List<IReward> firstClearStageRewards = new List<IReward>();
     [Tooltip("Thưởng mỗi lần thắng màn; cộng thêm thưởng lần đầu nếu màn chưa từng được vượt.")]
-    [SerializeField] private CurrencyReward[] victoryRewards = Array.Empty<CurrencyReward>();
+    [SerializeReference] private List<IReward> victoryRewards = new List<IReward>();
     [Tooltip("Thưởng khi thua màn; không nhận thưởng lần đầu hoặc thưởng thắng.")]
-    [SerializeField] private CurrencyReward[] defeatRewards = Array.Empty<CurrencyReward>();
+    [SerializeReference] private List<IReward> defeatRewards = new List<IReward>();
 
     #endregion
 
@@ -52,9 +35,9 @@ public sealed class StageDataSO : ScriptableObject
     {
         get { foreach (var asset in spawnData) yield return asset as IStageSpawnData; }
     }
-    public IReadOnlyList<CurrencyReward> FirstClearStageRewards => firstClearStageRewards;
-    public IReadOnlyList<CurrencyReward> VictoryRewards => victoryRewards;
-    public IReadOnlyList<CurrencyReward> DefeatRewards => defeatRewards;
+    public IReadOnlyList<IReward> FirstClearStageRewards => firstClearStageRewards;
+    public IReadOnlyList<IReward> VictoryRewards => victoryRewards;
+    public IReadOnlyList<IReward> DefeatRewards => defeatRewards;
 
     #endregion
 
@@ -87,18 +70,9 @@ public sealed class StageDataSO : ScriptableObject
         foreach (var asset in spawnData) if (asset is WaveConfigSO) { hasWaveData = true; break; }
         if (bossEntries > 0 && !hasWaveData)
             throw new InvalidOperationException("Boss chờ event Wave nên Stage phải có WaveConfigSO.");
-        ValidateRewards(firstClearStageRewards);
-        ValidateRewards(victoryRewards);
-        ValidateRewards(defeatRewards);
-    }
-
-    /// <summary>Chặn danh sách thưởng rỗng tham chiếu, loại tiền sai hoặc số tiền âm.</summary>
-    private static void ValidateRewards(CurrencyReward[] rewards)
-    {
-        if (rewards == null) throw new InvalidOperationException("Missing stage reward list.");
-        foreach (var reward in rewards)
-            if (reward == null || !Enum.IsDefined(typeof(CurrencyType), reward.Type) || reward.Amount < 0)
-                throw new InvalidOperationException("Stage rewards need valid currency types and non-negative amounts.");
+        RewardBatch.From(firstClearStageRewards);
+        RewardBatch.From(victoryRewards);
+        RewardBatch.From(defeatRewards);
     }
     #endregion
 }

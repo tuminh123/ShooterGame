@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using UnityEngine;
 using Zenject;
 
 /// <summary>
@@ -43,6 +45,9 @@ public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, I
     public bool IsLoaded => !disposed && storage.IsLoaded;
     public Exception LastError => storage.LastError;
 
+    /// <inheritdoc/>
+    public event Action Saving;
+
     #endregion
 
     #region Constructor / Lifecycle
@@ -68,6 +73,7 @@ public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, I
         if (disposed) return;
         storage.SaveIfDirty();
         storage.ClearPending();
+        Saving = null;
         disposed = true;
     }
 
@@ -90,10 +96,10 @@ public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, I
     }
 
     /// <inheritdoc/>
-    public bool SaveBatch<TFirst, TSecond>(string firstKey, TFirst first, string secondKey, TSecond second)
+    public bool SaveBatch(IReadOnlyList<SaveEntry> entries)
     {
         EnsureNotDisposed();
-        return storage.SaveBatch(firstKey, first, secondKey, second);
+        return storage.SaveBatch(entries);
     }
 
     #endregion
@@ -101,7 +107,12 @@ public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, I
     #region ISaveMaintenance
 
     /// <inheritdoc/>
-    public bool SaveIfDirty() => !disposed && storage.SaveIfDirty();
+    public bool SaveIfDirty()
+    {
+        if (!IsLoaded) return false;
+        NotifySaving();
+        return storage.SaveIfDirty();
+    }
 
     /// <inheritdoc/>
     public bool ResetData()
@@ -113,6 +124,17 @@ public sealed class SaveManager : DomainManager, ISaveStore, ISaveMaintenance, I
     #endregion
 
     #region Private Helpers
+
+    // Lỗi của một miền không được làm miền khác mất dữ liệu.
+    private void NotifySaving()
+    {
+        if (Saving == null) return;
+        foreach (Action listener in Saving.GetInvocationList())
+        {
+            try { listener(); }
+            catch (Exception exception) { Debug.LogException(exception); }
+        }
+    }
 
     private void EnsureNotDisposed()
     {

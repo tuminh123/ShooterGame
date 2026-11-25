@@ -55,7 +55,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         ICharacterRegistry characterRegistry,
         IMovementArena movementArena,
         ISpatialInvalidation spatialInvalidation,
-        IWallet wallet, // Hai vai trò Progression đều do ProgressionManager implement (ProgressionContracts.cs).
+        IRewardGrant rewardGrant, // Hai vai trò Progression đều do ProgressionManager implement (ProgressionContracts.cs).
         IStageProgress stageProgress)
     {
         Database = database != null ? database : throw new ArgumentNullException(nameof(database));
@@ -63,7 +63,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         data = database.DefaultStage;
         this.ground = worldMap ?? throw new ArgumentNullException(nameof(worldMap));
         this.players = playerReader ?? throw new ArgumentNullException(nameof(playerReader));
-        rewards = new StageRewards(wallet, stageProgress);
+        rewards = new StageRewards(rewardGrant, stageProgress);
         spawner = new EnemySpawner(spawnSettings, characterSpawn, characterDespawn, playerReader, levelDatabase);
 
         waves = new WaveSpawnSystem(spawner);
@@ -248,8 +248,11 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         rewards.Grant(data, won);
     }
 
-    /// <summary>Thưởng kết quả đã cấp của một loại tiền; 0 nếu không có.</summary>
-    public long GetResultReward(CurrencyType type) => rewards.Get(type);
+    /// <inheritdoc/>
+    public RewardResult ResultRewards => rewards.Result;
+
+    /// <inheritdoc/>
+    public bool TryDoubleRewards(int pickedGold, out RewardResult bonus) => rewards.TryDouble(pickedGold, out bonus);
 
     #endregion
 

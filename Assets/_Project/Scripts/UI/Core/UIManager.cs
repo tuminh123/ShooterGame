@@ -7,12 +7,15 @@ using Zenject;
 /// Điều phối luồng giữa các UI; controller giữ logic nghiệp vụ riêng và gửi yêu cầu mở/đóng.
 /// Không bind vào Zenject (không ai inject nó); SceneContext vẫn tự inject Construct vì nó nằm trong scene.
 /// </summary>
+/// <remarks>
+/// GameManager quyết định luồng game và phát StateChanged; UIManager chỉ nghe và chọn "hiện gì":
+/// màn gốc theo bảng route, các tab menu trong stack, và panel nền (chrome) theo <see cref="UIPanelController.ShowsInState"/>.
+/// Panel được tự thu thập trong scene (kể cả đang tắt) và bị tắt hết khi bắt đầu, nên scene lưu bật hay tắt đều như nhau.
+/// </remarks>
 [AddComponentMenu("Shooter Game/UI/UI Manager")]
 public sealed class UIManager : MonoBehaviour
 {
     #region Scene References
-
-    [SerializeField] private UIPanelController[] panels = Array.Empty<UIPanelController>(); // Tất cả controller có thể tham gia điều hướng; không có panel mặc định.
 
     [Serializable]
     private sealed class StatePanelRoute
@@ -28,6 +31,9 @@ public sealed class UIManager : MonoBehaviour
 
     #region Navigation State
 
+    private readonly List<UIPanelController> panels = new List<UIPanelController>(); // Mọi panel trong scene, thu thập lúc đăng ký.
+    private readonly List<UIPanelController> chromePanels = new List<UIPanelController>(); // Panel nền: không vào stack, hiện theo state.
+    private readonly HashSet<UIPanelController> shownChrome = new HashSet<UIPanelController>(); // Panel nền đang hiện, để chỉ gọi khi đổi.
     private readonly List<UIPanelController> history = new List<UIPanelController>(); // Stack yêu cầu: đóng panel trên cùng thì quay về panel trước.
     private IGameState game; // Đọc state hiện tại khi UI được bật lại sau một khoảng tắt subscription.
     private UIPanelController rootPanel; // Gốc luồng hiện tại do SetRootPanel chỉ định lúc chạy, không phải cấu hình default.
@@ -80,6 +86,7 @@ public sealed class UIManager : MonoBehaviour
     }
 
     // Không có route thì đóng luồng UI cũ, không tự quay về Gameplay hoặc UI mặc định.
+    // Panel nền không cần route: chúng tự khai báo state hiện qua ShowsInState.
     private void ApplyGameState(GameState state)
     {
         foreach (StatePanelRoute route in statePanels)
@@ -87,22 +94,34 @@ public sealed class UIManager : MonoBehaviour
         SetRootPanel(null);
     }
 
-    // Đồng bộ yêu cầu hiện có; không đọc bất kỳ dữ liệu level/skill nào của controller.
+    // Thu thập panel trong scene (cả object đang tắt) để không phải đăng ký tay; tắt hết rồi dựng lại stack từ yêu cầu còn giữ.
     private void Subscribe()
     {
         if (subscribed) return;
         subscribed = true;
+        CollectPanels();
         history.Clear();
+        shownChrome.Clear();
         if (rootPanel != null) history.Add(rootPanel);
         foreach (UIPanelController panel in panels)
         {
-            if (panel == null) continue;
             panel.VisibilityRequested -= OnVisibilityRequested;
             panel.VisibilityRequested += OnVisibilityRequested;
-            panel.SetVisible(false);
-            if (panel != rootPanel && panel.WantsVisible && !history.Contains(panel)) history.Add(panel);
+            panel.Present(false, false);
+            if (!panel.IsChrome && panel != rootPanel && panel.WantsVisible && !history.Contains(panel)) history.Add(panel);
         }
-        RefreshFlow();
+        RefreshFlow(false);
+    }
+
+    private void CollectPanels()
+    {
+        panels.Clear();
+        chromePanels.Clear();
+        foreach (UIPanelController panel in FindObjectsOfType<UIPanelController>(true))
+        {
+            panels.Add(panel);
+            if (panel.IsChrome) chromePanels.Add(panel);
+        }
     }
 
     // Ngừng điều phối, ẩn modal và trả tài nguyên hiển thị qua controller; giữ ý định mở để khôi phục lúc bật lại.
@@ -113,10 +132,11 @@ public sealed class UIManager : MonoBehaviour
         {
             if (panel == null) continue;
             panel.VisibilityRequested -= OnVisibilityRequested;
-            panel.SetVisible(false);
+            panel.Present(false, false);
         }
         activePanel = null;
         history.Clear();
+        shownChrome.Clear();
         subscribed = false;
     }
 
@@ -131,17 +151,28 @@ public sealed class UIManager : MonoBehaviour
         else ClosePanel(panel);
     }
 
-    /// <summary>Đưa một panel đã đăng ký lên đầu luồng, tạm ẩn panel trước và giữ vị trí để quay lại.</summary>
+    /// <summary>
+    /// Đưa một panel lên đầu luồng, tạm ẩn panel trước và giữ vị trí để quay lại.
+    /// Tab menu thay thế tab menu đang đứng trên cùng trong một lần cập nhật (không bật lại Home giữa hai tab).
+    /// </summary>
     public void OpenPanel(UIPanelController panel)
     {
         Subscribe();
-        if (panel == null || Array.IndexOf(panels, panel) < 0)
-            throw new ArgumentException("Register the panel in UIManager.Panels before opening it.", nameof(panel));
+        EnsureNavigable(panel);
         if (panel == rootPanel) { SetRootPanel(panel); return; }
         panel.RecordVisibilityRequest(true);
+        if (panel.IsMenuTab && history.Count > 0)
+        {
+            UIPanelController top = history[history.Count - 1];
+            if (top != rootPanel && top != panel && top.IsMenuTab)
+            {
+                top.RecordVisibilityRequest(false);
+                history.RemoveAt(history.Count - 1);
+            }
+        }
         history.Remove(panel);
         history.Add(panel);
-        RefreshFlow();
+        RefreshFlow(true);
     }
 
     /// <summary>Đóng một bước trong luồng; nếu là panel đang hiện thì phục hồi bước trước hoặc gốc luồng hiện tại.</summary>
@@ -151,7 +182,7 @@ public sealed class UIManager : MonoBehaviour
         if (panel != null && panel == rootPanel) return;
         if (panel != null) panel.RecordVisibilityRequest(false);
         history.Remove(panel);
-        RefreshFlow();
+        RefreshFlow(true);
     }
 
     /// <summary>Quay về UI trước thông qua cùng chính sách điều hướng; không tự bỏ queue nghiệp vụ của panel.</summary>
@@ -167,8 +198,7 @@ public sealed class UIManager : MonoBehaviour
     public void SetRootPanel(UIPanelController panel)
     {
         Subscribe();
-        if (panel != null && Array.IndexOf(panels, panel) < 0)
-            throw new ArgumentException("Register the root panel in Panels before opening it.", nameof(panel));
+        if (panel != null) EnsureNavigable(panel);
         foreach (UIPanelController previous in history) previous.RecordVisibilityRequest(false);
         history.Clear();
         rootPanel = panel;
@@ -177,18 +207,41 @@ public sealed class UIManager : MonoBehaviour
             panel.RecordVisibilityRequest(true);
             history.Add(panel);
         }
-        RefreshFlow();
+        RefreshFlow(false); // Đổi state: màn đang tối nên bật/tắt ngay, không trượt.
     }
-    // Dùng chung một đường hiển thị cho mọi controller; chỉ một panel hoạt động tại một thời điểm.
-    private void RefreshFlow()
+
+    // Panel nền không vào stack (chúng hiện theo state); panel lạ chưa có trong scene lúc thu thập cũng bị từ chối.
+    private void EnsureNavigable(UIPanelController panel)
+    {
+        if (panel == null || !panels.Contains(panel) || panel.IsChrome)
+            throw new ArgumentException("Only a screen panel that exists in the scene can be opened or set as root.", nameof(panel));
+    }
+
+    // Dùng chung một đường hiển thị cho mọi controller; chỉ một màn hoạt động tại một thời điểm, panel nền đi kèm theo state.
+    // animate = true khi điều hướng trong menu (Open/Close/Back); false khi đổi state hoặc khởi động.
+    private void RefreshFlow(bool animate)
     {
         UIPanelController next = visible && history.Count > 0 ? history[history.Count - 1] : null; // Lịch sử rỗng thì không có UI; GameState quyết định luồng tiếp theo.
         if (activePanel != next)
         {
             UIPanelController previous = activePanel; // Đổi state trước callback để không giữ panel cũ trong lúc nó đóng.
             activePanel = next;
-            if (previous != null) previous.SetVisible(false);
-            if (next != null) next.SetVisible(true);
+            if (previous != null) previous.Present(false, animate);
+            if (next != null) next.Present(true, animate);
+        }
+        RefreshChrome(animate);
+    }
+
+    // Panel nền hiện khi UI đang hiện và state hiện tại nằm trong ShowsInState của nó; chỉ gọi panel khi kết quả đổi.
+    private void RefreshChrome(bool animate)
+    {
+        foreach (UIPanelController chrome in chromePanels)
+        {
+            bool want = visible && game != null && chrome.ShowsInState(game.State);
+            if (want == shownChrome.Contains(chrome)) continue;
+            if (want) shownChrome.Add(chrome);
+            else shownChrome.Remove(chrome);
+            chrome.Present(want, animate);
         }
     }
 
@@ -201,7 +254,7 @@ public sealed class UIManager : MonoBehaviour
     {
         Subscribe();
         visible = value;
-        RefreshFlow();
+        RefreshFlow(false);
     }
 
     #endregion

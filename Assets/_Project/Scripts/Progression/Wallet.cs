@@ -82,41 +82,13 @@ public sealed class Wallet
     }
 
     /// <summary>Cộng nhiều loại tiền: kiểm tra toàn bộ trước khi sửa RAM, ghi chung một snapshot ví.</summary>
-    public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts) => AddBatch(amounts, null);
-
-    /// <summary>
-    /// Như trên, kèm snapshot mốc vượt màn ghi cùng lần với ví (dùng bởi <see cref="StageProgress"/>),
-    /// để thưởng thắng và cờ "đã thắng" không bao giờ lệch nhau khi IO lỗi.
-    /// </summary>
-    internal bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts, StageProgressSaveData stageProgress)
+    public bool AddBatch(IReadOnlyDictionary<CurrencyType, long> amounts)
     {
-        EnsureCanChange(0);
-        if (amounts == null) throw new ArgumentNullException(nameof(amounts));
-        if (stageProgress != null) StageProgressSaveData.Validate(stageProgress);
-        var targets = new Dictionary<CurrencyType, long>();
-        foreach (KeyValuePair<CurrencyType, long> reward in amounts)
-        {
-            if (reward.Value < 0) throw new ArgumentOutOfRangeException(nameof(amounts));
-            long previous = GetBalance(reward.Key);
-            if (reward.Value > 0) targets.Add(reward.Key, checked(previous + reward.Value));
-        }
-        changing = true;
-        try
-        {
-            foreach (KeyValuePair<CurrencyType, long> target in targets)
-                GetOrCreateEntry(target.Key).balance = target.Value;
-            bool saved = stageProgress != null
-                ? saves.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(),
-                    GameConstants.SaveKeys.StageProgress, stageProgress.Clone())
-                : targets.Count > 0 ? Save() : true;
-            foreach (KeyValuePair<CurrencyType, long> target in targets)
-            {
-                NotifyBalance(target.Key, target.Value);
-                if (!saved) NotifyFailure(target.Key, saves.LastError);
-            }
-            return saved;
-        }
-        finally { changing = false; }
+        Dictionary<CurrencyType, long> targets = PlanAdd(amounts);
+        SetBalances(targets);
+        bool saved = targets.Count == 0 || Save();
+        PublishBalances(targets, saved);
+        return saved;
     }
 
     /// <summary>Trả về đã trừ được tiền hay chưa; <paramref name="saved"/> là kết quả ghi file khi trừ thành công.</summary>
@@ -171,34 +143,71 @@ public sealed class Wallet
     // Ghi số dư mới (đã kiểm tra) và snapshot tiến trình trong một lần lưu, rồi báo số dư đổi.
     private bool WriteWith<T>(Dictionary<CurrencyType, long> targets, string otherKey, T otherSnapshot) where T : class
     {
-        EnsureCanChange(0);
         if (otherSnapshot == null) throw new ArgumentNullException(nameof(otherSnapshot));
+        SetBalances(targets);
+        // Giá 0 thì ví không đổi: chỉ cần ghi tiến trình.
+        bool saved = targets.Count > 0
+            ? saves.SaveBatch(new[]
+            {
+                SaveEntry.Of(GameConstants.SaveKeys.Currencies, CreateSnapshot()),
+                SaveEntry.Of(otherKey, otherSnapshot)
+            })
+            : saves.Save(otherKey, otherSnapshot);
+        PublishBalances(targets, saved);
+        return saved;
+    }
+
+    /// <summary>Thử lưu lại snapshot ví mà không cộng/trừ thêm.</summary>
+    public bool Save() => saves.Save(GameConstants.SaveKeys.Currencies, CreateSnapshot());
+
+    #endregion
+
+    #region Change Steps (RewardGranter ghép với hệ thống khác trong một lần lưu)
+
+    /// <summary>Tính số dư mới sau khi cộng, không đổi gì; ném lỗi nếu số âm, tràn số hoặc đang trong callback của ví.</summary>
+    internal Dictionary<CurrencyType, long> PlanAdd(IReadOnlyDictionary<CurrencyType, long> amounts)
+    {
+        EnsureCanChange(0);
+        if (amounts == null) throw new ArgumentNullException(nameof(amounts));
+        var targets = new Dictionary<CurrencyType, long>(amounts.Count);
+        foreach (KeyValuePair<CurrencyType, long> amount in amounts)
+        {
+            if (amount.Value < 0) throw new ArgumentOutOfRangeException(nameof(amounts));
+            long previous = GetBalance(amount.Key);
+            if (amount.Value > 0) targets.Add(amount.Key, checked(previous + amount.Value));
+        }
+        return targets;
+    }
+
+    /// <summary>Đổi số dư trong RAM (đã kiểm tra); chưa ghi và chưa báo event.</summary>
+    internal void SetBalances(Dictionary<CurrencyType, long> targets)
+    {
+        EnsureCanChange(0);
+        foreach (KeyValuePair<CurrencyType, long> target in targets)
+            GetOrCreateEntry(target.Key).balance = target.Value;
+    }
+
+    /// <summary>Bản sao ví đã kiểm tra để ghi.</summary>
+    internal CurrencySaveData CreateSnapshot()
+    {
+        EnsureAvailable();
+        CurrencySaveData.Validate(data);
+        return data.Clone();
+    }
+
+    /// <summary>Báo số dư đổi (và lỗi ghi nếu có) sau khi đã thử lưu; trong lúc báo thì ví không được đổi tiếp.</summary>
+    internal void PublishBalances(Dictionary<CurrencyType, long> targets, bool saved)
+    {
         changing = true;
         try
         {
-            foreach (KeyValuePair<CurrencyType, long> target in targets)
-                GetOrCreateEntry(target.Key).balance = target.Value;
-            CurrencySaveData.Validate(data);
-            // Giá 0 thì ví không đổi: chỉ cần ghi tiến trình.
-            bool saved = targets.Count > 0
-                ? saves.SaveBatch(GameConstants.SaveKeys.Currencies, data.Clone(), otherKey, otherSnapshot)
-                : saves.Save(otherKey, otherSnapshot);
             foreach (KeyValuePair<CurrencyType, long> target in targets)
             {
                 NotifyBalance(target.Key, target.Value);
                 if (!saved) NotifyFailure(target.Key, saves.LastError);
             }
-            return saved;
         }
         finally { changing = false; }
-    }
-
-    /// <summary>Thử lưu lại snapshot ví mà không cộng/trừ thêm.</summary>
-    public bool Save()
-    {
-        EnsureAvailable();
-        CurrencySaveData.Validate(data);
-        return saves.Save(GameConstants.SaveKeys.Currencies, data.Clone());
     }
 
     #endregion
