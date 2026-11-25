@@ -30,6 +30,8 @@ public sealed class MissionCardView : MonoBehaviour
     [Header("Trạng thái")]
     [SerializeField] private Button claimButton;
     [SerializeField] private TMP_Text claimText;
+    [Tooltip("Nút Go: hiện khi đang làm và có màn để tới; thay chữ trạng thái. Để trống thì thẻ không có nút Go.")]
+    [SerializeField] private Button goButton;
     [Tooltip("Thay nút Claim khi đang làm hoặc đã nhận.")]
     [SerializeField] private GameObject statusRoot;
     [SerializeField] private TMP_Text statusText;
@@ -46,8 +48,13 @@ public sealed class MissionCardView : MonoBehaviour
     /// <summary>Bấm nút nhận thưởng; tham số là ID mission.</summary>
     public event Action<string> ClaimClicked;
 
+    /// <summary>Bấm nút Go; tham số là màn đích.</summary>
+    public event Action<MissionDestination> GoClicked;
+
     /// <summary>ID mission đang hiện.</summary>
     public string MissionId { get; private set; }
+
+    private MissionDestination destination;
 
     private readonly List<MissionTaskRowView> rows = new List<MissionTaskRowView>();
     private readonly List<RewardSlotView> slots = new List<RewardSlotView>();
@@ -61,17 +68,21 @@ public sealed class MissionCardView : MonoBehaviour
     private void OnEnable()
     {
         claimButton.onClick.AddListener(OnClaim);
+        if (goButton != null) goButton.onClick.AddListener(OnGo);
         UpdatePulse();
     }
 
     private void OnDisable()
     {
         claimButton.onClick.RemoveListener(OnClaim);
+        if (goButton != null) goButton.onClick.RemoveListener(OnGo);
         StopPulse();
         ResetMove();
     }
 
     private void OnClaim() => ClaimClicked?.Invoke(MissionId);
+
+    private void OnGo() => GoClicked?.Invoke(destination);
 
     #endregion
 
@@ -90,7 +101,10 @@ public sealed class MissionCardView : MonoBehaviour
         background.color = claimable ? claimableColor : normalColor;
         inner.color = claimable ? claimableInner : normalInner;
         claimButton.gameObject.SetActive(claimable);
-        statusRoot.SetActive(!claimable);
+        destination = model.Destination;
+        bool canGo = goButton != null && !claimable && destination != MissionDestination.None;
+        if (goButton != null) goButton.gameObject.SetActive(canGo);
+        statusRoot.SetActive(!claimable && !canGo);
         claimText.text = model.ButtonText;
         statusText.text = model.ButtonText;
         dim.SetActive(model.State == MissionState.Claimed);

@@ -65,6 +65,9 @@ public sealed class MissionScreenController : UIPanelController
     /// <summary>Phát khi màn mở/đóng.</summary>
     public event Action NavigationChanged;
 
+    /// <summary>Phát sau khi màn đã đóng, khi người chơi bấm Go và cần mở màn đích. Battle nghĩa là chỉ về Home.</summary>
+    public event Action<MissionDestination> GoRequested;
+
     #endregion
 
     #region Lifecycle
@@ -90,6 +93,7 @@ public sealed class MissionScreenController : UIPanelController
         missions.Changed += Redraw;
         list.TabClicked += OnTab;
         list.ClaimClicked += OnClaim;
+        list.GoClicked += OnGo;
         backButton.onClick.AddListener(Close);
     }
 
@@ -100,6 +104,7 @@ public sealed class MissionScreenController : UIPanelController
         missions.Changed -= Redraw;
         list.TabClicked -= OnTab;
         list.ClaimClicked -= OnClaim;
+        list.GoClicked -= OnGo;
         backButton.onClick.RemoveListener(Close);
     }
 
@@ -161,6 +166,14 @@ public sealed class MissionScreenController : UIPanelController
         selectedId = openBoards[index].Database.Id;
         Redraw();
         list.ScrollToTop();
+    }
+
+    // Đóng màn Mission rồi nhờ bên điều hướng (HomeNavigationBar) mở màn đích; đóng trước để Back không quay lại Mission.
+    private void OnGo(MissionDestination destination)
+    {
+        if (presenting || destination == MissionDestination.None) return;
+        Close();
+        GoRequested?.Invoke(destination);
     }
 
     private void OnClaim(string missionId)
@@ -276,7 +289,19 @@ public sealed class MissionScreenController : UIPanelController
         for (int i = 0; i < mission.Data.Tasks.Count; i++)
             tasks.Add(BuildTask(board, mission, i));
         return new MissionCardModel(mission.Data.Id, mission.Data.DisplayName, mission.Data.Description, mission.State,
-            ButtonText(mission.State), tasks, Slots.Preview(mission.Data.Rewards));
+            ButtonText(mission.State), tasks, Slots.Preview(mission.Data.Rewards), FirstUnfinishedDestination(mission));
+    }
+
+    // Chỉ thẻ đang làm mới có nút Go; đi tới mission con chưa xong đầu tiên (từ trên xuống) để người chơi làm lần lượt.
+    private static MissionDestination FirstUnfinishedDestination(MissionRuntime mission)
+    {
+        if (mission.State != MissionState.InProgress) return MissionDestination.None;
+        for (int i = 0; i < mission.Data.Tasks.Count; i++)
+        {
+            MissionTask task = mission.Data.Tasks[i];
+            if (mission.GetProgress(i) < task.Target) return task.Destination;
+        }
+        return MissionDestination.None;
     }
 
     private MissionTaskModel BuildTask(MissionBoard board, MissionRuntime mission, int index)

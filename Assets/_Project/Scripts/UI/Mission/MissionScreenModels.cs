@@ -55,10 +55,13 @@ public readonly struct MissionCardModel
     public readonly string ButtonText;
     public readonly IReadOnlyList<MissionTaskModel> Tasks;
     public readonly IReadOnlyList<RewardSlotModel> Rewards;
+    /// <summary>Màn của mission con chưa xong đầu tiên; None thì không hiện nút Go.</summary>
+    public readonly MissionDestination Destination;
 
     public MissionCardModel(string id, string title, string description, MissionState state, string buttonText,
-        IReadOnlyList<MissionTaskModel> tasks, IReadOnlyList<RewardSlotModel> rewards)
+        IReadOnlyList<MissionTaskModel> tasks, IReadOnlyList<RewardSlotModel> rewards, MissionDestination destination)
     {
+        Destination = destination;
         Id = id;
         Title = title;
         Description = description;

@@ -128,25 +128,39 @@ public enum GameState
 /// <summary>Loại nhóm mission, quyết định kỳ reset. Thêm loại mới ở cuối, không đổi số đã dùng.</summary>
 public enum MissionCategory { Daily = 0, Weekly = 1, Event = 2 }
 
-/// <summary>Việc được tính tiến độ của mission con; asset lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
-public enum MissionObjectiveType
+/// <summary>
+/// Nhóm việc của mission con (và của tín hiệu). Chi tiết của từng nhóm là một enum riêng, giá trị 0 luôn là Any
+/// (chỉ dùng ở task: loại nào cũng tính). Asset lưu số: thêm ở cuối, không đổi số đã dùng.
+/// </summary>
+public enum MissionActivity
 {
-    KillEnemy = 0,            // Hạ quái; nhóm và loại quái lọc ở MissionTask (EnemyKind, CharacterType).
-    KillBoss = 1,             // Không còn dùng (thay bằng KillEnemy + EnemyKind.Boss); giữ số, asset dùng lại sẽ bị báo lỗi.
-    FinishBattle = 2,            // Chơi hết một trận, thắng hoặc thua (bỏ giữa chừng không tính).
-    WinBattle = 3,
-    CollectBattleGold = 4,       // Vàng nhặt trong trận đã chơi hết; không tính thưởng màn.
-    RaiseCharacterLevel = 5,  // Theo level thật tăng, không theo lần bấm.
-    RaiseCharacterStar = 6,
-    RaiseEquipmentLevel = 7,
-    CompleteMission = 8       // Số mission thường đã nhận thưởng trong nhóm; chỉ dùng ở Final Mission.
+    Kill = 0,     // Chi tiết: EnemyKind. Subject: CharacterType của quái.
+    Battle = 1,   // Chi tiết: BattleDetail.
+    Collect = 2,  // Chi tiết: CollectDetail.
+    Upgrade = 3,  // Chi tiết: UpgradeDetail. Subject: CharacterType của nhân vật được nâng.
+    Mission = 4   // Chi tiết: MissionDetail. Chỉ dùng ở Final Mission.
 }
+
+/// <summary>Chi tiết của nhóm Battle: trận kết thúc thế nào. Any chỉ dùng ở task.</summary>
+public enum BattleDetail { Any = 0, Win = 1, Lose = 2 }
+
+/// <summary>Chi tiết của nhóm Collect: thứ nhặt được. Any chỉ dùng ở task.</summary>
+public enum CollectDetail { Any = 0, Gold = 1 }
+
+/// <summary>Chi tiết của nhóm Upgrade: thứ được nâng. Any chỉ dùng ở task.</summary>
+public enum UpgradeDetail { Any = 0, CharacterLevel = 1, CharacterStar = 2, EquipmentLevel = 3 }
+
+/// <summary>Chi tiết của nhóm Mission. Any chỉ dùng ở task.</summary>
+public enum MissionDetail { Any = 0, Completed = 1 }
 
 /// <summary>Nhóm quái trong nhiệm vụ giết. Any chỉ dùng làm bộ lọc; asset lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
 public enum EnemyKind { Any = 0, Normal = 1, Elite = 2, Boss = 3 }
 
 /// <summary>Trạng thái của một mission trong kỳ hiện tại.</summary>
 public enum MissionState { InProgress, Claimable, Claimed }
+
+/// <summary>Màn mà nút Go của mission dẫn tới. None = không có nút (ví dụ mission tổng kết).</summary>
+public enum MissionDestination { None, Battle, Heroes, Equipment }
 
 /// <summary>Nơi phần thưởng bay tới trên màn nhận thưởng.</summary>
 public enum RewardFlyTarget { Gold, Diamond, Heroes, Bag }

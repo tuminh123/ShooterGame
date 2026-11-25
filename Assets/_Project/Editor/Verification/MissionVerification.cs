@@ -85,7 +85,7 @@ public static class MissionVerification
         const int level = 10;
         List<FixedSubstats.Line> lines = FixedLines(items.Rules, item.Slot, EquipmentRarity.Epic, level);
         MissionDataSO mission = Mission("m",
-            new[] { (MissionObjectiveType.KillEnemy, 3), (MissionObjectiveType.WinBattle, 1), (MissionObjectiveType.CollectBattleGold, 50) },
+            new[] { KillTask(3), WinTask(1), GoldTask(50) },
             new CurrencyReward(CurrencyType.Gold, 500), new CurrencyReward(CurrencyType.Gold, 100), new CurrencyReward(CurrencyType.Diamond, 5),
             new CharacterReward(player), new CharacterShardReward(player, 7),
             new EquipmentReward(item, EquipmentRarity.Epic, level, 1, new FixedSubstats(lines)),
@@ -175,7 +175,7 @@ public static class MissionVerification
     // Kỳ đã lưu khác kỳ hiện tại thì reset; giữ nguyên khi cùng kỳ.
     private static void CheckReset()
     {
-        MissionDataSO mission = Mission("m", new[] { (MissionObjectiveType.KillEnemy, 5) }, new CurrencyReward(CurrencyType.Gold, 1));
+        MissionDataSO mission = Mission("m", new[] { KillTask(5) }, new CurrencyReward(CurrencyType.Gold, 1));
         MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission);
         using (var world = new World(new[] { daily }))
         {
@@ -205,7 +205,7 @@ public static class MissionVerification
     // App ẩn/thoát giữa trận: Saving phải ghi tiến độ; đóng scene mà không có Saving (Reset Data) thì không được ghi.
     private static void CheckAppSuspend()
     {
-        MissionDataSO mission = Mission("m", new[] { (MissionObjectiveType.KillEnemy, 50) }, new CurrencyReward(CurrencyType.Gold, 1));
+        MissionDataSO mission = Mission("m", new[] { KillTask(50) }, new CurrencyReward(CurrencyType.Gold, 1));
         MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission);
         using (var world = new World(new[] { daily }))
         {
@@ -222,9 +222,9 @@ public static class MissionVerification
     // Final Mission đếm mission đã NHẬN (xong mà chưa nhận thì không tính), không tự đếm chính nó, lưu và nhận như mission thường.
     private static void CheckFinalMission()
     {
-        MissionDataSO first = Mission("a", new[] { (MissionObjectiveType.KillEnemy, 1) }, new CurrencyReward(CurrencyType.Gold, 1));
-        MissionDataSO second = Mission("b", new[] { (MissionObjectiveType.KillEnemy, 2) }, new CurrencyReward(CurrencyType.Gold, 1));
-        MissionDataSO last = Mission("final", new[] { (MissionObjectiveType.CompleteMission, 2) }, new CurrencyReward(CurrencyType.Diamond, 5));
+        MissionDataSO first = Mission("a", new[] { KillTask(1) }, new CurrencyReward(CurrencyType.Gold, 1));
+        MissionDataSO second = Mission("b", new[] { KillTask(2) }, new CurrencyReward(CurrencyType.Gold, 1));
+        MissionDataSO last = Mission("final", new[] { CompleteTask(2) }, new CurrencyReward(CurrencyType.Diamond, 5));
         MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, first, second);
         using (var world = new World(new[] { daily })) // Save cũ: chưa có Final Mission.
         {
@@ -265,7 +265,7 @@ public static class MissionVerification
             Require(world.Missions.Boards[0].FinalMission.State == MissionState.Claimed, "Final mission claim was not saved.");
         ES3.DeleteFile(SaveFile);
 
-        SetFinal(daily, Mission("final", new[] { (MissionObjectiveType.CompleteMission, 3) }, new CurrencyReward(CurrencyType.Gold, 1)));
+        SetFinal(daily, Mission("final", new[] { CompleteTask(3) }, new CurrencyReward(CurrencyType.Gold, 1)));
         bool rejected = false;
         try { daily.Validate(); }
         catch (InvalidOperationException) { rejected = true; }
@@ -276,7 +276,7 @@ public static class MissionVerification
     private static void CheckInvalidRewards()
     {
         EquipmentDataSO item = Assets<EquipmentDatabaseSO>().Single().Items[0];
-        MissionDataSO mission = Mission("m", new[] { (MissionObjectiveType.KillEnemy, 1) },
+        MissionDataSO mission = Mission("m", new[] { KillTask(1) },
             new CurrencyReward(CurrencyType.Gold, 10),
             new EquipmentReward(item, EquipmentRarity.Epic, 10, 1, new FixedSubstats()));
         MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission);
@@ -341,10 +341,11 @@ public static class MissionVerification
     // Quái được chọn đích danh phải có thật, thuộc phe Enemy và không mâu thuẫn với nhóm (Boss/không phải Boss).
     private static void CheckKillTarget(MissionDataSO mission, MissionTask task)
     {
-        if (task.Character == CharacterType.None) return;
-        CharacterDataSO enemy = Assets<CharacterDataSO>().FirstOrDefault(item => item.CharacterType == task.Character);
+        if (task.Activity != MissionActivity.Kill || task.Subject == 0) return;
+        var kind = (EnemyKind)task.Detail;
+        CharacterDataSO enemy = Assets<CharacterDataSO>().FirstOrDefault(item => (int)item.CharacterType == task.Subject);
         Require(enemy != null && enemy.Team == CharacterTeam.Enemy &&
-            (task.EnemyKind == EnemyKind.Any || enemy.IsBoss == (task.EnemyKind == EnemyKind.Boss)),
+            (kind == EnemyKind.Any || enemy.IsBoss == (kind == EnemyKind.Boss)),
             mission.name + "/" + task.Id + ": kill target does not exist or cannot match.");
     }
 
@@ -354,16 +355,11 @@ public static class MissionVerification
         CharacterDataSO[] enemies = Assets<CharacterDataSO>().Where(item => item.Team == CharacterTeam.Enemy).ToArray();
         CharacterDataSO boss = enemies.First(item => item.IsBoss);
         CharacterDataSO normal = enemies.First(item => !item.IsBoss);
-        var objective = MissionObjectiveType.KillEnemy;
-        MissionDataSO mission = Mission("m", new[] { (objective, 99), (objective, 99), (objective, 99), (objective, 99), (objective, 99) },
+        MissionDataSO mission = Mission("m",
+            new[] { KillTask(99), KillTask(99, EnemyKind.Normal), KillTask(99, EnemyKind.Elite), KillTask(99, EnemyKind.Boss),
+                    KillTask(99, EnemyKind.Any, normal.CharacterType) },
             new CurrencyReward(CurrencyType.Gold, 1));
-        var data = new SerializedObject(mission);
-        SetFilter(data, 1, EnemyKind.Normal, CharacterType.None);
-        SetFilter(data, 2, EnemyKind.Elite, CharacterType.None);
-        SetFilter(data, 3, EnemyKind.Boss, CharacterType.None);
-        SetFilter(data, 4, EnemyKind.Any, normal.CharacterType);
-        data.ApplyModifiedPropertiesWithoutUndo();
-        MissionDataSO battles = Mission("r", new[] { (MissionObjectiveType.FinishBattle, 9), (MissionObjectiveType.WinBattle, 9), (MissionObjectiveType.CollectBattleGold, 999) },
+        MissionDataSO battles = Mission("r", new[] { FinishTask(9), WinTask(9), GoldTask(999) },
             new CurrencyReward(CurrencyType.Gold, 1));
         MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission, battles);
         using (var world = new World(new[] { daily }))
@@ -386,17 +382,11 @@ public static class MissionVerification
         }
         ES3.DeleteFile(SaveFile);
 
-        // Bộ lọc quái trên việc khác và KillBoss cũ phải bị từ chối.
-        RequireInvalid(battles, data2 => SetFilter(data2, 0, EnemyKind.Boss, CharacterType.None));
-        RequireInvalid(mission, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("objective").intValue =
-            (int)MissionObjectiveType.KillBoss);
-    }
-
-    private static void SetFilter(SerializedObject data, int index, EnemyKind kind, CharacterType character)
-    {
-        SerializedProperty task = data.FindProperty("tasks").GetArrayElementAtIndex(index);
-        task.FindPropertyRelative("enemyKind").intValue = (int)kind;
-        task.FindPropertyRelative("character").intValue = (int)character;
+        // Đối tượng đích danh trên nhóm không dùng nó, và chi tiết ngoài enum của nhóm, phải bị từ chối.
+        RequireInvalid(battles, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("subject").intValue =
+            (int)boss.CharacterType);
+        RequireInvalid(battles, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("detail").intValue = 99);
+        RequireInvalid(mission, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("detail").intValue = 99);
     }
 
     private static void RequireProgress(MissionRuntime runtime, params int[] expected)
@@ -530,7 +520,19 @@ public static class MissionVerification
 
     #region Data Building
 
-    private static MissionDataSO Mission(string id, (MissionObjectiveType objective, int target)[] tasks, params IReward[] rewards)
+    // Cách ngắn để dựng mission con: (nhóm, chi tiết, đối tượng, số cần đạt).
+    private static (MissionActivity activity, int detail, int subject, int target) KillTask(int target, EnemyKind kind = EnemyKind.Any,
+        CharacterType enemy = CharacterType.None) => (MissionActivity.Kill, (int)kind, (int)enemy, target);
+    private static (MissionActivity activity, int detail, int subject, int target) FinishTask(int target)
+        => (MissionActivity.Battle, (int)BattleDetail.Any, 0, target);
+    private static (MissionActivity activity, int detail, int subject, int target) WinTask(int target)
+        => (MissionActivity.Battle, (int)BattleDetail.Win, 0, target);
+    private static (MissionActivity activity, int detail, int subject, int target) GoldTask(int target)
+        => (MissionActivity.Collect, (int)CollectDetail.Gold, 0, target);
+    private static (MissionActivity activity, int detail, int subject, int target) CompleteTask(int target)
+        => (MissionActivity.Mission, (int)MissionDetail.Completed, 0, target);
+
+    private static MissionDataSO Mission(string id, (MissionActivity activity, int detail, int subject, int target)[] tasks, params IReward[] rewards)
     {
         var mission = ScriptableObject.CreateInstance<MissionDataSO>();
         Temporary.Add(mission);
@@ -542,7 +544,9 @@ public static class MissionVerification
         {
             SerializedProperty task = taskList.GetArrayElementAtIndex(i);
             task.FindPropertyRelative("id").stringValue = "t" + i;
-            task.FindPropertyRelative("objective").intValue = (int)tasks[i].objective;
+            task.FindPropertyRelative("activity").intValue = (int)tasks[i].activity;
+            task.FindPropertyRelative("detail").intValue = tasks[i].detail;
+            task.FindPropertyRelative("subject").intValue = tasks[i].subject;
             task.FindPropertyRelative("target").intValue = tasks[i].target;
         }
         SerializedProperty rewardList = data.FindProperty("rewards");

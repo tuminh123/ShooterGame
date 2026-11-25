@@ -115,7 +115,11 @@ public sealed class HomeNavigationBar : UIPanelController
         Unsubscribe(); // Tránh đăng ký hai lần khi OnEnable chạy lại.
         characterScreen.NavigationChanged += OnNavigationChanged;
         equipmentScreen.NavigationChanged += OnNavigationChanged;
-        if (missionScreen != null) missionScreen.NavigationChanged += OnNavigationChanged;
+        if (missionScreen != null)
+        {
+            missionScreen.NavigationChanged += OnNavigationChanged;
+            missionScreen.GoRequested += OnMissionGo;
+        }
         Refresh(false);
     }
 
@@ -123,7 +127,11 @@ public sealed class HomeNavigationBar : UIPanelController
     {
         if (characterScreen != null) characterScreen.NavigationChanged -= OnNavigationChanged;
         if (equipmentScreen != null) equipmentScreen.NavigationChanged -= OnNavigationChanged;
-        if (missionScreen != null) missionScreen.NavigationChanged -= OnNavigationChanged;
+        if (missionScreen != null)
+        {
+            missionScreen.NavigationChanged -= OnNavigationChanged;
+            missionScreen.GoRequested -= OnMissionGo;
+        }
     }
 
     #endregion
@@ -141,6 +149,16 @@ public sealed class HomeNavigationBar : UIPanelController
     private void OnHeroes() => characterScreen.Open();
 
     private void OnEquipment() => equipmentScreen.Open();
+
+    // Nút Go của mission: Mission đã tự đóng nên chỉ cần mở màn đích. Battle = Home, người chơi tự bấm chơi.
+    private void OnMissionGo(MissionDestination destination)
+    {
+        switch (destination)
+        {
+            case MissionDestination.Heroes: characterScreen.Open(); break;
+            case MissionDestination.Equipment: equipmentScreen.Open(); break;
+        }
+    }
 
     // Vào/ra Detail hoặc đổi tab trong menu: vẫn ở Home nên thanh bar trượt chứ không bật/tắt ngay.
     private void OnNavigationChanged() => Refresh(false);

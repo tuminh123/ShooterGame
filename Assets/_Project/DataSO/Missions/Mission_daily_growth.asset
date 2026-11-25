@@ -19,11 +19,15 @@ MonoBehaviour:
   tasks:
   - id: equip
     description: Level up equipment 2 times
-    objective: 7
+    activity: 3
+    detail: 3
+    subject: 0
     target: 2
   - id: hero
     description: Level up a hero 1 time
-    objective: 5
+    activity: 3
+    detail: 1
+    subject: 0
     target: 1
   rewards:
   - rid: 8867964267498569745

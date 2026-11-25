@@ -10,11 +10,12 @@ public sealed class MissionTask
     [SerializeField] private string id;
     [Tooltip("Chữ hiện trên UI, ví dụ \"Defeat 100 enemies\".")]
     [SerializeField] private string description;
-    [SerializeField] private MissionObjectiveType objective;
-    [Tooltip("Chỉ dùng với Kill Enemy: nhóm quái được tính. Any = mọi nhóm, gồm cả boss.")]
-    [SerializeField] private EnemyKind enemyKind;
-    [Tooltip("Chỉ dùng với Kill Enemy: đích danh loại quái. None = loại nào cũng tính.")]
-    [SerializeField] private CharacterType character;
+    [Tooltip("Nhóm việc được tính tiến độ.")]
+    [SerializeField] private MissionActivity activity;
+    [Tooltip("Giá trị của enum chi tiết thuộc nhóm (xem DetailType). 0 = Any: loại nào cũng tính.")]
+    [SerializeField] private int detail;
+    [Tooltip("Đối tượng đích danh (loại quái với Kill, nhân vật với Upgrade). 0 = bất kỳ.")]
+    [SerializeField] private int subject;
     [SerializeField, Min(1)] private int target = 1;
 
     /// <summary>ID ổn định trong mission.</summary>
@@ -23,26 +24,63 @@ public sealed class MissionTask
     /// <summary>Chữ hiện trên UI.</summary>
     public string Description => description;
 
-    /// <summary>Việc được tính tiến độ.</summary>
-    public MissionObjectiveType Objective => objective;
+    /// <summary>Nhóm việc được tính tiến độ.</summary>
+    public MissionActivity Activity => activity;
 
-    /// <summary>Nhóm quái cần giết; chỉ có nghĩa với KillEnemy.</summary>
-    public EnemyKind EnemyKind => enemyKind;
+    /// <summary>Giá trị của enum chi tiết thuộc nhóm; 0 = Any.</summary>
+    public int Detail => detail;
 
-    /// <summary>Loại quái cần giết; None là bất kỳ. Chỉ có nghĩa với KillEnemy.</summary>
-    public CharacterType Character => character;
+    /// <summary>Đối tượng đích danh (CharacterType); 0 = bất kỳ.</summary>
+    public int Subject => subject;
 
     /// <summary>Số cần đạt.</summary>
     public int Target => target;
 
-    /// <summary>Việc vừa xảy ra có tính cho mission con này không.</summary>
-    public bool Matches(MissionSignal signal)
+    /// <summary>
+    /// Enum chi tiết của một nhóm. Một chỗ duy nhất biết nhóm nào dùng enum nào: Validate và Inspector cùng đọc ở đây.
+    /// Thêm nhóm mới thì thêm một dòng.
+    /// </summary>
+    public static Type DetailType(MissionActivity activity)
     {
-        if (signal.Objective != objective) return false;
-        if (objective != MissionObjectiveType.KillEnemy) return true;
-        return (enemyKind == EnemyKind.Any || enemyKind == signal.EnemyKind) &&
-               (character == CharacterType.None || character == signal.Character);
+        switch (activity)
+        {
+            case MissionActivity.Kill: return typeof(EnemyKind);
+            case MissionActivity.Battle: return typeof(BattleDetail);
+            case MissionActivity.Collect: return typeof(CollectDetail);
+            case MissionActivity.Upgrade: return typeof(UpgradeDetail);
+            case MissionActivity.Mission: return typeof(MissionDetail);
+            default: return null;
+        }
     }
+
+    /// <summary>Nhóm này có lọc theo đối tượng đích danh (Subject) không.</summary>
+    public static bool UsesSubject(MissionActivity activity)
+        => activity == MissionActivity.Kill || activity == MissionActivity.Upgrade;
+
+    /// <summary>Màn người chơi nên tới để làm mission con này. Một chỗ duy nhất map nhóm việc sang màn, để UI không phải biết luật.</summary>
+    public MissionDestination Destination
+    {
+        get
+        {
+            switch (activity)
+            {
+                case MissionActivity.Kill:
+                case MissionActivity.Battle:
+                case MissionActivity.Collect:
+                    return MissionDestination.Battle;
+                case MissionActivity.Upgrade:
+                    return detail == (int)UpgradeDetail.EquipmentLevel ? MissionDestination.Equipment : MissionDestination.Heroes;
+                default: // Mission (Final Mission): không có nơi nào để "đi tới".
+                    return MissionDestination.None;
+            }
+        }
+    }
+
+    /// <summary>Việc vừa xảy ra có tính cho mission con này không. 0 ở task nghĩa là bất kỳ.</summary>
+    public bool Matches(MissionSignal signal)
+        => signal.Activity == activity &&
+           (detail == 0 || detail == signal.Detail) &&
+           (subject == 0 || subject == signal.Subject);
 }
 
 /// <summary>
@@ -97,15 +135,12 @@ public sealed class MissionDataSO : ScriptableObject
         {
             if (task == null || string.IsNullOrWhiteSpace(task.Id) || !ids.Add(task.Id))
                 throw new InvalidOperationException($"{name}: mission con trống, thiếu ID hoặc trùng ID.");
-            if (!Enum.IsDefined(typeof(MissionObjectiveType), task.Objective) || task.Target < 1)
-                throw new InvalidOperationException($"{name}/{task.Id}: mục tiêu không hợp lệ hoặc Target < 1.");
-            if (task.Objective == MissionObjectiveType.KillBoss)
-                throw new InvalidOperationException($"{name}/{task.Id}: Kill Boss không còn dùng; chọn Kill Enemy với Enemy Kind = Boss.");
-            if (!Enum.IsDefined(typeof(EnemyKind), task.EnemyKind) || !Enum.IsDefined(typeof(CharacterType), task.Character))
-                throw new InvalidOperationException($"{name}/{task.Id}: bộ lọc quái không hợp lệ.");
-            if (task.Objective != MissionObjectiveType.KillEnemy &&
-                (task.EnemyKind != EnemyKind.Any || task.Character != CharacterType.None))
-                throw new InvalidOperationException($"{name}/{task.Id}: bộ lọc quái chỉ dùng với Kill Enemy.");
+            if (!Enum.IsDefined(typeof(MissionActivity), task.Activity) || task.Target < 1)
+                throw new InvalidOperationException($"{name}/{task.Id}: nhóm việc không hợp lệ hoặc Target < 1.");
+            if (!Enum.IsDefined(MissionTask.DetailType(task.Activity), task.Detail))
+                throw new InvalidOperationException($"{name}/{task.Id}: chi tiết {task.Detail} không thuộc nhóm {task.Activity}.");
+            if (task.Subject != 0 && (!MissionTask.UsesSubject(task.Activity) || !Enum.IsDefined(typeof(CharacterType), task.Subject)))
+                throw new InvalidOperationException($"{name}/{task.Id}: Subject chỉ dùng với Kill/Upgrade và phải là CharacterType hợp lệ.");
         }
         RewardBatch.From(rewards);
     }

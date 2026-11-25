@@ -19,11 +19,15 @@ MonoBehaviour:
   tasks:
   - id: kill
     description: Defeat 300 enemies
-    objective: 0
+    activity: 0
+    detail: 0
+    subject: 0
     target: 300
   - id: gold
     description: Collect 1,000 gold in runs
-    objective: 4
+    activity: 2
+    detail: 1
+    subject: 0
     target: 1000
   rewards:
   - rid: 8867964267498569751

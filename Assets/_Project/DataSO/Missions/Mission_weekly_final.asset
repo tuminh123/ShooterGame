@@ -19,7 +19,9 @@ MonoBehaviour:
   tasks:
   - id: complete
     description: Finish quests
-    objective: 8
+    activity: 4
+    detail: 1
+    subject: 0
     target: 1
   rewards:
   - rid: 8867964267498569801

@@ -6,32 +6,45 @@ using System;
 
 #region Contract
 
-/// <summary>Một việc vừa xảy ra trong game, kèm ID để nhiệm vụ tự xác minh có phải việc mình cần.</summary>
+/// <summary>
+/// Một việc vừa xảy ra trong game: nhóm, chi tiết cụ thể, đối tượng và số lượng. Struct bất biến, không cấp phát.
+/// Chỉ tạo qua factory để không lẫn enum chi tiết giữa các nhóm; task so khớp bằng <see cref="MissionTask.Matches"/>.
+/// </summary>
+/// <remarks>Chi tiết và đối tượng của tín hiệu luôn cụ thể, không bao giờ là Any (0): Any chỉ có nghĩa ở task.</remarks>
 public readonly struct MissionSignal
 {
-    /// <summary>Loại việc.</summary>
-    public readonly MissionObjectiveType Objective;
-    /// <summary>Số lượng.</summary>
+    /// <summary>Nhóm việc.</summary>
+    public readonly MissionActivity Activity;
+    /// <summary>Giá trị của enum chi tiết thuộc nhóm (xem <see cref="MissionTask.DetailType"/>).</summary>
+    public readonly int Detail;
+    /// <summary>Đối tượng đích danh (CharacterType); 0 = không có.</summary>
+    public readonly int Subject;
+    /// <summary>Số lượng cộng vào tiến độ.</summary>
     public readonly int Amount;
-    /// <summary>Nhóm quái; chỉ có nghĩa với KillEnemy và không bao giờ là Any.</summary>
-    public readonly EnemyKind EnemyKind;
-    /// <summary>ID quái; chỉ có nghĩa với KillEnemy.</summary>
-    public readonly CharacterType Character;
 
-    /// <summary>Việc không có đối tượng riêng (hết trận, nâng cấp).</summary>
-    public MissionSignal(MissionObjectiveType objective, int amount) : this(objective, amount, EnemyKind.Any, CharacterType.None) { }
-
-    private MissionSignal(MissionObjectiveType objective, int amount, EnemyKind enemyKind, CharacterType character)
+    private MissionSignal(MissionActivity activity, int detail, int subject, int amount)
     {
-        Objective = objective;
+        Activity = activity;
+        Detail = detail;
+        Subject = subject;
         Amount = amount;
-        EnemyKind = enemyKind;
-        Character = character;
     }
 
     /// <summary>Một con quái vừa chết.</summary>
-    public static MissionSignal Kill(EnemyKind kind, CharacterType character)
-        => new MissionSignal(MissionObjectiveType.KillEnemy, 1, kind, character);
+    public static MissionSignal Kill(EnemyKind kind, CharacterType enemy)
+        => new MissionSignal(MissionActivity.Kill, (int)kind, (int)enemy, 1);
+
+    /// <summary>Một trận vừa kết thúc, thắng hoặc thua.</summary>
+    public static MissionSignal Battle(BattleDetail result)
+        => new MissionSignal(MissionActivity.Battle, (int)result, 0, 1);
+
+    /// <summary>Nhặt được một lượng thứ gì đó.</summary>
+    public static MissionSignal Collect(CollectDetail what, int amount)
+        => new MissionSignal(MissionActivity.Collect, (int)what, 0, amount);
+
+    /// <summary>Vừa nâng cấp; <paramref name="character"/> là None với trang bị.</summary>
+    public static MissionSignal Upgrade(UpgradeDetail what, int amount, CharacterType character = CharacterType.None)
+        => new MissionSignal(MissionActivity.Upgrade, (int)what, (int)character, amount);
 }
 
 /// <summary>Nghe event gameplay rồi báo tín hiệu. Gameplay không biết tracker; tracker không biết nhiệm vụ nào đang mở.</summary>
@@ -112,9 +125,9 @@ internal sealed class BattleResultTracker : IMissionTracker
         {
             case GameState.EndingWin:
             case GameState.EndingLose:
-                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.FinishBattle, 1));
-                if (current == GameState.EndingWin) Progressed?.Invoke(new MissionSignal(MissionObjectiveType.WinBattle, 1));
-                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.CollectBattleGold, battle.Gold));
+                // Một tín hiệu mỗi trận: task "chơi hết trận" để Any, task "thắng" để Win.
+                Progressed?.Invoke(MissionSignal.Battle(current == GameState.EndingWin ? BattleDetail.Win : BattleDetail.Lose));
+                Progressed?.Invoke(MissionSignal.Collect(CollectDetail.Gold, battle.Gold));
                 Finished?.Invoke(true);
                 break;
             case GameState.Home: // Bỏ trận giữa chừng: vẫn giữ số quái đã hạ.
@@ -151,16 +164,15 @@ internal sealed class UpgradeTracker : IMissionTracker
         equipment.EquipmentLeveledUp -= OnEquipmentLeveledUp;
     }
 
+    // Mang theo loại nhân vật để task có thể chỉ tính một nhân vật đích danh.
     private void OnCharacterRaised(CharacterType type, CharacterUpgradeKind kind, int amount)
-        => Report(kind == CharacterUpgradeKind.Star
-            ? MissionObjectiveType.RaiseCharacterStar
-            : MissionObjectiveType.RaiseCharacterLevel, amount);
+        => Report(kind == CharacterUpgradeKind.Star ? UpgradeDetail.CharacterStar : UpgradeDetail.CharacterLevel, amount, type);
 
-    private void OnEquipmentLeveledUp(EquipmentItem item) => Report(MissionObjectiveType.RaiseEquipmentLevel, 1);
+    private void OnEquipmentLeveledUp(EquipmentItem item) => Report(UpgradeDetail.EquipmentLevel, 1, CharacterType.None);
 
-    private void Report(MissionObjectiveType objective, int amount)
+    private void Report(UpgradeDetail what, int amount, CharacterType character)
     {
-        Progressed?.Invoke(new MissionSignal(objective, amount));
+        Progressed?.Invoke(MissionSignal.Upgrade(what, amount, character));
         Finished?.Invoke(true);
     }
 }

@@ -50,6 +50,9 @@ public sealed class MissionListView : MonoBehaviour
     /// <summary>Bấm nhận thưởng; tham số là ID mission.</summary>
     public event Action<string> ClaimClicked;
 
+    /// <summary>Bấm Go trên một thẻ; tham số là màn đích.</summary>
+    public event Action<MissionDestination> GoClicked;
+
     private readonly List<MissionCardView> cards = new List<MissionCardView>();
     private bool bound;
 
@@ -84,6 +87,7 @@ public sealed class MissionListView : MonoBehaviour
         {
             MissionCardView card = Instantiate(cardPrefab, content);
             card.ClaimClicked += RaiseClaim;
+            card.GoClicked += RaiseGo;
             cards.Add(card);
         }
         for (int i = 0; i < cards.Count; i++)
@@ -130,12 +134,15 @@ public sealed class MissionListView : MonoBehaviour
 
     private void RaiseClaim(string missionId) => ClaimClicked?.Invoke(missionId);
 
+    private void RaiseGo(MissionDestination destination) => GoClicked?.Invoke(destination);
+
     // Nút tab và thẻ tổng kết sống cùng View này nên chỉ gắn listener một lần.
     private void BindEvents()
     {
         if (bound) return;
         bound = true;
         finalCard.ClaimClicked += RaiseClaim;
+        finalCard.GoClicked += RaiseGo;
         for (int i = 0; i < tabs.Length; i++)
         {
             int index = i;

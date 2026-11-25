@@ -53,7 +53,7 @@ public sealed class MissionRuntime
     }
 
     // Đặt tiến độ đúng bằng amount, không cộng dồn: gọi lại nhiều lần cho cùng kết quả, save cũ lệch thì được sửa.
-    internal bool SetProgress(MissionObjectiveType objective, int amount)
+    internal bool SetProgress(MissionActivity activity, int amount)
     {
         if (claimed) return false;
         bool changed = false;
@@ -61,7 +61,7 @@ public sealed class MissionRuntime
         {
             MissionTask task = Data.Tasks[i];
             int value = Math.Min(task.Target, amount);
-            if (task.Objective != objective || value == progress[i]) continue;
+            if (task.Activity != activity || value == progress[i]) continue;
             progress[i] = value;
             changed = true;
         }
@@ -183,7 +183,7 @@ public sealed class MissionBoard
 
     // Suy từ số mission đã nhận thay vì cộng từng lần: save cũ chưa có Final Mission vẫn đúng.
     private void SyncFinalMission()
-        => FinalMission?.SetProgress(MissionObjectiveType.CompleteMission, ClaimedCount);
+        => FinalMission?.SetProgress(MissionActivity.Mission, ClaimedCount);
 
     #endregion
 

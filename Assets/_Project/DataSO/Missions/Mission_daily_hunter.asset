@@ -19,11 +19,15 @@ MonoBehaviour:
   tasks:
   - id: kill
     description: Defeat 50 enemies
-    objective: 0
+    activity: 0
+    detail: 0
+    subject: 0
     target: 50
   - id: run
     description: Finish 1 run
-    objective: 2
+    activity: 1
+    detail: 0
+    subject: 0
     target: 1
   rewards:
   - rid: 8867964267498569743

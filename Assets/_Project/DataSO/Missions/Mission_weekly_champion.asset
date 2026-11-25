@@ -19,17 +19,21 @@ MonoBehaviour:
   tasks:
   - id: win
     description: Win 5 runs
-    objective: 3
+    activity: 1
+    detail: 1
+    subject: 0
     target: 5
   - id: boss
     description: Defeat 3 bosses
-    objective: 0
-    enemyKind: 3
-    character: 0
+    activity: 0
+    detail: 3
+    subject: 0
     target: 3
   - id: kill
     description: Defeat 500 enemies
-    objective: 0
+    activity: 0
+    detail: 0
+    subject: 0
     target: 500
   rewards:
   - rid: 8867964267498569747
