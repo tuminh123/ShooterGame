@@ -20,7 +20,7 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
 
     #region Dependencies And Playback State
     private IGameState gameState;
-    private IGameFlow runCommands;
+    private IGameFlow gameFlow;
     private IGamePause pauses;
     private IDisposable pauseLease;
     private Func<bool> pendingCommand;
@@ -34,7 +34,7 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     public void Construct(IGameState gameState, IGameFlow gameFlow, IGamePause gamePause)
     {
         this.gameState = gameState;
-        this.runCommands = gameFlow;
+        this.gameFlow = gameFlow;
         this.pauses = gamePause;
         ResetPresentation();
     }
@@ -44,12 +44,12 @@ public sealed class ScreenTransitionController : MonoBehaviour, IScreenTransitio
     #region Navigation Commands
 
     /// <summary>Che màn rồi bắt đầu lượt chơi; chỉ hợp lệ khi đang ở Home.</summary>
-    public bool StartRun() => gameState != null && gameState.State == GameState.Home && Begin(runCommands.StartRun);
+    public bool StartBattle() => gameState != null && gameState.State == GameState.Home && Begin(gameFlow.StartBattle);
     /// <summary>Che màn rồi chơi lại lượt hiện tại; chỉ hợp lệ khi đang Playing.</summary>
-    public bool RestartRun() => gameState != null && gameState.State == GameState.Playing && Begin(runCommands.RestartRun);
+    public bool RestartBattle() => gameState != null && gameState.State == GameState.Playing && Begin(gameFlow.RestartBattle);
     /// <summary>Che màn rồi về Home; hợp lệ khi đang Playing hoặc đã thắng.</summary>
     public bool ReturnHome() => gameState != null &&
-        (gameState.State == GameState.Playing || gameState.State == GameState.Won) && Begin(runCommands.ReturnHome);
+        (gameState.State == GameState.Playing || gameState.State == GameState.Won) && Begin(gameFlow.ReturnHome);
 
     // Overlay chặn raycast ngay khi nhận lệnh; token riêng không làm mất pause của popup/Home.
     private bool Begin(Func<bool> command)

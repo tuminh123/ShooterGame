@@ -19,19 +19,19 @@ public interface IStageSelection
 
 #endregion
 
-#region Run Lifecycle
+#region Battle Lifecycle
 
 /// <summary>Kiểm tra cấu hình, bắt đầu hoặc dừng lượt chơi của màn. Dùng bởi GameManager.</summary>
-public interface IStageRunLifecycle
+public interface IStageBattleLifecycle
 {
     /// <summary>Kiểm tra màn đang chọn (asset spawn, vùng sinh, thưởng) trước khi chơi.</summary>
     void Validate();
 
     /// <summary>Dọn lượt cũ, đặt map của màn và chuẩn bị lượt mới (spawn bắt đầu khi Player đã có).</summary>
-    void BeginRun();
+    void BeginBattle();
 
     /// <summary>Hủy lịch sinh và thu hồi mọi quái của màn.</summary>
-    void StopRun();
+    void StopBattle();
 }
 
 #endregion
@@ -50,7 +50,7 @@ public interface IStageResults
     event Action<Exception> Failed;
 
     /// <summary>Dừng màn (giữ nhân vật để phát animation kết quả) và cấp thưởng đúng một lần.</summary>
-    void FinishRun(bool won);
+    void FinishBattle(bool won);
 
     /// <summary>Thưởng màn đã trao thực tế ở lượt này (chưa gồm vàng nhặt); null nếu chưa trao.</summary>
     RewardResult ResultRewards { get; }

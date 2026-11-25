@@ -11,7 +11,7 @@ using Zenject;
 /// Chọn system theo loại data bằng một switch duy nhất (<see cref="Validate(IStageSpawnData)"/>, <see cref="Execute"/>).
 /// Ba system không thay thế được cho nhau (mỗi cái nhận một loại data riêng), nên không dùng interface chung.
 /// </remarks>
-public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDisposable, IStageSelection, IStageRunLifecycle, IStageResults, IStageSchedule
+public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDisposable, IStageSelection, IStageBattleLifecycle, IStageResults, IStageSchedule
 {
     #region Dependencies, Systems & State
 
@@ -107,7 +107,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Run Preparation
+    #region Battle Preparation
 
     // Công bố lịch Boss chờ sinh xong wave nếu mọi chuỗi đều có thời điểm xác định.
     private void PrepareSpawnSchedule()
@@ -128,7 +128,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
     // Chỉ chuyển tiếp loại sự kiện và mốc giờ gameplay; không chứa cấu hình thời gian của UI.
     private void ForwardSpawnSchedule(StageSpawnWarning kind, float spawnAt) => SpawnScheduled?.Invoke(kind, spawnAt);
 
-    /// <summary>Chọn màn bằng ID ổn định trước StartRun; dọn lượt và kết quả của màn cũ.</summary>
+    /// <summary>Chọn màn bằng ID ổn định trước StartBattle; dọn lượt và kết quả của màn cũ.</summary>
     public void SelectStage(string stageId)
     {
         EnsureNotDisposed();
@@ -137,7 +137,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         if (string.IsNullOrWhiteSpace(stageId) || !stages.TryGetValue(stageId, out var next))
             throw new ArgumentException("StageId không có trong Stage Database: " + stageId, nameof(stageId));
         next.Validate();
-        StopRun(); // System dùng chung cho mọi màn: chỉ cần dọn lượt cũ, không phải tạo lại.
+        StopBattle(); // System dùng chung cho mọi màn: chỉ cần dọn lượt cũ, không phải tạo lại.
         data = next;
         stageTime = 0f;
         clearRequested = false;
@@ -153,10 +153,10 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
     }
 
     /// <summary>Dọn lượt cũ, áp dụng map và đặt lại trạng thái cho lượt mới.</summary>
-    public void BeginRun()
+    public void BeginBattle()
     {
         EnsureNotDisposed();
-        StopRun();
+        StopBattle();
         Validate();
         if (!ground.SetMap(data.MapKey))
             throw new InvalidOperationException("Không thể áp dụng map của Stage: " + data.MapKey);
@@ -210,7 +210,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         bool noneAlive = waves.AliveCount == 0 && formations.AliveCount == 0 && boss.AliveCount == 0;
         if (!allDeployed || !noneAlive || clearRequested) return;
         clearRequested = true;
-        StopRun();
+        StopBattle();
         Cleared?.Invoke();
     }
 
@@ -229,7 +229,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
     /// <summary>Dừng mọi system, gộp lỗi cleanup và thông báo thất bại.</summary>
     private void FailStage(Exception exception)
     {
-        try { StopRun(); }
+        try { StopBattle(); }
         catch (Exception cleanup) { exception = new AggregateException(exception, cleanup); }
         if (Failed != null) Failed(exception);
         else Debug.LogException(exception);
@@ -237,10 +237,10 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
 
     #endregion
 
-    #region Run Result
+    #region Battle Result
 
     /// <summary>Dừng clock và spawn (giữ nhân vật đang sống để phát animation kết quả), rồi cấp thưởng đúng một lần.</summary>
-    public void FinishRun(bool won)
+    public void FinishBattle(bool won)
     {
         EnsureNotDisposed();
         running = false;
@@ -259,7 +259,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
     #region Stop & Dispose
 
     /// <summary>Hủy lịch sinh và thu hồi quái của cả ba system; một system lỗi không chặn các system còn lại.</summary>
-    public void StopRun()
+    public void StopBattle()
     {
         running = false;
         started = false;
@@ -293,7 +293,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         boss.SpawnScheduled -= ForwardSpawnSchedule;
         waves.AllWavesSpawned -= boss.NotifyAllWavesSpawned;
         waves.FinalWaveCleared -= boss.NotifyFinalWaveCleared;
-        try { StopRun(); }
+        try { StopBattle(); }
         finally
         {
             Cleared = null;

@@ -4,11 +4,11 @@ using UnityEngine;
 using Zenject;
 
 /// <summary>
-/// Trình bày bảng chọn skill khi lên cấp: slow motion, pause, mở/đóng panel và chuyển thao tác click cho miền Run.
+/// Trình bày bảng chọn skill khi lên cấp: slow motion, pause, mở/đóng panel và chuyển thao tác click cho miền Battle.
 /// Gắn trên root LevelUpUI là cha của LevelUpPanel, vẫn hoạt động khi panel con tắt.
 /// </summary>
 /// <remarks>
-/// Đếm lượt chờ, roll lựa chọn, áp dụng skill và chặn skill lỗi thuộc <see cref="ISkillChoice"/> (miền Run, Giai đoạn 6);
+/// Đếm lượt chờ, roll lựa chọn, áp dụng skill và chặn skill lỗi thuộc <see cref="ISkillChoice"/> (miền Battle, Giai đoạn 6);
 /// controller này chỉ quyết định <b>khi nào</b> và <b>cách</b> hiển thị.
 /// </remarks>
 public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTickable
@@ -16,7 +16,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     #region Frame
 
     // LateTick do Zenject gọi: UIInstaller bind controller này làm ILateTickable với thứ tự sau mọi Manager,
-    // nên bảng chọn skill luôn mở SAU khi RunManager đã xử lý xong loot/lên cấp trong cùng frame.
+    // nên bảng chọn skill luôn mở SAU khi BattleManager đã xử lý xong loot/lên cấp trong cùng frame.
     private int activationFrame = -1; // Bỏ qua frame vừa bật để không xử lý ngay trong frame panel được bật lại.
 
     #endregion
@@ -33,7 +33,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     private readonly List<SkillChoiceOffer> offers = new List<SkillChoiceOffer>(3); // Các lựa chọn đang hiển thị; roll lại ghi đè.
     private readonly List<SkillRuntime> ownedSkills = new List<SkillRuntime>(); // Chỉ skill gameplay; skill nhân vật thuộc CharacterSkills.
-    private ISkillChoice choices; // Miền Run: lượt chờ, roll, áp dụng.
+    private ISkillChoice choices; // Miền Battle: lượt chờ, roll, áp dụng.
     private IOwnedSkillReader skills; // Miền Combat: chỉ đọc để hiện các ô skill đang sở hữu.
     private IGamePause pauses; // Pause nhiều nguồn; đóng modal không gỡ pause thủ công.
     private IGameState game; // Rời Playing (thắng/thua/về Home) thì hủy bảng thưởng còn đang chờ.
@@ -47,7 +47,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     private bool visible; // UIManager cấp quyền trình bày; controller không tự chuyển các UI khác.
     private int version; // Tăng khi lượt chờ bị hủy: kết quả callback cũ không làm mới bảng của phiên mới.
 
-    /// <summary>Số lượt thưởng đang chờ (đọc từ miền Run).</summary>
+    /// <summary>Số lượt thưởng đang chờ (đọc từ miền Battle).</summary>
     public int PendingSkillChoices => choices != null ? choices.PendingChoices : 0;
 
     #endregion
@@ -89,7 +89,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     #endregion
 
-    #region Run Events
+    #region Battle Events
 
     // Thắng/thua/về Home chấm dứt bảng thưởng của trận, kể cả khi Player chưa chết hoặc chưa bị thu hồi.
     private void OnGameStateChanged(GameState previous, GameState current)
@@ -129,7 +129,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
 
     #region Presentation
 
-    /// <summary>Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng miền Run giữ lượt để retry.</summary>
+    /// <summary>Roll từ runtime mới nhất; pool cạn vì lỗi thì đóng bảng, trả pause nhưng miền Battle giữ lượt để retry.</summary>
     public void LateTick()
     {
         if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
@@ -164,7 +164,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
         refreshPending = true;
     }
 
-    // Miền Run chỉ tiêu lượt khi gameplay thành công; lỗi được Run log và chặn skill đó khỏi các lần roll sau.
+    // Miền Battle chỉ tiêu lượt khi gameplay thành công; lỗi được Battle log và chặn skill đó khỏi các lần roll sau.
     private void Choose(int index)
     {
         if (selecting || refreshPending || index < 0 || index >= offers.Count) return;
@@ -269,7 +269,7 @@ public sealed class SkillChoiceController : UIPanelController, Zenject.ILateTick
     // Gỡ toàn bộ subscription và token pause khi root controller hoặc Canvas ngừng hoạt động.
     private void OnDestroy() => OnDisable();
 
-    // Canvas bị tắt giữa trận: hủy lượt chờ như trước đây (miền Run bỏ qua nếu scene đang dọn).
+    // Canvas bị tắt giữa trận: hủy lượt chờ như trước đây (miền Battle bỏ qua nếu scene đang dọn).
     private void OnDisable()
     {
         if (subscribed)

@@ -4,42 +4,42 @@ using UnityEngine;
 using Zenject;
 
 /// <summary>
-/// Manager của miền Run: sở hữu và điều phối một lượt chơi — đồng hồ, thống kê, level/EXP trong trận và loot.
-/// Đây là class <b>duy nhất</b> của Run được bind vào Zenject.
+/// Manager của miền Battle: sở hữu và điều phối một lượt chơi — đồng hồ, thống kê, level/EXP trong trận và loot.
+/// Đây là class <b>duy nhất</b> của Battle được bind vào Zenject.
 /// </summary>
 /// <remarks>
 /// <code>
-/// RunManager
-/// ├── RunClock         đồng hồ gameplay của lượt
-/// ├── RunStatistics    vàng nhặt được, số quái bị hạ
-/// ├── RunLevel         level/EXP trận + nguồn bonus chỉ số trên Player
+/// BattleManager
+/// ├── BattleTimer         đồng hồ gameplay của lượt
+/// ├── BattleStatistics    vàng nhặt được, số quái bị hạ
+/// ├── InBattleLevel         level/EXP trận + nguồn bonus chỉ số trên Player
 /// ├── LootSystem       rơi/nhặt EXP và vàng
 /// └── SkillChoice      lượt chọn skill khi lên cấp (roll + áp dụng qua Combat)
 /// </code>
 /// Thay cho RunSessionManager, RunLevelService, LootManager và phần "run" của LevelManager cũ.
 /// Các system con được tạo bằng <c>new</c> trong constructor và không gọi nhau; manager nối dây:
-/// quái chết → thống kê + rơi loot; nhặt EXP → RunLevel; nhặt vàng → ví + thống kê; lên cấp → SkillChoice.
-/// Chiều phụ thuộc: Run → Combat / Character (gọi xuống trực tiếp). Miền khác chỉ thấy <c>RunContracts.cs</c>.
+/// quái chết → thống kê + rơi loot; nhặt EXP → InBattleLevel; nhặt vàng → ví + thống kê; lên cấp → SkillChoice.
+/// Chiều phụ thuộc: Battle → Combat / Character (gọi xuống trực tiếp). Miền khác chỉ thấy <c>BattleContracts.cs</c>.
 /// </remarks>
-public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkillChoice, ITickable, ILateTickable, IDisposable
+public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset, ISkillChoice, ITickable, ILateTickable, IDisposable
 {
     #region Fields
 
-    private readonly RunClock clock;
-    private readonly RunStatistics statistics;
-    private readonly RunLevel level;
+    private readonly BattleTimer clock;
+    private readonly BattleStatistics statistics;
+    private readonly InBattleLevel level;
     private readonly LootSystem loot;
     private readonly SkillChoice choices;
     private readonly IPlayerReader players;
     private readonly ICharacterDeathEvents characterDeaths;
-    private readonly ICombatLifecycle combat; // Dọn skill gameplay khi reset lượt (trước đây SkillSystem tự nghe RunReset).
+    private readonly ICombatLifecycle combat; // Dọn skill gameplay khi reset lượt (trước đây SkillSystem tự nghe BattleReset).
     private readonly IWallet wallet; // Ví vĩnh viễn (miền Progression): vàng được lưu ngay khi nhặt.
-    private bool resetting; // Chặn ResetRun lồng nhau từ callback của chính lần reset.
+    private bool resetting; // Chặn ResetBattle lồng nhau từ callback của chính lần reset.
     private bool disposed;
 
     #endregion
 
-    #region Properties / Events (IRunReader)
+    #region Properties / Events (IBattleProgress)
 
     public int Level => level.Level;
     public int Experience => level.Experience;
@@ -83,15 +83,15 @@ public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkil
     }
 
     /// <inheritdoc/>
-    public event Action RunReset;
+    public event Action BattleReset;
 
     #endregion
 
     #region Constructor / Lifecycle
 
-    /// <summary>Dựng miền Run và nối dây giữa các system con. Không phát event nào trong constructor.</summary>
-    /// <param name="levelDatabase">Lấy <see cref="LevelDatabaseSO.RunLevelConfig"/> (cấu hình level trận dùng chung).</param>
-    public RunManager(
+    /// <summary>Dựng miền Battle và nối dây giữa các system con. Không phát event nào trong constructor.</summary>
+    /// <param name="levelDatabase">Lấy <see cref="LevelDatabaseSO.InBattleLevelConfig"/> (cấu hình level trận dùng chung).</param>
+    public BattleManager(
         LevelDatabaseSO levelDatabase,
         LootDatabaseSO lootDatabase,
         IGameObjectPool pools,
@@ -110,14 +110,14 @@ public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkil
         combat = combatLifecycle ?? throw new ArgumentNullException(nameof(combatLifecycle));
         this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
 
-        clock = new RunClock();
-        statistics = new RunStatistics();
+        clock = new BattleTimer();
+        statistics = new BattleStatistics();
         loot = new LootSystem(lootDatabase, pools);
         try
         {
-            // RunLevel và SkillChoice đăng ký PlayerChanged ngay khi tạo; nếu bước sau lỗi thì phải gỡ lại.
-            level = new RunLevel(levelDatabase.RunLevelConfig, playerReader);
-            choices = new SkillChoice(skillDatabase.CreateRunChoiceCatalog(), skillGrant, ownedSkills, playerReader);
+            // InBattleLevel và SkillChoice đăng ký PlayerChanged ngay khi tạo; nếu bước sau lỗi thì phải gỡ lại.
+            level = new InBattleLevel(levelDatabase.InBattleLevelConfig, playerReader);
+            choices = new SkillChoice(skillDatabase.CreateBattleChoiceCatalog(), skillGrant, ownedSkills, playerReader);
         }
         catch
         {
@@ -162,24 +162,24 @@ public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkil
         DisposeSafely(level);
         clock.ClearListeners();
         statistics.ClearListeners();
-        RunReset = null;
+        BattleReset = null;
     }
 
     #endregion
 
-    #region IRunLifecycle
+    #region IBattleReset
 
     /// <inheritdoc/>
-    public void ResetRun()
+    public void ResetBattle()
     {
-        if (disposed) throw new ObjectDisposedException(nameof(RunManager));
+        if (disposed) throw new ObjectDisposedException(nameof(BattleManager));
         if (resetting) throw new InvalidOperationException("Không được reset lượt chơi từ trong callback reset.");
         resetting = true;
         try
         {
             // Skill gameplay dọn trước: chúng có thể giữ modifier chỉ số/effect trên Player.
-            // Lỗi dọn skill không được để phần còn lại của Run kẹt ở lượt cũ (finally vẫn reset).
-            combat.ClearRunSkills();
+            // Lỗi dọn skill không được để phần còn lại của Battle kẹt ở lượt cũ (finally vẫn reset).
+            combat.ClearBattleSkills();
         }
         finally
         {
@@ -190,7 +190,7 @@ public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkil
                 clock.Reset();
                 statistics.Reset();
                 level.Reset();
-                RunReset?.Invoke(); // Sau cùng: bên nghe (bảng chọn skill…) đọc được giá trị đầu lượt.
+                BattleReset?.Invoke(); // Sau cùng: bên nghe (bảng chọn skill…) đọc được giá trị đầu lượt.
             }
             finally { resetting = false; }
         }
@@ -255,7 +255,7 @@ public sealed class RunManager : DomainManager, IRunReader, IRunLifecycle, ISkil
                 statistics.AddGold(amount); // Chỉ thống kê, không quyết toán lại cuối trận.
                 break;
             default:
-                throw new InvalidOperationException("Run chưa hỗ trợ loại loot: " + type);
+                throw new InvalidOperationException("Battle chưa hỗ trợ loại loot: " + type);
         }
     }
 

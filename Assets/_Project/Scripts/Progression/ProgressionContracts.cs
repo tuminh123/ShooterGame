@@ -9,10 +9,10 @@ using System.Collections.Generic;
 // đồ đang mặc đi qua IEquipment (màn Equipment), nhận đồ đi qua IEquipmentGrant (panel test; sau này thưởng Stage/loot).
 // Xem Docs/Architecture/Refactor-Architecture.md.
 
-#region Wallet (Home UI, Run, Stage)
+#region Wallet (Home UI, Battle, Stage)
 
 /// <summary>
-/// Ví tiền vĩnh viễn. Dùng bởi Home UI (đọc số dư), RunManager (vàng nhặt trong trận).
+/// Ví tiền vĩnh viễn. Dùng bởi Home UI (đọc số dư), BattleManager (vàng nhặt trong trận).
 /// Mọi thay đổi được lưu ngay; false nghĩa là IO lỗi, RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
 /// </summary>
 public interface IWallet

@@ -87,7 +87,7 @@ public sealed class PauseUI : MonoBehaviour
     private void Restart()
     {
         if (closing || pauseLease == null || transition == null) return;
-        transition.RestartRun();
+        transition.RestartBattle();
     }
 
     private void ReturnHome()

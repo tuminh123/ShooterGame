@@ -64,7 +64,7 @@ public abstract class ProjectDataSOEditor : Editor
             Section("PERMANENT UPGRADE CLICKS", "Mỗi mốc chia đều cho Clicks Per Level lần bấm: giá mỗi lần = Gold cần cho mốc ÷ số lần (làm tròn lên), lần cuối chỉ tốn phần còn thiếu. Gold cần cho mỗi mốc (độ dài thanh) đặt chung theo độ hiếm trong Level Database → PERMANENT LEVEL COST. Chỉ dùng cho Player.",
                 DataInspectorTone.Rewards, "clicksPerLevel");
         }
-        else if (target is RunLevelConfigSO)
+        else if (target is InBattleLevelConfigSO)
         {
             Section("RUN LEVEL GROWTH", "Cấp và bonus trong một lượt chơi. Bonus cố định này cộng thêm bên cạnh phần thưởng skill được chọn.",
                 DataInspectorTone.Stats, "maxLevel", "bonusPerLevel");
@@ -73,8 +73,8 @@ public abstract class ProjectDataSOEditor : Editor
                 LevelFormulaField("experienceFormula", "Experience Formula");
                 if (!serializedObject.isEditingMultipleObjects)
                 {
-                    var run = (RunLevelConfigSO)target;
-                    DrawFormulaPreview(run.ExperienceFormula, run.MaxLevel);
+                    var battle = (InBattleLevelConfigSO)target;
+                    DrawFormulaPreview(battle.ExperienceFormula, battle.MaxLevel);
                 }
             }
         }
@@ -99,7 +99,7 @@ public abstract class ProjectDataSOEditor : Editor
                     DrawRarityPreview(((LevelDatabaseSO)target).StarCost, CharacterLevelConfigSO.MaxStars + 1);
             }
             Section("SHARED RUN LEVELS", "Công thức EXP và bonus cấp trong trận dùng chung cho Player; tiến trình runtime được reset theo lượt chơi.",
-                DataInspectorTone.Rewards, "runLevelConfig");
+                DataInspectorTone.Rewards, "inBattleLevelConfig");
         }
         else if (target is StageDatabaseSO)
         {
@@ -162,7 +162,7 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Rewards, "drops");
         }
         else if (target is SkillDatabaseSO)
-            Section("GAMEPLAY SKILL CATALOG", "Chỉ dùng skill nguồn Gameplay. Bật Available In Run Choices để skill được roll ở bảng thưởng lên cấp.",
+            Section("GAMEPLAY SKILL CATALOG", "Chỉ dùng skill nguồn Gameplay. Bật Available In Battle Choices để skill được roll ở bảng thưởng lên cấp.",
                 DataInspectorTone.Advanced, "skills");
         else if (target is MapDatabaseSO)
             Section("MAP CATALOG", "Key phân biệt hoa/thường và phải khớp Map Key của Stage. Sprite chỉ đổi hình nền; kích thước chunk cấu hình ở manager nền.",
@@ -340,7 +340,7 @@ public abstract class ProjectDataSOEditor : Editor
         if (category.hasMultipleDifferentValues || category.intValue == (int)MissionCategory.Event)
             Section("EVENT DATES (UTC)", "Dạng yyyy-MM-dd. Ngày End không được tính.", DataInspectorTone.Spawn, "eventStart", "eventEnd");
         Section("MISSIONS", "Thứ tự danh sách là thứ tự trên UI. ID mission không trùng trong cùng database.", DataInspectorTone.Rewards, "missions");
-        Section("FINAL MISSION", "Thẻ lớn đầu tab. Target của Complete Mission không vượt số mission ở trên.", DataInspectorTone.Rewards, "finalMission");
+        Section("FINAL MISSION", "Thẻ lớn đầu tab. Mở khi đã nhận hết mission ở trên: Target của Complete Mission phải bằng số mission đó.", DataInspectorTone.Rewards, "finalMission");
     }
 
     private void DrawMission()
@@ -478,7 +478,7 @@ public abstract class ProjectDataSOEditor : Editor
         }
         else if (data is CharacterDatabaseSO characters) characters.CreateLookup();
         else if (data is CharacterLevelConfigSO growth) growth.GetTotalBonus(1);
-        else if (data is RunLevelConfigSO run) run.GetTotalBonus(1);
+        else if (data is InBattleLevelConfigSO battle) battle.GetTotalBonus(1);
         else if (data is LevelDatabaseSO levels) levels.CreateTypeLookup();
         else if (data is EquipmentDatabaseSO equipment) equipment.Validate();
         else if (data is EquipmentDataSO equipmentItem) equipmentItem.Validate();
@@ -515,7 +515,7 @@ public abstract class ProjectDataSOEditor : Editor
 [CustomEditor(typeof(CharacterDataSO)), CanEditMultipleObjects] public sealed class CharacterDataInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(CharacterDatabaseSO)), CanEditMultipleObjects] public sealed class CharacterDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(CharacterLevelConfigSO)), CanEditMultipleObjects] public sealed class CharacterLevelInspector : ProjectDataSOEditor { }
-[CustomEditor(typeof(RunLevelConfigSO)), CanEditMultipleObjects] public sealed class RunLevelInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(InBattleLevelConfigSO)), CanEditMultipleObjects] public sealed class InBattleLevelInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(LevelDatabaseSO)), CanEditMultipleObjects] public sealed class LevelDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EquipmentDatabaseSO)), CanEditMultipleObjects] public sealed class EquipmentDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EquipmentDataSO)), CanEditMultipleObjects] public sealed class EquipmentItemInspector : ProjectDataSOEditor { }

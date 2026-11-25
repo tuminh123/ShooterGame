@@ -483,7 +483,7 @@ public sealed class CharacterScreenController : UIPanelController
             int skillLevel = steps[i].SkillLevel;
             if (detailed)
                 lines[i] = string.Format(CultureInfo.InvariantCulture, starStepFormat,
-                    skill.DisplayName, skillLevel, skill.GetRunLevelDescription(skillLevel));
+                    skill.DisplayName, skillLevel, skill.GetLevelDescription(skillLevel));
             else
                 lines[i] = string.Format(CultureInfo.InvariantCulture, starRowFormat, skill.DisplayName, skillLevel);
         }
@@ -527,7 +527,7 @@ public sealed class CharacterScreenController : UIPanelController
     private SkillSlotModel BuildUnlockedSlot(SkillDataSO skill, int skillLevel)
     {
         string label = string.Format(CultureInfo.InvariantCulture, skillLevelFormat, skillLevel);
-        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, label, true, skill.GetRunLevelDescription(skillLevel));
+        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, label, true, skill.GetLevelDescription(skillLevel));
         return new SkillSlotModel(skill.Icon, true, label, info);
     }
 
@@ -538,7 +538,7 @@ public sealed class CharacterScreenController : UIPanelController
         if (character.TryGetUnlockStep(skill, out SkillProgressStep unlock))
             condition = FormatCondition(unlock);
         string status = string.Format(CultureInfo.InvariantCulture, lockedStatusFormat, condition);
-        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, status, false, skill.GetRunLevelDescription(1));
+        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, status, false, skill.GetLevelDescription(1));
         return new SkillSlotModel(skill.Icon, false, condition, info);
     }
 

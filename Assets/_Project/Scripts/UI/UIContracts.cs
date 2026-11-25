@@ -12,8 +12,8 @@ public interface IScreenTransition
     /// <summary>Đang che/mở màn; các nút nên bỏ qua click trong lúc này.</summary>
     bool IsTransitioning { get; }
 
-    bool StartRun();
-    bool RestartRun();
+    bool StartBattle();
+    bool RestartBattle();
     bool ReturnHome();
 }
 

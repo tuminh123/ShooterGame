@@ -17,8 +17,8 @@ public sealed class SkillSystem : IDisposable
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
-    private int runVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
-    public int RunCount
+    private int battleVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
+    public int SkillCount
     {
         get
         {
@@ -33,7 +33,7 @@ public sealed class SkillSystem : IDisposable
 
     #region Initialization And Lookup
 
-    // Không nghe reset lượt chơi: miền Run (nằm trên Combat) gọi ICombatLifecycle.ClearRunSkills khi reset.
+    // Không nghe reset lượt chơi: miền Battle (nằm trên Combat) gọi ICombatLifecycle.ClearBattleSkills khi reset.
     public SkillSystem(SkillFactory skillFactory)
     {
         this.factory = skillFactory ?? throw new ArgumentNullException(nameof(skillFactory));
@@ -76,12 +76,12 @@ public sealed class SkillSystem : IDisposable
         if (disposed || definition == null || definition.Source != SkillSource.Gameplay || context == null || !context.IsValid) return false;
         if (clearing || adding) throw new InvalidOperationException("Cannot add skill during cleanup/stat callback.");
         if (TryGetRuntime(definition, context.Owner, out _)) return false;
-        int version = runVersion; // Không commit nếu bonus callback reset cả trận.
+        int version = battleVersion; // Không commit nếu bonus callback reset cả trận.
         adding = true;
         try
         {
             var runtime = factory.Create(definition, context, GameplayStartLevel);
-            if (disposed || version != runVersion || !context.IsValid || !runtime.IsActive) { runtime.Dispose(); return false; }
+            if (disposed || version != battleVersion || !context.IsValid || !runtime.IsActive) { runtime.Dispose(); return false; }
             skills.Add(runtime);
             return true;
         }
@@ -133,14 +133,14 @@ public sealed class SkillSystem : IDisposable
 
     #endregion
 
-    #region Run Reset And Disposal
+    #region Battle Reset And Disposal
 
     // Hết trận: dispose mọi timer/action/bonus trước khi bỏ reference; lỗi một runtime không chặn các runtime còn lại.
-    public void ClearRunSkills()
+    public void ClearBattleSkills()
     {
         if (clearing) return;
         clearing = true;
-        runVersion++;
+        battleVersion++;
         var failures = new List<Exception>();
         try { foreach (SkillRuntime skill in skills) try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); } }
         finally
@@ -159,7 +159,7 @@ public sealed class SkillSystem : IDisposable
     {
         if (disposed) return;
         disposed = true;
-        ClearRunSkills();
+        ClearBattleSkills();
     }
 
     #endregion

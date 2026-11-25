@@ -34,8 +34,8 @@ Scripts/
 │   ├── Effects/                  EffectSystem, EffectRuntime, pool, IGameplayEffect và cấu hình slow/cháy/độc
 │   │   └── Data/                 ScriptableObject effect cũ (legacy), chỉ giữ để không mất asset
 │   └── Vfx/                      CombatVfx, EffectView, IEffectVisual và visual animation/particle/object
-├── Run/                          RunManager, RunContracts.cs, RunClock, RunStatistics
-│   ├── Level/                    RunLevel, RunLevelProgress, RunLevelConfigSO (level/EXP trong trận)
+├── Battle/                          BattleManager, BattleContracts.cs, BattleTimer, BattleStatistics
+│   ├── Level/                    InBattleLevel, InBattleLevelProgress, InBattleLevelConfigSO (level/EXP trong trận)
 │   ├── Loot/                     LootSystem, PickupView, LootDatabaseSO (rơi/nhặt EXP và vàng)
 │   └── SkillChoice/              SkillChoice, SkillChoicePool (lượt chọn skill khi lên cấp)
 ├── Game/                         GameManager, GameContracts.cs, GameStateMachine, GamePause, GamePrewarm, GameState
@@ -79,7 +79,7 @@ Assets/_Project/Editor/Stage/
 - Kiểm tra hình học và chạy job tìm kiếm: `Simulation/Spatial`.
 - Hướng quay, animation, bật/tắt visual: `Characters/View/CharacterPresentation.cs`. Nháy trắng và màu trạng thái: `Characters/View/CharacterFeedback.cs`.
 - Miền Combat nhìn từ bên ngoài: chỉ cần đọc `Combat/CombatContracts.cs`. Cách các system bên trong được nối với nhau: constructor của `Combat/CombatManager.cs`.
-- Miền Stage nhìn từ bên ngoài: chỉ cần đọc `Stage/StageContracts.cs` (`IStageSelection`, `IStageRunLifecycle`, `IStageResults`, `IStageSchedule`). `StageManager` tự tạo `EnemySpawner`, ba spawn system, `BossArena` và `StageRewards`; thưởng kết quả nằm trong `Stage/StageRewards.cs`.
+- Miền Stage nhìn từ bên ngoài: chỉ cần đọc `Stage/StageContracts.cs` (`IStageSelection`, `IStageBattleLifecycle`, `IStageResults`, `IStageSchedule`). `StageManager` tự tạo `EnemySpawner`, ba spawn system, `BossArena` và `StageRewards`; thưởng kết quả nằm trong `Stage/StageRewards.cs`.
 - Hành vi bắn: `Combat/Skills/Behaviours/ShootingSkill.cs` + `Data/ShootingData.cs`. Kiểu bắn: `Combat/Shooting`. Vòng đời đạn: `Combat/Projectiles`.
 - Quản lý skill và cooldown: `Combat/Skills`; mỗi runtime hành vi giữ cooldown riêng. Duration/nhịp effect thuộc `EffectSystem` và `EffectRuntime`.
 - Slow, cháy, độc và vòng đời hiệu ứng: `Combat/Effects`.
@@ -87,6 +87,6 @@ Assets/_Project/Editor/Stage/
 - HP/giáp dưới chân: `UI/Character/CharacterUI.cs` nằm trên vỏ nhân vật, điều khiển Canvas World Space con từ `Prefabs/UI/CharacterVitals.prefab` cho Player/boss. Vị trí/scale chỉnh tay trên prefab. Prefab asset DynamicUI đã xóa; nhóm DynamicUI độc lập trong scene và UIManager vẫn được giữ để hiển thị EXP/vàng/thời gian/level.
 - Áp dụng sát thương và quyết định chết: `Characters/Controllers/CharacterControllerBase.cs`.
 - HP/giáp: `Characters/Stats/CharacterRuntimeData.cs`. Thêm/gỡ bonus chỉ số (level, trang bị, buff, slow, wave): `runtime.Stats.AddSource` trong `Characters/Stats/StatSheet.cs`. Công thức: `Characters/Stats/StatCalculator.cs`.
-- Level/EXP trong trận và bonus level trận trên Player: `Run/Level/RunLevel.cs`. Rơi/nhặt loot: `Run/Loot/LootSystem.cs`. Điều phối lượt chơi: `Run/RunManager.cs`.
+- Level/EXP trong trận và bonus level trận trên Player: `Battle/Level/InBattleLevel.cs`. Rơi/nhặt loot: `Battle/Loot/LootSystem.cs`. Điều phối lượt chơi: `Battle/BattleManager.cs`.
 
 Di chuyển script luôn kèm `.meta` để giữ GUID và tham chiếu Unity. Đợt sắp xếp này không đổi class, namespace hoặc hành vi gameplay. Các đoạn diff trong tài liệu review cũ giữ nguyên đường dẫn lịch sử; liên kết nguồn được cập nhật theo vị trí hiện tại.

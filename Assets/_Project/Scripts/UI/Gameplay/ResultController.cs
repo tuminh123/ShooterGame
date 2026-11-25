@@ -83,8 +83,8 @@ public sealed class ResultController : UIPanelController
     [SerializeField] private Color rewardFrame = new Color(0.45f, 0.48f, 0.56f, 1f);
 
     private IGameState gameState;
-    private IGameFlow runCommands;
-    private IRunReader run;
+    private IGameFlow gameFlow;
+    private IBattleProgress battle;
     private IStageResults stage;
     private IWallet wallet;
     private IScreenTransition transition;
@@ -102,14 +102,14 @@ public sealed class ResultController : UIPanelController
     public void Construct(
         IGameState gameState,
         IGameFlow gameFlow,
-        IRunReader runReader,
+        IBattleProgress battleProgress,
         IStageResults stageResults,
         IWallet walletService,
         IScreenTransition screenTransition)
     {
         this.gameState = gameState;
-        this.runCommands = gameFlow;
-        this.run = runReader;
+        this.gameFlow = gameFlow;
+        this.battle = battleProgress;
         this.stage = stageResults;
         wallet = walletService;
         transition = screenTransition;
@@ -170,23 +170,23 @@ public sealed class ResultController : UIPanelController
     }
 
     // Thua: kết thúc lượt và về Home (ReturnHome tự dọn trận, UIManager mở Home theo state).
-    private void ReturnHome() => RunResultCommand(defeat, runCommands.ReturnHome);
+    private void ReturnHome() => ExecuteResultCommand(defeat, gameFlow.ReturnHome);
 
-    // Thua: vào ngay trận mới (StartRun tự dọn/reset trận, spawn Player và đưa UI về Playing).
-    private void PlayAgain() => RunResultCommand(defeat, runCommands.StartRun);
+    // Thua: vào ngay trận mới (StartBattle tự dọn/reset trận, spawn Player và đưa UI về Playing).
+    private void PlayAgain() => ExecuteResultCommand(defeat, gameFlow.StartBattle);
 
     // Đúng những gì đã nhận ở lượt này: thưởng Stage trao thực tế cộng vàng nhặt trong trận.
     private RewardResult TotalRewards()
     {
         var total = new RewardResult();
-        if (run.Gold > 0) total.Add(new CurrencyCost(CurrencyType.Gold, run.Gold));
+        if (battle.Gold > 0) total.Add(new CurrencyCost(CurrencyType.Gold, battle.Gold));
         if (stage.ResultRewards != null) total.Include(stage.ResultRewards);
         return total;
     }
 
     // Chỉ nhận click của đúng popup đang hiện; khóa nút trước khi chạy lệnh để không nhận click lặp.
     // Lệnh thất bại (đang chuyển state) thì mở lại nút để người chơi bấm lại.
-    private void RunResultCommand(ResultPanel panel, Func<bool> command)
+    private void ExecuteResultCommand(ResultPanel panel, Func<bool> command)
     {
         if (panel == null || activePanel != panel || !panel.actionButton.interactable || gameState == null ||
             (gameState.State != GameState.Won && gameState.State != GameState.Lost)) return;
@@ -201,12 +201,12 @@ public sealed class ResultController : UIPanelController
     #region Victory Claim
 
     // Thưởng đã trao và lưu từ lúc thắng (tắt app không mất) nên Claim chỉ trình bày.
-    private void Claim() => RunClaim(false);
+    private void Claim() => ExecuteClaim(false);
 
-    // Sau này gắn quảng cáo tại đây: chiếu quảng cáo trước, xem xong mới gọi RunClaim(true).
-    private void ClaimDouble() => RunClaim(true);
+    // Sau này gắn quảng cáo tại đây: chiếu quảng cáo trước, xem xong mới gọi ExecuteClaim(true).
+    private void ClaimDouble() => ExecuteClaim(true);
 
-    private void RunClaim(bool doubled)
+    private void ExecuteClaim(bool doubled)
     {
         if (claiming || activePanel != victory || !victory.actionButton.interactable || gameState.State != GameState.Won) return;
         claiming = true;
@@ -216,7 +216,7 @@ public sealed class ResultController : UIPanelController
         if (doubled)
         {
             // Trao lỗi thì vẫn cho nhận phần gốc rồi về Home, không kẹt ở popup.
-            try { if (stage.TryDoubleRewards(run.Gold, out RewardResult bonus)) total.Include(bonus); }
+            try { if (stage.TryDoubleRewards(battle.Gold, out RewardResult bonus)) total.Include(bonus); }
             catch (Exception exception) { Debug.LogException(exception, this); }
         }
         List<RewardSlotModel> slots = slotFactory.Result(total);
@@ -243,7 +243,7 @@ public sealed class ResultController : UIPanelController
     // Che màn rồi về Home; lớp che đang bận thì về thẳng để không kẹt ở màn trống.
     private void FinishClaim()
     {
-        if (!transition.ReturnHome()) runCommands.ReturnHome();
+        if (!transition.ReturnHome()) gameFlow.ReturnHome();
     }
 
     #endregion

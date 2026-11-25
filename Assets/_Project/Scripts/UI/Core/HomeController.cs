@@ -200,7 +200,7 @@ public sealed class HomeController : UIPanelController
     {
         if (!starting) return;
         starting = false;
-        if (isActiveAndEnabled && game != null && game.State == GameState.Home) transition.StartRun();
+        if (isActiveAndEnabled && game != null && game.State == GameState.Home) transition.StartBattle();
     }
 
     #endregion

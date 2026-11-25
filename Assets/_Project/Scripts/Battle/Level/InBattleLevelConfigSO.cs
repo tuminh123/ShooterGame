@@ -2,17 +2,17 @@ using System;
 using UnityEngine;
 
 /// <summary>Level trong trận: một bộ bonus cố định mỗi cấp, EXP tính theo công thức; asset không giữ tiến trình lượt chơi.</summary>
-[CreateAssetMenu(fileName = "RunLevelConfig", menuName = "Shooter Game/Levels/Run Level Config")]
-public sealed class RunLevelConfigSO : ScriptableObject
+[CreateAssetMenu(fileName = "InBattleLevelConfig", menuName = "Shooter Game/Levels/In-Battle Level Config")]
+public sealed class InBattleLevelConfigSO : ScriptableObject
 {
-    #region Run Growth Settings
+    #region Battle Growth Settings
 
     [Tooltip("Trần cấp trong một lượt chơi. Bắt đầu cấp 1; trần 20 cho tối đa 19 lần lên cấp.")]
     [SerializeField, Min(1)] private int maxLevel = 20; // Trần level trong trận, chỉnh qua Inspector; bắt đầu level 1 nên trần 20 cho tối đa 19 lần lên cấp.
     [Tooltip("Bonus cộng cố định mỗi lần lên cấp trong trận; để 0 nếu chỉ muốn nhận thưởng từ bảng chọn skill. Không bao gồm bonus skill được chọn.")]
     [SerializeField] private StatBonus bonusPerLevel;
 
-    /// <summary>Tới cấp này thì RunLevelProgress bỏ EXP dư.</summary>
+    /// <summary>Tới cấp này thì InBattleLevelProgress bỏ EXP dư.</summary>
     public int MaxLevel => maxLevel;
     /// <summary>Trả bản sao bonus cố định mỗi lần lên cấp.</summary>
     public StatBonus BonusPerLevel => bonusPerLevel;
@@ -65,9 +65,9 @@ public sealed class RunLevelConfigSO : ScriptableObject
     private void ValidateConfiguration()
     {
         if (maxLevel < 1)
-            throw new InvalidOperationException("Run level config requires MaxLevel >= 1.");
+            throw new InvalidOperationException("Battle level config requires MaxLevel >= 1.");
         if (experienceFormula == null)
-            throw new InvalidOperationException("Run level config needs an Experience Formula.");
+            throw new InvalidOperationException("Battle level config needs an Experience Formula.");
         experienceFormula.Validate();
     }
 

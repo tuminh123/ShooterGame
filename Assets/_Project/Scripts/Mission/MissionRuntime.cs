@@ -52,8 +52,8 @@ public sealed class MissionRuntime
         return changed;
     }
 
-    // Nâng tiến độ lên mức amount, không cộng dồn: gọi lại nhiều lần cho cùng kết quả.
-    internal bool RaiseTo(MissionObjectiveType objective, int amount)
+    // Đặt tiến độ đúng bằng amount, không cộng dồn: gọi lại nhiều lần cho cùng kết quả, save cũ lệch thì được sửa.
+    internal bool SetProgress(MissionObjectiveType objective, int amount)
     {
         if (claimed) return false;
         bool changed = false;
@@ -61,7 +61,7 @@ public sealed class MissionRuntime
         {
             MissionTask task = Data.Tasks[i];
             int value = Math.Min(task.Target, amount);
-            if (task.Objective != objective || value <= progress[i]) continue;
+            if (task.Objective != objective || value == progress[i]) continue;
             progress[i] = value;
             changed = true;
         }
@@ -127,14 +127,14 @@ public sealed class MissionBoard
     /// <summary>Số mission thường của nhóm.</summary>
     public int NormalCount => Database.Missions.Count;
 
-    /// <summary>Số mission thường đã xong, tính cả chưa nhận thưởng.</summary>
-    public int CompletedCount
+    /// <summary>Số mission thường đã nhận thưởng.</summary>
+    public int ClaimedCount
     {
         get
         {
             int count = 0;
             foreach (MissionRuntime mission in missions)
-                if (mission != FinalMission && mission.State != MissionState.InProgress) count++;
+                if (mission != FinalMission && mission.State == MissionState.Claimed) count++;
             return count;
         }
     }
@@ -171,12 +171,19 @@ public sealed class MissionBoard
         if (!IsOpen) return false;
         bool changed = false;
         foreach (MissionRuntime mission in missions) changed |= mission.Add(signal);
-        return changed | SyncFinalMission();
+        return changed;
     }
 
-    // Suy từ số mission đã xong thay vì cộng từng lần: save cũ chưa có Final Mission vẫn đúng.
-    private bool SyncFinalMission()
-        => FinalMission != null && FinalMission.RaiseTo(MissionObjectiveType.CompleteMission, CompletedCount);
+    /// <summary>Đánh dấu đã nhận; mission thường thì Final Mission tăng theo.</summary>
+    internal void MarkClaimed(MissionRuntime mission)
+    {
+        mission.MarkClaimed();
+        SyncFinalMission();
+    }
+
+    // Suy từ số mission đã nhận thay vì cộng từng lần: save cũ chưa có Final Mission vẫn đúng.
+    private void SyncFinalMission()
+        => FinalMission?.SetProgress(MissionObjectiveType.CompleteMission, ClaimedCount);
 
     #endregion
 

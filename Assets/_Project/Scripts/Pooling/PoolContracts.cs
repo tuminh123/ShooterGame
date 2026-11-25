@@ -13,7 +13,7 @@ using UnityEngine;
 
 /// <summary>
 /// Thuê và trả GameObject. Dùng bởi Character (vỏ, visual), Combat (đạn, VFX, visual skill), World (chunk nền),
-/// Run (pickup) và UI (ô skill).
+/// Battle (pickup) và UI (ô skill).
 /// </summary>
 public interface IGameObjectPool
 {

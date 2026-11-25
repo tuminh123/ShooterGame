@@ -10,7 +10,7 @@ public sealed class GameplayController : UIPanelController, ILateTickable
 {
     #region Scene References
 
-    [SerializeField] private GameObject panel; // Root HUD con chứa RunUI, nút pause và các thành phần gameplay.
+    [SerializeField] private GameObject panel; // Root HUD con chứa BattleHud, nút pause và các thành phần gameplay.
     [Tooltip("Thanh thời gian/vàng/quái trên CanvasDynamic; ẩn cùng HUD khi về Home hoặc Loading.")]
     [SerializeField] private GameObject resourceBar;
     [SerializeField] private PauseUI pauseUI; // Pause thủ công thuộc gameplay; trả token trước khi HUD bị ẩn.
@@ -204,7 +204,7 @@ public sealed class GameplayController : UIPanelController, ILateTickable
 
     #region Visibility And Lifecycle
 
-    // Nhận điều phối từ UIManager; dữ liệu HUD vẫn được RunUI và các view con cập nhật độc lập.
+    // Nhận điều phối từ UIManager; dữ liệu HUD vẫn được BattleHud và các view con cập nhật độc lập.
     public override void SetVisible(bool visible)
     {
         gameplayVisible = visible;

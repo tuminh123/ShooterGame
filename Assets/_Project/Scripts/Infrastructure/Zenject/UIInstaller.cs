@@ -8,7 +8,7 @@ using Zenject;
 /// <remarks>
 /// UI là tầng lá: không miền gameplay nào dùng binding ở đây. Panel UI là MonoBehaviour trong scene nên được
 /// SceneContext inject tự động; chỉ dịch vụ dùng chung và controller cần chạy theo frame mới được bind.
-/// Role gameplay mà UI dùng (IGameState, IRunReader, ISkillChoice…) do Manager tự bind qua
+/// Role gameplay mà UI dùng (IGameState, IBattleProgress, ISkillChoice…) do Manager tự bind qua
 /// <c>BindInterfacesTo</c> trong GameSceneInstaller.
 /// </remarks>
 public sealed class UIInstaller : MonoInstaller
@@ -16,7 +16,7 @@ public sealed class UIInstaller : MonoInstaller
     #region Lifecycle Order
 
     // UI chạy SAU mọi Manager (danh sách LateTickOrder của GameSceneInstaller dùng số 10..60):
-    // đọc trạng thái cuối frame, ví dụ mở bảng chọn skill sau khi RunManager đã xử lý loot/lên cấp.
+    // đọc trạng thái cuối frame, ví dụ mở bảng chọn skill sau khi BattleManager đã xử lý loot/lên cấp.
     private const int FirstUiOrder = 1000;
 
     // Đọc từ trên xuống = thứ tự chạy trong nhóm UI.

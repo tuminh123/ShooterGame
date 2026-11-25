@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Vật phẩm nằm dưới đất; LootSystem (miền Run) kiểm tra khoảng cách nhặt, không cần collider hay Update riêng.</summary>
+/// <summary>Vật phẩm nằm dưới đất; LootSystem (miền Battle) kiểm tra khoảng cách nhặt, không cần collider hay Update riêng.</summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public sealed class PickupView : MonoBehaviour
 {

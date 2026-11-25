@@ -7,7 +7,7 @@
 ```text
 Canvas                               <- UIManager
 ├── GameplayUI                       <- GameplayController : UIPanelController
-│   └── Play_UI_Action               <- panel HUD chứa RunUI và PauseUI
+│   └── Play_UI_Action               <- panel HUD chứa BattleHud và PauseUI
 └── LevelUpUI                        <- SkillChoiceController : UIPanelController
     └── LevelUpPanel                 <- SkillChoiceUI, mặc định tắt
         └── ba thẻ lựa chọn          <- icon, tên, mô tả, sao và Button
@@ -15,7 +15,7 @@ Canvas                               <- UIManager
 
 `GameManager` là class thuần AsSingle trong GameSceneInstaller, sống cùng scene hiện tại.
 Nó giữ GameState và điều phối Save sẵn sàng → prewarm → reset → spawn → Playing.
-Player chết chuyển Lost; Stage báo sạch quái (`IStageResults.Cleared`) chuyển Won. StartRun chơi lại,
+Player chết chuyển Lost; Stage báo sạch quái (`IStageResults.Cleared`) chuyển Won. StartBattle chơi lại,
 ReturnHome dọn Player/Enemy/đạn cũ và reset tiến trình. Không có loading scene riêng.
 
 `IGameState.StateChanged` (event của GameManager) chỉ thông báo cho tầng UI.
@@ -30,11 +30,11 @@ State không có route đóng UI cũ, không tự quay về Gameplay. SetVisible
 
 Scene hiện map Playing sang GameplayController; Faulted cũng hiện HUD để thao tác
 reset dữ liệu/debug. Chưa có panel Home/Won/Lost nên các state đó chưa có màn riêng.
-Auto Start Run trên installer đang bật để giữ hành vi tự vào trận. Tắt cờ này để
-đợi lệnh StartRun từ Home UI sau này. Các menu Shooter Game > Game Flow cho phép
+Auto Start Battle trên installer đang bật để giữ hành vi tự vào trận. Tắt cờ này để
+đợi lệnh StartBattle từ Home UI sau này. Các menu Shooter Game > Game Flow cho phép
 thử Start Run, Win Run, Lose Run và Return Home trong Play Mode.
 
-Từ Giai đoạn 6, logic chọn skill thuộc miền Run: `SkillChoice` (do RunManager tạo, lộ qua `ISkillChoice`) đếm lượt chờ
+Từ Giai đoạn 6, logic chọn skill thuộc miền Battle: `SkillChoice` (do BattleManager tạo, lộ qua `ISkillChoice`) đếm lượt chờ
 khi lên cấp, roll lựa chọn (`SkillChoicePool`), áp dụng qua `ISkillGrant` và chặn tạm skill lỗi; nó tự hủy lượt chờ khi reset lượt,
 đổi Player hoặc Player chết/bị thu hồi.
 `SkillChoiceController : UIPanelController` được inject `ISkillChoice`, `IOwnedSkillReader` (hiện ô skill đang có), `IGamePause`
@@ -45,7 +45,7 @@ và `IGameState`. Controller chỉ lo slow motion, pause, mở/đóng panel và 
 Panel tắt không làm mất listener lên cấp của controller.
 
 `SkillDatabase.asset` chỉ chứa skill Gameplay; HolyBolt của nhân vật và skill enemy/boss nằm ngoài catalog. Chỉ entry có
-Available In Run Choices được đưa vào catalog thưởng; thêm skill mới tại đây.
+Available In Battle Choices được đưa vào catalog thưởng; thêm skill mới tại đây.
 
 ## Lựa chọn và vòng đời
 
@@ -67,7 +67,7 @@ Nếu nhận/nâng skill ném exception, SkillChoiceController ghi log, không t
 skill lỗi khỏi các lần roll sau trong trận. Offer lỗi thời trả false chỉ được
 roll lại, không tự đánh dấu skill hỏng.
 
-SkillRuntime.TryUpgrade thử phục hồi behavior về RunLevel trước đó khi lỗi.
+SkillRuntime.TryUpgrade thử phục hồi behavior về BattleLevel trước đó khi lỗi.
 Nếu rollback cũng thất bại, runtime được dispose để không tick tiếp hoặc giữ
 stat lease. Exception tổng hợp giữ thông tin lỗi nâng, rollback và cleanup.
 Callback reset/dispose trong lúc nâng được ưu tiên, không rollback đè lên reset.
@@ -88,7 +88,7 @@ Runner độc lập cũ (`Tests/SkillProgression`) đã bị xóa ở Giai đo�
 ## Folder và quyền sở hữu
 
 - `UI/Core`: UIManager và hợp đồng UIPanelController.
-- `UI/Gameplay`: GameplayController, RunUI, PauseUI.
+- `UI/Gameplay`: GameplayController, BattleHud, PauseUI.
 - `UI/SkillChoice`: SkillChoiceController, SkillChoiceUI, SkillChoicePool và queue/offer policy.
 - `UI/Views`: các view dùng chung BarView, TextView, ShieldBorderGraphic.
 - `UI/Character`: CharacterUI đi theo vòng đời nhân vật.
@@ -118,5 +118,5 @@ Nâng cấp cập nhật nội dung trên ô đang dùng. Khi số skill giảm,
 Hide, OnDisable và OnDestroy cũng thu hồi toàn bộ ô. Slot.Clear xóa icon/sao trước
 khi Despawn để lần dùng lại không giữ hình ảnh cũ. Pool chung giữ các clone rảnh.
 
-Skill một cấp hiện một sao; sao nền theo MaxRunLevel, sao sáng theo RunLevel thực tế.
+Skill một cấp hiện một sao; sao nền theo MaxBattleLevel, sao sáng theo BattleLevel thực tế.
 Không giới hạn 12 ô, không thêm ScrollRect/mask/content hoặc tạo một pool riêng.

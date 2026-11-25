@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>Danh mục skill gameplay có thể xuất hiện trong bảng chọn khi lên cấp.</summary>
 /// <remarks>Skill vốn có của nhân vật không nằm ở đây mà nằm trên <see cref="CharacterDataSO"/>.</remarks>
@@ -15,17 +16,17 @@ public sealed class SkillDatabaseSO : ScriptableObject
         [Tooltip("Asset skill nguồn Gameplay. Không đưa skill Character/Equipment vào catalog này; không để trùng asset.")]
         [SerializeField] private SkillDataSO skill; // Template dùng chung; database không tạo hoặc giữ runtime.
         [Tooltip("Bật để skill được đưa vào pool lựa chọn khi lên cấp; tắt để giữ trong catalog nhưng không được roll từ bảng thưởng.")]
-        [SerializeField] private bool availableInRunChoices;
+        [SerializeField, FormerlySerializedAs("availableInRunChoices")] private bool availableInBattleChoices;
 
         public SkillDataSO Skill => skill;
-        public bool AvailableInRunChoices => availableInRunChoices;
+        public bool AvailableInBattleChoices => availableInBattleChoices;
     }
 
     #endregion
 
     #region Catalog Storage
 
-    [Tooltip("Catalog skill gameplay dùng chung. Mỗi asset khai báo một lần; cờ Available In Run Choices quyết định quyền xuất hiện khi roll.")]
+    [Tooltip("Catalog skill gameplay dùng chung. Mỗi asset khai báo một lần; cờ Available In Battle Choices quyết định quyền xuất hiện khi roll.")]
     [SerializeField] private List<Entry> skills = new List<Entry>();
     public IReadOnlyList<Entry> Skills => skills.AsReadOnly();
 
@@ -56,12 +57,12 @@ public sealed class SkillDatabaseSO : ScriptableObject
     #region Reward Catalog Snapshot
 
     // Snapshot riêng cho bên dùng; không thay đổi catalog trên asset trong lúc chơi.
-    public IReadOnlyList<SkillDataSO> CreateRunChoiceCatalog()
+    public IReadOnlyList<SkillDataSO> CreateBattleChoiceCatalog()
     {
         Validate();
         var result = new List<SkillDataSO>(); // List mới để bên dùng không thay đổi danh sách serialized của database.
         foreach (Entry entry in skills)
-            if (entry.AvailableInRunChoices && entry.Skill.Source == SkillSource.Gameplay) result.Add(entry.Skill);
+            if (entry.AvailableInBattleChoices && entry.Skill.Source == SkillSource.Gameplay) result.Add(entry.Skill);
         return result.AsReadOnly();
     }
     #endregion

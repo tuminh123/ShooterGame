@@ -60,7 +60,7 @@ HP ban đầu = maxHealth sau bonus
 
 Spawn thêm cùng loại, hết quái sống, thu hồi vỏ và đổi wave không reset mốc. Quái đang sống giữ nguyên bonus đã nhận. Pause bằng timeScale = 0 dừng đồng hồ và không sinh thêm quái.
 
-Wave nối tiếp theo thời lượng, chọn ngẫu nhiên đều giữa các loại được cấu hình. Mỗi wave có nhịp và trần riêng; quái còn từ wave trước vẫn tính vào trần. Wave cuối tiếp tục chạy đến hết lượt. GameManager dọn trận (StageManager.StopRun thu hồi Enemy, RunManager.ResetRun reset đồng hồ/level/loot) trước lượt mới.
+Wave nối tiếp theo thời lượng, chọn ngẫu nhiên đều giữa các loại được cấu hình. Mỗi wave có nhịp và trần riêng; quái còn từ wave trước vẫn tính vào trần. Wave cuối tiếp tục chạy đến hết lượt. GameManager dọn trận (StageManager.StopBattle thu hồi Enemy, BattleManager.ResetBattle reset đồng hồ/level/loot) trước lượt mới.
 
 ## Kiểm tra và giới hạn
 

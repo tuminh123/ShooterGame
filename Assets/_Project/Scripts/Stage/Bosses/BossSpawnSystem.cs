@@ -14,7 +14,7 @@ internal sealed class BossSpawnSystem
     #endregion
 
     #region Supporting Types
-    private sealed class EliteRun
+    private sealed class ActiveElite
     {
         public BossSpawnDataSO.Entry entry;
         public bool spawned;
@@ -26,7 +26,7 @@ internal sealed class BossSpawnSystem
     private readonly EnemySpawner spawner; // Tạo/thu hồi quái, vùng sinh; do StageManager tạo và dùng chung cho mọi system.
     private readonly StageSpawnRoster roster;
     private readonly BossArena summon; // Đấu trường của Boss: dọn quái thường, khóa vùng, sinh Boss.
-    private readonly List<EliteRun> elites = new List<EliteRun>();
+    private readonly List<ActiveElite> elites = new List<ActiveElite>();
     private BossSpawnDataSO.Entry boss;
     private BossAppearanceCondition condition;
     private Vector2 arenaSize;
@@ -37,7 +37,7 @@ internal sealed class BossSpawnSystem
     {
         get
         {
-            foreach (EliteRun elite in elites) if (!elite.spawned) return false;
+            foreach (ActiveElite elite in elites) if (!elite.spawned) return false;
             return boss == null || bossSpawned;
         }
     }
@@ -78,7 +78,7 @@ internal sealed class BossSpawnSystem
         {
             if (entry.Type == SpecialEnemyType.Elite)
             {
-                elites.Add(new EliteRun { entry = entry });
+                elites.Add(new ActiveElite { entry = entry });
                 SpawnScheduled?.Invoke(StageSpawnWarning.Elite, entry.EliteStageTime);
             }
             else
@@ -102,7 +102,7 @@ internal sealed class BossSpawnSystem
     public void Tick(float stageTime, float deltaTime)
     {
         if (deltaTime <= 0f) return;
-        foreach (EliteRun elite in elites)
+        foreach (ActiveElite elite in elites)
         {
             if (elite.spawned || stageTime < elite.entry.EliteStageTime) continue;
             var view = spawner.SpawnElite(elite.entry.Character, elite.entry.EnemyLevel,

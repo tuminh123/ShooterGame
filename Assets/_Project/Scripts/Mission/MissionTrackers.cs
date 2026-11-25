@@ -85,21 +85,21 @@ internal sealed class KillTracker : IMissionTracker
 
 #endregion
 
-#region Run
+#region Battle
 
 /// <summary>Kết quả trận. Ghi khi hết trận và khi về Home.</summary>
-internal sealed class RunTracker : IMissionTracker
+internal sealed class BattleResultTracker : IMissionTracker
 {
     private readonly IGameState game;
-    private readonly IRunReader run;
+    private readonly IBattleProgress battle;
 
     public event Action<MissionSignal> Progressed;
     public event Action<bool> Finished;
 
-    internal RunTracker(IGameState game, IRunReader run)
+    internal BattleResultTracker(IGameState game, IBattleProgress battle)
     {
         this.game = game ?? throw new ArgumentNullException(nameof(game));
-        this.run = run ?? throw new ArgumentNullException(nameof(run));
+        this.battle = battle ?? throw new ArgumentNullException(nameof(battle));
         game.StateChanged += OnGameStateChanged;
     }
 
@@ -112,9 +112,9 @@ internal sealed class RunTracker : IMissionTracker
         {
             case GameState.EndingWin:
             case GameState.EndingLose:
-                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.FinishRun, 1));
-                if (current == GameState.EndingWin) Progressed?.Invoke(new MissionSignal(MissionObjectiveType.WinRun, 1));
-                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.CollectRunGold, run.Gold));
+                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.FinishBattle, 1));
+                if (current == GameState.EndingWin) Progressed?.Invoke(new MissionSignal(MissionObjectiveType.WinBattle, 1));
+                Progressed?.Invoke(new MissionSignal(MissionObjectiveType.CollectBattleGold, battle.Gold));
                 Finished?.Invoke(true);
                 break;
             case GameState.Home: // Bỏ trận giữa chừng: vẫn giữ số quái đã hạ.

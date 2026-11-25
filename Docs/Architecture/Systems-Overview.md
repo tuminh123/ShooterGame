@@ -53,12 +53,12 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | ↳ Effect hình ảnh | CombatAssetsSO, CombatVfx, EffectView | Tra và phát prefab VFX; tách khỏi trạng thái effect gameplay. |
 | **Stage** (kiến trúc mới) | **StageManager**, StageContracts, StageRewards | Manager duy nhất được bind của miền; tự tạo EnemySpawner, ba spawn system (Wave/Formation/Boss) và BossArena. Chọn map, xác nhận clear và cấp thưởng kết quả một lần. |
 | ↳ Stage results | StageRewards | Thưởng thắng/thua + first-clear, chặn cấp hai lần. |
-| **Run** (kiến trúc mới) | **RunManager**, RunContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng RunContracts.cs (`IRunReader`, `IRunLifecycle`). |
-| ↳ Đồng hồ, thống kê | RunClock, RunStatistics | Giây gameplay khi Player sống; vàng nhặt được và số quái bị hạ (chỉ thống kê). |
-| ↳ Level trận | RunLevel, RunLevelProgress, RunLevelConfigSO | EXP/level của lượt; tự thêm một nguồn bonus vào `StatSheet` của Player khi Player xuất hiện. |
-| ↳ Loot | LootSystem, PickupView, LootDatabaseSO | Rơi EXP/vàng khi quái chết, nhặt theo bán kính ở LateTick; RunManager chuyển EXP → RunLevel, vàng → ví + thống kê. |
+| **Battle** (kiến trúc mới) | **BattleManager**, BattleContracts | Manager duy nhất được bind của miền; tự tạo các system bên dưới. Miền khác chỉ dùng BattleContracts.cs (`IBattleProgress`, `IBattleReset`). |
+| ↳ Đồng hồ, thống kê | BattleTimer, BattleStatistics | Giây gameplay khi Player sống; vàng nhặt được và số quái bị hạ (chỉ thống kê). |
+| ↳ Level trận | InBattleLevel, InBattleLevelProgress, InBattleLevelConfigSO | EXP/level của lượt; tự thêm một nguồn bonus vào `StatSheet` của Player khi Player xuất hiện. |
+| ↳ Loot | LootSystem, PickupView, LootDatabaseSO | Rơi EXP/vàng khi quái chết, nhặt theo bán kính ở LateTick; BattleManager chuyển EXP → InBattleLevel, vàng → ví + thống kê. |
 | **Game** (kiến trúc mới) | **GameManager**, GameContracts, GameStateMachine, GamePause, GamePrewarm | Manager duy nhất được bind: loading → Home → trận → kết quả. UI dùng `IGameState`, `IGameFlow`, `IGamePause`, `ILoadingProgress`. |
-| UI | UIManager, ScreenTransitionController, RunUI, CharacterUI, PauseUI, SkillChoiceController | Panel là MonoBehaviour trong scene (tự inject). UIManager chọn panel theo GameState; chỉ ScreenTransitionController được bind (`UIContracts.cs`). Bảng chọn skill chỉ trình bày; logic nằm ở `ISkillChoice` (Run). |
+| UI | UIManager, ScreenTransitionController, BattleHud, CharacterUI, PauseUI, SkillChoiceController | Panel là MonoBehaviour trong scene (tự inject). UIManager chọn panel theo GameState; chỉ ScreenTransitionController được bind (`UIContracts.cs`). Bảng chọn skill chỉ trình bày; logic nằm ở `ISkillChoice` (Battle). |
 | ↳ Màn Character | CharacterScreenController, CharacterCollectionView, CharacterDetailView, CharacterScreenThemeSO (`UI/CharacterScreen/`) | Mở từ Home (nút sách). Controller gọi `IPlayerSelection` (Character), `ICharacterUpgrades` + `IPermanentBonuses` (Progression); View chỉ hiển thị. Chỉ số = `StatCalculator.Calculate(base, bonus vĩnh viễn)`. Nâng level trừ tiền thật (mỗi mốc chia đều Clicks Per Level lần bấm; thiếu tiền thì nút rung + báo); nâng sao tạm miễn phí tới khi có mảnh. Xem [Character-Screen-Tasks](Character-Screen-Tasks.md). |
 | ↳ Màu theo độ hiếm (UI) | RarityStyleDatabaseSO (`UI/`, asset `DataSO/Databases/RarityStyleDatabase`) | Một asset, hai phần: **Character** (nhãn, màu thẻ Collection, nền + PanelGlow màn Detail) và **Equipment** (màu khung thẻ đồ, nhãn). CharacterScreenThemeSO và EquipmentThemeSO chỉ tham chiếu và đọc qua `GetRarity`. Mỗi lớp hình là một `ImageStyle` (`UI/ImageStyle.cs`): chọn **Color** (giữ sprite gốc, tô màu) hoặc **Sprite** (kéo ảnh vào thay); View dùng `StyledImage` để nhớ sprite gốc khi đổi qua lại. |
 | **Simulation** (kiến trúc mới) | **SimulationManager**, SimulationContracts, MovementSystem, SpatialSystem | Burst/Jobs với buffer dùng lại: cập nhật movement và truy vấn không gian. Miền khác chỉ dùng SimulationContracts.cs. |
@@ -77,7 +77,7 @@ Bind dịch vụ và inject scene
 → CharacterManager.Initialize: nhân vật đang chọn
 → WorldManager.Initialize: đặt map ban đầu trước khi vào Home
 → GameManager.Initialize: GamePrewarm tạo sẵn pool/buffer
-→ prewarm → Home → PreparingRun → reset trận → spawn Player → Playing
+→ prewarm → Home → PreparingBattle → reset trận → spawn Player → Playing
 → Gameplay/spawner được phép hoạt động
 ```
 

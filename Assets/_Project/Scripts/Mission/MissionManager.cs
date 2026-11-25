@@ -14,7 +14,7 @@ using Zenject;
 /// ├── MissionBoard[]       mỗi database một nhóm: kỳ hiện tại + tiến độ từng mission (key missions)
 /// └── IMissionTimeCheck    chỗ cắm kiểm tra giờ (hiện là bản trống)
 /// </code>
-/// Chiều phụ thuộc: Mission → Game / Run / Character / Progression / Save. Không miền gameplay nào biết Mission.
+/// Chiều phụ thuộc: Mission → Game / Battle / Character / Progression / Save. Không miền gameplay nào biết Mission.
 /// Không ghi file mỗi lần giết quái: tiến độ trong trận nằm ở RAM, ghi khi hết trận, về Home, nâng cấp, nhận thưởng hoặc app ẩn/thoát.
 /// </remarks>
 public sealed class MissionManager : DomainManager, IMissions, IInitializable, IDisposable
@@ -75,7 +75,7 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         ICharacterRegistry characterRegistry,
         ICharacterDeathEvents characterDeaths,
         IGameState gameState,
-        IRunReader runReader,
+        IBattleProgress battleProgress,
         ICharacterUpgrades characterUpgrades,
         IEquipment equipmentService)
     {
@@ -85,7 +85,7 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         timeCheck = new EmptyMissionTimeCheck();
 
         CreateBoards(settings);
-        CreateTrackers(characterRegistry, characterDeaths, gameState, runReader, characterUpgrades, equipmentService);
+        CreateTrackers(characterRegistry, characterDeaths, gameState, battleProgress, characterUpgrades, equipmentService);
         Subscribe();
     }
 
@@ -104,12 +104,12 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         ICharacterRegistry characters,
         ICharacterDeathEvents deaths,
         IGameState game,
-        IRunReader run,
+        IBattleProgress battle,
         ICharacterUpgrades upgrades,
         IEquipment equipment)
     {
         trackers.Add(new KillTracker(deaths, characters));
-        trackers.Add(new RunTracker(game, run));
+        trackers.Add(new BattleResultTracker(game, battle));
         trackers.Add(new UpgradeTracker(upgrades, equipment));
     }
 
@@ -212,14 +212,15 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         if (mission == null) throw new ArgumentNullException(nameof(mission));
         if (!loaded || disposed || claiming) return false;
         Refresh(); // Có thể vừa qua kỳ mới trong lúc UI còn hiện nút Claim.
-        if (!IsOpen(mission) || mission.State != MissionState.Claimable || !timeCheck.Check()) return false;
+        MissionBoard board = FindBoard(mission);
+        if (board == null || !board.IsOpen || mission.State != MissionState.Claimable || !timeCheck.Check()) return false;
 
         claiming = true;
         try
         {
             // Kiểm tra gói TRƯỚC khi đánh dấu: cấu hình sai thì ném lỗi mà không mất lượt nhận.
             rewards.ValidateRewards(mission.Data.Rewards);
-            mission.MarkClaimed();
+            board.MarkClaimed(mission); // Trước snapshot: tiến độ Final Mission nằm trong cùng lần ghi.
             result = rewards.GrantRewards(mission.Data.Rewards,
                 SaveEntry.Of(GameConstants.SaveKeys.Missions, CreateSaveData()), out saved);
             dirty = false; // Snapshot vừa ghi (hoặc đang chờ ghi lại) đã gồm mọi tiến độ.
@@ -272,12 +273,12 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         return changed;
     }
 
-    private bool IsOpen(MissionRuntime mission)
+    private MissionBoard FindBoard(MissionRuntime mission)
     {
         foreach (MissionBoard board in boards)
             foreach (MissionRuntime candidate in board.Missions)
-                if (ReferenceEquals(candidate, mission)) return board.IsOpen;
-        return false;
+                if (ReferenceEquals(candidate, mission)) return board;
+        return null;
     }
 
     // IO lỗi thì SaveManager giữ snapshot để thử lại, không cần giữ cờ dirty.

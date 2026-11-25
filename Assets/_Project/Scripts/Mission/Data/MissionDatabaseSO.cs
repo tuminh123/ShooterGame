@@ -113,9 +113,16 @@ public sealed class MissionDatabaseSO : ScriptableObject
         if (finalMission == null) return;
         finalMission.Validate();
         if (!ids.Add(finalMission.Id)) throw new InvalidOperationException($"{name}: trùng Mission ID {finalMission.Id}.");
+        // Final Mission mở khi đã nhận HẾT mission của nhóm nên Target phải đúng bằng số mission.
+        bool counts = false;
         foreach (MissionTask task in finalMission.Tasks)
-            if (task.Objective == MissionObjectiveType.CompleteMission && task.Target > missions.Count)
-                throw new InvalidOperationException($"{name}: Final Mission cần {task.Target} mission nhưng nhóm chỉ có {missions.Count}.");
+        {
+            if (task.Objective != MissionObjectiveType.CompleteMission) continue;
+            counts = true;
+            if (task.Target != missions.Count)
+                throw new InvalidOperationException($"{name}: Final Mission có Target {task.Target}, phải bằng số mission của nhóm ({missions.Count}).");
+        }
+        if (!counts) throw new InvalidOperationException($"{name}: Final Mission cần một mission con Complete Mission.");
     }
 
     #endregion

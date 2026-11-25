@@ -43,8 +43,8 @@ Trước đây mỗi lần bấm UPGRADE là +1 level ngay và thanh hiện `lev
 mỗi lần bấm tiêu `AmountPerUpgrade` nguyên liệu và nạp đúng lượng đó vào thanh (1:1). Thanh của cấp L cần
 `A + B × (L − 1)`; đầy thanh thì lên cấp và phần dư chuyển sang cấp sau. Lần bấm chạm trần chỉ tốn phần còn thiếu.
 
-- Theo `Refactor-Architecture.md` §1 và §8 (Simple trước; "code lặp đến lần thứ 3 mới tách"): **không** tách struct dùng chung với `RunLevelProgress`. Hai nơi dùng là hai khái niệm khác miền; công thức nằm trong `CharacterLevelConfigSO`, vòng lặp nằm trong `CharacterLevels`. Có nơi dùng thứ 3 thì mới tách.
-- File đã sửa (ngoài danh sách ban đầu, người dùng duyệt): `CharacterLevelConfigSO.cs`, `CharacterLevels.cs`, `CharacterUpgradeTracks.cs`, `ProgressionContracts.cs` (`UpgradeQuote.Progress/ProgressRequired`), `SaveSections.cs` (`upgradePoints`), `CharacterScreenModels.cs`, `CharacterScreenController.cs`, `CharacterDetailView.cs`, `Editor/ProjectDataSOEditor.cs`. Không đụng miền Run.
+- Theo `Refactor-Architecture.md` §1 và §8 (Simple trước; "code lặp đến lần thứ 3 mới tách"): **không** tách struct dùng chung với `InBattleLevelProgress`. Hai nơi dùng là hai khái niệm khác miền; công thức nằm trong `CharacterLevelConfigSO`, vòng lặp nằm trong `CharacterLevels`. Có nơi dùng thứ 3 thì mới tách.
+- File đã sửa (ngoài danh sách ban đầu, người dùng duyệt): `CharacterLevelConfigSO.cs`, `CharacterLevels.cs`, `CharacterUpgradeTracks.cs`, `ProgressionContracts.cs` (`UpgradeQuote.Progress/ProgressRequired`), `SaveSections.cs` (`upgradePoints`), `CharacterScreenModels.cs`, `CharacterScreenController.cs`, `CharacterDetailView.cs`, `Editor/ProjectDataSOEditor.cs`. Không đụng miền Battle.
 - Save cũ không có `upgradePoints` nên đọc ra 0; không cần migration. Field `initialRequired` nhận lại giá trị `initialUpgradeCost` cũ qua `FormerlySerializedAs`.
 - Vẫn **chưa trừ tiền** (TODO trong `LevelTrack`).
 

@@ -8,12 +8,12 @@
 |---|---|---|
 | Template nhân vật | CharacterDataSO | Type làm khóa, tên hiển thị, chỉ số gốc và skill mẫu |
 | Level vĩnh viễn | CharacterLevelConfigSO | Bonus cố định mỗi cấp và thanh EXP nâng cấp bằng nguyên liệu |
-| Level trong trận | RunLevelConfigSO | Công thức EXP tuyến tính và một bộ bonus cố định mỗi cấp |
+| Level trong trận | InBattleLevelConfigSO | Công thức EXP tuyến tính và một bộ bonus cố định mỗi cấp |
 | Danh mục nhân vật | CharacterDatabaseSO | Tất cả template nhân vật, kiểm tra ID khi dựng dictionary |
 | Danh mục level | LevelDatabaseSO | Danh sách config vĩnh viễn có type và config trận dùng chung |
 | Level nhân vật | CharacterLevels (miền Progression) | Tra config, đọc level vĩnh viễn, tăng cấp và gọi save |
-| Level trận | RunLevel (miền Run, do RunManager tạo) | Nhận EXP, phát LevelUp/ExperienceChanged, giữ nguồn bonus level trận trên Player |
-| Trạng thái level trận | RunLevelProgress | Chi tiết tính tiến trình nội bộ do RunLevel sở hữu |
+| Level trận | InBattleLevel (miền Battle, do BattleManager tạo) | Nhận EXP, phát LevelUp/ExperienceChanged, giữ nguồn bonus level trận trên Player |
+| Trạng thái level trận | InBattleLevelProgress | Chi tiết tính tiến trình nội bộ do InBattleLevel sở hữu |
 | Dữ liệu lưu lâu dài | PlayerSaveData | Nhân vật đang chọn và level vĩnh viễn của từng nhân vật |
 | IO hồ sơ | SaveManager | Đọc/ghi Easy Save 3 theo key, giữ snapshot chưa ghi được để retry |
 | Runtime nhân vật | CharacterRuntimeData | Chỉ số gốc/cuối, HP và giáp hiện tại riêng của từng nhân vật; không lưu level/EXP |
@@ -126,7 +126,7 @@ Mọi chỗ "mỗi mốc Lv → Lv+1 cần bao nhiêu" dùng chung một họ c�
 |---|---|---|
 | Gold nâng level vĩnh viễn nhân vật | LevelDatabase → Permanent Level Cost | Có, `CharacterRarity` của CharacterDataSO |
 | Gold nâng cấp trang bị | EquipmentRules → Level Up Cost | Có, `EquipmentRarity` của món |
-| EXP lên cấp trong trận | RunLevelConfig → Experience Formula | Không |
+| EXP lên cấp trong trận | InBattleLevelConfig → Experience Formula | Không |
 
 Có độ hiếm thì lượng cần = `công thức × hệ số của độ hiếm`, làm tròn lên (`RarityScaledFormula`). Ví dụ Linear Base 10, Step 5; Common ×1, Legendary ×5 → Lv1 → 2: Common cần 10, Legendary cần 50. Tỉ lệ giữa các độ hiếm giữ nguyên ở mọi mốc nên dễ cân bằng. **Hệ số phải tăng dần** theo độ hiếm (độ hiếm cao không được rẻ hơn), sai thì validate báo lỗi. Inspector có bảng **Preview** hiện lượng cần của các mốc cho từng độ hiếm.
 
@@ -156,7 +156,7 @@ Cấu hình ở **LevelDatabase → CHARACTER COLLECTION** (số theo độ hi�
 
 ## 5. Level trong trận: bonus cố định và công thức EXP
 
-RunLevelConfigSO được gán một lần vào LevelDatabaseSO và dùng chung cho level người chơi trong trận:
+InBattleLevelConfigSO được gán một lần vào LevelDatabaseSO và dùng chung cho level người chơi trong trận:
 
 | Field trong Inspector | Ý nghĩa | Giá trị mẫu |
 |---|---|---:|
@@ -179,7 +179,7 @@ Bonus tích lũy = Bonus Per Level × (L − 1)
 
 Không phải mốc EXP cộng dồn. Từ level 1 nhận 35 EXP: tiêu 10 để lên level 2, tiêu 15 để lên level 3, còn 10 EXP. Cần thêm 10 EXP nữa để lên level 4.
 
-RunLevelProgress.AddExperience trả số cấp đã tăng, giúp UI sau này mở đúng số lượt lựa chọn nâng cấp. Hiện chưa có UI chọn thưởng hoặc tự thực thi skill. Bonus cố định của mỗi lần lên cấp là cùng một bộ, không tăng theo công thức chi phí.
+InBattleLevelProgress.AddExperience trả số cấp đã tăng, giúp UI sau này mở đúng số lượt lựa chọn nâng cấp. Hiện chưa có UI chọn thưởng hoặc tự thực thi skill. Bonus cố định của mỗi lần lên cấp là cùng một bộ, không tăng theo công thức chi phí.
 
 Nếu muốn chỉ nhận chỉ số qua lựa chọn, đặt Bonus Per Level về 0. Không cấu hình cùng phần thưởng ở cả bonus cố định và lựa chọn nếu không muốn nhận hai lần.
 
@@ -191,7 +191,7 @@ Quy tắc runtime:
 - EXP nhận âm bị từ chối; cấu hình yêu cầu A >= 1 và B >= 0.
 - Công thức dùng số nguyên; nếu yêu cầu EXP vượt int thì báo overflow.
 - Level/EXP trong trận không ghi vào PlayerSaveData.
-- Không sửa config giữa trận. RunLevel sở hữu một RunLevelProgress của người chơi trong lượt hiện tại; miền khác chỉ đọc qua `IRunReader` của RunManager, không tạo thêm tiến trình song song.
+- Không sửa config giữa trận. InBattleLevel sở hữu một InBattleLevelProgress của người chơi trong lượt hiện tại; miền khác chỉ đọc qua `IBattleProgress` của BattleManager, không tạo thêm tiến trình song song.
 
 ## 6. PlayerSaveData lưu những gì
 
@@ -225,11 +225,11 @@ Các service cập nhật RAM rồi gửi bản sao độc lập để lưu ngay
 
 Installer gọi SaveIfDirty khi pause, mất focus và thoát; Dispose cũng thử ghi phần pending. Không bảo đảm ghi được nếu ứng dụng bị kill/crash hoặc thiết bị còn lỗi IO. Chưa có backup/cloud hay nhiều profile.
 
-LootSystem nhặt vàng → RunManager gọi IWallet.Add(CurrencyType.Gold, amount) → lưu key currencies ngay. `IRunReader.Gold` (RunStatistics) chỉ thống kê vàng trong trận; kết thúc trận không cộng lại. Kim cương dùng CurrencyType.Diamond trong cùng ví.
+LootSystem nhặt vàng → BattleManager gọi IWallet.Add(CurrencyType.Gold, amount) → lưu key currencies ngay. `IBattleProgress.Gold` (BattleStatistics) chỉ thống kê vàng trong trận; kết thúc trận không cộng lại. Kim cương dùng CurrencyType.Diamond trong cùng ví.
 
 Service hiện có scope theo scene. Nếu sau này nhiều scene cùng cần một hồ sơ đang dùng, chuyển binding sang ProjectContext để có một instance chung; không bind lại đồng thời ở cả ProjectContext lẫn SceneContext.
 
-## 8. Level vĩnh viễn (Progression) và level trận (Run)
+## 8. Level vĩnh viễn (Progression) và level trận (Battle)
 
 ```text
 Gameplay/UI
@@ -238,10 +238,10 @@ Gameplay/UI
             → dictionary template/config
             → ISaveStore (SaveManager → Easy Save 3)
         → EquipmentLoadout, Wallet, StageProgress
-    → RunManager (IRunReader, IRunLifecycle)   level trong trận (miền Run, GĐ 4)
-        → RunLevel
-            → RunLevelProgress
-            → RunLevelConfigSO chung (LevelDatabaseSO.RunLevelConfig)
+    → BattleManager (IBattleProgress, IBattleReset)   level trong trận (miền Battle, GĐ 4)
+        → InBattleLevel
+            → InBattleLevelProgress
+            → InBattleLevelConfigSO chung (LevelDatabaseSO.InBattleLevelConfig)
 ```
 
 Miền khác chỉ thấy level vĩnh viễn qua `IPermanentBonuses.GetBonus(type)` (level vĩnh viễn + trang bị, dùng bởi PlayerSystem)
@@ -266,18 +266,18 @@ TryIncreaseLevel chưa tự kiểm tra sở hữu, mở khóa hoặc trừ tài 
 
 Nếu IO lỗi, level mới còn trong RAM và snapshot vẫn chờ ghi. CharacterLevels phát LevelChanged cho thay đổi thực tế, rồi SaveFailed để bên ngoài biết chưa ghi được file. Không rollback level một cách âm thầm.
 
-### API level trong trận (miền Run)
+### API level trong trận (miền Battle)
 
-| API trên RunManager | Tác dụng |
+| API trên BattleManager | Tác dụng |
 |---|---|
-| `IRunLifecycle.ResetRun()` | GameManager gọi: dọn skill gameplay, loot, về level 1/EXP 0, đồng hồ và thống kê về 0, rồi phát RunReset |
-| `IRunReader.Level` | Level hiện tại trong trận |
-| `IRunReader.Experience` | EXP dư |
-| `IRunReader.ExperienceToNextLevel` | EXP cần riêng cho cấp hiện tại, 0 khi đạt trần |
+| `IBattleReset.ResetBattle()` | GameManager gọi: dọn skill gameplay, loot, về level 1/EXP 0, đồng hồ và thống kê về 0, rồi phát BattleReset |
+| `IBattleProgress.Level` | Level hiện tại trong trận |
+| `IBattleProgress.Experience` | EXP dư |
+| `IBattleProgress.ExperienceToNextLevel` | EXP cần riêng cho cấp hiện tại, 0 khi đạt trần |
 
-EXP chỉ vào qua loot (LootSystem → RunManager → RunLevel.AddExperience); không có API cộng EXP công khai cho miền khác.
-Bonus level trận (`RunLevelConfigSO.GetTotalBonus(level)`) là **một nguồn riêng** trong `StatSheet` của Player:
-RunLevel thêm nguồn này khi nhận `PlayerChanged` và cập nhật lease tại chỗ khi lên cấp/reset.
+EXP chỉ vào qua loot (LootSystem → BattleManager → InBattleLevel.AddExperience); không có API cộng EXP công khai cho miền khác.
+Bonus level trận (`InBattleLevelConfigSO.GetTotalBonus(level)`) là **một nguồn riêng** trong `StatSheet` của Player:
+InBattleLevel thêm nguồn này khi nhận `PlayerChanged` và cập nhật lease tại chỗ khi lên cấp/reset.
 PlayerSystem chỉ cộng level vĩnh viễn + trang bị. Tổng cuối vẫn do `StatCalculator` tính một chỗ.
 
 ### Sự kiện
@@ -286,15 +286,15 @@ PlayerSystem chỉ cộng level vĩnh viễn + trang bị. Tổng cuối vẫn d
 |---|---|---|
 | BonusesChanged | IPermanentBonuses | Không tham số (level vĩnh viễn của một nhân vật hoặc loadout vừa đổi) |
 | BalanceChanged | IWallet | loại tiền, số dư mới |
-| LevelUp | IRunReader | level cũ, level mới |
-| ExperienceChanged | IRunReader | EXP dư, EXP cần cấp tiếp |
-| RunReset | IRunReader | Không tham số |
+| LevelUp | IBattleProgress | level cũ, level mới |
+| ExperienceChanged | IBattleProgress | EXP dư, EXP cần cấp tiếp |
+| BattleReset | IBattleProgress | Không tham số |
 
-Một lần nhận EXP lên nhiều cấp phát một LevelUp chứa khoảng level. Ví dụ từ 1 lên 3: sự kiện (1, 3), UI có thể mở 2 lượt chọn thưởng. Tính toán và bonus được cập nhật trước khi phát, nên đọc RunManager trong callback sẽ thấy trạng thái cuối.
+Một lần nhận EXP lên nhiều cấp phát một LevelUp chứa khoảng level. Ví dụ từ 1 lên 3: sự kiện (1, 3), UI có thể mở 2 lượt chọn thưởng. Tính toán và bonus được cập nhật trước khi phát, nên đọc BattleManager trong callback sẽ thấy trạng thái cuối.
 
-Reset không phát LevelUp; phát ExperienceChanged (cùng Gold/Time/EnemiesDefeated changed) rồi RunReset sau cùng. Nhận EXP khi đã đạt trần hoặc không thay đổi tiến trình không phát lại thông báo EXP.
+Reset không phát LevelUp; phát ExperienceChanged (cùng Gold/Time/EnemiesDefeated changed) rồi BattleReset sau cùng. Nhận EXP khi đã đạt trần hoặc không thay đổi tiến trình không phát lại thông báo EXP.
 
-Bên nghe tự hủy đăng ký khi không dùng nữa. Không cộng EXP/reset tiếp bên trong callback của chính chuỗi xử lý đó; RunLevel và RunManager chặn thay đổi lồng nhau.
+Bên nghe tự hủy đăng ký khi không dùng nữa. Không cộng EXP/reset tiếp bên trong callback của chính chuỗi xử lý đó; InBattleLevel và BattleManager chặn thay đổi lồng nhau.
 
 Level trận không gọi save lâu dài. Muốn tiếp tục một lượt đã thoát sẽ cần loại save lượt chơi riêng, chưa triển khai.
 
@@ -321,8 +321,8 @@ DataSO/
     Levels/
         Permanent/
             BlessedGladiator_PermanentLevels.asset
-        Run/
-            Shared_RunLevels.asset
+        Battle/
+            Shared_InBattleLevels.asset
     Maps/
         MapDatabase.asset
     SaveExamples/
@@ -331,7 +331,7 @@ DataSO/
 
 Đây là một file hướng dẫn chung. Khi thêm DataSO mới, không tạo Markdown riêng cho từng asset.
 
-CharacterDatabase mẫu chứa BlessedGladiator_Character. LevelDatabase mẫu chứa BlessedGladiator_PermanentLevels trong danh sách và tham chiếu Shared_RunLevels dùng chung. Cả template, prefab và config vĩnh viễn đều chọn type BlessedGladiator (giá trị enum 1). DisplayName mẫu là Blessed Gladiator. Template và config không tham chiếu trực tiếp lẫn nhau. EquipmentDatabase mẫu để rỗng, đã gán vào SampleScene; chưa mặc trang bị thì bonus bằng 0.
+CharacterDatabase mẫu chứa BlessedGladiator_Character. LevelDatabase mẫu chứa BlessedGladiator_PermanentLevels trong danh sách và tham chiếu Shared_InBattleLevels dùng chung. Cả template, prefab và config vĩnh viễn đều chọn type BlessedGladiator (giá trị enum 1). DisplayName mẫu là Blessed Gladiator. Template và config không tham chiếu trực tiếp lẫn nhau. EquipmentDatabase mẫu để rỗng, đã gán vào SampleScene; chưa mặc trang bị thì bonus bằng 0.
 
 Khi tự setup, gán Character Database, Level Database và Equipment Database trên GameSceneInstaller. Cả ba field đều bắt buộc. Không phải gán config trận lên từng nhân vật. Prefab Player khai báo CharacterType để kiểm tra khớp với nhân vật trong save; installer hiện chỉ hỗ trợ một prefab. Save chưa chọn nhân vật (None) dùng type của prefab.
 
@@ -369,7 +369,7 @@ SaveManager.Initialize (-200, mở file + SaveMigration)
     -> PlayerChanged thông báo nhân vật đã sẵn sàng
 ```
 
-PlayerSystem thêm một nguồn bonus (level vĩnh viễn + trang bị) và RunLevel thêm một nguồn riêng cho level trận vào `StatSheet` của Player. Runtime không giữ level; CharacterLevels và RunLevel sở hữu tiến trình. Khi các nguồn đổi, runtime tính lại từ base và modifier đang có. Tăng maxHealth/defense không tự hồi HP/giáp; khi giới hạn giảm thì kẹp lượng hiện tại. Spawn mới đầy HP và giáp, bonus skill được áp dụng bởi scheduler sau khi đăng ký; defense mới chỉ cấp thêm lượng giáp mới tương ứng. Bật lại sau disable không hồi giáp. ResetRun reset tiến trình, không tự hồi HP hoặc tạo lại nhân vật.
+PlayerSystem thêm một nguồn bonus (level vĩnh viễn + trang bị) và InBattleLevel thêm một nguồn riêng cho level trận vào `StatSheet` của Player. Runtime không giữ level; CharacterLevels và InBattleLevel sở hữu tiến trình. Khi các nguồn đổi, runtime tính lại từ base và modifier đang có. Tăng maxHealth/defense không tự hồi HP/giáp; khi giới hạn giảm thì kẹp lượng hiện tại. Spawn mới đầy HP và giáp, bonus skill được áp dụng bởi scheduler sau khi đăng ký; defense mới chỉ cấp thêm lượng giáp mới tương ứng. Bật lại sau disable không hồi giáp. ResetBattle reset tiến trình, không tự hồi HP hoặc tạo lại nhân vật.
 
 Đọc runtime qua CharacterView.RuntimeData hoặc PlayerSystem.RuntimeData. FinalStats và BaseStats trả bản sao struct. Gọi CharacterView.ReceiveDamage hoặc ChangeHealth (âm trừ HP trực tiếp, dương hồi HP); view chuyển tiếp tới CharacterControllerBase. Controller chung xử lý giáp hấp thụ trước HP, thông báo và chết; PlayerController/EnemyController kế thừa và định nghĩa hành vi chết riêng. Nghe Changed để cập nhật UI. Effect sở hữu thời hạn, danh sách slow và luật slow mạnh nhất; runtime chỉ nhận hệ số di chuyển đã tổng hợp.
 

@@ -83,7 +83,7 @@ public sealed class SkillRuntime : IDisposable
 
     public SkillDataSO Definition { get; }
     public bool IsActive { get; private set; } = true;
-    public int RunLevel { get; private set; }
+    public int BattleLevel { get; private set; }
     public int PermanentLevel => Definition.Level;
     public SkillSource Source => Definition.Source;
     public int BehaviourCount => behaviours.Count;
@@ -113,11 +113,11 @@ public sealed class SkillRuntime : IDisposable
         this.factory = factory;
         owner = context.Owner;
         paused = !owner.isActiveAndEnabled;
-        RunLevel = startLevel;
+        BattleLevel = startLevel;
         owner.Died += OnOwnerEnded;
         owner.Released += OnOwnerEnded;
         owner.Deactivated += OnOwnerDeactivated;
-        try { ApplyLevel(RunLevel); }
+        try { ApplyLevel(BattleLevel); }
         catch (Exception creation)
         {
             try { Dispose(); }
@@ -171,21 +171,21 @@ public sealed class SkillRuntime : IDisposable
     // Chỉ gameplay nâng trong trận; cấp mới dùng toàn bộ cấu hình từ SO.
     public bool TryUpgrade()
     {
-        if (!IsActive || changingLevel || Source != SkillSource.Gameplay || RunLevel >= Definition.MaxLevel) return false;
+        if (!IsActive || changingLevel || Source != SkillSource.Gameplay || BattleLevel >= Definition.MaxLevel) return false;
         Definition.Validate();
         changingLevel = true;
         try
         {
-            ApplyLevel(RunLevel + 1);
+            ApplyLevel(BattleLevel + 1);
             if (!IsActive) return false;
-            RunLevel++;
+            BattleLevel++;
             return true;
         }
         catch (Exception upgrade)
         {
             if (IsActive)
             {
-                try { ApplyLevel(RunLevel); }
+                try { ApplyLevel(BattleLevel); }
                 catch (Exception rollback)
                 {
                     try { Dispose(); }

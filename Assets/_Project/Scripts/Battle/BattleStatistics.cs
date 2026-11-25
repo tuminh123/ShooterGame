@@ -1,8 +1,8 @@
 using System;
 
 /// <summary>Thống kê của lượt chơi: vàng nhặt được và số quái bị hạ. Chỉ đếm, không cộng ví.</summary>
-/// <remarks>Do <see cref="RunManager"/> tạo; manager quyết định khi nào một lần nhặt/hạ quái được tính.</remarks>
-public sealed class RunStatistics
+/// <remarks>Do <see cref="BattleManager"/> tạo; manager quyết định khi nào một lần nhặt/hạ quái được tính.</remarks>
+public sealed class BattleStatistics
 {
     #region State
 

@@ -32,7 +32,7 @@ public readonly struct SkillChoiceOffer
     public bool TryApply(ISkillGrant manager, IOwnedSkillReader reader, CharacterView owner)
     {
         if (owner == null || owner.RuntimeData == null || !owner.RuntimeData.IsAlive) return false;
-        int current = reader.TryGetRuntime(Definition, owner, out SkillRuntime runtime) ? runtime.RunLevel : 0;
+        int current = reader.TryGetRuntime(Definition, owner, out SkillRuntime runtime) ? runtime.BattleLevel : 0;
         // Asset/runtime có thể đổi qua Editor hoặc callback khi bảng đang mở. Không tiêu lượt theo offer cũ.
         return current == CurrentLevel && OfferedLevel == current + 1 && OfferedLevel <= MaxLevel &&
             manager.GrantOrUpgrade(Definition, owner);
@@ -80,8 +80,8 @@ public sealed class SkillChoicePool
         foreach (SkillDataSO definition in catalog)
         {
             if (definition == null || definition.Source != SkillSource.Gameplay || !unique.Add(definition) || (excluded != null && excluded.Contains(definition))) continue;
-            int max = Math.Min(StarLimit, definition.MaxRunLevel);
-            int current = manager.TryGetRuntime(definition, owner, out SkillRuntime runtime) ? runtime.RunLevel : 0;
+            int max = Math.Min(StarLimit, definition.MaxBattleLevel);
+            int current = manager.TryGetRuntime(definition, owner, out SkillRuntime runtime) ? runtime.BattleLevel : 0;
             if (current >= max) continue;
             candidates.Add(new SkillChoiceOffer(definition, current, current + 1, max));
         }

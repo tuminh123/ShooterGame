@@ -1,6 +1,7 @@
 using System;
 using Terresquall;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Zenject;
 
 /// <summary>
@@ -47,7 +48,7 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     #region Game Flow Settings
 
-    [SerializeField] private bool autoStartRun = false; // Loading → Home; chỉ vào trận khi nút Play gọi StartRun.
+    [SerializeField, FormerlySerializedAs("autoStartRun")] private bool autoStartBattle = false; // Loading → Home; chỉ vào trận khi nút Play gọi StartBattle.
 
     #endregion
 
@@ -108,7 +109,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInstance(new PlayerSystem.Settings(defaultPlayerType));
         Container.BindInstance(new CharacterManager.Settings(characterPrefab));
-        Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartRun));
+        Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartBattle));
         Container.BindInstance(world); // WorldManager.Settings
         Container.BindInstance(stage); // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
         Container.BindInstance(missions); // MissionManager.Settings
@@ -119,7 +120,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     /// Một dòng cho mỗi miền, theo chiều phụ thuộc từ dưới lên (Save → … → Game). Mỗi Manager chỉ lộ contract
     /// trong <c>XxxContracts.cs</c> của nó; system con không có binding nào.
     /// <c>NonLazy</c>: tạo Manager ngay lúc khởi động thay vì chờ có ai inject. Cần vì nhiều Manager đăng ký event
-    /// trong constructor (ví dụ Run nghe quái chết); nếu tạo trễ thì bỏ lỡ sự kiện hoặc không bao giờ được tạo.
+    /// trong constructor (ví dụ Battle nghe quái chết); nếu tạo trễ thì bỏ lỡ sự kiện hoặc không bao giờ được tạo.
     /// </summary>
     private void BindDomainManagers()
     {
@@ -132,7 +133,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesTo<CombatManager>().AsSingle().NonLazy(); // Combat: skill, đạn, effect, VFX
 
         Container.BindInterfacesTo<StageManager>().AsSingle().NonLazy(); // Stage: wave, đội hình, boss
-        Container.BindInterfacesTo<RunManager>().AsSingle().NonLazy(); // Run: đồng hồ, level trận, loot, chọn skill
+        Container.BindInterfacesTo<BattleManager>().AsSingle().NonLazy(); // Battle: đồng hồ, level trận, loot, chọn skill
         Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy(); // Game: luồng scene, pause, prewarm
         Container.BindInterfacesTo<MissionManager>().AsSingle().NonLazy(); // Mission: nghe mọi miền dưới, chỉ UI dùng
     }
@@ -145,7 +146,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     // Đọc từ trên xuống = thứ tự chạy. Thêm Manager có lifecycle = chèn một dòng đúng chỗ, không cần nghĩ số.
     // Thứ tự bên trong một miền do Manager của nó tự gọi. Số thứ tự Zenject do ConfigureLifecycleOrder sinh ra.
 
-    // Run, Combat, Stage… không có Initialize: chúng đăng ký event ngay trong constructor.
+    // Battle, Combat, Stage… không có Initialize: chúng đăng ký event ngay trong constructor.
     private static readonly Type[] InitializeOrder =
     {
         typeof(SaveManager),        // Mở save + migration trước mọi miền đọc dữ liệu.
@@ -158,7 +159,7 @@ public sealed class GameSceneInstaller : MonoInstaller
 
     private static readonly Type[] TickOrder =
     {
-        typeof(RunManager),         // Đồng hồ trận đầu frame.
+        typeof(BattleManager),         // Đồng hồ trận đầu frame.
         typeof(CombatManager),      // Bên trong: effect → skill → đạn.
         typeof(StageManager),
         typeof(CharacterManager),
@@ -172,7 +173,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(StageManager),       // Bù chuyển động camera cho đội hình sau khi đã di chuyển.
         typeof(CharacterManager),   // Animation visual nhân vật (CharacterVisualHandle).
         typeof(CombatManager),      // Vùng/lưỡi skill bám chủ, rồi VFX kiểm tra đã phát xong.
-        typeof(RunManager),         // Nhặt loot sau khi đã áp dụng chuyển động.
+        typeof(BattleManager),         // Nhặt loot sau khi đã áp dụng chuyển động.
         // UI (SkillChoiceController, GameplayController) chạy sau toàn bộ danh sách này; thứ tự ở UIInstaller.
     };
 
@@ -183,7 +184,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(GameManager),        // Hủy prewarm, gỡ listener, trả timeScale.
         typeof(StageManager),
         typeof(WorldManager),       // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk về pool).
-        typeof(RunManager),         // Trước Character (Run nghe PlayerChanged/CharacterDied) và Pool (pickup về pool).
+        typeof(BattleManager),         // Trước Character (Battle nghe PlayerChanged/CharacterDied) và Pool (pickup về pool).
         typeof(CharacterManager),   // Thu hồi mọi nhân vật trước khi dọn Combat và Pool. Thứ tự nội bộ xem CharacterManager.Dispose.
         typeof(CombatManager),      // Nhân vật despawn còn gọi Combat dọn skill/effect; skill, đạn, VFX còn trả visual về Pool.
         typeof(PoolManager),

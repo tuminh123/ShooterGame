@@ -95,13 +95,13 @@ public sealed class LevelDatabaseSO : ScriptableObject
 
     #endregion
 
-    #region Shared Run Configuration
+    #region Shared Battle Configuration
 
     [Tooltip("Công thức EXP và bonus cấp dùng chung cho Player trong trận; tiến trình được tạo riêng và reset theo lượt chơi.")]
-    [SerializeField] private RunLevelConfigSO runLevelConfig;
+    [SerializeField, FormerlySerializedAs("runLevelConfig")] private InBattleLevelConfigSO inBattleLevelConfig;
 
     /// <summary>Service tạo trạng thái riêng từ config dùng chung này.</summary>
-    public RunLevelConfigSO RunLevelConfig => runLevelConfig;
+    public InBattleLevelConfigSO InBattleLevelConfig => inBattleLevelConfig;
 
     #endregion
 

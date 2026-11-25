@@ -118,20 +118,20 @@ public static class ServiceContractVerification
         var commands = container.Resolve<IGameFlow>();
         var playerReader = container.Resolve<IPlayerReader>();
         var characterDespawn = container.Resolve<ICharacterDespawn>();
-        var stageLifecycle = container.Resolve<IStageRunLifecycle>();
+        var stageLifecycle = container.Resolve<IStageBattleLifecycle>();
         var pauses = container.Resolve<IGamePause>();
         using (pauses.Acquire())
         {
             try
             {
-                Require(commands.StartRun(), "StartRun failed.");
+                Require(commands.StartBattle(), "StartBattle failed.");
                 Require(state.State == GameState.Playing && playerReader.RuntimeData.IsAlive, "Player did not enter Playing alive.");
                 CharacterView player = playerReader.CurrentPlayer;
                 CharacterRuntimeData oldRuntime = player.RuntimeData;
                 ulong oldGeneration = oldRuntime.Generation;
 
                 // Dừng lịch Stage để kiểm tra đồng bộ; token pause ngăn nhặt loot và ghi ví.
-                stageLifecycle.StopRun();
+                stageLifecycle.StopBattle();
                 CheckMovement(container, player);
                 CheckSkills(container, player);
                 CheckEffectsAndDamage(container, player, characterDespawn);
@@ -140,16 +140,16 @@ public static class ServiceContractVerification
                     Require(Time.timeScale == 0f, "Nested pause did not hold gameplay.");
                 Require(Time.timeScale == 0f, "Releasing one lease incorrectly resumed another lease.");
 
-                Require(commands.RestartRun(), "RestartRun failed.");
+                Require(commands.RestartBattle(), "RestartBattle failed.");
                 Require(playerReader.RuntimeData.IsAlive, "Restart did not create a living player.");
                 Require(!ReferenceEquals(oldRuntime, playerReader.RuntimeData) || oldGeneration != oldRuntime.Generation,
                     "Restart reused a runtime without changing its generation.");
                 var owned = new List<SkillRuntime>();
                 container.Resolve<IOwnedSkillReader>().GetOwnedSkills(playerReader.CurrentPlayer, owned);
                 Require(owned.Count == 0, "Restart retained gameplay skills.");
-                IRunReader run = container.Resolve<IRunReader>();
-                Require(run.Level == 1 && run.Experience == 0, "Restart did not reset run level.");
-                Require(run.Gold == 0 && run.EnemiesDefeated == 0, "Restart did not reset run statistics.");
+                IBattleProgress battle = container.Resolve<IBattleProgress>();
+                Require(battle.Level == 1 && battle.Experience == 0, "Restart did not reset battle level.");
+                Require(battle.Gold == 0 && battle.EnemiesDefeated == 0, "Restart did not reset battle statistics.");
                 Require(commands.ReturnHome(), "ReturnHome failed.");
                 Require(state.State == GameState.Home && playerReader.CurrentPlayer == null, "Home retained the player.");
             }
@@ -174,9 +174,9 @@ public static class ServiceContractVerification
             typeof(ICharacterRegistry), typeof(ICharacterDeathEvents), typeof(IPlayerReader), typeof(IPlayerLifecycle),
             typeof(IPlayerSelection), typeof(ICharacterCapacity));
         CheckDomainManager(container, typeof(WorldManager), typeof(IWorldMap));
-        CheckDomainManager(container, typeof(StageManager), typeof(IStageRunLifecycle), typeof(IStageSelection),
+        CheckDomainManager(container, typeof(StageManager), typeof(IStageBattleLifecycle), typeof(IStageSelection),
             typeof(IStageResults), typeof(IStageSchedule));
-        CheckDomainManager(container, typeof(RunManager), typeof(IRunReader), typeof(IRunLifecycle), typeof(ISkillChoice));
+        CheckDomainManager(container, typeof(BattleManager), typeof(IBattleProgress), typeof(IBattleReset), typeof(ISkillChoice));
         CheckDomainManager(container, typeof(GameManager), typeof(IGameState), typeof(IGameFlow), typeof(IGamePause), typeof(ILoadingProgress));
         // Dịch vụ UI dùng chung duy nhất được bind; là MonoBehaviour trong scene nên không đăng ký lifecycle của Zenject.
         Require(container.Resolve<IScreenTransition>() is ScreenTransitionController, "IScreenTransition must resolve to ScreenTransitionController.");
@@ -233,13 +233,13 @@ public static class ServiceContractVerification
     {
         var grant = container.Resolve<ISkillGrant>();
         var reader = container.Resolve<IOwnedSkillReader>();
-        SkillDataSO definition = container.Resolve<SkillDatabaseSO>().CreateRunChoiceCatalog().First();
+        SkillDataSO definition = container.Resolve<SkillDatabaseSO>().CreateBattleChoiceCatalog().First();
         Require(grant.GrantOrUpgrade(definition, player), "Could not grant a gameplay skill.");
         Require(reader.TryGetRuntime(definition, player, out SkillRuntime runtime), "Granted skill cannot be read.");
-        if (definition.MaxRunLevel > 1)
+        if (definition.MaxBattleLevel > 1)
         {
             Require(grant.GrantOrUpgrade(definition, player), "Could not upgrade the gameplay skill.");
-            Require(runtime.RunLevel == 2, "Skill did not advance to level two.");
+            Require(runtime.BattleLevel == 2, "Skill did not advance to level two.");
         }
     }
 
@@ -247,7 +247,7 @@ public static class ServiceContractVerification
     {
         CharacterDataSO definition = container.Resolve<CharacterDatabaseSO>().CreateLookup().Values
             .First(item => item.Team == CharacterTeam.Enemy && !item.IsBoss);
-        CharacterView enemy = GetManagerSystem<IStageRunLifecycle, EnemySpawner>(container, "spawner").Spawn(definition, 1,
+        CharacterView enemy = GetManagerSystem<IStageBattleLifecycle, EnemySpawner>(container, "spawner").Spawn(definition, 1,
             (Vector2)player.transform.position + Vector2.right * 3f);
         var target = new CharacterHandle(enemy);
         SpatialHandle spatialHandle = enemy.SpatialHandle;

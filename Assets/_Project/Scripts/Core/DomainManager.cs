@@ -1,5 +1,5 @@
 /// <summary>
-/// Base của Manager theo miền (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Run, Game).
+/// Base của Manager theo miền (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Battle, Game).
 /// Lifecycle là virtual rỗng: Manager chỉ override phase mình cần.
 /// </summary>
 /// <remarks>

@@ -5,16 +5,16 @@ using System;
 /// Không ghi gì vào save: hết lượt là mất.
 /// </summary>
 /// <remarks>
-/// Do <see cref="RunManager"/> tạo; thay cho RunLevelService + phần "run" của LevelManager cũ.
+/// Do <see cref="BattleManager"/> tạo; thay cho RunLevelService + phần "run" của LevelManager cũ.
 /// Bonus level trận là <b>một nguồn riêng</b> (lease) trong <see cref="StatSheet"/> của Player.
-/// Run nằm trên Character nên tự thêm nguồn này khi Player xuất hiện, thay vì để PlayerSystem nghe ngược lên Run.
+/// Battle nằm trên Character nên tự thêm nguồn này khi Player xuất hiện, thay vì để PlayerSystem nghe ngược lên Battle.
 /// </remarks>
-public sealed class RunLevel : IDisposable
+public sealed class InBattleLevel : IDisposable
 {
     #region Fields
 
-    private readonly RunLevelConfigSO config; // Chỉ đọc công thức EXP và bonus mỗi cấp; không ghi vào asset.
-    private readonly RunLevelProgress progress; // Trạng thái level/EXP của lượt hiện tại.
+    private readonly InBattleLevelConfigSO config; // Chỉ đọc công thức EXP và bonus mỗi cấp; không ghi vào asset.
+    private readonly InBattleLevelProgress progress; // Trạng thái level/EXP của lượt hiện tại.
     private readonly IPlayerReader players;
     // Nguồn bonus level trận trên Player hiện tại; null khi chưa có Player.
     // Không Dispose khi Player bị thu hồi: runtime về pool đã xóa mọi nguồn và vô hiệu hóa lease (giống PlayerSystem).
@@ -54,11 +54,11 @@ public sealed class RunLevel : IDisposable
     #region Constructor / Lifecycle
 
     /// <summary>Chuẩn bị tiến trình level 1 và nghe Player để gắn nguồn bonus.</summary>
-    public RunLevel(RunLevelConfigSO config, IPlayerReader players)
+    public InBattleLevel(InBattleLevelConfigSO config, IPlayerReader players)
     {
-        this.config = config != null ? config : throw new ArgumentException("Gán Run Level Config trong LevelDatabaseSO.", nameof(config));
+        this.config = config != null ? config : throw new ArgumentException("Gán In-Battle Level Config trong LevelDatabaseSO.", nameof(config));
         this.players = players ?? throw new ArgumentNullException(nameof(players));
-        progress = new RunLevelProgress(config);
+        progress = new InBattleLevelProgress(config);
         players.PlayerChanged += OnPlayerChanged;
     }
 
@@ -137,7 +137,7 @@ public sealed class RunLevel : IDisposable
 
     private void BeginChange()
     {
-        if (disposed) throw new ObjectDisposedException(nameof(RunLevel));
+        if (disposed) throw new ObjectDisposedException(nameof(InBattleLevel));
         if (changing) throw new InvalidOperationException("Không được thay đổi level trận từ trong callback của level trận.");
         changing = true;
     }

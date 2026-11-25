@@ -8,7 +8,7 @@ internal sealed class FormationSpawnSystem
     #region Snapshot & Dependencies
 
     /// <summary>Snapshot một lượt Pattern: nhóm, quái, cấp, quota và lịch sinh.</summary>
-    private sealed class Run
+    private sealed class ActiveFormation
     {
         public EnemyPatternSO.RuntimeData config;
         public EnemyFormationRuntime group;
@@ -20,7 +20,7 @@ internal sealed class FormationSpawnSystem
     private readonly IPlayerReader players;
     private readonly ISpatialInvalidation spatialInvalidation;
     private readonly StageSpawnRoster roster;
-    private readonly List<Run> runs = new List<Run>();
+    private readonly List<ActiveFormation> formations = new List<ActiveFormation>();
     #endregion
 
     #region Counts & Construction
@@ -30,7 +30,7 @@ internal sealed class FormationSpawnSystem
     /// <summary>True khi mọi nhóm đã sinh đủ số thành viên dự kiến.</summary>
     public bool DeploymentComplete
     {
-        get { foreach (var run in runs) if (run.spawned < run.total) return false; return true; }
+        get { foreach (var formation in formations) if (formation.spawned < formation.total) return false; return true; }
     }
 
     /// <summary>Nhận spawner, player và vai trò báo lưới không gian dựng lại qua constructor.</summary>
@@ -62,7 +62,7 @@ internal sealed class FormationSpawnSystem
     public void Execute(EnemyPatternSO source)
     {
         var config = source.CreateRuntimeData();
-        runs.Add(new Run
+        formations.Add(new ActiveFormation
         {
             config = config,
             enemies = config.Enemies,
@@ -75,29 +75,29 @@ internal sealed class FormationSpawnSystem
     }
 
     /// <summary>Tạo runtime tại thời điểm bắt đầu để lấy đúng camera và chốt tâm Area tại vị trí Player hiện tại.</summary>
-    private void StartRun(Run run)
+    private void StartFormation(ActiveFormation formation)
     {
-        var config = run.config;
+        var config = formation.config;
         var camera = spawner.FormationCamera;
         var route = config.CreateRoute(camera != null ? camera.transform : null);
         // Area lấy Player làm tâm chỉ ở thời điểm spawn; sau đó vòng đứng yên trong world.
         Vector2 areaCenter = players.CurrentPlayer != null ? (Vector2)players.CurrentPlayer.transform.position : Vector2.zero;
-        run.group = new EnemyFormationRuntime(config, route, areaCenter, spawner.Despawn);
-        roster.Add(run.group);
-        if (config.Type == EnemyPatternType.SequentialPath) SpawnMember(run);
-        else while (run.spawned < run.total) SpawnMember(run);
+        formation.group = new EnemyFormationRuntime(config, route, areaCenter, spawner.Despawn);
+        roster.Add(formation.group);
+        if (config.Type == EnemyPatternType.SequentialPath) SpawnMember(formation);
+        else while (formation.spawned < formation.total) SpawnMember(formation);
     }
 
     /// <summary>Tạo thành viên theo chỉ số, gắn vào nhóm và Seal khi đủ quota.</summary>
-    private void SpawnMember(Run run)
+    private void SpawnMember(ActiveFormation formation)
     {
         var controller = spawner.CreateController();
-        var enemy = spawner.Spawn(run.enemies[UnityEngine.Random.Range(0, run.enemies.Length)],
-            run.level, run.group.GetSpawnPosition(run.spawned), controller);
-        try { run.group.Add(enemy, controller, run.spawned); }
+        var enemy = spawner.Spawn(formation.enemies[UnityEngine.Random.Range(0, formation.enemies.Length)],
+            formation.level, formation.group.GetSpawnPosition(formation.spawned), controller);
+        try { formation.group.Add(enemy, controller, formation.spawned); }
         catch { spawner.Despawn(enemy); throw; }
-        run.spawned++;
-        if (run.spawned == run.total) run.group.Seal();
+        formation.spawned++;
+        if (formation.spawned == formation.total) formation.group.Seal();
     }
 
     #endregion
@@ -108,23 +108,23 @@ internal sealed class FormationSpawnSystem
     public void Tick(float stageTime, float deltaTime)
     {
         if (deltaTime <= 0f) return;
-        for (int i = runs.Count - 1; i >= 0; i--)
+        for (int i = formations.Count - 1; i >= 0; i--)
         {
-            var run = runs[i];
-            if (stageTime < run.startsAt) continue;
-            if (run.group == null) StartRun(run);
-            float cursor = Mathf.Max(run.startsAt, stageTime - deltaTime);
+            var formation = formations[i];
+            if (stageTime < formation.startsAt) continue;
+            if (formation.group == null) StartFormation(formation);
+            float cursor = Mathf.Max(formation.startsAt, stageTime - deltaTime);
             // Advance old members up to each birth, so a new member never receives time before its birth.
-            while (!run.group.IsBroken && run.spawned < run.total && run.nextSpawn <= stageTime)
+            while (!formation.group.IsBroken && formation.spawned < formation.total && formation.nextSpawn <= stageTime)
             {
-                run.group.Tick(Mathf.Max(0f, run.nextSpawn - cursor));
-                cursor = Mathf.Max(cursor, run.nextSpawn);
-                if (run.group.IsBroken) break;
-                SpawnMember(run);
-                run.nextSpawn += run.interval;
+                formation.group.Tick(Mathf.Max(0f, formation.nextSpawn - cursor));
+                cursor = Mathf.Max(cursor, formation.nextSpawn);
+                if (formation.group.IsBroken) break;
+                SpawnMember(formation);
+                formation.nextSpawn += formation.interval;
             }
-            run.group.Tick(Mathf.Max(0f, stageTime - cursor));
-            if (run.group.IsBroken) runs.RemoveAt(i);
+            formation.group.Tick(Mathf.Max(0f, stageTime - cursor));
+            if (formation.group.IsBroken) formations.RemoveAt(i);
         }
     }
 
@@ -132,7 +132,7 @@ internal sealed class FormationSpawnSystem
     public void LateTick()
     {
         bool moved = false;
-        foreach (var run in runs) if (run.group != null) moved |= run.group.ApplyCameraMotion();
+        foreach (var formation in formations) if (formation.group != null) moved |= formation.group.ApplyCameraMotion();
         if (moved) spatialInvalidation.Invalidate();
     }
 
@@ -143,7 +143,7 @@ internal sealed class FormationSpawnSystem
     /// <summary>Hủy lịch sinh rồi giao roster thu hồi các nhóm đang sở hữu.</summary>
     public void Stop()
     {
-        runs.Clear();
+        formations.Clear();
         roster.Clear();
     }
     #endregion

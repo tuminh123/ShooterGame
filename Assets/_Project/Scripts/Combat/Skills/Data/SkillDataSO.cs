@@ -41,7 +41,7 @@ public sealed class SkillDataSO : ScriptableObject
     public SkillSource Source => source;
     public int Level => level;
     public int MaxLevel => levels.Length;
-    public int MaxRunLevel => MaxLevel;
+    public int MaxBattleLevel => MaxLevel;
     public string DisplayName => displayName;
     public string Description => description;
     public Sprite Icon => icon;
@@ -61,7 +61,7 @@ public sealed class SkillDataSO : ScriptableObject
     internal bool HasBehaviour(SkillBehaviourType type) => Array.IndexOf(behaviourTypes, type) >= 0;
 
     // UI đọc mô tả từ cùng cấp dùng để cấu hình runtime.
-    public string GetRunLevelDescription(int currentLevel)
+    public string GetLevelDescription(int currentLevel)
     {
         string text = GetLevel(currentLevel).Description;
         // Cấp chưa có mô tả riêng thì dùng mô tả chung của skill.

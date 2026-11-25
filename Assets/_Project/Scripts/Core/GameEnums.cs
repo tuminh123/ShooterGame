@@ -111,7 +111,7 @@ public enum SkillSource { Gameplay, Character, Equipment }
 public enum GameState
 {
     Boot, // Scene đang khởi tạo tài nguyên.
-    PreparingRun, // Dọn lượt cũ và tạo Player cho lượt mới.
+    PreparingBattle, // Dọn lượt cũ và tạo Player cho lượt mới.
     Home, // Sẵn sàng bắt đầu lượt chơi.
     Playing, // Trận đấu đang diễn ra.
     Won, // Animation kết quả xong, UI thắng được mở.
@@ -133,13 +133,13 @@ public enum MissionObjectiveType
 {
     KillEnemy = 0,            // Hạ quái; nhóm và loại quái lọc ở MissionTask (EnemyKind, CharacterType).
     KillBoss = 1,             // Không còn dùng (thay bằng KillEnemy + EnemyKind.Boss); giữ số, asset dùng lại sẽ bị báo lỗi.
-    FinishRun = 2,            // Chơi hết một trận, thắng hoặc thua (bỏ giữa chừng không tính).
-    WinRun = 3,
-    CollectRunGold = 4,       // Vàng nhặt trong trận đã chơi hết; không tính thưởng màn.
+    FinishBattle = 2,            // Chơi hết một trận, thắng hoặc thua (bỏ giữa chừng không tính).
+    WinBattle = 3,
+    CollectBattleGold = 4,       // Vàng nhặt trong trận đã chơi hết; không tính thưởng màn.
     RaiseCharacterLevel = 5,  // Theo level thật tăng, không theo lần bấm.
     RaiseCharacterStar = 6,
     RaiseEquipmentLevel = 7,
-    CompleteMission = 8       // Số mission thường đã xong trong nhóm; chỉ dùng ở Final Mission.
+    CompleteMission = 8       // Số mission thường đã nhận thưởng trong nhóm; chỉ dùng ở Final Mission.
 }
 
 /// <summary>Nhóm quái trong nhiệm vụ giết. Any chỉ dùng làm bộ lọc; asset lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
@@ -209,7 +209,7 @@ public enum EquipmentSet { None = 0, Samurai = 1, Witch = 2 }
 
 #endregion
 
-#region Run
+#region Battle
 
 /// <summary>Loại phần thưởng của vật phẩm rơi; quyết định LootSystem cộng EXP hay vàng.</summary>
 public enum PickupType { Experience, Gold }

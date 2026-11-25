@@ -1,11 +1,11 @@
 using System;
 
 /// <summary>Tiến trình level class thuần của một lượt chơi; mỗi nhân vật/lượt chơi tạo instance riêng, không đưa vào PlayerSaveData.</summary>
-public sealed class RunLevelProgress
+public sealed class InBattleLevelProgress
 {
-    #region Run State
+    #region Battle State
 
-    private readonly RunLevelConfigSO config; // Chỉ đọc công thức EXP và bonus cố định; không sửa asset dùng chung.
+    private readonly InBattleLevelConfigSO config; // Chỉ đọc công thức EXP và bonus cố định; không sửa asset dùng chung.
 
     /// <summary>Level trong trận, bắt đầu từ 1.</summary>
     public int Level { get; private set; } = 1;
@@ -21,7 +21,7 @@ public sealed class RunLevelProgress
     #region Initialization & Experience
 
     /// <summary>Nhận config từ bên gọi; không bind singleton vì mỗi lượt chơi cần trạng thái riêng.</summary>
-    public RunLevelProgress(RunLevelConfigSO config)
+    public InBattleLevelProgress(InBattleLevelConfigSO config)
     {
         this.config = config != null ? config : throw new ArgumentNullException(nameof(config));
     }

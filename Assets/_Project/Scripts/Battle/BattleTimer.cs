@@ -1,8 +1,8 @@
 using System;
 
 /// <summary>Đồng hồ gameplay của lượt chơi: đếm giây khi Player còn sống, chỉ báo khi số giây nguyên đổi.</summary>
-/// <remarks>Do <see cref="RunManager"/> tạo và gọi <see cref="Tick"/>; không bind vào Zenject.</remarks>
-public sealed class RunClock
+/// <remarks>Do <see cref="BattleManager"/> tạo và gọi <see cref="Tick"/>; không bind vào Zenject.</remarks>
+public sealed class BattleTimer
 {
     #region State
 

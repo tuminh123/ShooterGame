@@ -533,7 +533,7 @@ public sealed class EquipmentScreenController : UIPanelController
         if (skill == null)
             return EquipmentBonusBlockModel.Hidden;
         // Skill trang bị chỉ có một cấp.
-        string description = skill.GetRunLevelDescription(1);
+        string description = skill.GetLevelDescription(1);
         bool unlocked = item.Definition.TryGetSkill(item.Level, out _);
         string text = unlocked
             ? string.Format(CultureInfo.InvariantCulture, skillFormat, skill.DisplayName, description)

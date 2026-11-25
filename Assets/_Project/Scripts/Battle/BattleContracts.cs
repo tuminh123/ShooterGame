@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 
-// Ranh giới của miền Run: đây là TẤT CẢ những gì miền khác được phép dùng.
-// Mọi interface trong file này do RunManager implement. RunClock, RunStatistics, RunLevel, LootSystem và SkillChoice
+// Ranh giới của miền Battle: đây là TẤT CẢ những gì miền khác được phép dùng.
+// Mọi interface trong file này do BattleManager implement. BattleTimer, BattleStatistics, InBattleLevel, LootSystem và SkillChoice
 // nằm bên trong miền, không được bind vào Zenject.
-// Run nằm trên Character và Combat (gọi xuống trực tiếp); Game và UI dùng Run qua các vai trò dưới đây.
+// Battle nằm trên Character và Combat (gọi xuống trực tiếp); Game và UI dùng Battle qua các vai trò dưới đây.
 // Chiều ngược (lên cấp, số liệu trận thay đổi, reset) chỉ đi qua C# event.
 // Xem Docs/Architecture/Refactor-Architecture.md.
 
 #region Reader (HUD, popup kết quả, bảng chọn skill)
 
 /// <summary>
-/// Đọc tiến trình và số liệu của lượt chơi hiện tại. Dùng bởi HUD trận (RunUI), popup kết quả và bảng chọn skill.
+/// Đọc tiến trình và số liệu của lượt chơi hiện tại. Dùng bởi HUD trận (BattleHud), popup kết quả và bảng chọn skill.
 /// </summary>
 /// <remarks>Một vai trò đọc chung vì cả ba nơi dùng đều là UI hiển thị cùng một lượt chơi.</remarks>
-public interface IRunReader
+public interface IBattleProgress
 {
     /// <summary>Level hiện tại trong trận, bắt đầu từ 1.</summary>
     int Level { get; }
@@ -47,10 +47,10 @@ public interface IRunReader
     event Action<int> EnemiesDefeatedChanged;
 
     /// <summary>
-    /// Lượt mới bắt đầu (level 1, EXP 0, số liệu về 0). Phát sau khi mọi system của Run đã reset,
+    /// Lượt mới bắt đầu (level 1, EXP 0, số liệu về 0). Phát sau khi mọi system của Battle đã reset,
     /// nên bên nghe đọc được giá trị mới ngay trong callback.
     /// </summary>
-    event Action RunReset;
+    event Action BattleReset;
 }
 
 #endregion
@@ -58,13 +58,13 @@ public interface IRunReader
 #region Lifecycle (GameManager)
 
 /// <summary>Reset lượt chơi theo luồng game. Dùng bởi GameManager khi vào trận mới, chơi lại hoặc về Home.</summary>
-public interface IRunLifecycle
+public interface IBattleReset
 {
     /// <summary>
     /// Dọn skill gameplay (Combat), thu hồi loot trên mặt đất, đưa level/EXP, đồng hồ và thống kê về đầu lượt,
-    /// rồi phát <see cref="IRunReader.RunReset"/>. Không được gọi từ trong callback của chính miền Run.
+    /// rồi phát <see cref="IBattleProgress.BattleReset"/>. Không được gọi từ trong callback của chính miền Battle.
     /// </summary>
-    void ResetRun();
+    void ResetBattle();
 }
 
 #endregion
@@ -73,7 +73,7 @@ public interface IRunLifecycle
 
 /// <summary>
 /// Lượt chọn skill khi lên cấp. Dùng bởi SkillChoiceController (UI): UI lo pause, slow motion và panel;
-/// Run lo đếm lượt, roll lựa chọn và áp dụng qua Combat.
+/// Battle lo đếm lượt, roll lựa chọn và áp dụng qua Combat.
 /// </summary>
 public interface ISkillChoice
 {

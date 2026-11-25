@@ -157,7 +157,7 @@ public sealed class CombatManager :
     }
 
     /// <inheritdoc/>
-    public void ClearRunSkills() => skills.ClearRunSkills();
+    public void ClearBattleSkills() => skills.ClearBattleSkills();
 
     #endregion
 

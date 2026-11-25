@@ -31,17 +31,17 @@ public interface IOwnedSkillReader
 
 #region Game Flow (GameManager)
 
-/// <summary>Dọn combat theo luồng game. Dùng bởi GameManager (kết thúc trận, chơi lại, về Home) và RunManager (reset lượt).</summary>
+/// <summary>Dọn combat theo luồng game. Dùng bởi GameManager (kết thúc trận, chơi lại, về Home) và BattleManager (reset lượt).</summary>
 public interface ICombatLifecycle
 {
     /// <summary>
     /// Thu hồi toàn bộ đạn, effect gameplay và VFX đang chạy, và dừng skill vốn có của mọi nhân vật còn lại
-    /// (nhân vật đứng yên chờ kết quả hoặc sắp bị thu hồi). Skill gameplay dọn riêng bằng <see cref="ClearRunSkills"/>.
+    /// (nhân vật đứng yên chờ kết quả hoặc sắp bị thu hồi). Skill gameplay dọn riêng bằng <see cref="ClearBattleSkills"/>.
     /// </summary>
     void ClearCombat();
 
     /// <summary>Thu hồi mọi skill gameplay nhận được trong trận. Skill vốn có của nhân vật không bị ảnh hưởng.</summary>
-    void ClearRunSkills();
+    void ClearBattleSkills();
 }
 
 #endregion

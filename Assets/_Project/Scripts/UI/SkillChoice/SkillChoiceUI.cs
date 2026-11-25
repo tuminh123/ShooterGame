@@ -42,7 +42,7 @@ public sealed class SkillChoiceUI : MonoBehaviour
                 ? offer.Definition.name : offer.Definition.DisplayName;
             string action = offer.CurrentLevel == 0 ? "NEW SKILL - Lv. 1" : // Phân biệt nhận mới và nâng từ cấp đang có.
                 $"UPGRADE - Lv. {offer.CurrentLevel} > {offer.OfferedLevel}";
-            description.text = action + "\n" + offer.Definition.GetRunLevelDescription(offer.OfferedLevel);
+            description.text = action + "\n" + offer.Definition.GetLevelDescription(offer.OfferedLevel);
             // Group_GreadGems đã có Off/On, mỗi hàng 5 Gem. Không nhân bản cả group.
             // Off = số cấp tối đa; On = cấp sẽ nhận nếu chọn. Skill mới luôn bắt đầu một sao.
             for (int i = 0; i < gemsOff.childCount; i++) gemsOff.GetChild(i).gameObject.SetActive(i < offer.MaxLevel);

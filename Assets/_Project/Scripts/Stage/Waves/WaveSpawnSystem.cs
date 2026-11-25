@@ -14,7 +14,7 @@ internal sealed class WaveSpawnSystem
     #region Sequence State
 
     /// <summary>Giữ wave hiện tại, quota, mốc thời gian Stage và roster riêng.</summary>
-    private sealed class Run
+    private sealed class ActiveWave
     {
         public WaveConfigSO.Wave[] waves;
         public WaveAdvanceCondition condition;
@@ -24,7 +24,7 @@ internal sealed class WaveSpawnSystem
         public bool finished;
     }
     private readonly EnemySpawner spawner; // Tạo/thu hồi quái, vùng sinh; do StageManager tạo và dùng chung cho mọi system.
-    private readonly List<Run> runs = new List<Run>();
+    private readonly List<ActiveWave> activeWaves = new List<ActiveWave>();
 
     #endregion
 
@@ -38,7 +38,7 @@ internal sealed class WaveSpawnSystem
     /// <summary>True khi mọi chuỗi đã sinh đủ quái của wave cuối.</summary>
     public bool DeploymentComplete
     {
-        get { foreach (var run in runs) if (!run.finished) return false; return true; }
+        get { foreach (var active in activeWaves) if (!active.finished) return false; return true; }
     }
     /// <summary>Tổng quái còn sống của mọi chuỗi, gồm cả quái từ wave trước.</summary>
     public int AliveCount
@@ -46,7 +46,7 @@ internal sealed class WaveSpawnSystem
         get
         {
             int count = 0;
-            foreach (var run in runs) count += run.roster.AliveCount;
+            foreach (var active in activeWaves) count += active.roster.AliveCount;
             return count;
         }
     }
@@ -70,7 +70,7 @@ internal sealed class WaveSpawnSystem
         var snapshots = new WaveConfigSO.Wave[config.Count];
         for (int i = 0; i < snapshots.Length; i++)
             snapshots[i] = config.GetWave(i).CreateSnapshot();
-        runs.Add(new Run { waves = snapshots, condition = config.AdvanceCondition, roster = new StageSpawnRoster(spawner) });
+        activeWaves.Add(new ActiveWave { waves = snapshots, condition = config.AdvanceCondition, roster = new StageSpawnRoster(spawner) });
         // Chuỗi theo giờ biết trước mọi mốc. Chuỗi chờ dọn quái chỉ biết chắc wave đầu.
         float startsAt = 0f;
         for (int i = 0; i < snapshots.Length; i++)
@@ -110,42 +110,42 @@ internal sealed class WaveSpawnSystem
     public void Tick(float stageTime, float deltaTime)
     {
         // Màn không có wave: không phát AllWavesSpawned/FinalWaveCleared (giữ đúng hành vi khi system chưa tồn tại).
-        if (deltaTime <= 0f || runs.Count == 0) return;
+        if (deltaTime <= 0f || activeWaves.Count == 0) return;
         bool finalAlive = false;
-        foreach (var run in runs)
+        foreach (var active in activeWaves)
         {
-            while (!run.finished)
+            while (!active.finished)
             {
-                var wave = run.waves[run.index];
-                if (run.spawned < wave.SpawnCount)
+                var wave = active.waves[active.index];
+                if (active.spawned < wave.SpawnCount)
                 {
-                    if (stageTime < run.nextSpawnAt) break;
+                    if (stageTime < active.nextSpawnAt) break;
                     var enemy = spawner.Spawn(wave.Enemies[UnityEngine.Random.Range(0, wave.Enemies.Count)],
-                        run.index + 1, spawner.ChoosePerimeterPoint());
-                    run.roster.Add(enemy);
-                    run.spawned++;
-                    run.nextWaveAt = run.nextSpawnAt + wave.DelayAfterSpawn;
-                    if (wave.SpawnMode == WaveSpawnMode.Sequential) run.nextSpawnAt += wave.SpawnInterval;
-                    if (run.spawned == wave.SpawnCount && run.index == run.waves.Length - 1)
-                        run.finished = true;
+                        active.index + 1, spawner.ChoosePerimeterPoint());
+                    active.roster.Add(enemy);
+                    active.spawned++;
+                    active.nextWaveAt = active.nextSpawnAt + wave.DelayAfterSpawn;
+                    if (wave.SpawnMode == WaveSpawnMode.Sequential) active.nextSpawnAt += wave.SpawnInterval;
+                    if (active.spawned == wave.SpawnCount && active.index == active.waves.Length - 1)
+                        active.finished = true;
                     continue;
                 }
 
-                bool advance = run.condition == WaveAdvanceCondition.AfterDuration
-                    ? stageTime >= run.nextWaveAt : run.roster.AliveCount == 0;
+                bool advance = active.condition == WaveAdvanceCondition.AfterDuration
+                    ? stageTime >= active.nextWaveAt : active.roster.AliveCount == 0;
                 if (!advance) break;
-                run.index++;
-                run.spawned = 0;
-                run.nextSpawnAt = run.condition == WaveAdvanceCondition.AfterDuration
-                    ? run.nextWaveAt : stageTime;
-                if (run.condition == WaveAdvanceCondition.AfterEnemiesCleared &&
-                    run.waves[run.index].SpawnMode == WaveSpawnMode.Simultaneous)
+                active.index++;
+                active.spawned = 0;
+                active.nextSpawnAt = active.condition == WaveAdvanceCondition.AfterDuration
+                    ? active.nextWaveAt : stageTime;
+                if (active.condition == WaveAdvanceCondition.AfterEnemiesCleared &&
+                    active.waves[active.index].SpawnMode == WaveSpawnMode.Simultaneous)
                     SpawnScheduled?.Invoke(StageSpawnWarning.SimultaneousWave, stageTime);
             }
-            if (run.index == run.waves.Length - 1 && run.roster.AliveCount > 0) finalAlive = true;
+            if (active.index == active.waves.Length - 1 && active.roster.AliveCount > 0) finalAlive = true;
         }
         bool allSpawned = true;
-        foreach (var run in runs) if (!run.finished) { allSpawned = false; break; }
+        foreach (var active in activeWaves) if (!active.finished) { allSpawned = false; break; }
         if (allSpawned && !allWavesSpawnedRaised) { allWavesSpawnedRaised = true; AllWavesSpawned?.Invoke(); }
         if (allSpawned && !finalAlive && !finalWaveClearedRaised)
         { finalWaveClearedRaised = true; FinalWaveCleared?.Invoke(); }
@@ -159,16 +159,16 @@ internal sealed class WaveSpawnSystem
     public void Stop()
     {
         List<Exception> failures = null;
-        foreach (var run in runs)
+        foreach (var active in activeWaves)
         {
-            try { run.roster.Clear(); }
+            try { active.roster.Clear(); }
             catch (Exception e)
             {
                 if (failures == null) failures = new List<Exception>();
                 failures.Add(e);
             }
         }
-        runs.Clear();
+        activeWaves.Clear();
         allWavesSpawnedRaised = finalWaveClearedRaised = false;
         if (failures != null) throw new AggregateException("Wave cleanup failed.", failures);
     }

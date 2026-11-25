@@ -4,19 +4,19 @@
 
 ## Gameplay
 
-> Từ Giai đoạn 4, rơi/nhặt loot thuộc miền Run: `RunManager` tự tạo `LootSystem`, `RunLevel`, `RunClock` và `RunStatistics` (`Assets/_Project/Scripts/Run/`). Xem `Docs/Architecture/Refactor-Architecture.md`.
+> Từ Giai đoạn 4, rơi/nhặt loot thuộc miền Battle: `BattleManager` tự tạo `LootSystem`, `InBattleLevel`, `BattleTimer` và `BattleStatistics` (`Assets/_Project/Scripts/Battle/`). Xem `Docs/Architecture/Refactor-Architecture.md`.
 
-- `CharacterManager.CharacterDied` notifies `RunManager` before the enemy shell is returned to its pool; RunManager counts the kill (`RunStatistics`) and calls `LootSystem.DropAt`. Despawning or hiding an enemy does not grant loot.
+- `CharacterManager.CharacterDied` notifies `BattleManager` before the enemy shell is returned to its pool; BattleManager counts the kill (`BattleStatistics`) and calls `LootSystem.DropAt`. Despawning or hiding an enemy does not grant loot.
 - `LootDatabaseSO` contains entries keyed by `PickupType`. The sample Experience entry has amount 1 and Drop Chance 1, so every enemy drops the same EXP. Gold has amount 1 and Drop Chance 0.2, adding a gold pile on 20% of deaths. Enemy type/level does not change these values yet. Entries can be disabled with chance 0 or omitted.
 - `LootPickup.prefab` is a common pooled SpriteRenderer shell. `PickupView` stores reward type and amount; LootSystem assigns its sprite before activation.
-- `RunManager.LateTick` (600, after SimulationManager) calls `LootSystem.Collect` with the live Player position. The pickup is removed and returned to the pool before `LootSystem.Collected` is raised. There are no pickup colliders, per-pickup Update methods or automatic expiration. No attraction movement is implemented: walk within `pickupRadius` (default 0.25 world units) to collect.
-- RunManager routes rewards: Experience → `RunLevel.AddExperience`; Gold → `ICurrencyWallet.Add` (saved immediately) and `RunStatistics.AddGold` (run statistic only, not settled again at the end). LootSystem has no UI references, gold balance or clock.
-- `RunClock` keeps a double accumulator, publishes TimeChanged only when the whole-second value changes, and stops while paused or the Player is dead/inactive.
-- `IRunLifecycle.ResetRun()` (called by GameManager) clears gameplay skills via Combat, clears remaining pickups, resets the clock, statistics and run level, then raises `RunReset`. Scene disposal (RunManager, order 210) returns remaining pickups before PoolManager disposal.
+- `BattleManager.LateTick` (600, after SimulationManager) calls `LootSystem.Collect` with the live Player position. The pickup is removed and returned to the pool before `LootSystem.Collected` is raised. There are no pickup colliders, per-pickup Update methods or automatic expiration. No attraction movement is implemented: walk within `pickupRadius` (default 0.25 world units) to collect.
+- BattleManager routes rewards: Experience → `InBattleLevel.AddExperience`; Gold → `ICurrencyWallet.Add` (saved immediately) and `BattleStatistics.AddGold` (run statistic only, not settled again at the end). LootSystem has no UI references, gold balance or clock.
+- `BattleTimer` keeps a double accumulator, publishes TimeChanged only when the whole-second value changes, and stops while paused or the Player is dead/inactive.
+- `IBattleReset.ResetBattle()` (called by GameManager) clears gameplay skills via Combat, clears remaining pickups, resets the clock, statistics and run level, then raises `BattleReset`. Scene disposal (BattleManager, order 210) returns remaining pickups before PoolManager disposal.
 
 ## Configuration
 
-`Assets/_Project/DataSO/Databases/LootDatabase.asset` is assigned in `GameSceneInstaller > Gameplay Databases > Loot Database`, alongside the Character/Equipment databases. The old nested LootManager.Settings and scene settings block were removed. The database script is `Run/Loot/LootDatabaseSO.cs`.
+`Assets/_Project/DataSO/Databases/LootDatabase.asset` is assigned in `GameSceneInstaller > Gameplay Databases > Loot Database`, alongside the Character/Equipment databases. The old nested LootManager.Settings and scene settings block were removed. The database script is `Battle/Loot/LootDatabaseSO.cs`.
 
 Edit each entry's Amount, Drop Chance and Sprite in that asset. Pickup Prefab and Pickup Radius (0.25) remain shared fields in the database. There is no Visual Width setting or size normalization: the common pickup prefab and each spawned clone use scale (1,1,1). Configure the desired size of each sprite through its texture Import Settings / Pixels Per Unit. The manager builds its type lookup once and keeps live pickups in runtime collections; no runtime state is stored on the asset.
 
@@ -30,7 +30,7 @@ Experience uses a single blue faceted gem (`ExperienceGem.png`); the original cr
 - `Character.prefab` contains `CharacterVitals.prefab`, a World Space Canvas under the character shell. `UI/Character/CharacterUI.cs` is attached to the character root so it still receives OnEnable while that child Canvas starts disabled. It shows bars only for Player or `CharacterView.IsBoss`. Ordinary enemies keep it disabled. Boss still belongs to team Enemy. Configure Is Boss on its CharacterData asset.
 - Set the vitals group's position and scale manually in the prefab. CharacterUI does not recalculate position from sprite bounds, restore an offset, or convert to screen coordinates. The Canvas follows its character parent naturally. Existing prefab transform/layout overrides are preserved.
 - `CharacterUI` determines Player/boss visibility on each enable and subscribes to the current runtime, visual-visibility notifications and deactivation. It updates the two generic BarViews, hides zero shield and detaches old runtime subscriptions before pool reuse. `CharacterView` only exposes spawn metadata and visual lifecycle events; it has no bar references or UI update methods. The child Canvas stays with the pooled character shell.
-- `RunUI` reads EXP, level, gold, time and kills from `IRunReader` (RunManager) for the scene counters.
+- `BattleHud` reads EXP, level, gold, time and kills from `IBattleProgress` (BattleManager) for the scene counters.
 
 Generated art uses transparent PNGs with Point filtering. Original generation prompts and output paths are recorded in [Pickup-Art-Prompts.md](../Art/Pickup-Art-Prompts.md).
 

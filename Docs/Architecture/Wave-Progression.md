@@ -48,7 +48,7 @@ ordinary quota or inter-wave delay is held by StageManager.
 - Each system exposes DeploymentComplete and AliveCount; StageManager combines them for
   the victory condition.
 
-StageTime resets to zero at BeginRun and advances only on active gameplay ticks
+StageTime resets to zero at BeginBattle and advances only on active gameplay ticks
 after the player is ready. Every system receives the same StageTime and deltaTime.
 It freezes with scaled gameplay pause and stops at the end of the run.
 Spawn deadlines use StageTime; group movement integrates the Stage deltaTime.
@@ -136,7 +136,7 @@ DeploymentComplete means that the system has finished its spawn program; AliveCo
 is separate. Stage wins only when all systems finished and no living actors remain.
 Pattern members may satisfy this by naturally reaching the route end or Area expiry.
 
-Real kills still raise CharacterDied and use the Run domain's loot rules (RunManager → LootSystem). Natural
+Real kills still raise CharacterDied and use the Battle domain's loot rules (BattleManager → LootSystem). Natural
 despawn returns actors without kill rewards. Identity/generation guards prevent
 stale owners from affecting a reused pooled shell.
 

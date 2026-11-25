@@ -29,9 +29,9 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
         icon.sprite = skill.Definition.Icon;
         icon.enabled = icon.sprite != null;
         icon.preserveAspect = true;
-        int max = Mathf.Max(1, skill.Definition.MaxRunLevel); // Skill đơn cấp chỉ hiện một sao, không dựa vào MaxLevel cũ.
+        int max = Mathf.Max(1, skill.Definition.MaxBattleLevel); // Skill đơn cấp chỉ hiện một sao, không dựa vào MaxLevel cũ.
         ShowStars(gemsOff, max, max);
-        ShowStars(gemsOn, max, skill.RunLevel);
+        ShowStars(gemsOn, max, skill.BattleLevel);
         if (hovered) ShowTooltip();
     }
 
@@ -89,8 +89,8 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
         if (currentSkill == null || !currentSkill.IsActive || tooltip == null || tooltipText == null) return;
         SkillDataSO definition = currentSkill.Definition;
         string title = string.IsNullOrWhiteSpace(definition.DisplayName) ? definition.name : definition.DisplayName;
-        tooltipText.text = $"<b>{title}</b>\nLv. {currentSkill.RunLevel} / {definition.MaxRunLevel}\n\n" +
-            definition.GetRunLevelDescription(currentSkill.RunLevel);
+        tooltipText.text = $"<b>{title}</b>\nLv. {currentSkill.BattleLevel} / {definition.MaxBattleLevel}\n\n" +
+            definition.GetLevelDescription(currentSkill.BattleLevel);
         tooltip.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,
             Mathf.Max(140f, tooltipText.GetPreferredValues(tooltipText.text, tooltip.rect.width - 32f, 0f).y + 32f));
         tooltip.gameObject.SetActive(true);

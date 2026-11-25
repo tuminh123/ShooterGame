@@ -2,7 +2,7 @@ using UnityEngine;
 using Zenject;
 
 /// <summary>UI tiến trình trận tự đăng ký dữ liệu; UIManager chỉ giữ/kết nối các UI.</summary>
-public sealed class RunUI : MonoBehaviour
+public sealed class BattleHud : MonoBehaviour
 {
     #region References And Dependencies
 
@@ -11,7 +11,7 @@ public sealed class RunUI : MonoBehaviour
     [SerializeField] private TextView timeText;
     [SerializeField] private TextView levelText;
     [SerializeField] private TextView defeatedText;
-    private IRunReader run;
+    private IBattleProgress battle;
     private bool subscribed;
 
     #endregion
@@ -20,39 +20,39 @@ public sealed class RunUI : MonoBehaviour
 
     /// <summary>SceneContext inject nguồn dữ liệu tiến trình trận.</summary>
     [Inject]
-    public void Construct(IRunReader runReader)
+    public void Construct(IBattleProgress battleProgress)
     {
-        this.run = runReader;
+        this.battle = battleProgress;
         if (isActiveAndEnabled) Subscribe();
     }
 
     private void OnEnable()
     {
-        if (run != null) Subscribe();
+        if (battle != null) Subscribe();
     }
 
     private void Subscribe()
     {
         if (subscribed) return;
         subscribed = true;
-        run.ExperienceChanged += RefreshExperience;
-        run.GoldChanged += RefreshGold;
-        run.TimeChanged += RefreshTime;
-        run.EnemiesDefeatedChanged += RefreshDefeated;
-        RefreshExperience(run.Experience, run.ExperienceToNextLevel);
-        RefreshGold(run.Gold);
-        RefreshTime(run.ElapsedSeconds);
-        RefreshDefeated(run.EnemiesDefeated);
+        battle.ExperienceChanged += RefreshExperience;
+        battle.GoldChanged += RefreshGold;
+        battle.TimeChanged += RefreshTime;
+        battle.EnemiesDefeatedChanged += RefreshDefeated;
+        RefreshExperience(battle.Experience, battle.ExperienceToNextLevel);
+        RefreshGold(battle.Gold);
+        RefreshTime(battle.ElapsedSeconds);
+        RefreshDefeated(battle.EnemiesDefeated);
     }
 
     private void OnDisable()
     {
         if (!subscribed) return;
         subscribed = false;
-        run.ExperienceChanged -= RefreshExperience;
-        run.GoldChanged -= RefreshGold;
-        run.TimeChanged -= RefreshTime;
-        run.EnemiesDefeatedChanged -= RefreshDefeated;
+        battle.ExperienceChanged -= RefreshExperience;
+        battle.GoldChanged -= RefreshGold;
+        battle.TimeChanged -= RefreshTime;
+        battle.EnemiesDefeatedChanged -= RefreshDefeated;
     }
 
     #endregion
@@ -62,7 +62,7 @@ public sealed class RunUI : MonoBehaviour
     private void RefreshExperience(int current, int required)
     {
         experienceBar.SetValue(required > 0 ? current : 1, required > 0 ? required : 1);
-        levelText.SetText(run.Level.ToString());
+        levelText.SetText(battle.Level.ToString());
     }
 
     private void RefreshGold(int amount) => goldText.SetText(amount.ToString());

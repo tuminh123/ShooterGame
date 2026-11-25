@@ -85,7 +85,7 @@ public static class MissionVerification
         const int level = 10;
         List<FixedSubstats.Line> lines = FixedLines(items.Rules, item.Slot, EquipmentRarity.Epic, level);
         MissionDataSO mission = Mission("m",
-            new[] { (MissionObjectiveType.KillEnemy, 3), (MissionObjectiveType.WinRun, 1), (MissionObjectiveType.CollectRunGold, 50) },
+            new[] { (MissionObjectiveType.KillEnemy, 3), (MissionObjectiveType.WinBattle, 1), (MissionObjectiveType.CollectBattleGold, 50) },
             new CurrencyReward(CurrencyType.Gold, 500), new CurrencyReward(CurrencyType.Gold, 100), new CurrencyReward(CurrencyType.Diamond, 5),
             new CharacterReward(player), new CharacterShardReward(player, 7),
             new EquipmentReward(item, EquipmentRarity.Epic, level, 1, new FixedSubstats(lines)),
@@ -108,11 +108,11 @@ public static class MissionVerification
             Require(!world.Missions.TryClaim(runtime, out _, out _), "Claimed an unfinished mission.");
 
             world.Game.Set(GameState.Playing);
-            world.RunData.Gold = 30;
+            world.Battle.Gold = 30;
             world.Game.Set(GameState.EndingLose);
-            Require(runtime.GetProgress(1) == 0 && runtime.GetProgress(2) == 30, "Losing counted as a win or lost run gold.");
+            Require(runtime.GetProgress(1) == 0 && runtime.GetProgress(2) == 30, "Losing counted as a win or lost battle gold.");
             world.Game.Set(GameState.Playing);
-            world.RunData.Gold = 40;
+            world.Battle.Gold = 40;
             world.Game.Set(GameState.EndingWin);
             Require(runtime.State == MissionState.Claimable && world.Missions.HasClaimable, "Finished mission is not claimable.");
 
@@ -215,11 +215,11 @@ public static class MissionVerification
             for (int i = 0; i < 5; i++) world.Kill(CharacterTeam.Enemy); // Sau lần ẩn, không ghi nữa.
         }
         using (var world = new World(new[] { daily }))
-            Require(world.Missions.Boards[0].Missions[0].GetProgress(0) == 25, "App suspend did not save run progress, or disposing saved it.");
+            Require(world.Missions.Boards[0].Missions[0].GetProgress(0) == 25, "App suspend did not save battle progress, or disposing saved it.");
         ES3.DeleteFile(SaveFile);
     }
 
-    // Final Mission đếm mission đã xong (không cần nhận), không tự đếm chính nó, lưu và nhận như mission thường.
+    // Final Mission đếm mission đã NHẬN (xong mà chưa nhận thì không tính), không tự đếm chính nó, lưu và nhận như mission thường.
     private static void CheckFinalMission()
     {
         MissionDataSO first = Mission("a", new[] { (MissionObjectiveType.KillEnemy, 1) }, new CurrencyReward(CurrencyType.Gold, 1));
@@ -236,11 +236,30 @@ public static class MissionVerification
         using (var world = new World(new[] { daily }))
         {
             MissionBoard board = world.Missions.Boards[0];
-            Require(board.CompletedCount == 1 && board.NormalCount == 2 && board.FinalMission.GetProgress(0) == 1, "Old save did not count for the final mission.");
+            Require(board.NormalCount == 2 && board.ClaimedCount == 0 && board.FinalMission.GetProgress(0) == 0, "A finished but unclaimed mission counted.");
+            Require(world.Missions.TryClaim(board.Missions[0], out _, out bool saved) && saved && board.FinalMission.GetProgress(0) == 1, "Claim did not advance the final mission.");
             world.Kill(CharacterTeam.Enemy);
-            Require(board.CompletedCount == 2 && board.FinalMission.State == MissionState.Claimable, "Final mission did not finish.");
-            Require(world.Missions.TryClaim(board.FinalMission, out _, out bool saved) && saved, "Final mission claim failed.");
-            Require(board.CompletedCount == 2 && world.Missions.HasClaimable, "Claiming the final mission changed other missions.");
+            Require(board.Missions[1].State == MissionState.Claimable && board.FinalMission.State == MissionState.InProgress &&
+                !world.Missions.TryClaim(board.FinalMission, out _, out _), "Final mission opened before every mission was claimed.");
+        }
+        using (var save = OpenSave()) // Save của luật cũ: Final đã đủ dù còn mission chưa nhận.
+        {
+            MissionsSaveData data = ((ISaveStore)save).Load(GameConstants.SaveKeys.Missions, new MissionsSaveData(), MissionsSaveData.Validate);
+            data.boards.Single().missions.Single(item => item.missionId == "final").tasks.Single().progress = 2;
+            foreach (MissionsSaveData.Task task in data.boards.Single().missions.Single(item => item.missionId == "b").tasks) task.progress = 2;
+            ((ISaveStore)save).Save(GameConstants.SaveKeys.Missions, data);
+        }
+        using (var world = new World(new[] { daily }))
+        {
+            MissionBoard board = world.Missions.Boards[0];
+            Require(board.FinalMission.GetProgress(0) == 1 && board.FinalMission.State == MissionState.InProgress, "Old final progress was not corrected.");
+            Require(world.Missions.TryClaim(board.Missions[1], out _, out _) && board.FinalMission.State == MissionState.Claimable, "Final mission did not open.");
+        }
+        using (var world = new World(new[] { daily }))
+        {
+            MissionBoard board = world.Missions.Boards[0];
+            Require(board.FinalMission.State == MissionState.Claimable, "Final progress was not saved with the claim.");
+            Require(world.Missions.TryClaim(board.FinalMission, out _, out bool saved) && saved && board.ClaimedCount == 2, "Final mission claim failed.");
         }
         using (var world = new World(new[] { daily }))
             Require(world.Missions.Boards[0].FinalMission.State == MissionState.Claimed, "Final mission claim was not saved.");
@@ -344,9 +363,9 @@ public static class MissionVerification
         SetFilter(data, 3, EnemyKind.Boss, CharacterType.None);
         SetFilter(data, 4, EnemyKind.Any, normal.CharacterType);
         data.ApplyModifiedPropertiesWithoutUndo();
-        MissionDataSO runs = Mission("r", new[] { (MissionObjectiveType.FinishRun, 9), (MissionObjectiveType.WinRun, 9), (MissionObjectiveType.CollectRunGold, 999) },
+        MissionDataSO battles = Mission("r", new[] { (MissionObjectiveType.FinishBattle, 9), (MissionObjectiveType.WinBattle, 9), (MissionObjectiveType.CollectBattleGold, 999) },
             new CurrencyReward(CurrencyType.Gold, 1));
-        MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission, runs);
+        MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission, battles);
         using (var world = new World(new[] { daily }))
         {
             int changes = 0;
@@ -359,16 +378,16 @@ public static class MissionVerification
             world.Kill(boss, false);
             RequireProgress(runtime, 3, 1, 1, 1, 2);
             Require(changes == 3, "One death must notify exactly once.");
-            world.RunData.Gold = 10;
+            world.Battle.Gold = 10;
             world.Game.Set(GameState.EndingWin);
-            Require(changes == 4, "One finished run must notify exactly once.");
+            Require(changes == 4, "One finished battle must notify exactly once.");
             world.Game.Set(GameState.Home);
             Require(changes == 4, "Returning Home without changes must not notify.");
         }
         ES3.DeleteFile(SaveFile);
 
         // Bộ lọc quái trên việc khác và KillBoss cũ phải bị từ chối.
-        RequireInvalid(runs, data2 => SetFilter(data2, 0, EnemyKind.Boss, CharacterType.None));
+        RequireInvalid(battles, data2 => SetFilter(data2, 0, EnemyKind.Boss, CharacterType.None));
         RequireInvalid(mission, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("objective").intValue =
             (int)MissionObjectiveType.KillBoss);
     }
@@ -416,7 +435,7 @@ public static class MissionVerification
         public readonly ProgressionManager Progression;
         public readonly MissionManager Missions;
         public readonly FakeGame Game = new FakeGame();
-        public readonly FakeRun RunData = new FakeRun();
+        public readonly FakeBattle Battle = new FakeBattle();
 
         public World(IEnumerable<MissionDatabaseSO> databases, bool expectRewardErrors = false)
         {
@@ -425,7 +444,7 @@ public static class MissionVerification
                 Assets<EquipmentDatabaseSO>().Single());
             Progression.Initialize();
             Missions = new MissionManager(new MissionManager.Settings(databases.ToList()), save, Progression, characters, characters,
-                Game, RunData, Progression, Progression);
+                Game, Battle, Progression, Progression);
             // Thưởng sai cố ý: Initialize log lỗi là đúng, tắt log để không lẫn với lỗi thật.
             bool logs = Debug.unityLogger.logEnabled;
             if (expectRewardErrors) Debug.unityLogger.logEnabled = false;
@@ -491,7 +510,7 @@ public static class MissionVerification
         }
     }
 
-    private sealed class FakeRun : IRunReader
+    private sealed class FakeBattle : IBattleProgress
     {
         public int Level => 1;
         public int Experience => 0;
@@ -504,7 +523,7 @@ public static class MissionVerification
         public event Action<int> GoldChanged { add { } remove { } }
         public event Action<int> TimeChanged { add { } remove { } }
         public event Action<int> EnemiesDefeatedChanged { add { } remove { } }
-        public event Action RunReset { add { } remove { } }
+        public event Action BattleReset { add { } remove { } }
     }
 
     #endregion

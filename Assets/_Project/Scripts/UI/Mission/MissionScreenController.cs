@@ -239,7 +239,7 @@ public sealed class MissionScreenController : UIPanelController
         if (selected != null)
         {
             title = string.Format(CultureInfo.InvariantCulture, titleFormat, selected.Database.DisplayName);
-            complete = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", selected.CompletedCount, selected.NormalCount);
+            complete = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", selected.ClaimedCount, selected.NormalCount);
             if (selected.FinalMission != null) finalCard = BuildCard(selected, selected.FinalMission);
             foreach (MissionState state in CardOrder)
                 foreach (MissionRuntime mission in selected.Missions)

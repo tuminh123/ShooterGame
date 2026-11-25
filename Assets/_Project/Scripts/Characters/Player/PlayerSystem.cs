@@ -9,8 +9,8 @@ using UnityEngine;
 /// </summary>
 /// <remarks>
 /// Do <see cref="CharacterManager"/> tạo; miền khác dùng qua <see cref="IPlayerReader"/>/<see cref="IPlayerLifecycle"/>.
-/// Bonus level trong trận không thuộc đây: miền Run (nằm trên Character) tự thêm một nguồn riêng vào
-/// <see cref="StatSheet"/> của Player khi nhận <see cref="PlayerChanged"/> (xem RunLevel).
+/// Bonus level trong trận không thuộc đây: miền Battle (nằm trên Character) tự thêm một nguồn riêng vào
+/// <see cref="StatSheet"/> của Player khi nhận <see cref="PlayerChanged"/> (xem InBattleLevel).
 /// </remarks>
 public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
 {
@@ -190,7 +190,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         playerBonus.Update(CurrentBonus(runtime.CharacterType).ToModifiers());
     }
 
-    // Tổng bonus cộng thẳng của Player: level vĩnh viễn + trang bị (level trận là nguồn riêng của miền Run).
+    // Tổng bonus cộng thẳng của Player: level vĩnh viễn + trang bị (level trận là nguồn riêng của miền Battle).
     private StatBonus CurrentBonus(CharacterType type) => permanentBonuses.GetBonus(type);
 
     // Type không có trong database là lỗi cấu hình (save cũ hoặc enum mới chưa có asset): báo rõ thay vì spawn sai.

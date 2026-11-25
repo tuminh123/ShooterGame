@@ -211,7 +211,7 @@ public sealed class CharacterLevels : IDisposable
         changingLevel = true;
         try
         {
-            // Cùng thuật toán với RunLevelProgress.AddExperience: trừ dần yêu cầu từng cấp cho tới khi không đủ.
+            // Cùng thuật toán với InBattleLevelProgress.AddExperience: trừ dần yêu cầu từng cấp cho tới khi không đủ.
             long remaining = (long)ReadUpgradePoints(characterType) + amount;
             int newLevel = previousLevel;
             while (TryGetRequired(characterType, newLevel, out int required) && remaining >= required)

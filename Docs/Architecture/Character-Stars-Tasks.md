@@ -85,7 +85,7 @@ Làm trước một phần của S2 để test UI: số sao lưu thật (`Charac
    - Lý do: dùng lại toàn bộ `IWallet` (đọc/cộng/trừ, event), `UpgradeQuote.Costs`, icon theo `CurrencyType` của Theme,
      và đường thưởng `IWallet.Add`/`AddBatch` (loot, `StageRewards`) cho nguồn mảnh sau này.
    - Không chọn "mỗi nhân vật một `CurrencyType`": mỗi nhân vật mới phải thêm enum và icon.
-   - `IWallet` chỉ **thêm** hàm có tham số `owner`; hàm cũ giữ nguyên nên Run/Stage/CurrencyBar không bị ảnh hưởng.
+   - `IWallet` chỉ **thêm** hàm có tham số `owner`; hàm cũ giữ nguyên nên Battle/Stage/CurrencyBar không bị ảnh hưởng.
 3. Giá mảnh mỗi sao có 2 cách, chọn bằng enum + một switch (không làm strategy vì mỗi cách chỉ một dòng — Simple trước):
    - `Manual`: nhập tay số mảnh cho từng sao.
    - `Geometric` (cấp số nhân): mảnh sao n = `ceil(Base × Multiplier^(n − 1))`. Ví dụ Base 10, ×2 → 10, 20, 40, 80, 160.

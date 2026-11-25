@@ -7,7 +7,7 @@ using UnityEngine;
 /// và chặn tạm skill bị lỗi. Không biết gì về panel, pause hay slow motion — đó là việc của UI.
 /// </summary>
 /// <remarks>
-/// Do <see cref="RunManager"/> tạo; trước đây toàn bộ logic này nằm trong SkillChoiceController (UI).
+/// Do <see cref="BattleManager"/> tạo; trước đây toàn bộ logic này nằm trong SkillChoiceController (UI).
 /// Lượt chờ gắn với Player hiện tại: đổi Player, Player chết/bị thu hồi hoặc reset lượt đều hủy hết lượt chờ.
 /// </remarks>
 public sealed class SkillChoice : IDisposable
@@ -73,7 +73,7 @@ public sealed class SkillChoice : IDisposable
 
     #region Queue
 
-    /// <summary>RunManager gọi khi lên cấp: cộng đúng chênh lệch level (lên 2 cấp = 2 lượt).</summary>
+    /// <summary>BattleManager gọi khi lên cấp: cộng đúng chênh lệch level (lên 2 cấp = 2 lượt).</summary>
     public void AddLevels(int previousLevel, int currentLevel)
     {
         if (disposed) return;

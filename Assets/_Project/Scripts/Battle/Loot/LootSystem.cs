@@ -4,11 +4,11 @@ using UnityEngine;
 
 /// <summary>
 /// Rơi và nhặt vật phẩm (EXP, vàng) trong lượt chơi. Chỉ quản lý vật phẩm trên mặt đất;
-/// phần thưởng được báo qua <see cref="Collected"/> để <see cref="RunManager"/> chuyển tới đúng nơi.
+/// phần thưởng được báo qua <see cref="Collected"/> để <see cref="BattleManager"/> chuyển tới đúng nơi.
 /// </summary>
 /// <remarks>
-/// Do <see cref="RunManager"/> tạo; thay cho LootManager cũ.
-/// Không biết RunLevel hay ví: các system anh em không gọi nhau, manager nối dây.
+/// Do <see cref="BattleManager"/> tạo; thay cho LootManager cũ.
+/// Không biết InBattleLevel hay ví: các system anh em không gọi nhau, manager nối dây.
 /// </remarks>
 public sealed class LootSystem : IDisposable
 {

@@ -31,10 +31,10 @@ public interface IGameState
 public interface IGameFlow
 {
     /// <summary>Từ Home/Won/Lost vào trận mới; false nếu đang chuyển state hoặc chưa sẵn sàng.</summary>
-    bool StartRun();
+    bool StartBattle();
 
     /// <summary>Chơi lại khi đang Playing (từ menu pause).</summary>
-    bool RestartRun();
+    bool RestartBattle();
 
     /// <summary>Dọn trận và về Home trong cùng scene.</summary>
     bool ReturnHome();
