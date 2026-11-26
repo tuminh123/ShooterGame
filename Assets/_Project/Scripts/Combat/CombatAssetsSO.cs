@@ -41,12 +41,12 @@ public sealed class CombatAssetsSO : ScriptableObject
     {
         [Tooltip("ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.")]
         [SerializeField] private EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
-        [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.")]
+        [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.")]
         [SerializeField] private GameObject visualPrefab;
 
         /// <summary>ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.</summary>
         public EffectType Type => type;
-        /// <summary>Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. Visual báo Completed để vỏ tự thu hồi.</summary>
+        /// <summary>Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.</summary>
         public GameObject VisualPrefab => visualPrefab;
     }
 

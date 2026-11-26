@@ -7,8 +7,9 @@ using UnityEngine;
 /// <remarks>
 /// Vòng đời của một lượt bay:
 /// <list type="number">
-/// <item><see cref="ProjectileSystem.SpawnBullet"/> gọi <see cref="Initialize"/> khi vỏ còn tắt, truyền dịch vụ và thông số của viên đạn.</item>
-/// <item>Pool bật vỏ, <c>OnEnable</c> đăng ký movement và ProjectileSystem.</item>
+/// <item><see cref="ProjectileSystem.SpawnBullet"/> thuê vỏ (pool bật vỏ, <c>OnEnable</c> không làm gì) rồi gọi ngay
+/// <see cref="Launch"/>: gán thông số, thuê visual con theo BulletType, đăng ký movement và ProjectileSystem.
+/// Vì đăng ký nằm trong Launch chứ không trong OnEnable, không cần gán dữ liệu khi vỏ còn tắt (không cần lambda beforeActivate).</item>
 /// <item>Mỗi frame, ProjectileSystem gọi <see cref="AdvanceLifetime"/> → <see cref="PrepareQuery"/> → quét va chạm theo lô → <see cref="CompleteQuery"/>.</item>
 /// <item>Trúng mục tiêu hoặc hết tuổi thọ thì đạn trả vỏ về pool qua <see cref="ProjectileSystem.Release"/>; <c>OnDisable</c> xóa toàn bộ trạng thái của lượt bay.</item>
 /// </list>
@@ -18,7 +19,7 @@ public sealed class ProjectileView : MonoBehaviour
 {
     #region Services
 
-    // Gán ở Initialize đầu tiên và giữ lại qua các lượt bay, vì mọi viên đạn dùng chung một context.
+    // Gán ở Launch đầu tiên và giữ lại qua các lượt bay, vì mọi viên đạn dùng chung một context.
     // Vỏ được pool tạo sẵn (prewarm) mà chưa bay lần nào thì context vẫn null, nên OnDisable phải kiểm tra null.
     private ProjectileContext context;
 
@@ -45,7 +46,8 @@ public sealed class ProjectileView : MonoBehaviour
     #region Visual
 
     private GameObject visualObject; // Visual con thuê riêng từ pool, giống cơ chế của CharacterView.
-    private Renderer[] visualRenderers;
+    // Renderer của visual hiện tại. List dùng lại qua các lượt bay: GetComponentsInChildren(list) không cấp phát mảng mới.
+    private readonly List<Renderer> visualRenderers = new List<Renderer>(8);
 
     private Vector3 HitboxCenter => transform.position + transform.rotation * (Vector3)hitOffset;
 
@@ -59,9 +61,9 @@ public sealed class ProjectileView : MonoBehaviour
         {
             var bounds = new Bounds(transform.position, Vector3.zero);
             bool hasBounds = false;
-            if (visualRenderers == null) return bounds;
-            foreach (Renderer renderer in visualRenderers)
+            for (int index = 0; index < visualRenderers.Count; index++)
             {
+                Renderer renderer = visualRenderers[index];
                 if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                 if (!hasBounds)
                 {
@@ -79,10 +81,10 @@ public sealed class ProjectileView : MonoBehaviour
     #region Initialization
 
     /// <summary>
-    /// Chuẩn bị một lượt bay. Phải được gọi khi vỏ còn tắt (callback <c>beforeActivate</c> của pool),
-    /// vì <c>OnEnable</c> dùng ngay các dịch vụ và thông số được gán ở đây.
+    /// Bắt đầu một lượt bay. <see cref="ProjectileSystem.SpawnBullet"/> gọi ngay sau khi thuê vỏ (vỏ đã bật),
+    /// trong cùng lời gọi nên không có frame nào thấy vỏ chưa có dữ liệu. Lỗi giữa chừng thì ProjectileSystem trả vỏ ngay.
     /// </summary>
-    internal void Initialize(
+    internal void Launch(
         ProjectileContext projectileContext,
         CombatAssetsSO.BulletVisual bulletVisual,
         ProjectileSpawnData projectileData,
@@ -106,28 +108,27 @@ public sealed class ProjectileView : MonoBehaviour
         impactEffect = bulletVisual.ImpactEffect;
         FaceFlightDirection();
 
-        // Gắn visual con và giữ đúng transform local đã cấu hình trong prefab visual.
+        // Gắn visual con và giữ đúng transform local đã cấu hình trong prefab visual. Vỏ đang bật nên visual bật ngay
+        // khi được gắn (OnEnable của visual phát hạt): truyền sẵn vị trí/góc thế giới đúng để hạt đầu tiên không lệch.
         GameObject prefab = bulletVisual.VisualPrefab;
-        visualObject = context.Pools.Spawn(prefab, transform.position, transform.rotation, PoolGroup.Other, transform);
+        visualObject = context.Pools.Spawn(prefab, transform.TransformPoint(prefab.transform.localPosition),
+            transform.rotation * prefab.transform.localRotation, PoolGroup.Other, transform);
         if (visualObject == null) throw new System.InvalidOperationException("Could not spawn projectile visual.");
         visualObject.transform.localPosition = prefab.transform.localPosition;
         visualObject.transform.localRotation = prefab.transform.localRotation;
         visualObject.transform.localScale = prefab.transform.localScale;
-        visualRenderers = visualObject.GetComponentsInChildren<Renderer>(true);
+        visualObject.GetComponentsInChildren(true, visualRenderers);
+
         isFlying = true;
+        movementHandle = context.MovementRegistration.Register(transform);
+        context.Projectiles.Register(this, movementHandle);
     }
 
     #endregion
 
     #region Unity Lifecycle
 
-    private void OnEnable()
-    {
-        // Pool có thể bật vỏ lúc prewarm mà không qua Initialize; khi đó chưa có lượt bay nào để đăng ký.
-        if (!isFlying) return;
-        movementHandle = context.MovementRegistration.Register(transform);
-        context.Projectiles.Register(this, movementHandle);
-    }
+    // Không có OnEnable: mọi đăng ký nằm trong Launch, nên pool bật vỏ (kể cả lúc prewarm) không làm gì.
 
     private void OnDisable()
     {
@@ -241,7 +242,7 @@ public sealed class ProjectileView : MonoBehaviour
     {
         GameObject previous = visualObject;
         visualObject = null;
-        visualRenderers = null;
+        visualRenderers.Clear();
         if (previous != null) context.Pools.Despawn(previous);
     }
 

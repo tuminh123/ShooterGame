@@ -155,6 +155,8 @@ hiện không phải cam kết không cấp phát bộ nhớ trong gameplay.
 | [Combat and skills](../../Assets/_Project/DataSO/Documentation/CombatAndSkills.md) | Tài liệu combat/skill bổ sung. |
 | [Simulation](../../Assets/_Project/Scripts/Simulation/README.md) | Movement, spatial và batch truy vấn; vai trò của miền và ai dùng. |
 | [Refactor architecture](Refactor-Architecture.md) | Kiến trúc, quy tắc và lịch sử các giai đoạn refactor. |
+| [Performance rules](Performance-Rules.md) | Luật hiệu năng: GC, pool, tick, render, cách đo, ngân sách và checklist review. |
+| [VFX 2D](Vfx-2D-Plan.md) | Đạn/impact/vùng/trạng thái particle, cách thêm VFX mới, số đo hiệu năng. |
 | [Verification](../Tools/Verification.md) | Các bước kiểm tra contract, binding Zenject và smoke test. |
 
 ## Tài liệu lịch sử (không mô tả code hiện tại)

@@ -1,7 +1,6 @@
-using System;
 using UnityEngine;
 
-/// <summary>VFX phát một ParticleSystem (kể cả các hệ con) và báo hoàn tất khi mọi hạt đã tắt.</summary>
+/// <summary>VFX phát một ParticleSystem (kể cả các hệ con) và báo đã xong khi mọi hạt đã tắt.</summary>
 /// <remarks>Không đổi tên class: prefab tham chiếu script qua GUID.</remarks>
 [RequireComponent(typeof(ParticleSystem))]
 public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
@@ -15,10 +14,10 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
     #endregion
 
     #region Playback & Completion
+
     private ParticleSystem particles;
     private ParticleSystem[] particleSystems;
     private bool playing;
-    public event Action Completed;
 
     public void Play()
     {
@@ -37,13 +36,15 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
         playing = true;
     }
 
-    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): kiểm tra đã phát xong để báo Completed.</summary>
-    public void Advance(float deltaTime)
+    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): trả về true khi mọi hạt đã tắt.</summary>
+    public bool Advance(float deltaTime)
     {
-        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
-        if (!playing || particles == null || particles.IsAlive(true)) return;
+        if (!playing) return true;
+        // Frame vừa bật chưa mô phỏng hạt nào: IsAlive có thể còn false, chưa được coi là xong.
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return false;
+        if (particles == null || particles.IsAlive(true)) return false;
         playing = false;
-        Completed?.Invoke();
+        return true;
     }
 
     public void StopAndReset()
@@ -55,9 +56,7 @@ public sealed class ParticleEffectVisual : MonoBehaviour, IEffectVisual
 
     private void OnDestroy() => StopAndReset();
 
-    private void OnDisable()
-    {
-        StopAndReset();
-    }
+    private void OnDisable() => StopAndReset();
+
     #endregion
 }

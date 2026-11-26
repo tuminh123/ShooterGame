@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>VFX hiển thị một object/sprite tĩnh trong một khoảng thời gian cố định rồi báo hoàn tất.</summary>
+/// <summary>VFX hiển thị một object/sprite tĩnh trong một khoảng thời gian cố định rồi báo đã xong.</summary>
 /// <remarks>Không cần Animator hay ParticleSystem. Không đổi tên class: prefab tham chiếu script qua GUID.</remarks>
 public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual
 {
@@ -16,7 +16,6 @@ public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual
     [SerializeField, Min(0.01f)] private float duration = 0.2f;
     private float remaining;
     private bool playing;
-    public event Action Completed;
 
     public void Play()
     {
@@ -29,17 +28,21 @@ public sealed class ObjectEffectVisual : MonoBehaviour, IEffectVisual
         gameObject.SetActive(true);
     }
 
-    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): đếm ngược thời gian hiển thị; pause (deltaTime = 0) thì đứng yên.</summary>
-    public void Advance(float deltaTime)
+    /// <summary>
+    /// CombatVfx gọi ở LateTick (qua EffectView): đếm ngược thời gian hiển thị, trả về true khi hết giờ.
+    /// Pause (deltaTime = 0) thì đứng yên.
+    /// </summary>
+    public bool Advance(float deltaTime)
     {
-        if (!playing || !isActiveAndEnabled || Time.frameCount <= activationFrame || deltaTime <= 0f) return;
+        if (!playing) return true;
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame || deltaTime <= 0f) return false;
         remaining = Mathf.Max(0f, remaining - deltaTime);
-        if (remaining > 0f) return;
+        if (remaining > 0f) return false;
         StopAndReset();
-        Completed?.Invoke();
+        return true;
     }
 
-    // Tắt/thu hồi không phát Completed; không còn callback thời gian trỏ sang lượt pool mới.
+    // Tắt/thu hồi: ẩn và xóa thời gian còn lại, lần lấy ra pool sau bắt đầu lại từ đầu.
     public void StopAndReset()
     {
         playing = false;

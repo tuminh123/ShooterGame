@@ -208,6 +208,12 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 
 ### Pool
 - Pool GameObject: `PoolManager` (LeanPool). Clone không được Zenject inject; Manager sở hữu truyền dữ liệu qua `beforeActivate`/`Initialize`.
+  - **Vỏ có `OnEnable` dùng dữ liệu** (ví dụ `CharacterView` đăng ký movement/hitbox khi bật): gán dữ liệu trong `beforeActivate`, lúc vỏ còn tắt.
+  - **Vỏ có `OnEnable` không làm gì** (`ProjectileView`, `EffectView`): thuê vỏ rồi gọi hàm khởi tạo ngay sau đó (`Launch`, `Play`), không cần `beforeActivate`.
+    Lý do: lambda `beforeActivate` có capture tạo closure + delegate mới mỗi lần (đo được ~300 B, 4 lần cấp phát mỗi viên đạn/impact).
+    Khởi tạo lỗi thì trả vỏ ngay trong `catch`, không để vỏ "trống" đang bật.
+  - Đường nóng (mỗi viên đạn, mỗi impact) không gọi `Enum.IsDefined`: hàm nhận `object` nên boxing giá trị enum (2 lần cấp phát mỗi lần);
+    so với mảng `Enum.GetValues` lấy một lần (xem `ProjectileSpawnData`).
 - Pool class C# thuần: `Pool<T>` chung (`Scripts/Shared/Pool.cs`) do Manager sở hữu tự `new` (ví dụ `CharacterRuntimePool`, `EffectRuntimePool`). Không dùng `MemoryPool` của Zenject.
   - **Ai implement `IPoolable`:** chỉ class (1) bị tạo đi tạo lại trong lúc chơi (theo quái, theo đòn, theo effect) **và** (2) Profiler cho thấy cấp phát đáng kể. Manager, System, runtime tạo một lần thì không. Mặc định là không.
   - `IPoolable` chỉ có `ResetForPool()`; không kế thừa `IDisposable` (Dispose = hết đời, trả pool = dùng lại). Khởi tạo là hàm riêng có tham số của từng kiểu, Manager gọi ngay sau `Rent`. Implement tường minh (`void IPoolable.ResetForPool()`) để hàm dọn vẫn `internal`.

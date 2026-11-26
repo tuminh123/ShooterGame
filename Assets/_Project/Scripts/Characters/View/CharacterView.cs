@@ -29,6 +29,12 @@ public sealed class CharacterView : MonoBehaviour
     [SerializeField] private Color poisonColor = new Color(0.65f, 0.35f, 1f, 1f);
     [SerializeField] private Color burnColor = new Color(1f, 0.45f, 0.15f, 1f);
     [SerializeField] private Color slowColor = new Color(0.35f, 0.8f, 1f, 1f);
+    [Tooltip("VFX lặp bám trên nhân vật khi bị độc. Prefab cần ParticleProjectileVisual trên gốc; trống = chỉ đổi màu.")]
+    [SerializeField] private GameObject poisonVfx;
+    [Tooltip("VFX lặp bám trên nhân vật khi bị cháy. Prefab cần ParticleProjectileVisual trên gốc; trống = chỉ đổi màu.")]
+    [SerializeField] private GameObject burnVfx;
+    [Tooltip("VFX lặp bám trên nhân vật khi bị làm chậm. Prefab cần ParticleProjectileVisual trên gốc; trống = chỉ đổi màu.")]
+    [SerializeField] private GameObject slowVfx;
 
     #endregion
 
@@ -204,7 +210,7 @@ public sealed class CharacterView : MonoBehaviour
         visualHandle?.CaptureFacingScale();
         visualHandle?.Bind(Presentation);
         Feedback.Bind(new CharacterFeedbackSettings(hitFlashDuration, hitWhiteBlend, statusColorBlend,
-            poisonColor, burnColor, slowColor), sprites, controller);
+            poisonColor, burnColor, slowColor, poisonVfx, burnVfx, slowVfx), sprites, controller, pools);
     }
 
     #endregion
@@ -249,10 +255,14 @@ public sealed class CharacterView : MonoBehaviour
     }
 
     /// <summary>
-    /// CharacterRegistry gọi ở LateTick: kiểm tra animation của visual. Không chặn khi đã khóa kết quả hay đã chết,
-    /// vì animation Death/Win/Lose phải chạy hết để báo hoàn tất cho gameplay.
+    /// CharacterRegistry gọi ở LateTick: kiểm tra animation của visual và cho VFX trạng thái bám theo vị trí mới.
+    /// Không chặn khi đã khóa kết quả hay đã chết, vì animation Death/Win/Lose phải chạy hết để báo hoàn tất cho gameplay.
     /// </summary>
-    internal void LateTickFrame() => visualHandle?.LateTick();
+    internal void LateTickFrame()
+    {
+        visualHandle?.LateTick();
+        Feedback.LateTick();
+    }
 
     #endregion
 
@@ -420,6 +430,7 @@ public sealed class CharacterView : MonoBehaviour
     private void OnDestroy()
     {
         visual = null;
+        Feedback.ForgetStatusVfx(); // Cùng lý do với visual: không trả về pool từ callback hủy.
         EndSpawn(out CharacterRuntimeData previousRuntime, out ulong previousGeneration);
         // Released → registry phát CharacterRemoved → Combat dọn skill/effect bằng identity nó đã giữ.
         try { NotifyReleased(); }

@@ -4,7 +4,7 @@
 /// <remarks>
 /// Trước đây <see cref="ProjectileView"/> tự inject 6 hệ thống qua Zenject khi pool tạo vỏ. Như vậy các
 /// hệ thống nội bộ của Combat phải được bind công khai vào container. Giờ <see cref="ProjectileSystem"/>
-/// truyền context này vào <see cref="ProjectileView.Initialize"/>, nên đạn không cần biết tới Zenject,
+/// truyền context này vào <see cref="ProjectileView.Launch"/>, nên đạn không cần biết tới Zenject,
 /// và Combat chỉ cần bind <see cref="CombatManager"/>.
 /// </remarks>
 internal sealed class ProjectileContext

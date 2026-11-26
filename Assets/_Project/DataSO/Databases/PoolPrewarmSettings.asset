@@ -11,7 +11,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c54a5ab6d0d94a2788b931749a9b7922, type: 3}
   m_Name: PoolPrewarmSettings
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
+  objectsPerFrame: 16
   characterShells: 64
   bullets: 256
   effectShells: 16
@@ -27,3 +28,9 @@ MonoBehaviour:
     count: 5
   - prefab: {fileID: 100000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
     count: 1
+  - prefab: {fileID: 2935511683285677402, guid: 6bc9b5d2315e7b04e846be79af819755, type: 3}
+    count: 32
+  - prefab: {fileID: 5356349606062178451, guid: ad1ad5e37b1442a4aba6b41748841b5a, type: 3}
+    count: 32
+  - prefab: {fileID: 7078269385345686639, guid: ffa55b21c189a254e96877958a1b5b75, type: 3}
+    count: 32

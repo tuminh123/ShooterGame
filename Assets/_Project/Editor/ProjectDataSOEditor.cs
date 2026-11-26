@@ -151,7 +151,7 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Info, "bulletPrefab", "effectPrefab");
             Section("BULLET VISUALS & HITBOXES", "Mỗi Bullet Type xuất hiện một lần. Hit Radius/Offset dùng world unit và không theo scale hình ảnh.",
                 DataInspectorTone.Visual, "bullets");
-            Section("IMPACT / EFFECT VISUALS", "VFX độc lập với hiệu ứng gameplay như độc/cháy. Prefab cần IEffectVisual trên root để báo hoàn tất.",
+            Section("IMPACT / EFFECT VISUALS", "VFX độc lập với hiệu ứng gameplay như độc/cháy. Prefab cần IEffectVisual trên root để CombatVfx biết khi nào phát xong.",
                 DataInspectorTone.Visual, "effects");
         }
         else if (target is LootDatabaseSO)

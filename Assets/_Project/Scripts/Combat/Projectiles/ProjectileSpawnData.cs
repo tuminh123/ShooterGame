@@ -59,7 +59,7 @@ public readonly struct ProjectileSpawnData
     /// <summary>Chặn dữ liệu sai từ mọi nguồn bắn trước khi đạn được tạo. Ném <see cref="ArgumentException"/> nếu sai.</summary>
     public void Validate()
     {
-        if (!Enum.IsDefined(typeof(BulletType), BulletType) || Movement == null ||
+        if (!IsDefined(BulletType) || Movement == null ||
             !IsPositiveFinite(Speed) || !IsPositiveFinite(Lifetime) ||
             float.IsNaN(EffectHit) || float.IsInfinity(EffectHit))
             throw new ArgumentException("Invalid projectile spawn data.");
@@ -77,6 +77,17 @@ public readonly struct ProjectileSpawnData
 
     // NaN so sánh luôn false nên tự bị loại bởi "> 0".
     private static bool IsPositiveFinite(float value) => value > 0f && !float.IsInfinity(value);
+
+    // Enum.IsDefined nhận object nên boxing giá trị enum: đo được 2 lần cấp phát (40 B) mỗi viên đạn.
+    // So với mảng giá trị lấy một lần thì không cấp phát, và giá trị mới thêm vào enum vẫn tự được nhận.
+    private static readonly BulletType[] DefinedBulletTypes = (BulletType[])Enum.GetValues(typeof(BulletType));
+
+    private static bool IsDefined(BulletType type)
+    {
+        foreach (BulletType defined in DefinedBulletTypes)
+            if (defined == type) return true;
+        return false;
+    }
 
     #endregion
 }

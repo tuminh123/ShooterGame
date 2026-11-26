@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
 
-/// <summary>VFX phát một animation clip một lần qua PlayableGraph, và báo hoàn tất khi clip chạy hết.</summary>
+/// <summary>VFX phát một animation clip một lần qua PlayableGraph, và báo đã xong khi clip chạy hết.</summary>
 /// <remarks>Không cần AnimatorController hay timer ước lượng. Không đổi tên class: prefab tham chiếu script qua GUID.</remarks>
 [RequireComponent(typeof(Animator))]
 public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
@@ -23,7 +23,6 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
     private PlayableGraph graph;
     private AnimationClipPlayable playable;
     private bool playing;
-    public event Action Completed;
 
     public void SetVisual(AnimationClip animationClip)
     {
@@ -56,17 +55,18 @@ public sealed class AnimationEffectVisual : MonoBehaviour, IEffectVisual
         catch { StopAndReset(); throw; }
     }
 
-    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): kiểm tra đã phát xong để báo Completed.</summary>
-    public void Advance(float deltaTime)
+    /// <summary>CombatVfx gọi ở LateTick (qua EffectView): trả về true khi clip đã chạy hết.</summary>
+    public bool Advance(float deltaTime)
     {
-        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return;
-        if (!playing || !graph.IsValid() || playable.GetTime() < clip.length) return;
+        if (!playing) return true;
+        if (!isActiveAndEnabled || Time.frameCount <= activationFrame) return false;
+        if (graph.IsValid() && playable.GetTime() < clip.length) return false;
         playing = false;
-        graph.Stop();
-        Completed?.Invoke();
+        if (graph.IsValid()) graph.Stop();
+        return true;
     }
 
-    // Hủy/cleanup không được phát Completed.
+    // Hủy/cleanup: dừng graph, không coi là phát xong tự nhiên.
     public void StopAndReset()
     {
         playing = false;

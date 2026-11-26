@@ -1,273 +1,158 @@
-# Kế hoạch hệ thống VFX 2D
+# VFX 2D (particle) cho combat
 
-> Trạng thái: **kế hoạch**, chưa triển khai từ Task 1 trở đi. Đối chiếu với code trước khi coi tài liệu này là mô tả hiện trạng.
+> **Trạng thái:** ✅ Hiện hành · Kiểm tra với code và chơi thử qua MCP: 2026-11-27.
+> Bản kế hoạch cũ (converter Editor, ngân sách VFX, VfxQuality) đã được rút gọn: xem mục 6.
 
-Mục tiêu: dùng prefab của hai pack **Hovl Studio – Toon Projectiles 2** và **AllIn1VfxToolkit** cho đạn, impact và vùng tác động trong game 2D. Không sửa asset gốc, chạy tốt trên Android, và theo rule của dự án: Combat sở hữu VFX, chỉ tạo interface khi có từ 2 hành vi thay thế nhau trở lên, enum game nằm trong `GameEnums`.
-
----
-
-## 1. Bối cảnh
-
-| Phần | Hiện tại |
-|---|---|
-| Đạn (`CombatAssetsSO.bullets`) | 4 loại Holy, Fire, Ice, Poison. Mỗi viên là **1 SpriteRenderer**, scale 0,03, pool 256 viên mỗi loại |
-| Impact (`CombatAssetsSO.effects`) | 4 sprite + `ObjectEffectVisual`. Đã có sẵn `ParticleEffectVisual` cho impact dạng hạt |
-| Vùng tác động (FrostAura, OrbitSaw) | `SkillAreaVisual`: mesh tròn sinh bằng code |
-| Môi trường | Camera 2D orthographic size 1,8 (khoảng 533 px/đơn vị), quái cao khoảng 0,17 đơn vị, Built-in pipeline, Linear, build Android, **không có Bloom** |
-| `ProjectileView` | Lấy visual con từ pool, xoay quanh Z (+X là hướng bay). Không gọi Play/Clear trên visual |
-
-### Vấn đề khi dùng thẳng prefab của hai pack
-
-| Vấn đề | Ảnh hưởng |
-|---|---|
-| Thiết kế 3D, đạn bay theo trục Z | Phải xoay (0, 90, 0) cho trục X của game |
-| Vùng/khiên AllIn1 nằm trên mặt đất XZ | Nhìn từ camera 2D bị dẹt thành vệt; phải xoay (-90, 0, 0) |
-| Quá to (impact rộng 2–3 đơn vị) | Phải scale khoảng 0,05 |
-| `ProjectileMover`, `AutoDestroy`, Rigidbody, Collider, Light | Tự bay, tự hủy và tốn GPU, xung đột với pool và `ProjectileSystem` |
-| Vệt đuôi tính theo tọa độ thế giới | Tái dùng từ pool sẽ kéo vệt từ chỗ cũ; phải Clear mỗi lần lấy ra |
-| Soft Particles (`SOFTPART_ON`) | Cần depth texture, camera 2D không có nên hiển thị sai |
-| Distortion / GrabPass | Rất tốn trên Android |
-| Impact sống 1,4–3,6 giây | Pool impact phải lớn hơn, hoặc rút ngắn thời gian |
-| Particle không tự gộp draw call như sprite | Draw call tăng; mỗi đạn chỉ nên có 1–2 Particle System |
+Đạn, impact, vùng băng và trạng thái trên quái dùng particle từ hai pack **Hovl Studio – Toon Projectiles 2** và
+**AllIn1VfxToolkit**. Không có công cụ chuyển đổi: mỗi prefab trong game là một **Prefab Variant** của template,
+chỉnh tay (hoặc bằng script Editor một lần) rồi kéo vào data như sprite trước đây.
 
 ---
 
-## 2. Đã xong
+## 1. Template
 
-### 2.1 Chép template về dự án
+- `Assets/_Project/Vfx/Templates/{Hovl,AllIn1}/`: bản sao 86 prefab cùng material, texture, mesh. Đã bóc script tự hủy,
+  vật lý, đèn; shader Hovl đổi tên thành `ShooterGame/Vfx/Hovl/...`. Pack gốc giữ nguyên.
+- `VfxSpin`, `VfxBob` (`Scripts/Combat/Vfx/`) thay script xoay/nhún của AllIn1.
+- **Không xóa `Assets/AllIn1VfxToolkit`**: bản sao AllIn1 vẫn dùng shader của pack.
+- Material của bản sao Hovl đã tắt `_Usedepth` (soft particle cần depth texture mà camera 2D không có).
 
-- **86 prefab** cùng mọi material, texture, model, mesh và animation cần thiết được chép vào `Assets/_Project/Vfx/Templates/`:
-  - Hovl: đủ 45 prefab.
-  - AllIn1: 41 prefab đáng dùng.
-  - Tổng cộng 595 file, 72,5 MB.
-- Mọi tham chiếu trong bản sao đã trỏ sang bản sao.
-- Shader Hovl được chép và **đổi tên** thành `ShooterGame/Vfx/Hovl/...` để không trùng tên với bản gốc.
-- Render so sánh gốc và bản sao: sai lệch điểm ảnh bằng 0.
-- Pack gốc giữ nguyên làm template.
+## 2. Hệ thống đang chạy
+
+### Script
+
+| Script | Đặt ở đâu | Việc |
+|---|---|---|
+| `ParticleProjectileVisual` | Gốc prefab đạn, VFX vùng, VFX trạng thái | Bật: Clear + Play mọi hạt và `TrailRenderer` con. Tắt: Stop + Clear. Prefab dùng với pool nên mỗi lần lấy ra bắt đầu sạch, không kéo vệt từ chỗ cũ |
+| `ParticleEffectVisual` (có sẵn) | Gốc prefab impact (cần `ParticleSystem` ở gốc) | `IEffectVisual`: phát một lần; `Advance` trả true khi mọi hạt tắt để `CombatVfx` trả về pool |
+| `EffectView` / `ProjectileView` | Vỏ dùng chung trong pool | Thuê vỏ rồi gọi `Play` / `Launch` ngay sau đó (OnEnable không làm gì): không lambda `beforeActivate`, không cấp phát mỗi lần |
+| `SkillAreaVisual` | Prefab vùng/lưỡi skill | Ẩn/hiện mesh **và** mọi VFX con (`SetVisible`) |
+| `CharacterFeedback` | Do `CharacterView` sở hữu | Bật/tắt VFX trạng thái cùng màu trạng thái |
+
+Không có interface mới: `ProjectileView` và `EffectView` không phân biệt sprite hay particle.
+
+### Prefab trong game (`Assets/_Project/Prefabs/Vfx/`)
+
+| Prefab | Nguồn | Scale | Chỉnh thêm |
+|---|---|---|---|
+| `Bullets/FireBullet` | Hovl Projectile 1 | 0,35 | |
+| `Bullets/IceBullet` | AllIn1 Ice Projectile | 0,12 | Độ rộng `TrailRenderer` nhân theo scale |
+| `Bullets/PoisonBullet` | Hovl Projectile 12 | 0,3 | |
+| `Bullets/HolyBullet` | Hovl Projectile 11 | 0,2 | |
+| `Impacts/FireImpact` | Hovl Hit 1 | 0,15 | Tắt lớp `Smoke` (khói xám làm đục màu) |
+| `Impacts/IceImpact` | Hovl Hit 14 | 0,13 | Tắt `ShockWave` (Distortion/GrabPass) và `Smoke` |
+| `Impacts/PoisonImpact` | Hovl Hit 5 | 0,15 | `Core`, `Water` đổi màu sang xanh lá (bản gốc xanh dương) |
+| `Impacts/HolyImpact` | Hovl Hit 11 | 0,13 | |
+| `Areas/FrostAuraVfx` | Lớp `SnowFlakes` + `IceFlares` của AllIn1 Ice Projectile | – | Phát trong vòng tròn bán kính 1, `scalingMode = Shape` |
+| `Status/BurnStatus` | Hạt mới, material Hovl `Trail75bcg` + `Point11bcg` | – | Lưỡi lửa cam bốc lên |
+| `Status/PoisonStatus` | Như trên, màu xanh lá | – | Khói + bọt độc |
+| `Status/SlowStatus` | Hạt mới, material AllIn1 `SnowFlakes` | – | Bông tuyết xoay quanh thân |
+
+Prefab sprite cũ (`Prefabs/VisualProjectile`, `Prefabs/VisualEffect`) giữ lại làm đường lui.
+
+### Gán vào data
+
+| Chỗ gán | Nội dung |
+|---|---|
+| `DataSO/Databases/CombatAssets.asset` | `visualPrefab` của 4 đạn và 4 impact (giữ nguyên `hitRadius`/`hitOffset`) |
+| `Prefabs/FrostAuraVisual.prefab` | `FrostAuraVfx` là object con; mesh tròn mờ vẫn giữ làm viền vùng |
+| `Prefabs/Character.prefab` → `CharacterView` | `Poison Vfx`, `Burn Vfx`, `Slow Vfx` (trống = chỉ đổi màu) |
+| `DataSO/Databases/PoolPrewarmSettings.asset` | `additionalPrefabs`: 3 VFX trạng thái × 32 |
+
+### Luồng
 
 ```text
-Assets/_Project/Vfx/Templates/
-├── Hovl/    Prefabs · Materials · Textures · Models · Shaders
-└── AllIn1/  Prefabs · Materials · Textures · Meshes · Animation
+Đạn:      ProjectileSystem thuê vỏ → ProjectileView.Launch: thuê visual con (FireBullet…), đăng ký movement
+          → OnEnable của ParticleProjectileVisual: Clear + Play
+          → trúng/hết tuổi/ra khỏi camera → trả visual (OnDisable: Stop + Clear) → trả vỏ
+Impact:   CombatVfx.Spawn thuê vỏ → EffectView.Play: thuê visual con (FireImpact…), Play
+          → mỗi LateTick CombatVfx hỏi Advance → true (hạt tắt hết) → trả visual → trả vỏ
+Vùng băng: SkillAreaVisual (localScale = bán kính) chứa FrostAuraVfx → hạt phát trong vòng bán kính 1 nên tự khớp vùng
+Trạng thái: EffectSystem → controller (đếm nguồn) → FeedbackChanged → CharacterFeedback
+          bật: thuê VFX (pool group Other) · LateTickFrame: bám HitPosition · tắt/chết/kết quả/thu hồi: trả về pool
 ```
 
-**Dùng chung có chủ ý (không chép):**
+**Vì sao VFX trạng thái không làm con của vỏ nhân vật:** trạng thái có thể bật/tắt ngay trong `OnEnable`/`OnDisable`
+của vỏ (Combat dừng effect khi vỏ tắt), lúc Unity cấm đổi cha của object con. VFX nằm ngoài và bám theo ở LateTick,
+sau khi Simulation đã áp di chuyển.
 
-| Dùng chung | Lý do |
-|---|---|
-| Script C# của hai pack | Chép `.cs` sẽ tạo hai class cùng tên và gây lỗi biên dịch |
-| Shader AllIn1 | Công cụ chỉnh material của AllIn1 tìm shader theo tên qua `Resources.Load`; có bản trùng thì công cụ hoạt động sai |
+## 3. Thêm một VFX mới
 
-### 2.2 Bóc script, vật lý và đèn khỏi bản sao
+1. Tạo **Prefab Variant** từ template trong `Vfx/Templates` (không sửa template), lưu vào `Prefabs/Vfx/...`.
+2. Đặt transform gốc: vị trí 0; đạn Hovl/AllIn1 xoay **(0, 90, 0)** để bay theo +X; chọn scale.
+3. Mọi Particle System: `scalingMode = Hierarchy`.
+   - Đạn, vùng, trạng thái: **Loop** + Play On Awake.
+   - Impact: tắt Loop, `duration` và thời gian sống của hạt ≤ 0,6 giây.
+4. Mọi renderer: sorting layer Default, tắt shadow/probe/motion vector. Order:
+   - đạn, impact: **10**;
+   - VFX trạng thái: **15** (quái order 1, vỏ 20);
+   - vùng dưới nhân vật: **0** (mesh vùng: -1).
+5. `TrailRenderer`: nhân `widthMultiplier` theo scale (độ rộng vệt không co theo transform).
+6. Tắt (không xóa được trong variant) object con dùng shader **Distortion/GrabPass** và lớp khói đục.
+7. Gắn script gốc: đạn/vùng/trạng thái → `ParticleProjectileVisual`; impact → `ParticleEffectVisual`.
+8. Kéo vào data (bảng mục 2). VFX trạng thái mới cần thêm dòng prewarm.
+9. Kiểm tra: **Report Missing Scripts**, **Check Object Pools**; chơi thử: vệt không kéo khi tái dùng, impact tự về pool,
+   về Home không có cảnh báo `[PoolManager] Rời gameplay còn sót`.
 
-| Đã bóc | Số lượng |
-|---|---|
-| `ProjectileMover`, `AutoDestroyPS` (Hovl) | 15 + 10 |
-| `AllIn1VfxAutoDestroy`, `AllIn1VfxFadeLight` | 10 + 8 |
-| `AllIn1DoShake`, `AllIn1LookAt`, `AllIn1VfxComponent`, `All1VfxRandomTimeSeed`, `AllIn1VfxScrollShaderProperty` | 2 + 2 + 5 + 1 + 1 |
-| Rigidbody / Collider / Light | 15 / 15 / 25 |
+## 4. Lưu ý đã gặp
 
-**Thay script chuyển động bằng script của dự án** (`Scripts/Combat/Vfx/`):
+- **Kích thước:** sprite đạn cũ dài khoảng 0,24 đơn vị (to hơn quái cao 0,17). Đạn Hovl ở scale 0,05–0,08 chỉ còn một chấm;
+  phải khoảng 0,2–0,35. Vệt đuôi dài theo quãng bay thật nên không phụ thuộc scale.
+- **Shader AllIn1 không nhận màu qua `startColor`** (màu lấy từ texture/gradient của material). Muốn đổi màu thì dùng
+  material Hovl (nhận màu tốt) hoặc nhân bản material.
+- Prefab lửa/aura của AllIn1 (Pixel Fire, Real Fire, Magic Spiral, Holly Aura, Water Shield) làm cho cỡ lớn và camera 3D:
+  ở cỡ quái gần như chỉ còn khói/distortion. Blue Pixel Portal là cổng dựng đứng hình bầu dục, không phải vòng tròn.
+- Không có Bloom nên hiệu ứng nhạt hơn ảnh demo; nền cát làm lớp Additive yếu đi.
+- Test qua MCP khi cửa sổ Unity không được focus: đặt `Application.runInBackground = true` trong Play Mode, nếu không
+  Editor gần như đứng frame.
 
-| Script mới | Thay cho | Đặc điểm |
+## 5. Đã kiểm tra (2026-11-27)
+
+- Chơi thử 4 loại đạn: bay đúng hướng, không bị thu hồi sớm theo bounds, không vệt kéo khi tái dùng, mọi visual nằm trong vỏ.
+- 20 impact cùng lúc: phát hết (~0,6 giây) rồi tự về pool.
+- Vùng băng cấp 1→5: VFX khớp vùng; `SetVisible(false/true)` tắt/bật đủ 3 renderer; vào trận mới lấy lại từ pool vẫn sạch.
+- VFX trạng thái: bật/tắt theo số nguồn (2 nguồn bớt 1 vẫn giữ); bám đúng `HitPosition`; quái chết thì trả, không có VFX
+  mồ côi; FrostAura thật làm chậm quái → hiện bông tuyết; về Home còn 0.
+- Prewarm vẫn 1673 object; **Check Service Contracts** PASS, **Report Missing Scripts** 0, **Check Object Pools** PASS,
+  **Zenject Validate** OK, **Run Service Smoke Checks** PASS.
+- Chưa đo Profiler trên thiết bị Android.
+
+### Đo hiệu năng (Editor, 2026-11-27)
+
+Cách đo cấp phát chính xác: `ProfilerRecorder` ("GC Allocated In Frame", "GC Allocation In Frame Count"), game pause, mỗi
+frame luân phiên *bắn 64 → dọn → nghỉ*, lấy trung vị 30 chu kỳ, trừ frame nghỉ (~25,5 KB/frame là của chính Editor).
+(`GC.GetAllocatedBytesForCurrentThread` luôn trả 0 trên Mono của Unity; Editor không cho tắt GC.)
+
+| Mỗi lần | Trước | Sau "thuê rồi phóng/phát" |
 |---|---|---|
-| `VfxSpin` | `AllIn1AutoRotate` (11 component / 6 prefab) | Xoay quanh trục local; dùng `Time.deltaTime` nên dừng khi game pause; khi tắt trả về góc gốc |
-| `VfxBob` | `AllIn1VfxBounceAnimation` (3 prefab) | Nhún theo sin quanh vị trí **local**, nên đi theo object cha; khi tắt trả về vị trí gốc |
+| Bắn 1 viên đạn | ~303 B, ~4,1 lần cấp phát (closure + delegate `beforeActivate`, mảng `GetComponentsInChildren`, boxing `Enum.IsDefined`) | **0** |
+| Phát 1 impact | ~327 B, ~4 lần (2 closure + 2 delegate) | **0** |
 
-**Kiểm tra sau khi bóc:**
-- Missing Script: 0.
-- Script lạ còn lại: 0.
-- Rigidbody / Collider / Light còn lại: 0.
-- Render gốc so với bản sao: không khác.
-- Bỏ đèn không mất hình ảnh, vì shader của cả hai pack đều unlit.
+Kịch bản chơi thật (4 skill cấp tối đa, 600 frame): main thread, batches (~61), draw call (~75) không đổi; phần GC tiết kiệm
+(~100 B/frame) nằm trong nhiễu của Editor. So với đạn/impact sprite cũ cùng kịch bản: particle thêm khoảng **+12 batches,
++14 SetPass, +26 draw call**, CPU không đổi rõ.
 
-**Phụ thuộc còn lại:**
-- Bản sao Hovl độc lập hoàn toàn.
-- Bản sao AllIn1 chỉ còn dùng **shader AllIn1** và 6 texture mặc định của shader đó.
-- **Không được xóa thư mục `AllIn1VfxToolkit`.**
+Stress (spawn cùng một frame, đạn tỏa 360° + impact rải trong màn hình):
 
----
+| Lượt | Frame spawn | GC frame spawn | Clone tạo thêm | Đỉnh draw call | Kết quả |
+|---|---|---|---|---|---|
+| 100/100 lần 1 | 95 ms | 138 KB | 72 (vượt 64 vỏ impact prewarm) | 812 | Thu hồi hết, 0 lạc |
+| 100/100 lần 2 | 37 ms (nền 18) | = nền (0 B) | 0 | 812 | Thu hồi hết, 0 lạc |
+| 1000/1000 lần 1 | 1551 ms | 2,5 MB | 2544 (Instantiate) | 4530 | Thu hồi hết, 0 lạc |
+| 1000/1000 lần 2 | 257 ms (~0,12 ms/lần) | = nền (0 B) | 0 | 5003 | Thu hồi hết, 0 lạc |
 
-## 3. Đánh giá prefab
+Kết luận: đường spawn không cấp phát; chi phí lớn khi vượt prewarm là **Instantiate**, và khi rất đông là **render**
+(mỗi impact 5–7 Particle System). Nếu trận thật có thể vượt 64 impact cùng lúc thì tăng `effectShells` hoặc bớt lớp hạt.
 
-### Hovl – Toon Projectiles 2
+## 6. Chưa làm / đã bỏ
 
-| Nên dùng | Không nên |
+| Việc | Trạng thái |
 |---|---|
-| **P1** vệt lửa vàng-cam · **P9** phi tiêu băng · **P10** cầu lửa kèm khói · **P11** cầu sáng vàng · **P12** phi tiêu xanh lá · **P13** mũi tên tím · **P2** cầu sét tím | **P3 / H3** dùng Distortion · **P6** tảng đá 3D · **P7** quá to · **P4, P5, P15** quá nhỏ, chủ yếu là vệt |
-| **H1** nổ cam · **H4** sao đỏ · **H5** mảnh xanh lá · **H8** xoáy tím · **H11** sao vàng · **H12** xanh lá + đỏ · **H14** băng · **H2** tia sét | **H10** khói xám đục trên nền cát · **H13, H6** mờ, khó thấy |
-
-### AllIn1VfxToolkit
-
-| Prefab | Dùng cho |
-|---|---|
-| Ice Projectile | Đạn băng hình sao chổi, có bông tuyết |
-| Plasma Ball / Dark Magic Orb | Đạn năng lượng tím |
-| Magic Spiral, Green Portal, Blue Pixel Portal | Aura tròn; hạt quay mặt về camera nên đúng trong 2D |
-| Pixel Fire, Blue Fire | Lửa/độc bám trên quái |
-
-**Không dùng:** Toon Explosion, Explosion Bomb, Blue Area + Distort Sphere (GrabPass).
-
-### Cách ghép đã chốt
-
-| Loại | Đạn | Impact |
-|---|---|---|
-| Fire | Hovl Projectile 1 | Hovl Hit 1 |
-| Ice | AllIn1 Ice Projectile | Hovl Hit 14 (bỏ lớp distortion) |
-| Poison | Hovl Projectile 12 | Hovl Hit 5 |
-| Holy | Hovl Projectile 11 | Hovl Hit 11 |
-| Lưỡi OrbitSaw | Hovl Projectile 9 | |
-| Vùng FrostAura | AllIn1 Magic Spiral hoặc Blue Pixel Portal | |
-
----
-
-## 4. Kiến trúc
-
-```text
-① EDITOR – chuyển đổi một lần           ② RUNTIME                                     ③ KIỂM SOÁT
-Templates/ (đã bóc sạch)                 CombatManager (sở hữu, như hiện tại)           VfxBudget trong CombatVfx
-   │  Vfx2DConverter                      ├── ProjectileSystem → ParticleProjectileVisual   giới hạn impact/frame + tổng
-   ▼  theo VfxImportProfileSO             ├── CombatVfx → ParticleEffectVisual (có sẵn)     bỏ qua ngoài màn hình
-Prefabs/Vfx/ (dùng trong game)            └── SkillAreaVisual → AreaVfxScaler               Check VFX Prefabs (Edit Mode)
-```
-
-**Lý do không thêm interface mới:** sprite và particle đều chỉ là `GameObject` con trong pool, `ProjectileView` không cần phân biệt. Theo rule "Simple trước", component tự lo phần Play/Clear của mình là đủ.
-
----
-
-## 5. Các task tiếp theo
-
-Mỗi task phải biên dịch được, có kiểm tra bằng MCP, và báo lại trước khi sang task sau.
-
-### Task 1. Converter 2D (Editor)
-
-**Mục tiêu:** từ `Templates/`, tạo ra prefab dùng được trong game tại `Assets/_Project/Prefabs/Vfx/{Bullets,Impacts,Areas}/`.
-
-| File | Nội dung |
-|---|---|
-| `Editor/Vfx/VfxImportProfileSO.cs` (mới) | Mục `{ prefab nguồn, kiểu chuyển, kích thước mong muốn, tên đầu ra }` + giới hạn chung |
-| `Editor/Vfx/Vfx2DConverter.cs` (mới) | Menu **Tools/Shooter Game/VFX 2D Converter**: nút Convert + báo cáo |
-| Enum `VfxConvertKind` (Editor) | `Projectile`, `Impact`, `GroundArea`, `Billboard` |
-| `DataSO/Vfx/VfxImportProfile.asset` (mới) | Profile cho 4 cặp đạn/impact |
-| `Editor/Verification/VfxVerification.cs` (mới) | Menu **Check VFX Prefabs** |
-
-**Converter làm theo thứ tự:**
-1. Tạo bản sao từ template (không sửa template).
-2. **Xoay hướng:**
-   - `Projectile`: (0, 90, 0).
-   - `GroundArea`: (-90, 0, 0).
-   - `Impact` / `Billboard`: giữ nguyên.
-3. **Chuẩn kích thước:**
-   - Mô phỏng hạt, đo khung bao thật, rồi scale về kích thước mong muốn.
-   - Đặt `scalingMode = Hierarchy`.
-4. **Sửa cho 2D:**
-   - Thống nhất sorting layer/order: đạn và impact trên nhân vật, vùng dưới nhân vật.
-   - Tắt shadow, light probe, reflection probe, motion vector.
-5. **Bỏ phần nặng:**
-   - Tắt `SOFTPART_ON`.
-   - Xóa object con dùng shader Distortion/GrabPass.
-6. **Cắt dư thừa:**
-   - `maxParticles` đặt bằng lượng phát thật (tốc độ phát × thời gian sống + burst), có giới hạn trên.
-   - Impact: tắt loop, `duration` ≤ 0,8 giây.
-7. **Gắn component runtime:**
-   - Impact: `ParticleEffectVisual`.
-   - Đạn: `ParticleProjectileVisual`, làm ở Task 2.
-8. **Lưu và báo cáo:** chạy lại thì ghi đè đúng file và **giữ GUID**.
-
-**Báo cáo cho từng prefab:** số Particle System, tổng số hạt tối đa, shader, kích thước sau chuyển, cảnh báo.
-
-**Check VFX Prefabs kiểm tra:**
-- Không có Rigidbody, Collider, Light hay script ngoài danh sách cho phép (`ParticleEffectVisual`, `ParticleProjectileVisual`, `VfxSpin`, `VfxBob`, `AreaVfxScaler`).
-- Impact không loop.
-- Không dùng shader GrabPass/Distortion.
-- Số hạt và kích thước nằm trong giới hạn.
-
-**Kiểm tra task:**
-- Convert hai lần không tạo file mới, GUID giữ nguyên.
-- Check VFX Prefabs đạt.
-- Render bằng camera size 1,8, đặt cạnh sprite đạn hiện tại để so kích thước.
-
-**Cần chốt:** kích thước, đề xuất **đạn khoảng 0,10 đơn vị** (khoảng 60% chiều cao quái) và **impact khoảng 0,30 đơn vị**.
-
-### Task 2. Đạn và impact particle trong game
-
-| File | Thay đổi |
-|---|---|
-| `Scripts/Combat/Vfx/ParticleProjectileVisual.cs` (mới) | `OnEnable`: `Clear` + `Play` hạt và vệt. `OnDisable`: `Stop` + `Clear`. Cache `ParticleSystem[]`/`TrailRenderer[]` trong `Awake`, không cấp phát lúc chạy |
-| `Vfx2DConverter` | Gắn component trên vào đầu ra loại `Projectile` |
-| `CombatAssets.asset` | Đổi `visualPrefab` của 4 đạn và 4 impact; **giữ nguyên `hitRadius`/`hitOffset`** |
-| `PoolPrewarmSettings.asset` | Đạn từ 256 xuống **khoảng 64** mỗi loại; impact khoảng 24 mỗi loại |
-
-- **Không sửa** `ProjectileView` hay `ProjectileSystem`.
-- **Đường lui:** giữ prefab sprite cũ; muốn quay lại chỉ cần đổi lại `visualPrefab`.
-
-**Kiểm tra:**
-- Check Object Pools, Check Service Contracts, Check VFX Prefabs.
-- Chơi bằng MCP: vệt không bị kéo dài khi tái dùng, impact tự trả về pool, Console sạch.
-- **Đo Profiler, so trước/sau:** batches, SetPass, ms CPU/GPU, GC mỗi frame (mục tiêu 0 B), thời gian prewarm.
-
-**Rủi ro:** draw call tăng.
-- Xử lý trước: cho đạn cùng loại dùng chung material và sorting order.
-- Nếu chưa đủ: chọn đạn có ít Particle System hơn.
-
-### Task 3. Ngân sách VFX (chỉ khi Profiler thấy cần)
-
-| File | Thay đổi |
-|---|---|
-| `Scripts/Combat/Vfx/CombatVfx.cs` | Tối đa **6 impact mới mỗi frame**, **40 impact đang chạy**. Vượt thì bỏ impact mới; ưu tiên giữ impact chí mạng và impact trúng Player |
-| `CombatVfx` | Bỏ qua impact ngoài màn hình, dùng camera planes của `ProjectileSystem` |
-| Settings của CombatManager / `CombatAssetsSO` | Đưa các giới hạn vào data (**cần duyệt**) |
-
-**Kiểm tra:**
-- Bắn 100 impact trong một frame thì đúng 6 impact được tạo.
-- Chơi trận đông quái, so FPS và draw call trước/sau.
-
-`VfxQuality` chưa làm ở đây. Converter đã đánh dấu sẵn hạt "chi tiết" để sau này chỉ cần bật/tắt.
-
-### Task 4. Vùng tác động (FrostAura, OrbitSaw)
-
-| File | Thay đổi |
-|---|---|
-| `Scripts/Combat/Vfx/AreaVfxScaler.cs` (mới) | `localScale = bán kính skill / bán kính gốc của VFX`, cập nhật khi bán kính đổi |
-| `FrostAuraVisual` / `OrbitSawVisual` | Chỗ gắn prefab VFX tùy chọn; không có thì vẫn dùng mesh cũ |
-| Profile converter | FrostAura: Magic Spiral hoặc Blue Pixel Portal (`Billboard`), tô xanh băng. Lưỡi OrbitSaw: Hovl Projectile 9 |
-
-**Kiểm tra:**
-- Nâng cấp skill để bán kính tăng: VFX phải khớp vùng gây sát thương.
-- Pause game: vùng dừng chuyển động.
-
-**Cần chốt:**
-- FrostAura dùng Magic Spiral hay Blue Pixel Portal? Sẽ render cả hai để so.
-- Có giữ mesh cũ dưới VFX để thấy rõ ranh giới không?
-
-### Task 5. Mở rộng (tùy chọn)
-
-| Việc | Cách làm |
-|---|---|
-| Chớp nòng súng | Thêm giá trị `EffectType` ở cuối enum; `ShootingSkill` gọi `CombatVfx.Spawn` tại nòng; dùng Hovl Flash cùng số với đạn |
-| Lửa/độc trên quái | `EffectSystem` gắn/gỡ VFX lặp (AllIn1 Pixel Fire, hai màu) theo nhân vật khi hiệu ứng bắt đầu/kết thúc |
-| `VfxQuality` trong Settings | Enum trong `GameEnums`, lưu trong save; Low tắt hạt "chi tiết" và giảm số hạt phát ra |
-
-### Task 6. Tài liệu
-
-- `Docs/Architecture/Vfx-2D.md`: mô tả hệ thống sau khi làm xong (luồng Templates → Converter → Prefabs/Vfx → CombatAssetsSO, cách thêm VFX mới, giới hạn hiệu năng, danh sách script được phép).
-- CLAUDE.md và `Systems-Overview.md`: thêm vài dòng ở mục Combat.
-
----
-
-## 6. Tóm tắt điểm cần chốt
-
-| Task | Cần chốt |
-|---|---|
-| 1. Converter | Kích thước đạn 0,10 / impact 0,30 |
-| 2. Đạn + impact | Pool prewarm 64 / 24 |
-| 3. Ngân sách | Chỉ làm nếu Profiler thấy cần; có cho sửa `CombatVfx` và Settings của Combat không |
-| 4. Vùng tác động | Magic Spiral hay Blue Pixel Portal; có giữ mesh cũ không |
-| 5. Mở rộng | Làm phần nào |
-
-## 7. Lưu ý chung
-
-- Không sửa prefab gốc của Hovl/AllIn1. Mọi chỉnh sửa nằm trong `_Project`.
-- Không xóa `Assets/AllIn1VfxToolkit`: bản sao vẫn dùng shader của nó.
-- Không có Bloom, nên một số hiệu ứng AllIn1 trông nhạt hơn ảnh demo.
-- Mỗi đạn nên có 1–2 Particle System, và luôn đo Profiler sau khi thay.
+| VFX khi lưỡi OrbitSaw chạm quái | Chưa làm (tùy chọn): thêm `EffectType` vào `OrbitSawData`, gọi `CombatVfx.Spawn` trong `TryHitTarget` |
+| Bỏ vỏ `EffectView`, impact tự là object trong pool | **Bỏ**: giữ vỏ để linh hoạt (vỏ chung + visual theo loại); thay bằng "thuê rồi phát" + `Advance` trả bool |
+| Gộp vỏ `ProjectileView` với visual đạn | **Bỏ**: mỗi loại một pool, prefab nào cũng phải gắn `ProjectileView`; thay bằng "thuê rồi phóng" |
+| Đo Profiler (draw call, GC, prewarm) trên Android | Chưa làm |
+| Converter Editor, Check VFX Prefabs | **Bỏ**: số prefab ít, chỉnh tay đơn giản hơn |
+| Ngân sách impact mỗi frame, `VfxQuality` | **Bỏ** cho tới khi Profiler cho thấy cần |
+| `Spawn<TState>` để bỏ closure | **Bỏ**: không cần nữa, "thuê rồi phóng/phát" đã bỏ closure mà không đổi contract Pool |
+| `AreaVfxScaler` | **Bỏ**: `SkillAreaVisual` đã đặt `localScale = bán kính` |

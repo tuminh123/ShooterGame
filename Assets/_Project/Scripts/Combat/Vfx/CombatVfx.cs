@@ -8,6 +8,9 @@ using UnityEngine;
 /// <remarks>
 /// Chỉ là hình ảnh, không ảnh hưởng gameplay; effect gameplay (slow, burn…) thuộc <see cref="EffectSystem"/>.
 /// Do <see cref="CombatManager"/> tạo; không bind vào Zenject.
+/// Luồng: thuê vỏ <see cref="EffectView"/> → <see cref="EffectView.Play"/> → mỗi LateTick hỏi
+/// <see cref="EffectView.Advance"/> → xong thì trả visual con rồi trả vỏ. Không lambda, không event, không cấp phát
+/// mỗi lần phát.
 /// </remarks>
 public sealed class CombatVfx : IDisposable
 {
@@ -15,8 +18,7 @@ public sealed class CombatVfx : IDisposable
 
     private readonly IGameObjectPool pools;
     private readonly CombatAssetsSO combatAssets; // Catalog: EffectType → prefab visual.
-    private readonly HashSet<EffectView> activeEffects = new HashSet<EffectView>(); // Để tick và dọn hết khi kết thúc trận.
-    private readonly List<EffectView> frameSnapshot = new List<EffectView>(64); // Dùng lại mỗi frame.
+    private readonly List<EffectView> activeEffects = new List<EffectView>(64); // Để tick và dọn hết khi kết thúc trận.
     private bool disposed;
 
     #endregion
@@ -38,22 +40,35 @@ public sealed class CombatVfx : IDisposable
     {
         if (disposed || effectType == EffectType.None) return;
         CombatAssetsSO.EffectEntry entry = combatAssets.GetEffect(effectType); // Ném lỗi nếu catalog thiếu loại này.
-        pools.Spawn(combatAssets.EffectPrefab.gameObject, position, Quaternion.identity, PoolGroup.Other,
-            beforeActivate: pooledObject =>
-            {
-                EffectView view = pooledObject.GetComponent<EffectView>();
-                view.Initialize(this, pools, entry.VisualPrefab);
-                activeEffects.Add(view);
-            });
+        GameObject shell = pools.Spawn(combatAssets.EffectPrefab.gameObject, position, Quaternion.identity, PoolGroup.Other);
+        if (shell == null) return;
+        EffectView view = shell.GetComponent<EffectView>();
+        try { view.Play(pools, entry.VisualPrefab); }
+        catch
+        {
+            // Phát lỗi thì trả vỏ ngay, không để một vỏ "trống" đang bật trong scene.
+            ReleaseView(view);
+            throw;
+        }
+        activeEffects.Add(view);
     }
 
-    /// <summary>Trả một VFX về pool: thu hồi visual con trước, rồi mới trả vỏ.</summary>
-    internal void Release(EffectView effect)
+    // Trả visual con trước (vỏ còn bật), rồi mới trả vỏ.
+    private void ReleaseView(EffectView view)
     {
-        if (effect == null) return;
-        activeEffects.Remove(effect);
-        try { effect.Clear(); }
-        finally { pools.Despawn(effect.gameObject); }
+        if (view == null) return;
+        try { view.Clear(); }
+        finally { pools.Despawn(view.gameObject); }
+    }
+
+    // Swap-remove: đưa phần tử cuối vào chỗ trống để không phải dời cả danh sách.
+    private void ReleaseAt(int index)
+    {
+        EffectView view = activeEffects[index];
+        int last = activeEffects.Count - 1;
+        activeEffects[index] = activeEffects[last];
+        activeEffects.RemoveAt(last);
+        ReleaseView(view);
     }
 
     #endregion
@@ -61,25 +76,25 @@ public sealed class CombatVfx : IDisposable
     #region Frame
 
     /// <summary>
-    /// Cho mọi VFX đang phát kiểm tra đã xong chưa. CombatManager gọi ở LateTick.
-    /// Duyệt bản chụp vì VFX phát xong sẽ tự <see cref="Release"/> (xóa khỏi tập) ngay trong vòng lặp.
+    /// Hỏi mọi VFX đang phát đã xong chưa; xong thì thu hồi. CombatManager gọi ở LateTick.
+    /// Duyệt ngược nên swap-remove chỉ đưa vào chỗ trống phần tử đã được xét trong frame này.
     /// </summary>
     internal void LateTick()
     {
         if (disposed || activeEffects.Count == 0) return;
         float deltaTime = Time.deltaTime;
-        frameSnapshot.Clear();
-        frameSnapshot.AddRange(activeEffects);
-        try
+        for (int index = activeEffects.Count - 1; index >= 0; index--)
         {
-            foreach (EffectView effect in frameSnapshot)
+            EffectView view = activeEffects[index];
+            bool finished;
+            try { finished = view == null || view.Advance(deltaTime); }
+            catch (Exception exception)
             {
-                if (effect == null || !activeEffects.Contains(effect)) continue;
-                try { effect.Advance(deltaTime); }
-                catch (Exception exception) { Debug.LogException(exception, effect); }
+                Debug.LogException(exception, view);
+                finished = true; // Visual lỗi thì thu hồi luôn, không để kẹt trong danh sách.
             }
+            if (finished) ReleaseAt(index);
         }
-        finally { frameSnapshot.Clear(); }
     }
 
     #endregion
@@ -89,10 +104,8 @@ public sealed class CombatVfx : IDisposable
     /// <summary>Thu hồi mọi VFX đang phát, ví dụ khi trận kết thúc hoặc chơi lại.</summary>
     public void ClearEffects()
     {
-        // Duyệt bản sao vì Release xóa phần tử khỏi tập đang duyệt.
-        foreach (EffectView effect in new List<EffectView>(activeEffects))
-            if (effect != null) Release(effect);
-        activeEffects.Clear();
+        for (int index = activeEffects.Count - 1; index >= 0; index--)
+            ReleaseAt(index);
     }
 
     public void Dispose()

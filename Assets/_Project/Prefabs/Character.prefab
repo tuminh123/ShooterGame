@@ -104,14 +104,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fcd5608b9e7026549994c89e4610e86e, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   hitFlashDuration: 0.12
   hitWhiteBlend: 0.22
   statusColorBlend: 0.55
   poisonColor: {r: 0.65, g: 0.35, b: 1, a: 1}
   burnColor: {r: 1, g: 0.45, b: 0.15, a: 1}
   slowColor: {r: 0.35, g: 0.8, b: 1, a: 1}
+  poisonVfx: {fileID: 5356349606062178451, guid: ad1ad5e37b1442a4aba6b41748841b5a, type: 3}
+  burnVfx: {fileID: 2935511683285677402, guid: 6bc9b5d2315e7b04e846be79af819755, type: 3}
+  slowVfx: {fileID: 7078269385345686639, guid: ffa55b21c189a254e96877958a1b5b75, type: 3}
 --- !u!114 &2100100
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -122,8 +125,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 31d633933058b014fad46a24989026e2, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   vitalsRoot: {fileID: 920001}
   healthBar: {fileID: 256882}
 --- !u!1001 &920003
@@ -232,8 +235,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 74446b47eb104b21bc8d7142adb81f4b, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!224 &4626065732842386050 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 4626065732841732929, guid: 6246f2610c65fb146be4d10484e3e7e5, type: 3}

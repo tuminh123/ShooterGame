@@ -2,6 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Visual vẽ bằng mesh cho vùng/lưỡi của skill (aura băng, cưa xoay), không cần sprite riêng.
+/// Prefab có thể đặt thêm VFX particle làm object con (ví dụ bông tuyết của aura băng); VFX con được scale theo bán kính
+/// cùng mesh và ẩn/hiện cùng mesh.
 /// </summary>
 /// <remarks>
 /// Chỉ là hình ảnh: sát thương và làm chậm thuộc hành vi C# thuần (<see cref="FrostAuraSkill"/>, <see cref="OrbitSawSkill"/>).
@@ -31,6 +33,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
     private Mesh mesh;
     private Material material;
     private MeshRenderer meshRenderer;
+    private Renderer[] renderers; // Mesh và mọi VFX con trong prefab: ẩn/hiện cùng nhau khi skill tạm dừng.
 
     private void Awake() => EnsureGeometry();
 
@@ -91,6 +94,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
         mesh.triangles = triangles;
         mesh.RecalculateBounds();
         filter.sharedMesh = mesh;
+        renderers = GetComponentsInChildren<Renderer>(true); // Lấy sau khi đã thêm MeshRenderer để gồm cả mesh.
     }
 
     /// <summary>
@@ -105,7 +109,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
         offset = Vector2.zero;
         rotation = 0f;
         transform.localScale = Vector3.one * radius;
-        meshRenderer.enabled = true;
+        SetVisible(true); // Lượt thuê trước có thể đã ẩn (skill tạm dừng) rồi mới trả về pool.
         ApplyPose();
     }
 
@@ -115,7 +119,13 @@ public sealed class SkillAreaVisual : MonoBehaviour
         offset = localOffset;
         rotation = angle;
     }
-    public void SetVisible(bool visible) { if (meshRenderer != null) meshRenderer.enabled = visible; }
+    /// <summary>Ẩn/hiện mesh cùng mọi VFX con; không tắt GameObject để vẫn giữ đăng ký tick và vị trí bám chủ.</summary>
+    public void SetVisible(bool visible)
+    {
+        if (renderers == null) return;
+        foreach (Renderer part in renderers)
+            if (part != null) part.enabled = visible;
+    }
 
     /// <summary>Bám theo chủ sau khi di chuyển đã áp dụng. <see cref="SkillAreaVisuals"/> gọi mỗi frame.</summary>
     internal void LateTick()

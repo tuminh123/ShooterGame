@@ -38,6 +38,7 @@ The project was moved (phases 0–7, all done) to a **data-driven architecture w
 - Manager configuration always goes through the manager's own `Settings` class bound with `BindInstance`; never `WithArguments` (Zenject matches those by type, so a new parameter of the same type can be filled silently with the wrong value).
 - Pools of plain C# objects use the shared `Pool<T>` (`Scripts/Shared/Pool.cs`, a `Stack<T>` that rejects double or foreign returns), created with `new` by their manager; no Zenject `MemoryPool`. Only types that are recreated during play and show up in the Profiler implement `IPoolable` (one method, `ResetForPool`); it is not `IDisposable`, and each type keeps its own typed init method called right after `Rent`. Pooled prefabs have no `[Inject]` and `PoolManager` does not inject clones: the owning manager passes what a view needs (`beforeActivate` / `Initialize`).
 - Comments are in Vietnamese. Public and internal members get a `/// <summary>`, and comments explain *why*. Use `#region` to group a class into logical sections when it has two or more.
+- Performance rules (GC, pooling, tick, render, measurement and a review checklist) are in `Docs/Architecture/Performance-Rules.md`. Check hot-path code (every frame, every bullet, every hit) against it.
 - Keep `.meta` GUIDs when moving MonoBehaviours or SOs. Work one task at a time, the game must compile after each task, and report to the user before starting the next task.
 
 ## Architecture
@@ -71,7 +72,7 @@ Every stat bonus (spawn bonus, Player level and equipment, skill buffs, slows, w
 - `SkillDataSO` holds the full per-level data. `SkillFactory` and the behaviour factories build behaviours from enums.
 - `CharacterSkills` manages skills built into a character type. `SkillSystem` schedules skills gained during a run.
 - `ShootingSkill` uses an `IShooter` strategy chosen in the data via `[SerializeReference]` (straight, fan, circle or spiral) and `ProjectileSystem`. Projectiles share one shell.
-- Gameplay effects (slow, burn, poison) run through `EffectSystem` / `EffectRuntimePool`. Visual VFX run separately through `CombatAssetsSO`, `CombatVfx` and `EffectView`. `ProjectileSystem` owns the whole bullet lifecycle (spawn, flight, hit queries, release). All of these are created inside `CombatManager`; other domains use only `Combat/CombatContracts.cs`.
+- Gameplay effects (slow, burn, poison) run through `EffectSystem` / `EffectRuntimePool`. Visual VFX run separately through `CombatAssetsSO`, `CombatVfx` and `EffectView`. Bullets, impacts, the frost aura and status VFX on characters are particle Prefab Variants in `Prefabs/Vfx/` (see `Docs/Architecture/Vfx-2D-Plan.md`). `ProjectileSystem` owns the whole bullet lifecycle (spawn, flight, hit queries, release). All of these are created inside `CombatManager`; other domains use only `Combat/CombatContracts.cs`.
 
 See `Docs/Architecture/Skill-Shooting-Pipeline.md` and `Skill-Run-Progression.md`.
 
@@ -121,6 +122,7 @@ Dự án đã được chuyển (giai đoạn 0–7, đã xong) sang kiến trú
 - Cấu hình của Manager luôn đi qua class `Settings` riêng của Manager đó, bind bằng `BindInstance`; không dùng `WithArguments` (Zenject ghép theo kiểu, thêm một tham số cùng kiểu có thể bị ghép nhầm mà không báo lỗi).
 - Pool cho object C# thuần dùng `Pool<T>` chung (`Scripts/Shared/Pool.cs`, một `Stack<T>` chặn trả hai lần và trả object lạ), do Manager sở hữu `new`; không dùng `MemoryPool` của Zenject. Chỉ kiểu bị tạo lại trong lúc chơi và hiện trên Profiler mới implement `IPoolable` (một hàm `ResetForPool`); không phải `IDisposable`, và mỗi kiểu giữ hàm khởi tạo riêng có tham số, gọi ngay sau `Rent`. Prefab trong pool không có `[Inject]` và `PoolManager` không inject clone: Manager sở hữu truyền dữ liệu view cần qua `beforeActivate` / `Initialize`.
 - Comment bằng tiếng Việt. Member public/internal có `/// <summary>`, comment giải thích *tại sao*. Dùng `#region` để chia class thành các nhóm logic khi có từ hai nhóm trở lên.
+- Luật hiệu năng (GC, pool, tick, render, cách đo và checklist review) nằm trong `Docs/Architecture/Performance-Rules.md`. Code ở đường nóng (mỗi frame, mỗi viên đạn, mỗi lần trúng) phải đối chiếu với file này.
 - Giữ GUID trong file `.meta` khi di chuyển MonoBehaviour hoặc SO. Làm từng task một, game phải biên dịch được sau mỗi task, và báo người dùng trước khi sang task tiếp theo.
 
 ## Kiến trúc
@@ -154,7 +156,7 @@ Mọi bonus chỉ số (bonus lúc spawn, level và trang bị của Player, buf
 - `SkillDataSO` giữ đầy đủ dữ liệu theo từng cấp. `SkillFactory` và các behaviour factory dựng hành vi từ enum.
 - `CharacterSkills` quản lý skill có sẵn theo loại nhân vật. `SkillSystem` lên lịch các skill nhận được trong lượt chơi.
 - `ShootingSkill` dùng strategy `IShooter` chọn trong data bằng `[SerializeReference]` (kiểu bắn thẳng, quạt, vòng tròn hoặc xoắn ốc) và `ProjectileSystem`. Các viên đạn dùng chung một vỏ.
-- Effect gameplay (làm chậm, cháy, độc) chạy qua `EffectSystem` / `EffectRuntimePool`. VFX hình ảnh chạy riêng qua `CombatAssetsSO`, `CombatVfx` và `EffectView`. `ProjectileSystem` sở hữu trọn vòng đời đạn (spawn, bay, quét va chạm, thu hồi). Tất cả được tạo bên trong `CombatManager`; miền khác chỉ dùng `Combat/CombatContracts.cs`.
+- Effect gameplay (làm chậm, cháy, độc) chạy qua `EffectSystem` / `EffectRuntimePool`. VFX hình ảnh chạy riêng qua `CombatAssetsSO`, `CombatVfx` và `EffectView`. Đạn, impact, vùng băng và VFX trạng thái trên nhân vật là Prefab Variant particle trong `Prefabs/Vfx/` (xem `Docs/Architecture/Vfx-2D-Plan.md`). `ProjectileSystem` sở hữu trọn vòng đời đạn (spawn, bay, quét va chạm, thu hồi). Tất cả được tạo bên trong `CombatManager`; miền khác chỉ dùng `Combat/CombatContracts.cs`.
 
 Xem `Docs/Architecture/Skill-Shooting-Pipeline.md` và `Skill-Run-Progression.md`.
 

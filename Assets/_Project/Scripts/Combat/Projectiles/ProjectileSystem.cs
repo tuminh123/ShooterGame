@@ -103,16 +103,20 @@ public sealed class ProjectileSystem : IDisposable
             throw new ArgumentException("Bullet direction must be finite and nonzero.", nameof(direction));
 
         CombatAssetsSO.BulletVisual bulletVisual = combatAssets.GetBullet(projectileData.BulletType);
-        GameObject shell = pools.Spawn(combatAssets.BulletPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Bullets,
-            beforeActivate: pooledObject =>
-            {
-                // Chạy khi vỏ còn tắt: Initialize phải xong trước OnEnable của ProjectileView.
-                pooledObject.transform.localScale = combatAssets.BulletPrefab.transform.localScale;
-                var view = pooledObject.GetComponent<ProjectileView>();
-                try { view.Initialize(projectileContext, bulletVisual, projectileData, direction, target); }
-                catch { view.ClearVisual(); throw; }
-            });
-        return shell != null;
+        // Thuê vỏ rồi phóng ngay trong cùng lời gọi: OnEnable của vỏ không làm gì nên không cần lambda beforeActivate
+        // (lambda có capture tạo closure + delegate mới cho mỗi viên).
+        GameObject shell = pools.Spawn(combatAssets.BulletPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Bullets);
+        if (shell == null) return false;
+        shell.transform.localScale = combatAssets.BulletPrefab.transform.localScale;
+        var view = shell.GetComponent<ProjectileView>();
+        try { view.Launch(projectileContext, bulletVisual, projectileData, direction, target); }
+        catch
+        {
+            // Phóng lỗi thì trả vỏ ngay (visual con trước), không để một vỏ "trống" đang bật trong scene.
+            Release(view);
+            throw;
+        }
+        return true;
     }
 
     /// <summary>Trả một viên đạn về pool: thu hồi visual con trước (khi vỏ còn bật), rồi mới trả vỏ.</summary>
@@ -133,9 +137,9 @@ public sealed class ProjectileSystem : IDisposable
 
     #endregion
 
-    #region Registration (ProjectileView gọi khi bật/tắt)
+    #region Registration (ProjectileView gọi khi phóng/tắt)
 
-    /// <summary>Đạn tự đăng ký trong OnEnable, sau khi đã được Initialize.</summary>
+    /// <summary>Đạn tự đăng ký ở cuối <see cref="ProjectileView.Launch"/>, sau khi đã có đủ dữ liệu lượt bay.</summary>
     internal void Register(ProjectileView projectile, MovementHandle handle)
     {
         if (disposed) throw new ObjectDisposedException(nameof(ProjectileSystem));
