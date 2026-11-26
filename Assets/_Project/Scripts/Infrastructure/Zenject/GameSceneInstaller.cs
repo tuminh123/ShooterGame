@@ -18,6 +18,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Scene References
 
     [SerializeField] private CharacterView characterPrefab; // Một prefab vỏ duy nhất dùng cho cả Player, Enemy và boss.
+    [Tooltip("Kiểu số sát thương bay lên (font, màu, cỡ, nhịp). Trống = không hiện số.")]
+    [SerializeField] private DamageTextStyleSO damageTextStyle;
     [SerializeField] private CombatAssetsSO combatAssets; // Vỏ đạn dùng chung, sprite đạn và prefab effect.
     [SerializeField] private PoolPrewarmSettingsSO poolPrewarmSettings;
     [SerializeField] private CharacterType defaultPlayerType = CharacterType.BlessedGladiator; // Loại Player khi save chưa chọn nhân vật.
@@ -29,6 +31,14 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private EnemySpawner.Settings stage = new EnemySpawner.Settings();
     [Tooltip("Các database mission (Daily, Weekly, từng event); để trống thì không có mission.")]
     [SerializeField] private MissionManager.Settings missions = new MissionManager.Settings();
+    [Tooltip("URL hỏi giờ server cho các tính năng chọn ClockSource.Server (Mission event, login check-in).")]
+    [SerializeField] private ClockManager.Settings clock = new ClockManager.Settings();
+    [Tooltip("Các lịch đăng nhập (7 ngày, chu kỳ, event); thứ tự là thứ tự popup tự mở. Để trống thì không có quà đăng nhập.")]
+    [SerializeField] private LoginCheckInManager.Settings loginCheckIn = new LoginCheckInManager.Settings();
+    [Tooltip("Các gói bán trong shop (tài nguyên, miễn phí, tiền thật). UI ghép thẻ với gói theo ID.")]
+    [SerializeField] private ShopManager.Settings shop = new ShopManager.Settings();
+    [Tooltip("Các banner gacha (tướng, trang bị); thứ tự là thứ tự trên màn Gacha. Tỉ lệ nằm trong từng asset banner.")]
+    [SerializeField] private GachaManager.Settings gacha = new GachaManager.Settings();
 
     #endregion
 
@@ -55,6 +65,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Fields
 
     private ISaveMaintenance saves; // Thử ghi lại save khi ứng dụng pause/mất focus/thoát.
+    private IClockSync clockSync; // Hỏi lại giờ server khi ứng dụng quay lại từ nền.
 
     #endregion
 
@@ -91,6 +102,10 @@ public sealed class GameSceneInstaller : MonoInstaller
             throw new InvalidOperationException("Assign Stage Database in GameSceneInstaller.");
         stageDatabase.Validate();
         missions.Validate();
+        clock.Validate();
+        loginCheckIn.Validate();
+        shop.Validate();
+        gacha.Validate();
     }
 
     // Dùng đúng asset đã gán trong Inspector; không tạo bản sao hoặc giữ trạng thái trận trên DataSO.
@@ -108,11 +123,15 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(poolPrewarmSettings);
         Container.BindInstance(new SaveManager.Settings(playerSaveFile));
         Container.BindInstance(new PlayerSystem.Settings(defaultPlayerType));
-        Container.BindInstance(new CharacterManager.Settings(characterPrefab));
+        Container.BindInstance(new CharacterManager.Settings(characterPrefab, damageTextStyle));
         Container.BindInstance(new GameManager.Settings(characterPrefab, autoStartBattle));
         Container.BindInstance(world); // WorldManager.Settings
         Container.BindInstance(stage); // EnemySpawner.Settings, StageManager dựng EnemySpawner từ đây
         Container.BindInstance(missions); // MissionManager.Settings
+        Container.BindInstance(clock); // ClockManager.Settings
+        Container.BindInstance(loginCheckIn); // LoginCheckInManager.Settings
+        Container.BindInstance(shop); // ShopManager.Settings
+        Container.BindInstance(gacha); // GachaManager.Settings
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
     }
 
@@ -125,6 +144,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     private void BindDomainManagers()
     {
         Container.BindInterfacesTo<SaveManager>().AsSingle().NonLazy(); // Save: đọc/ghi + migration
+        Container.BindInterfacesTo<ClockManager>().AsSingle().NonLazy(); // Clock: giờ máy / giờ server, không phụ thuộc miền nào
         Container.BindInterfacesTo<ProgressionManager>().AsSingle().NonLazy(); // Progression: ví, level vĩnh viễn, trang bị, mốc vượt màn
         Container.BindInterfacesTo<PoolManager>().AsSingle().NonLazy(); // Pool: LeanPool + holder
         Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy(); // Simulation: job di chuyển + lưới không gian
@@ -135,7 +155,11 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInterfacesTo<StageManager>().AsSingle().NonLazy(); // Stage: wave, đội hình, boss
         Container.BindInterfacesTo<BattleManager>().AsSingle().NonLazy(); // Battle: đồng hồ, level trận, loot, chọn skill
         Container.BindInterfacesTo<GameManager>().AsSingle().NonLazy(); // Game: luồng scene, pause, prewarm
+        Container.BindInterfacesTo<LoginCheckInManager>().AsSingle().NonLazy(); // Login Check-in: quà đăng nhập theo lịch, chỉ UI dùng
+        Container.BindInterfacesTo<ShopManager>().AsSingle().NonLazy(); // Shop: gói mua bằng tài nguyên/tiền thật, chỉ UI dùng
+        Container.BindInterfacesTo<GachaManager>().AsSingle().NonLazy(); // Gacha: banner tướng/trang bị, pity, chỉ UI dùng
         Container.BindInterfacesTo<MissionManager>().AsSingle().NonLazy(); // Mission: nghe mọi miền dưới, chỉ UI dùng
+        Container.BindInterfacesTo<NotificationManager>().AsSingle().NonLazy(); // Notification: tầng trên cùng, chấm báo cho UI
     }
 
     // Binding của tầng UI (ScreenTransitionController…) nằm ở UIInstaller, chạy sau installer này.
@@ -150,10 +174,15 @@ public sealed class GameSceneInstaller : MonoInstaller
     private static readonly Type[] InitializeOrder =
     {
         typeof(SaveManager),        // Mở save + migration trước mọi miền đọc dữ liệu.
+        typeof(ClockManager),       // Bắt đầu hỏi giờ server sớm nhất có thể; trả lời đến sau thì Mission tự mở nhóm.
         typeof(ProgressionManager), // Ví, level vĩnh viễn, trang bị, mốc vượt màn.
         typeof(CharacterManager),   // Nhân vật đang chọn (đọc Progression).
         typeof(WorldManager),       // Map ban đầu trước khi GameManager vào Home.
         typeof(MissionManager),     // Đọc tiến độ sau Progression, trước khi GameManager vào Home.
+        typeof(LoginCheckInManager), // Đọc tiến độ lịch đăng nhập trước khi vào Home (popup tự mở dựa vào nó).
+        typeof(ShopManager),        // Đọc số lần đã mua các gói trước khi vào Home.
+        typeof(GachaManager),       // Đọc bộ đếm pity trước khi vào Home.
+        typeof(NotificationManager), // Sau mọi miền nó đọc: báo mọi chấm ở Tick đầu tiên.
         typeof(GameManager),        // Prewarm/spawn sau khi mọi miền đã sẵn sàng.
     };
 
@@ -164,6 +193,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(StageManager),
         typeof(CharacterManager),
         typeof(WorldManager),       // Nền theo Player sau khi nhân vật đã tick.
+        typeof(NotificationManager), // Cuối frame: báo UI các chấm đã đổi, mỗi giây kiểm tra sang ngày mới.
     };
 
     private static readonly Type[] LateTickOrder =
@@ -180,7 +210,10 @@ public sealed class GameSceneInstaller : MonoInstaller
     // Dừng game → thu hồi entity/VFX → trả pool → giải phóng save và buffer Jobs.
     private static readonly Type[] DisposeOrder =
     {
-        typeof(MissionManager),     // Đầu tiên: gỡ listener khỏi mọi miền dưới khi chúng còn sống.
+        typeof(NotificationManager), // Đầu tiên: tầng trên cùng, gỡ listener khỏi mọi miền nó đọc khi chúng còn sống.
+        typeof(MissionManager),     // Gỡ listener khỏi mọi miền dưới khi chúng còn sống.
+        typeof(LoginCheckInManager), // Gỡ listener khỏi Clock khi Clock còn sống.
+        typeof(ShopManager),        // Gỡ listener khỏi Clock khi Clock còn sống.
         typeof(GameManager),        // Hủy prewarm, gỡ listener, trả timeScale.
         typeof(StageManager),
         typeof(WorldManager),       // Sau Stage (Stage dùng World), trước Character (World nghe Player) và Pool (chunk về pool).
@@ -189,6 +222,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(CombatManager),      // Nhân vật despawn còn gọi Combat dọn skill/effect; skill, đạn, VFX còn trả visual về Pool.
         typeof(PoolManager),
         typeof(ProgressionManager), // Sau mọi miền gameplay (còn đọc/ghi ví khi dọn).
+        typeof(ClockManager),       // Sau Mission (còn nghe Changed): hủy request hỏi giờ đang chờ.
         typeof(SaveManager),        // Thử ghi lần cuối phần còn chờ.
         typeof(SimulationManager),  // Cuối: mọi miền đã gỡ đăng ký movement/hitbox. Bên trong: movement rồi spatial.
     };
@@ -214,12 +248,19 @@ public sealed class GameSceneInstaller : MonoInstaller
     #region Application Save Lifecycle
 
     // Resolve sau khi cài đặt xong; lưu dữ liệu khi ứng dụng mất focus, tạm dừng hoặc thoát.
-    public override void Start() => saves = Container.Resolve<ISaveMaintenance>();
+    public override void Start()
+    {
+        saves = Container.Resolve<ISaveMaintenance>();
+        clockSync = Container.Resolve<IClockSync>();
+    }
 
+    // Chỉ hỏi lại giờ khi thật sự quay lại từ nền (pause), không phải mỗi lần mất focus (kéo thanh thông báo).
     private void OnApplicationPause(bool paused)
     {
         if (paused)
             saves?.SaveIfDirty();
+        else
+            clockSync?.Resync();
     }
 
     private void OnApplicationFocus(bool focused)

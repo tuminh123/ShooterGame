@@ -31,6 +31,9 @@ public interface IWallet
 
     /// <summary>Trừ tiền nếu đủ. Trả về đã trừ được hay chưa; <paramref name="saved"/> là kết quả ghi file.</summary>
     bool TrySpend(CurrencyType type, long amount, out bool saved);
+
+    /// <summary>Đủ tiền cho mọi mục của <paramref name="costs"/> chưa (nhiều mục cùng loại được cộng gộp). Chỉ đọc.</summary>
+    bool CanAfford(IReadOnlyList<CurrencyCost> costs);
 }
 
 #endregion
@@ -314,6 +317,12 @@ public interface IRewardGrant
     /// Không gọi từ trong callback của ví hoặc túi đồ.
     /// </summary>
     RewardResult GrantRewards(IReadOnlyList<IReward> rewards, SaveEntry progress, out bool saved);
+
+    /// <summary>
+    /// Mua gói: trừ <paramref name="costs"/>, trao <paramref name="rewards"/> và ghi <paramref name="progress"/> trong MỘT lần ghi.
+    /// Thiếu tiền thì ném lỗi và không đổi gì — bên gọi kiểm tra <see cref="IWallet.CanAfford"/> trước. Dùng bởi Shop.
+    /// </summary>
+    RewardResult PurchaseRewards(IReadOnlyList<CurrencyCost> costs, IReadOnlyList<IReward> rewards, SaveEntry progress, out bool saved);
 }
 
 #endregion

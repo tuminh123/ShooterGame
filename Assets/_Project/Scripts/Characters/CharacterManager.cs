@@ -17,7 +17,8 @@ using Zenject;
 /// ├── CharacterContext                      dịch vụ truyền vào mọi vỏ lúc spawn
 /// ├── CharacterFactory                      ghép template + runtime + controller + vỏ
 /// ├── PlayerSystem                         Player hiện tại, bonus, nhân vật đang chọn
-/// └── EnemyVisibility                    bật/tắt visual quái theo camera
+/// ├── EnemyVisibility                    bật/tắt visual quái theo camera
+/// └── DamageTextSystem                   số sát thương bay lên (1 mesh, tick trong LateTick)
 /// </code>
 /// Các system con được tạo bằng <c>new</c> ngay trong constructor, đọc từ trên xuống.
 /// Miền khác chỉ thấy các interface trong <c>CharacterContracts.cs</c>.
@@ -45,9 +46,13 @@ public sealed class CharacterManager :
         /// <summary>Prefab vỏ dùng chung cho Player, quái và boss.</summary>
         public readonly CharacterView CharacterPrefab;
 
-        public Settings(CharacterView characterPrefab)
+        /// <summary>Kiểu số sát thương bay lên; null = không hiện số.</summary>
+        public readonly DamageTextStyleSO DamageTextStyle;
+
+        public Settings(CharacterView characterPrefab, DamageTextStyleSO damageTextStyle)
         {
             CharacterPrefab = characterPrefab != null ? characterPrefab : throw new ArgumentNullException(nameof(characterPrefab));
+            DamageTextStyle = damageTextStyle;
         }
     }
 
@@ -60,6 +65,7 @@ public sealed class CharacterManager :
     private readonly CharacterFactory factory;
     private readonly PlayerSystem players;
     private readonly EnemyVisibility enemyVisibility;
+    private readonly DamageTextSystem damageText; // null khi installer không gán style.
     private readonly CharacterDataSO[] playableCharacters; // Dựng một lần từ database; màn Character chỉ đọc.
     private bool disposed;
 
@@ -88,8 +94,9 @@ public sealed class CharacterManager :
             runtimes = new CharacterRuntimePool();
             registry = new CharacterRegistry();
             var search = new CharacterSearch(new CharacterSearchFactory(spatialResolution, spatialQuery, queryBuilder));
+            damageText = settings.DamageTextStyle != null ? new DamageTextSystem(settings.DamageTextStyle) : null;
             var context = new CharacterContext(movementRegistration, movementCommand, spatialRegistration,
-                pools, search, runtimes);
+                pools, search, runtimes, damageText);
             factory = new CharacterFactory(settings.CharacterPrefab, pools, registry, context);
             players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses);
             enemyVisibility = new EnemyVisibility(registry);
@@ -121,11 +128,12 @@ public sealed class CharacterManager :
         registry.Tick();
     }
 
-    /// <summary>Cập nhật animation visual của mọi nhân vật, sau khi di chuyển đã áp dụng (xem Lifecycle Order).</summary>
+    /// <summary>Cập nhật animation visual của mọi nhân vật, rồi số sát thương, sau khi di chuyển đã áp dụng (xem Lifecycle Order).</summary>
     public override void LateTick()
     {
         if (disposed) return;
         registry.LateTick();
+        damageText?.LateTick();
     }
 
     #endregion
@@ -140,7 +148,12 @@ public sealed class CharacterManager :
     public void Despawn(CharacterView character) => factory.Despawn(character);
 
     /// <inheritdoc/>
-    public void DespawnAll() => factory.DespawnAll();
+    // Dọn trận (về Home, chơi lại): xóa cả số đang bay, không để số đứng yên trên màn Home.
+    public void DespawnAll()
+    {
+        factory.DespawnAll();
+        damageText?.Clear();
+    }
 
     /// <inheritdoc/>
     public void PrewarmRuntimes(int count) => runtimes.Prewarm(count);
@@ -270,6 +283,7 @@ public sealed class CharacterManager :
         DisposeSafely(players);
         DisposeSafely(registry);
         DisposeSafely(runtimes);
+        DisposeSafely(damageText);
     }
 
     // System có thể null nếu constructor lỗi giữa chừng.

@@ -11,10 +11,11 @@ using Zenject;
 /// <code>
 /// MissionManager
 /// ├── IMissionTracker[]    nghe event gameplay → báo tiến độ (MissionTrackers.cs)
-/// ├── MissionBoard[]       mỗi database một nhóm: kỳ hiện tại + tiến độ từng mission (key missions)
-/// └── IMissionTimeCheck    chỗ cắm kiểm tra giờ (hiện là bản trống)
+/// └── MissionBoard[]       mỗi database một nhóm: kỳ hiện tại + tiến độ từng mission (key missions)
 /// </code>
-/// Chiều phụ thuộc: Mission → Game / Battle / Character / Progression / Save. Không miền gameplay nào biết Mission.
+/// Giờ của mỗi nhóm lấy qua <see cref="IGameClock"/> theo <see cref="MissionDatabaseSO.Clock"/> (giờ máy hoặc giờ server);
+/// nguồn chưa có giờ thì nhóm bị đóng. Miền này không tự đọc DateTime.UtcNow.
+/// Chiều phụ thuộc: Mission → Game / Battle / Character / Progression / Clock / Save. Không miền gameplay nào biết Mission.
 /// Không ghi file mỗi lần giết quái: tiến độ trong trận nằm ở RAM, ghi khi hết trận, về Home, nâng cấp, nhận thưởng hoặc app ẩn/thoát.
 /// </remarks>
 public sealed class MissionManager : DomainManager, IMissions, IInitializable, IDisposable
@@ -54,7 +55,7 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
 
     private readonly ISaveStore saves;
     private readonly IRewardGrant rewards;
-    private readonly IMissionTimeCheck timeCheck;
+    private readonly IGameClock clock; // Giờ của mọi nhóm, theo nguồn từng database chọn.
     private readonly List<MissionBoard> boards = new List<MissionBoard>();
     private readonly List<IMissionTracker> trackers = new List<IMissionTracker>();
     private bool loaded;
@@ -71,6 +72,7 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
     public MissionManager(
         Settings settings,
         ISaveStore saves,
+        IGameClock gameClock,
         IRewardGrant rewardGrant,
         ICharacterRegistry characterRegistry,
         ICharacterDeathEvents characterDeaths,
@@ -82,7 +84,7 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         if (settings == null) throw new ArgumentNullException(nameof(settings));
         this.saves = saves ?? throw new ArgumentNullException(nameof(saves));
         rewards = rewardGrant ?? throw new ArgumentNullException(nameof(rewardGrant));
-        timeCheck = new EmptyMissionTimeCheck();
+        clock = gameClock ?? throw new ArgumentNullException(nameof(gameClock));
 
         CreateBoards(settings);
         CreateTrackers(characterRegistry, characterDeaths, gameState, battleProgress, characterUpgrades, equipmentService);
@@ -121,12 +123,14 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
             tracker.Finished += OnFinished;
         }
         saves.Saving += Flush; // App ẩn/thoát giữa trận: giữ tiến độ đang ở RAM.
+        clock.Changed += Refresh; // Server vừa trả giờ hoặc vừa mất giờ: nhóm dùng giờ server mở/đóng ngay.
     }
 
     // Tracker tự gỡ khỏi event gameplay khi Dispose.
     private void Unsubscribe()
     {
         saves.Saving -= Flush;
+        clock.Changed -= Refresh;
         foreach (IMissionTracker tracker in trackers)
         {
             tracker.Progressed -= OnProgressed;
@@ -195,8 +199,15 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
     }
 
     /// <inheritdoc/>
-    // Nơi DUY NHẤT của miền đọc giờ máy.
-    public DateTime UtcNow => DateTime.UtcNow;
+    // Giờ máy, qua Clock để cả game chỉ có một nơi đọc giờ. Giờ máy luôn có nên bỏ qua kết quả bool.
+    public DateTime UtcNow
+    {
+        get
+        {
+            clock.TryGetUtcNow(ClockSource.Device, out DateTime now);
+            return now;
+        }
+    }
 
     /// <inheritdoc/>
     public void Refresh()
@@ -213,7 +224,8 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         if (!loaded || disposed || claiming) return false;
         Refresh(); // Có thể vừa qua kỳ mới trong lúc UI còn hiện nút Claim.
         MissionBoard board = FindBoard(mission);
-        if (board == null || !board.IsOpen || mission.State != MissionState.Claimable || !timeCheck.Check()) return false;
+        // Nhóm mà nguồn giờ chưa có giờ (ví dụ Server khi mất mạng) đã bị Refresh đóng, nên IsOpen chặn luôn trường hợp đó.
+        if (board == null || !board.IsOpen || mission.State != MissionState.Claimable) return false;
 
         claiming = true;
         try
@@ -264,11 +276,15 @@ public sealed class MissionManager : DomainManager, IMissions, IInitializable, I
         return changed;
     }
 
+    // Mỗi nhóm đọc giờ từ nguồn database của nó chọn; Mission không biết nguồn nào là máy hay server.
     private bool RefreshBoards()
     {
-        DateTime now = UtcNow;
         bool changed = false;
-        foreach (MissionBoard board in boards) changed |= board.Refresh(now);
+        foreach (MissionBoard board in boards)
+        {
+            bool hasTime = clock.TryGetUtcNow(board.Database.Clock, out DateTime now);
+            changed |= board.Refresh(now, hasTime);
+        }
         dirty |= changed;
         return changed;
     }

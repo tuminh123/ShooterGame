@@ -24,7 +24,7 @@ MonoBehaviour:
     subject: 0
     target: 300
   - id: gold
-    description: Collect 1,000 gold in runs
+    description: Collect 1,000 gold in battle
     activity: 2
     detail: 1
     subject: 0

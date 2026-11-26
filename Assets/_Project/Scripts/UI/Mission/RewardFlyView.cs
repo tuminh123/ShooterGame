@@ -69,9 +69,11 @@ public sealed class RewardFlyView : MonoBehaviour
         Vector2 path = to - burst;
         float side = UnityEngine.Random.value < 0.5f ? -1f : 1f;
         Vector2 control = burst + path * 0.5f + new Vector2(-path.y, path.x) * (curve * side * UnityEngine.Random.Range(0.4f, 1f));
-        sequences.Add(Sequence.Create(useUnscaledTime: true) // Home pause (timeScale = 0).
-            .Chain(Tween.Custom(0f, 1f, burstDuration, t => rect.localPosition = Vector2.LerpUnclamped(from, burst, t), Ease.OutCubic))
-            .ChainDelay(delay)
+        Sequence sequence = Sequence.Create(useUnscaledTime: true) // Home pause (timeScale = 0).
+            .Chain(Tween.Custom(0f, 1f, burstDuration, t => rect.localPosition = Vector2.LerpUnclamped(from, burst, t), Ease.OutCubic));
+        // Icon đầu tiên có delay 0: ChainDelay(0) làm PrimeTween cảnh báo "Tween duration (0) <= 0", nên bỏ qua.
+        if (delay > 0f) sequence = sequence.ChainDelay(delay);
+        sequences.Add(sequence
             .Chain(Tween.Custom(0f, 1f, flyDuration, t =>
             {
                 float inverse = 1f - t;

@@ -36,18 +36,27 @@ internal sealed class RewardGranter
 
     #region Grant
 
+    private static readonly CurrencyCost[] NoCost = Array.Empty<CurrencyCost>();
+
     /// <summary>Kiểm tra gói có trao được không; ném lỗi nếu cấu hình sai, không đổi gì.</summary>
-    internal void Validate(IReadOnlyList<IReward> rewards) => Check(RewardBatch.From(rewards));
+    internal void Validate(IReadOnlyList<IReward> rewards) => Check(RewardBatch.From(rewards), NoCost);
 
     /// <summary>
     /// Trao gói và ghi cùng <paramref name="progress"/> (snapshot "đã nhận" của bên gọi).
     /// <paramref name="saved"/> = false thì RAM đã đổi và snapshot chờ ghi lại — không gọi lại lệnh.
     /// </summary>
     internal RewardResult Grant(IReadOnlyList<IReward> rewards, SaveEntry progress, out bool saved)
+        => Purchase(NoCost, rewards, progress, out saved);
+
+    /// <summary>
+    /// Trừ <paramref name="costs"/>, trao gói và ghi cùng <paramref name="progress"/> trong MỘT lần ghi (mua gói shop):
+    /// không bao giờ mất tiền mà không nhận quà, hay nhận quà mà không trừ tiền. Thiếu tiền thì ném lỗi, không đổi gì.
+    /// </summary>
+    internal RewardResult Purchase(IReadOnlyList<CurrencyCost> costs, IReadOnlyList<IReward> rewards, SaveEntry progress, out bool saved)
     {
         if (progress == null) throw new ArgumentNullException(nameof(progress));
         RewardBatch batch = RewardBatch.From(rewards);
-        Dictionary<CurrencyType, long> balances = Check(batch);
+        Dictionary<CurrencyType, long> balances = Check(batch, costs);
 
         var result = new RewardResult();
         wallet.SetBalances(balances);
@@ -92,10 +101,10 @@ internal sealed class RewardGranter
 
     #region Private Helpers
 
-    // Kiểm tra hết trước khi đổi bất kỳ thứ gì; trả về số dư mới của ví để bước trao dùng đúng số đã kiểm tra.
-    private Dictionary<CurrencyType, long> Check(RewardBatch batch)
+    // Kiểm tra hết trước khi đổi bất kỳ thứ gì; trả về số dư mới của ví (đã trừ giá, cộng thưởng) để bước trao dùng đúng số đã kiểm tra.
+    private Dictionary<CurrencyType, long> Check(RewardBatch batch, IReadOnlyList<CurrencyCost> costs)
     {
-        Dictionary<CurrencyType, long> balances = wallet.PlanAdd(batch.Currencies);
+        Dictionary<CurrencyType, long> balances = wallet.PlanPurchase(costs, batch.Currencies);
         foreach (CharacterDataSO character in batch.Characters)
             levels.GetConfig(character.CharacterType); // Ném lỗi nếu không phải nhân vật Player trong database.
         foreach (CharacterShardGrant shard in batch.Shards)

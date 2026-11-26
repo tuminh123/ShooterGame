@@ -169,6 +169,9 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Visual, "maps");
         else if (target is MissionDatabaseSO) DrawMissionDatabase();
         else if (target is MissionDataSO) DrawMission();
+        else if (target is LoginCheckInCalendarSO) DrawLoginCheckIn();
+        else if (target is ShopPackSO) DrawShopPack();
+        else if (target is GachaBannerSO) DrawGachaBanner();
         else if (target is PoolPrewarmSettingsSO) DrawPrewarm();
         else if (target is EnemyFormationSO) DrawFormation();
         else if (target is EnemyPathSO) DrawPath();
@@ -334,8 +337,9 @@ public abstract class ProjectDataSOEditor : Editor
 
     private void DrawMissionDatabase()
     {
-        Section("MISSION GROUP", "ID được lưu trong save. Category quyết định kỳ reset: Daily 0 giờ UTC, Weekly thứ Hai 0 giờ UTC, Event theo ngày.",
-            DataInspectorTone.Info, "id", "displayName", "category");
+        Section("MISSION GROUP", "ID được lưu trong save. Category quyết định kỳ reset: Daily 0 giờ UTC, Weekly thứ Hai 0 giờ UTC, Event theo ngày.\n" +
+            "Clock: Device = giờ máy (chỉnh được); Server = giờ server, chống chỉnh giờ, mất mạng thì nhóm bị ẩn.",
+            DataInspectorTone.Info, "id", "displayName", "category", "clock");
         SerializedProperty category = serializedObject.FindProperty("category");
         if (category.hasMultipleDifferentValues || category.intValue == (int)MissionCategory.Event)
             Section("EVENT DATES (UTC)", "Dạng yyyy-MM-dd. Ngày End không được tính.", DataInspectorTone.Spawn, "eventStart", "eventEnd");
@@ -354,6 +358,108 @@ public abstract class ProjectDataSOEditor : Editor
             if (serializedObject.isEditingMultipleObjects) { Field("rewards"); return; }
             RewardListGUI.Draw(list);
         }
+    }
+
+    #endregion
+
+    #region Login Check-in
+
+    private void DrawLoginCheckIn()
+    {
+        Section("LOGIN CALENDAR", "ID được lưu trong save. Mỗi ngày nhận một ô kế tiếp; bỏ ngày không mất gì và không quay về ô 1.\n" +
+            "Clock: Device = giờ máy (chỉnh được, dùng khi test); Server = chống chỉnh giờ, mất mạng thì lịch bị ẩn.",
+            DataInspectorTone.Info, "id", "displayName", "cycle", "clock");
+        SerializedProperty cycle = serializedObject.FindProperty("cycle");
+        bool mixed = cycle.hasMultipleDifferentValues;
+        if (mixed || cycle.intValue == (int)LoginCheckInCycle.Period)
+            Section("PERIOD (UTC)", "Chu kỳ Period Days ngày tính từ Period Start (yyyy-MM-dd), chung cho mọi người chơi. Số ô ≤ Period Days.",
+                DataInspectorTone.Spawn, "periodDays", "periodStart");
+        if (mixed || cycle.intValue == (int)LoginCheckInCycle.Event)
+            Section("EVENT DATES (UTC)", "Dạng yyyy-MM-dd, ngày End không được tính. Gia hạn: chỉ sửa End. Số ô ≤ số ngày event.",
+                DataInspectorTone.Spawn, "eventStart", "eventEnd");
+        using (DataInspectorGUI.Section("DAYS", "Mỗi ô một phần thưởng, theo thứ tự ngày. SevenDay cần đúng 7 ô; Month tối đa 31.", DataInspectorTone.Rewards))
+        {
+            if (serializedObject.isEditingMultipleObjects) { Field("days"); return; }
+            DrawLoginDays(serializedObject.FindProperty("days"));
+        }
+    }
+
+    private void DrawShopPack()
+    {
+        Section("SHOP PACK", "ID được lưu trong save và dùng để ghép thẻ trên UI. Icon trống = icon của phần thưởng đầu.\n" +
+            "Clock: Device = giờ máy (test); Server = chống chỉnh giờ cho giới hạn Daily/Weekly.",
+            DataInspectorTone.Info, "id", "displayName", "icon", "clock");
+        using (DataInspectorGUI.Section("PRICE", "CurrencyPrice: vàng/kim cương. StorePrice: tiền thật (hiện giả lập, mua là thành công). FreePrice: miễn phí.",
+                   DataInspectorTone.Stats))
+        {
+            if (serializedObject.isEditingMultipleObjects) Field("price");
+            else StrategySelector.Draw(serializedObject.FindProperty("price"), StrategySelector.GetTypes<IShopPrice>(), "Price");
+        }
+        Section("LIMIT", "Daily reset 0h UTC, Weekly reset thứ Hai 0h UTC. Limit Count = số lần mua mỗi kỳ.",
+            DataInspectorTone.Spawn, "limit", "limitCount");
+        using (DataInspectorGUI.Section("REWARDS", "Gói thưởng lắp từ nhiều phần. Nhân vật đã có thì thành mảnh.", DataInspectorTone.Rewards))
+        {
+            if (serializedObject.isEditingMultipleObjects) { Field("rewards"); return; }
+            RewardListGUI.Draw(serializedObject.FindProperty("rewards"));
+        }
+    }
+
+    private void DrawGachaBanner()
+    {
+        Section("GACHA BANNER", "ID lưu bộ đếm pity trong save; đổi ID thì pity về 0. Icon là ảnh trên thẻ banner.\n" +
+            "Chest Closed / Open: rương của màn quay; để trống thì dùng rương mặc định.",
+            DataInspectorTone.Info, "id", "displayName", "icon", "chestClosed", "chestOpen");
+        Section("PRICE", "Giá x1 và x10 (x10 thường giảm ~10%).", DataInspectorTone.Stats, "currency", "singleCost", "tenCost");
+        Section("RATES", "Trọng số từng bậc: xác suất = trọng số / tổng (bậc pool không có bị bỏ). Ví dụ 1 / 5 / 15 / 30 / 49 = 1% / 5% / 15% / 30% / 49%.",
+            DataInspectorTone.Rewards, "rates");
+        Section("PITY", "Soft pity: từ lượt Soft Pity Start, tỉ lệ bậc pity cộng thêm Soft Pity Step mỗi lượt. Hard pity: lượt Hard Pity chắc chắn ra.\n" +
+            "Guarantee: cứ Guarantee Every lượt có ít nhất một món >= Guarantee Tier.",
+            DataInspectorTone.Spawn, "pityTier", "softPityStart", "softPityStep", "hardPity", "guaranteeTier", "guaranteeEvery");
+        using (DataInspectorGUI.Section("POOL", "CharacterGachaPool: bậc = độ hiếm nhân vật, trùng thành mảnh. EquipmentGachaPool: bậc = độ hiếm món đồ.",
+                   DataInspectorTone.Advanced))
+        {
+            if (serializedObject.isEditingMultipleObjects) { Field("pool"); return; }
+            StrategySelector.Draw(serializedObject.FindProperty("pool"), StrategySelector.GetTypes<IGachaPool>(), "Pool");
+        }
+        // Xem trước kết quả cân bằng: tính từ đúng công thức dùng khi quay.
+        var banner = (GachaBannerSO)target;
+        if (banner.Pool == null || GachaRoller.TotalWeight(banner) <= 0f) return;
+        var preview = new System.Text.StringBuilder();
+        foreach (GachaTier tier in (GachaTier[])Enum.GetValues(typeof(GachaTier)))
+        {
+            float chance = GachaRoller.BaseChance(banner, tier);
+            if (chance > 0f) preview.AppendFormat("{0}: {1:0.##}%   ", tier, chance * 100f);
+        }
+        float average = GachaRoller.AveragePullsForTop(banner);
+        if (average > 0f)
+            preview.AppendFormat("\nTrung bình {0:0.#} lượt ra {1} (tỉ lệ thực {2:0.##}%).", average, banner.PityTier, 100f / average);
+        EditorGUILayout.HelpBox(preview.ToString(), MessageType.Info);
+    }
+
+    // Mỗi ô một hộp: tên ngày, nút xóa và bộ chọn kiểu thưởng (SerializeReference).
+    private static void DrawLoginDays(SerializedProperty days)
+    {
+        Type[] types = StrategySelector.GetTypes<IReward>();
+        for (int i = 0; i < days.arraySize; i++)
+        {
+            bool removed = false;
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("Day " + (i + 1), EditorStyles.boldLabel);
+                    removed = GUILayout.Button("Xóa", GUILayout.Width(50));
+                }
+                if (!removed) StrategySelector.Draw(days.GetArrayElementAtIndex(i).FindPropertyRelative("reward"), types, "Reward");
+            }
+            if (!removed) continue;
+            days.DeleteArrayElementAtIndex(i);
+            break;
+        }
+        if (!GUILayout.Button("Thêm ngày")) return;
+        days.arraySize++;
+        // Unity có thể nhân bản phần tử cuối khi tăng size; luôn tạo một ô chọn mới.
+        days.GetArrayElementAtIndex(days.arraySize - 1).FindPropertyRelative("reward").managedReferenceValue = null;
     }
 
     #endregion
@@ -489,6 +595,9 @@ public abstract class ProjectDataSOEditor : Editor
         else if (data is StageDatabaseSO stages) stages.Validate();
         else if (data is MissionDatabaseSO missionDatabase) missionDatabase.Validate();
         else if (data is MissionDataSO mission) mission.Validate();
+        else if (data is LoginCheckInCalendarSO loginCalendar) loginCalendar.Validate();
+        else if (data is ShopPackSO shopPack) shopPack.Validate();
+        else if (data is GachaBannerSO gachaBanner) gachaBanner.Validate();
         else if (data is PoolPrewarmSettingsSO pools) pools.Validate();
         else if (data is EnemyFormationSO formation) formation.Validate();
         else if (data is EnemyPathSO path) path.Validate();
@@ -526,6 +635,9 @@ public abstract class ProjectDataSOEditor : Editor
 [CustomEditor(typeof(StageDatabaseSO)), CanEditMultipleObjects] public sealed class StageDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(MissionDatabaseSO)), CanEditMultipleObjects] public sealed class MissionDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(MissionDataSO)), CanEditMultipleObjects] public sealed class MissionInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(LoginCheckInCalendarSO)), CanEditMultipleObjects] public sealed class LoginCheckInCalendarInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(ShopPackSO)), CanEditMultipleObjects] public sealed class ShopPackInspector : ProjectDataSOEditor { }
+[CustomEditor(typeof(GachaBannerSO)), CanEditMultipleObjects] public sealed class GachaBannerInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(MapDatabaseSO)), CanEditMultipleObjects] public sealed class MapDatabaseInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(PoolPrewarmSettingsSO)), CanEditMultipleObjects] public sealed class PoolPrewarmInspector : ProjectDataSOEditor { }
 [CustomEditor(typeof(EnemyFormationSO)), CanEditMultipleObjects] public sealed class EnemyFormationInspector : ProjectDataSOEditor { }

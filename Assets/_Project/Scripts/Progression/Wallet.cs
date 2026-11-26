@@ -166,15 +166,24 @@ public sealed class Wallet
 
     /// <summary>Tính số dư mới sau khi cộng, không đổi gì; ném lỗi nếu số âm, tràn số hoặc đang trong callback của ví.</summary>
     internal Dictionary<CurrencyType, long> PlanAdd(IReadOnlyDictionary<CurrencyType, long> amounts)
+        => PlanPurchase(Array.Empty<CurrencyCost>(), amounts);
+
+    /// <summary>
+    /// Tính số dư mới sau khi trừ <paramref name="costs"/> rồi cộng <paramref name="gains"/> (mua gói: trả giá, nhận tiền trong gói),
+    /// không đổi gì. Thiếu tiền thì ném lỗi: bên gọi kiểm tra <see cref="CanAfford"/> trước.
+    /// </summary>
+    internal Dictionary<CurrencyType, long> PlanPurchase(IReadOnlyList<CurrencyCost> costs, IReadOnlyDictionary<CurrencyType, long> gains)
     {
         EnsureCanChange(0);
-        if (amounts == null) throw new ArgumentNullException(nameof(amounts));
-        var targets = new Dictionary<CurrencyType, long>(amounts.Count);
-        foreach (KeyValuePair<CurrencyType, long> amount in amounts)
+        if (gains == null) throw new ArgumentNullException(nameof(gains));
+        if (!TryGetSpendTargets(costs, out Dictionary<CurrencyType, long> targets))
+            throw new InvalidOperationException("Not enough currency; check CanAfford before purchasing.");
+        foreach (KeyValuePair<CurrencyType, long> gain in gains)
         {
-            if (amount.Value < 0) throw new ArgumentOutOfRangeException(nameof(amounts));
-            long previous = GetBalance(amount.Key);
-            if (amount.Value > 0) targets.Add(amount.Key, checked(previous + amount.Value));
+            if (gain.Value < 0) throw new ArgumentOutOfRangeException(nameof(gains));
+            if (gain.Value == 0) continue;
+            long current = targets.TryGetValue(gain.Key, out long afterCost) ? afterCost : GetBalance(gain.Key);
+            targets[gain.Key] = checked(current + gain.Value);
         }
         return targets;
     }

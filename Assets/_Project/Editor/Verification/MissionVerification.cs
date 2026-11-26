@@ -31,7 +31,8 @@ public static class MissionVerification
             CheckInvalidRewards();
             CheckStageRewards();
             CheckKillFilters();
-            Debug.Log("[Missions] PASS: databases, cycles, progress, claim (currency/character/shards/equipment), one-shot claim, reload, reset, app suspend, final mission, invalid rewards, stage rewards, kill filters.");
+            CheckClockSources();
+            Debug.Log("[Missions] PASS: databases, cycles, progress, claim (currency/character/shards/equipment), one-shot claim, reload, reset, app suspend, final mission, invalid rewards, stage rewards, kill filters, clock sources.");
         }
         finally
         {
@@ -389,6 +390,31 @@ public static class MissionVerification
         RequireInvalid(mission, data2 => data2.FindProperty("tasks").GetArrayElementAtIndex(0).FindPropertyRelative("detail").intValue = 99);
     }
 
+    // Edit Mode không hỏi mạng nên nguồn Server chưa có giờ: nhóm Server phải đóng (không nhận tiến độ), nhóm Device vẫn chạy.
+    private static void CheckClockSources()
+    {
+        MissionDataSO mission = Mission("m", new[] { KillTask(5) }, new CurrencyReward(CurrencyType.Gold, 1));
+        DateTime now = DateTime.UtcNow;
+        string start = now.AddDays(-1).ToString(TimeCycles.DateFormat, System.Globalization.CultureInfo.InvariantCulture);
+        string end = now.AddDays(2).ToString(TimeCycles.DateFormat, System.Globalization.CultureInfo.InvariantCulture);
+        MissionDatabaseSO daily = Database("daily", MissionCategory.Daily, null, null, mission);
+        MissionDatabaseSO serverEvent = Database("event", MissionCategory.Event, start, end, mission);
+        var data = new SerializedObject(serverEvent);
+        data.FindProperty("clock").intValue = (int)ClockSource.Server;
+        data.ApplyModifiedPropertiesWithoutUndo();
+        Require(serverEvent.TryGetCycle(now, out _, out _), "Test event window must contain the current time.");
+
+        using (var world = new World(new[] { daily, serverEvent }))
+        {
+            Require(world.Missions.Boards[0].IsOpen, "A Device board must stay open without server time.");
+            Require(!world.Missions.Boards[1].IsOpen, "A Server board opened without server time.");
+            world.Kill(CharacterTeam.Enemy);
+            Require(world.Missions.Boards[0].Missions[0].GetProgress(0) == 1, "A Device board did not receive progress.");
+            Require(world.Missions.Boards[1].Missions[0].GetProgress(0) == 0, "A Server board received progress without server time.");
+        }
+        ES3.DeleteFile(SaveFile);
+    }
+
     private static void RequireProgress(MissionRuntime runtime, params int[] expected)
     {
         for (int i = 0; i < expected.Length; i++)
@@ -421,6 +447,7 @@ public static class MissionVerification
     private sealed class World : IDisposable
     {
         private readonly SaveManager save;
+        private readonly ClockManager clock;
         private readonly FakeCharacters characters = new FakeCharacters();
         public readonly ProgressionManager Progression;
         public readonly MissionManager Missions;
@@ -433,7 +460,9 @@ public static class MissionVerification
             Progression = new ProgressionManager(save, Assets<CharacterDatabaseSO>().Single(), Assets<LevelDatabaseSO>().Single(),
                 Assets<EquipmentDatabaseSO>().Single());
             Progression.Initialize();
-            Missions = new MissionManager(new MissionManager.Settings(databases.ToList()), save, Progression, characters, characters,
+            // Cố ý không Initialize: Edit Mode không hỏi mạng, nên nguồn Server luôn "chưa có giờ" và kết quả ổn định.
+            clock = new ClockManager(new ClockManager.Settings());
+            Missions = new MissionManager(new MissionManager.Settings(databases.ToList()), save, clock, Progression, characters, characters,
                 Game, Battle, Progression, Progression);
             // Thưởng sai cố ý: Initialize log lỗi là đúng, tắt log để không lẫn với lỗi thật.
             bool logs = Debug.unityLogger.logEnabled;
@@ -452,6 +481,7 @@ public static class MissionVerification
         {
             Missions.Dispose();
             Progression.Dispose();
+            clock.Dispose();
             save.Dispose();
         }
     }

@@ -16,6 +16,7 @@ There is no CLI build or lint step. You compile by opening the project in Unity,
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, after Home is ready: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
+  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha** and **Check Notifications** (temporary save file, fake clock)
 - **Zenject graph check (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolves every dependency without entering Play Mode. See `Docs/Tools/Verification.md` for the full checklist.
 - **Editor tools.** **Tools/Shooter Game/Hitbox Editor** and **Tools/Shooter Game/Formation & Path Workbench**.
 
@@ -48,13 +49,13 @@ ScriptableObject config → service/factory (creates objects, wires them, owns l
 
 ### Zenject composition (`Scripts/Infrastructure/Zenject/`)
 Two MonoInstallers on the SceneContext, in this order:
-- `GameSceneInstaller`: `BindDomainManagers()` has one `BindInterfacesTo<XxxManager>()` line per domain, ordered bottom-up by dependency. Concrete types are never exposed. Its *Lifecycle Order* region holds four ordered lists (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): read top to bottom = run order, and `ConfigureLifecycleOrder` turns list positions into Zenject numbers. Never write order numbers by hand; a new manager with lifecycle gets a line in the right list. Initialize: Save → Progression → Character → World → Game.
+- `GameSceneInstaller`: `BindDomainManagers()` has one `BindInterfacesTo<XxxManager>()` line per domain, ordered bottom-up by dependency. Concrete types are never exposed. Its *Lifecycle Order* region holds four ordered lists (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): read top to bottom = run order, and `ConfigureLifecycleOrder` turns list positions into Zenject numbers. Never write order numbers by hand; a new manager with lifecycle gets a line in the right list. Initialize: Save → Clock → Progression → Character → World → Mission → LoginCheckIn → Shop → Gacha → Notification → Game.
 - `UIInstaller`: the UI layer's own bindings: `ScreenTransitionController` (`UI/UIContracts.cs`) and the two UI controllers that need LateTick (`SkillChoiceController`, `GameplayController`), ordered after every manager. Other UI panels are scene MonoBehaviours injected automatically.
 - Managers are plain classes that inherit `DomainManager` (`Core/DomainManager.cs`, virtual Initialize/Tick/LateTick/Dispose) and implement the Zenject lifecycle interfaces; they are not MonoBehaviours.
 - **No code registers itself with `TickableManager`.** Views in the scene or pool (camera, character visuals, skill area visuals, VFX) are ticked by their manager (`WorldManager`, `CharacterManager`, `CombatManager`). **Check Service Contracts** rejects any field holding `TickableManager`.
 
 ### Service contracts
-- **All domains are migrated** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Battle, Game): the Manager is the only binding (`BindInterfacesTo<XxxManager>()`), and every cross-domain role lives in `XxxContracts.cs` beside it. Strategy interfaces live beside their family. Stage lives in `Scripts/Stage/` (contracts, rewards, spawn systems). Battle lives in `Scripts/Battle/` (clock, statistics, run level, loot).
+- **All domains are migrated** (Save, Clock, Progression, Pool, Simulation, Character, World, Combat, Stage, Battle, Game, Mission, LoginCheckIn, Shop, Gacha, Notification): the Manager is the only binding (`BindInterfacesTo<XxxManager>()`), and every cross-domain role lives in `XxxContracts.cs` beside it. Strategy interfaces live beside their family. Stage lives in `Scripts/Stage/` (contracts, rewards, spawn systems). Battle lives in `Scripts/Battle/` (clock, statistics, run level, loot).
 - Aggregate facades (getter-only interfaces) are gone and `ServiceContractVerification` rejects new ones.
 - `ServiceContractVerification` checks that every role resolves to its domain manager, no concrete types are bound, and there are no duplicate or missing lifecycle registrations. **Edit > Zenject > Validate Current Scenes** checks that the whole graph resolves without entering Play Mode. Run it after any change to interfaces or bindings.
 
@@ -98,6 +99,7 @@ Không có bước build hay lint bằng CLI. Muốn biên dịch thì mở dự
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, sau khi vào Home: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
+  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha** và **Check Notifications** (file save tạm, đồng hồ giả)
 - **Kiểm tra đồ thị Zenject (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolve mọi dependency mà không cần vào Play Mode. Danh sách đầy đủ xem `Docs/Tools/Verification.md`.
 - **Công cụ Editor.** **Tools/Shooter Game/Hitbox Editor** và **Tools/Shooter Game/Formation & Path Workbench**.
 
@@ -130,13 +132,13 @@ ScriptableObject cấu hình → service/factory (tạo object, kết nối và 
 
 ### Khởi tạo bằng Zenject (`Scripts/Infrastructure/Zenject/`)
 SceneContext có hai MonoInstaller, chạy theo thứ tự:
-- `GameSceneInstaller`: `BindDomainManagers()` có mỗi miền một dòng `BindInterfacesTo<XxxManager>()`, xếp từ dưới lên theo chiều phụ thuộc. Không bao giờ công khai kiểu concrete. Vùng *Lifecycle Order* chứa bốn danh sách (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): đọc từ trên xuống là thứ tự chạy, `ConfigureLifecycleOrder` đổi vị trí trong danh sách thành số của Zenject. Không bao giờ viết số thứ tự tay; Manager mới có vòng đời thì thêm một dòng vào đúng danh sách. Initialize: Save → Progression → Character → World → Game.
+- `GameSceneInstaller`: `BindDomainManagers()` có mỗi miền một dòng `BindInterfacesTo<XxxManager>()`, xếp từ dưới lên theo chiều phụ thuộc. Không bao giờ công khai kiểu concrete. Vùng *Lifecycle Order* chứa bốn danh sách (`InitializeOrder`, `TickOrder`, `LateTickOrder`, `DisposeOrder`): đọc từ trên xuống là thứ tự chạy, `ConfigureLifecycleOrder` đổi vị trí trong danh sách thành số của Zenject. Không bao giờ viết số thứ tự tay; Manager mới có vòng đời thì thêm một dòng vào đúng danh sách. Initialize: Save → Clock → Progression → Character → World → Mission → LoginCheckIn → Shop → Gacha → Notification → Game.
 - `UIInstaller`: binding riêng của tầng UI: `ScreenTransitionController` (`UI/UIContracts.cs`) và hai controller UI cần LateTick (`SkillChoiceController`, `GameplayController`), chạy sau mọi Manager. Các panel UI khác là MonoBehaviour trong scene, được inject tự động.
 - Các manager là class thuần kế thừa `DomainManager` (`Core/DomainManager.cs`, Initialize/Tick/LateTick/Dispose là virtual) và implement interface vòng đời của Zenject; không phải MonoBehaviour.
 - **Không code nào tự đăng ký với `TickableManager`.** View trong scene hoặc pool (camera, visual nhân vật, visual vùng skill, VFX) do Manager của nó tick hộ (`WorldManager`, `CharacterManager`, `CombatManager`). **Check Service Contracts** báo lỗi nếu có field giữ `TickableManager`.
 
 ### Service contract
-- **Mọi miền đã chuyển** (Save, Progression, Pool, Simulation, Character, World, Combat, Stage, Battle, Game): Manager là binding duy nhất (`BindInterfacesTo<XxxManager>()`), mọi vai trò giữa các miền nằm trong `XxxContracts.cs` cạnh nó. Interface strategy nằm cạnh họ của chúng. Miền Stage nằm trong `Scripts/Stage/` (contracts, rewards, các spawn system). Miền Battle nằm trong `Scripts/Battle/` (đồng hồ, thống kê, level trận, loot).
+- **Mọi miền đã chuyển** (Save, Clock, Progression, Pool, Simulation, Character, World, Combat, Stage, Battle, Game, Mission, LoginCheckIn, Shop, Gacha, Notification): Manager là binding duy nhất (`BindInterfacesTo<XxxManager>()`), mọi vai trò giữa các miền nằm trong `XxxContracts.cs` cạnh nó. Interface strategy nằm cạnh họ của chúng. Miền Stage nằm trong `Scripts/Stage/` (contracts, rewards, các spawn system). Miền Battle nằm trong `Scripts/Battle/` (đồng hồ, thống kê, level trận, loot).
 - Không còn facade tổng hợp (interface chỉ có getter); `ServiceContractVerification` chặn việc tạo lại.
 - `ServiceContractVerification` kiểm tra: mọi vai trò resolve về đúng domain manager, không bind kiểu concrete, không đăng ký vòng đời trùng hoặc thiếu. **Edit > Zenject > Validate Current Scenes** kiểm tra toàn bộ đồ thị dependency mà không cần vào Play Mode. Hãy chạy nó sau mỗi lần sửa interface hoặc binding.
 

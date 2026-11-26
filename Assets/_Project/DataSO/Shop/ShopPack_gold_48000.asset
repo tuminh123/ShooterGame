@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e2f1c0a44ac54589b4cc0cd585f4c, type: 3}
+  m_Name: ShopPack_gold_48000
+  m_EditorClassIdentifier: 
+  id: gold_48000
+  displayName: Vault of Gold
+  icon: {fileID: 0}
+  clock: 0
+  price:
+    rid: 8867964291102278306
+  limit: 0
+  limitCount: 1
+  rewards:
+  - rid: 8867964291102278307
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964291102278306
+      type: {class: CurrencyPrice, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 1
+        amount: 1500
+    - rid: 8867964291102278307
+      type: {class: CurrencyReward, ns: , asm: Assembly-CSharp}
+      data:
+        currency: 0
+        amount: 48000

@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b3400f71e7307e49bb6f2c19b91aa41, type: 3}
+  m_Name: Gacha_Gear
+  m_EditorClassIdentifier: 
+  id: gear
+  displayName: Gear Summon
+  icon: {fileID: 21300000, guid: a0ab674ebd8896742bbe3013a49a9920, type: 3}
+  chestClosed: {fileID: 21300000, guid: a0ab674ebd8896742bbe3013a49a9920, type: 3}
+  chestOpen: {fileID: 21300000, guid: 0d5cc28cf7ece0e478f35e316e44bb47, type: 3}
+  currency: 1
+  singleCost: 100
+  tenCost: 900
+  rates:
+  - tier: 0
+    weight: 40.5
+  - tier: 1
+    weight: 30
+  - tier: 2
+    weight: 20
+  - tier: 3
+    weight: 8
+  - tier: 4
+    weight: 1.5
+  pityTier: 4
+  softPityStart: 36
+  softPityStep: 0.06
+  hardPity: 45
+  guaranteeTier: 3
+  guaranteeEvery: 10
+  pool:
+    rid: 8867964295302348970
+  references:
+    version: 2
+    RefIds:
+    - rid: 8867964295302348970
+      type: {class: EquipmentGachaPool, ns: , asm: Assembly-CSharp}
+      data:
+        items:
+        - {fileID: 11400000, guid: 787dbde959c164e4fa075496cb5d1a67, type: 2}
+        - {fileID: 11400000, guid: 37307069a84d421478bc04708d51a2d7, type: 2}
+        - {fileID: 11400000, guid: 6820d14723e73d04db1df295d801dc73, type: 2}
+        - {fileID: 11400000, guid: a6175bcca924ac94d98fb21c0c7f3f55, type: 2}
+        - {fileID: 11400000, guid: 9aa1780fc4d227a4197d2381118ff6c5, type: 2}
+        - {fileID: 11400000, guid: abf8f1e89edcb6d4f88825356a4a9e5f, type: 2}
+        - {fileID: 11400000, guid: 51838f7bc0d23274983d7f98d6a24cb0, type: 2}
+        level: 1

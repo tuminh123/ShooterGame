@@ -112,7 +112,7 @@ public sealed class MissionBoard
     /// <summary>Cấu hình của nhóm.</summary>
     public MissionDatabaseSO Database { get; }
 
-    /// <summary>Đang mở (event ngoài thời gian thì đóng).</summary>
+    /// <summary>Đang mở (event ngoài thời gian, hoặc nhóm cần giờ tin cậy mà giờ không tin cậy, thì đóng).</summary>
     public bool IsOpen { get; private set; }
 
     /// <summary>Lúc kỳ hiện tại kết thúc (UTC); chỉ có nghĩa khi <see cref="IsOpen"/>.</summary>
@@ -153,10 +153,14 @@ public sealed class MissionBoard
         missions.Add(FinalMission);
     }
 
-    /// <summary>Cập nhật kỳ theo giờ; sang kỳ khác thì xóa tiến độ và cờ đã nhận. Trả về có đổi (mở/đóng/reset) hay không.</summary>
-    internal bool Refresh(DateTime utcNow)
+    /// <summary>
+    /// Cập nhật kỳ theo giờ; sang kỳ khác thì xóa tiến độ và cờ đã nhận. Trả về có đổi (mở/đóng/reset) hay không.
+    /// <paramref name="hasTime"/> = false (nguồn giờ chưa có giờ, ví dụ mất mạng): đóng nhóm — ẩn và không nhận được — nhưng giữ nguyên tiến độ.
+    /// </summary>
+    internal bool Refresh(DateTime utcNow, bool hasTime)
     {
-        bool open = Database.TryGetCycle(utcNow, out long current, out DateTime endsAt);
+        // Gọi TryGetCycle trước để các biến out luôn được gán; giờ mặc định (chưa có giờ) vẫn tính được, chỉ bị bỏ qua.
+        bool open = Database.TryGetCycle(utcNow, out long current, out DateTime endsAt) && hasTime;
         bool changed = open != IsOpen;
         IsOpen = open;
         EndsAt = endsAt;

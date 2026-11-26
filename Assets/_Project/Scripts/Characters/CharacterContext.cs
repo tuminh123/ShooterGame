@@ -37,6 +37,9 @@ public sealed class CharacterContext
     /// <summary>Trả runtime về pool khi lượt spawn kết thúc.</summary>
     public CharacterRuntimePool Runtimes { get; }
 
+    /// <summary>Số sát thương bay lên; vỏ báo mỗi đòn trúng (không cần event riêng cho từng vỏ).</summary>
+    public DamageTextSystem DamageText { get; }
+
     #endregion
 
     #region Constructor
@@ -47,8 +50,10 @@ public sealed class CharacterContext
         ISpatialRegistration spatialRegistration,
         IGameObjectPool pools,
         CharacterSearch search,
-        CharacterRuntimePool runtimes)
+        CharacterRuntimePool runtimes,
+        DamageTextSystem damageText)
     {
+        DamageText = damageText;
         MovementRegistration = movementRegistration;
         MovementCommand = movementCommand;
         SpatialRegistration = spatialRegistration;

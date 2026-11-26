@@ -39,6 +39,7 @@ public sealed class CharacterView : MonoBehaviour
     private ISpatialRegistration spatial;
     private IGameObjectPool pools; // Thuê/trả visual con.
     private CharacterRuntimePool runtimePool; // Trả runtime về pool khi lượt spawn kết thúc.
+    private DamageTextSystem damageText; // Số sát thương bay lên.
 
     #endregion
 
@@ -159,6 +160,7 @@ public sealed class CharacterView : MonoBehaviour
         spatial = context.SpatialRegistration;
         pools = context.Pools;
         runtimePool = context.Runtimes;
+        damageText = context.DamageText;
         Search = context.Search;
     }
 
@@ -321,6 +323,8 @@ public sealed class CharacterView : MonoBehaviour
     {
         if (!result.Accepted) return;
         if (!result.Killed) Presentation.RequestVisualState(CharacterVisualState.Hit);
+        // Quái ngoài khung hình (visual đang ẩn) thì không hiện số.
+        if (damageText != null && Presentation.IsVisible) damageText.Show(this, damage, result);
         DamageReceived?.Invoke(damage, result);
     }
 

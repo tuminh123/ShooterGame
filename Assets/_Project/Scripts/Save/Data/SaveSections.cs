@@ -250,6 +250,87 @@ public sealed class MissionsSaveData
     }
 }
 
+/// <summary>Số lần đã mua từng gói shop (key <c>shop</c>). Do ShopManager sở hữu; khớp theo ID gói.</summary>
+[Serializable]
+public sealed class ShopSaveData
+{
+    [Serializable]
+    public sealed class Pack
+    {
+        public string packId;
+        public long cycle; // Mã kỳ giới hạn lúc lưu; khác kỳ hiện tại thì số lần đã mua về 0.
+        public int bought; // Số lần đã mua trong kỳ.
+    }
+
+    public List<Pack> packs = new List<Pack>();
+
+    /// <summary>ID gói không trống, không trùng; số lần mua không âm.</summary>
+    public static void Validate(ShopSaveData value)
+    {
+        if (value == null || value.packs == null) throw new InvalidOperationException("Missing shop data.");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Pack pack in value.packs)
+            if (pack == null || string.IsNullOrWhiteSpace(pack.packId) || !ids.Add(pack.packId) || pack.bought < 0)
+                throw new InvalidOperationException("Shop packs must have unique IDs and non-negative purchase counts.");
+    }
+}
+
+/// <summary>Bộ đếm pity của từng banner gacha (key <c>gacha</c>). Do GachaManager sở hữu; khớp theo ID banner.</summary>
+[Serializable]
+public sealed class GachaSaveData
+{
+    [Serializable]
+    public sealed class Banner
+    {
+        public string bannerId;
+        public int sinceTop; // Số lượt kể từ lần ra bậc pity gần nhất.
+        public int sinceGuarantee; // Số lượt kể từ lần ra bậc >= Guarantee Tier gần nhất.
+
+        /// <summary>Bản sao: GachaManager quay trên bản sao, chỉ thay bản thật khi đã ghi.</summary>
+        public Banner Copy() => new Banner { bannerId = bannerId, sinceTop = sinceTop, sinceGuarantee = sinceGuarantee };
+    }
+
+    public List<Banner> banners = new List<Banner>();
+
+    /// <summary>ID banner không trống, không trùng; bộ đếm không âm.</summary>
+    public static void Validate(GachaSaveData value)
+    {
+        if (value == null || value.banners == null) throw new InvalidOperationException("Missing gacha data.");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Banner banner in value.banners)
+            if (banner == null || string.IsNullOrWhiteSpace(banner.bannerId) || !ids.Add(banner.bannerId)
+                || banner.sinceTop < 0 || banner.sinceGuarantee < 0)
+                throw new InvalidOperationException("Gacha banners must have unique IDs and non-negative counters.");
+    }
+}
+
+/// <summary>Tiến độ lịch đăng nhập (key <c>login_check_in</c>). Do LoginCheckInManager sở hữu; khớp theo ID lịch, không theo vị trí.</summary>
+[Serializable]
+public sealed class LoginCheckInSaveData
+{
+    [Serializable]
+    public sealed class Calendar
+    {
+        public string calendarId;
+        public long cycle; // Mã kỳ lúc lưu; khác kỳ hiện tại thì lịch bắt đầu lại từ ô 1.
+        public int claimedDays; // Số ô đã nhận trong kỳ.
+        public long lastClaimDay; // Ngày UTC (TimeCycles.DayOf) của lần nhận gần nhất; 0 = chưa nhận lần nào.
+    }
+
+    public List<Calendar> calendars = new List<Calendar>();
+
+    /// <summary>ID lịch không trống, không trùng; số ô và ngày nhận không âm.</summary>
+    public static void Validate(LoginCheckInSaveData value)
+    {
+        if (value == null || value.calendars == null) throw new InvalidOperationException("Missing login check-in data.");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Calendar calendar in value.calendars)
+            if (calendar == null || string.IsNullOrWhiteSpace(calendar.calendarId) || !ids.Add(calendar.calendarId) ||
+                calendar.claimedDays < 0 || calendar.lastClaimDay < 0)
+                throw new InvalidOperationException("Login check-in calendars must have unique IDs and non-negative progress.");
+    }
+}
+
 [Serializable]
 public sealed class StageProgressSaveData
 {

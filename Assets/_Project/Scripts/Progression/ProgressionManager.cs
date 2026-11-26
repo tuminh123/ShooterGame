@@ -150,6 +150,9 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     /// <inheritdoc/>
     public bool TrySpend(CurrencyType type, long amount, out bool saved) => wallet.TrySpend(type, amount, out saved);
 
+    /// <inheritdoc/>
+    public bool CanAfford(IReadOnlyList<CurrencyCost> costs) => wallet.CanAfford(costs);
+
     #endregion
 
     #region IPermanentBonuses
@@ -276,6 +279,10 @@ public sealed class ProgressionManager : DomainManager, IWallet, IPermanentBonus
     /// <inheritdoc/>
     public RewardResult GrantRewards(IReadOnlyList<IReward> list, SaveEntry progress, out bool saved)
         => rewards.Grant(list, progress, out saved);
+
+    /// <inheritdoc/>
+    public RewardResult PurchaseRewards(IReadOnlyList<CurrencyCost> costs, IReadOnlyList<IReward> list, SaveEntry progress, out bool saved)
+        => rewards.Purchase(costs, list, progress, out saved);
 
     #endregion
 

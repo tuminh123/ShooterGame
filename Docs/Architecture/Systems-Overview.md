@@ -63,6 +63,11 @@ Không ghi HP, cooldown hay bonus tạm của cá thể vào asset cấu hình d
 | ↳ Màu theo độ hiếm (UI) | RarityStyleDatabaseSO (`UI/`, asset `DataSO/Databases/RarityStyleDatabase`) | Một asset, hai phần: **Character** (nhãn, màu thẻ Collection, nền + PanelGlow màn Detail) và **Equipment** (màu khung thẻ đồ, nhãn). CharacterScreenThemeSO và EquipmentThemeSO chỉ tham chiếu và đọc qua `GetRarity`. Mỗi lớp hình là một `ImageStyle` (`UI/ImageStyle.cs`): chọn **Color** (giữ sprite gốc, tô màu) hoặc **Sprite** (kéo ảnh vào thay); View dùng `StyledImage` để nhớ sprite gốc khi đổi qua lại. |
 | **Simulation** (kiến trúc mới) | **SimulationManager**, SimulationContracts, MovementSystem, SpatialSystem | Burst/Jobs với buffer dùng lại: cập nhật movement và truy vấn không gian. Miền khác chỉ dùng SimulationContracts.cs. |
 | **World** (kiến trúc mới) | **WorldManager**, WorldContracts, GroundChunks | Map nền theo key (Stage gọi `IWorldMap.SetMap`) và nền lặp theo vị trí Player. Cấu hình ở GameSceneInstaller > World. |
+| **Clock** (`Scripts/Clock/`) | **ClockManager**, ClockContracts, ClockSources (`IClockSource` ← `DeviceClockSource` / `ServerClockSource`) | Nơi duy nhất đọc giờ. Data chọn nguồn bằng `ClockSource` (Device = giờ máy, Server = header `Date` của URL HTTPS trong GameSceneInstaller > Clock, cộng thời gian thực đã trôi). Server chưa trả lời/mất mạng thì `TryGetUtcNow` trả false; hỏi lại khi app quay lại từ nền (`IClockSync`). Không phụ thuộc miền nào. Phép tính ngày/tuần dùng chung ở `Utils/TimeCycles.cs`. |
+| **Mission** | **MissionManager**, MissionContracts, MissionTrackers, MissionDatabaseSO | Nghe event gameplay, reset theo kỳ (Daily/Weekly/Event), trao thưởng qua `IRewardGrant`. Mỗi database chọn `ClockSource`: Daily/Weekly dùng Device, Event dùng Server (mất mạng thì tab Event ẩn, giữ tiến độ). |
+| **Login Check-in** (`Scripts/LoginCheckIn/`) | **LoginCheckInManager**, LoginCheckInContracts, LoginCheckInCalendar, LoginCheckInCalendarSO; UI: LoginCheckInPopup, LoginCheckInDayView, AttentionPulse | Quà đăng nhập theo lịch (SevenDay/Month/Period/Event): mỗi ngày nhận một ô kế tiếp, bỏ ngày không quay về ô 1. Trao thưởng + cờ đã nhận trong một lần ghi (key `login_check_in`). Popup đè lên Home, mở từ nút quà (chấm than đỏ khi còn quà). Xem [LoginCheckIn](LoginCheckIn.md). |
+| **Shop** (`Scripts/Shop/`) | **ShopManager**, ShopContracts, ShopPackRuntime, PurchaseChecks, ShopPackSO + IShopPrice; UI: ShopScreenController, ShopPackView, ShopConfirmPopup | Gói = phần thưởng (`IReward`) + giá (tài nguyên / miễn phí / tiền thật) + giới hạn (Daily/Weekly/Lifetime). Kiểm tra điều kiện qua `IPurchaseCheck` (Currency, Store — store hiện giả lập). Trừ tiền + trao quà + số lần mua trong một lần ghi (`IRewardGrant.PurchaseRewards`, key `shop`). Màn Shop mỗi tab một panel, popup xác nhận. Xem [Shop](Shop.md). |
+| **Notification** (`Scripts/Notification/`) | **NotificationManager**, NotificationContracts, NotificationCounter, NotificationSources; UI: NotificationBadgeView | Tầng trên cùng: chỉ đọc interface của Mission/LoginCheckIn/Shop/Progression/Character. Mỗi loại thông báo một nguồn (Quest, Login, Shop, Heroes, Gear) + khóa gộp Home. Báo UI một lần mỗi khóa mỗi frame; mỗi giây nhờ các miền kiểm tra sang ngày mới. Mọi chấm báo trên UI dùng `NotificationBadgeView`. Xem [Notification](Notification.md). |
 
 Boss thuộc phe Enemy; `IsBoss` đánh dấu loại nhân vật để hiển thị thanh máu.
 Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
@@ -73,9 +78,14 @@ Không suy ra boss đã có hệ phase/behavior riêng chỉ từ flag này.
 Bind dịch vụ và inject scene
 (thứ tự = danh sách InitializeOrder trong GameSceneInstaller)
 → SaveManager.Initialize: mở file + migration
+→ ClockManager.Initialize: bắt đầu hỏi giờ server (không chờ; trả lời đến sau thì Mission tự mở nhóm Server)
 → ProgressionManager.Initialize: ví, level vĩnh viễn, trang bị, mốc vượt màn
 → CharacterManager.Initialize: nhân vật đang chọn
 → WorldManager.Initialize: đặt map ban đầu trước khi vào Home
+→ MissionManager.Initialize: đọc tiến độ mission
+→ LoginCheckInManager.Initialize: đọc tiến độ lịch đăng nhập (popup tự mở khi vào Home nếu còn quà)
+→ ShopManager.Initialize: đọc số lần đã mua các gói
+→ NotificationManager.Initialize: đánh dấu mọi khóa; Tick đầu tiên báo mọi chấm báo
 → GameManager.Initialize: GamePrewarm tạo sẵn pool/buffer
 → prewarm → Home → PreparingBattle → reset trận → spawn Player → Playing
 → Gameplay/spawner được phép hoạt động

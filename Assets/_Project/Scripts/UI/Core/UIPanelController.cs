@@ -42,6 +42,12 @@ public abstract class UIPanelController : MonoBehaviour
     public virtual bool IsMenuTab => false;
 
     /// <summary>
+    /// True với popup đè lên màn đang hiện (quà đăng nhập, các panel nhận quà sau này): không làm ẩn màn dưới và không vào
+    /// stack điều hướng. UIManager đóng nó khi màn dưới đổi (mở màn khác, đổi state, Back). Mỗi lúc chỉ một overlay.
+    /// </summary>
+    public virtual bool IsOverlay => false;
+
+    /// <summary>
     /// UIManager đặt trước mỗi lần gọi <see cref="SetVisible"/>: true khi đổi do điều hướng trong menu (nên trượt),
     /// false khi đổi do state game hoặc lúc khởi động (bật/tắt ngay, màn đang tối hoặc chưa hiện).
     /// </summary>

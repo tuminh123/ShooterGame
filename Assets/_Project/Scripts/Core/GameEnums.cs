@@ -345,3 +345,102 @@ public enum ImageStyleMode
 }
 
 #endregion
+
+#region Clock
+
+/// <summary>
+/// Nơi lấy giờ của một nhóm tính năng có kỳ (mission, sau này login check-in); mỗi giá trị là một nguồn trong ClockSources.cs.
+/// Asset lưu số: thêm ở cuối, không đổi số đã dùng.
+/// </summary>
+public enum ClockSource
+{
+    Device = 0,  // Giờ máy: luôn có, người chơi chỉnh được (Daily/Weekly mission).
+    Server = 1   // Giờ server: chỉnh giờ máy không ảnh hưởng; chưa có giờ (mất mạng) thì ẩn và không cho nhận.
+}
+
+#endregion
+
+#region LoginCheckIn
+
+/// <summary>Cách tính kỳ của một lịch đăng nhập; một switch duy nhất trong LoginCheckInCalendarSO.TryGetPeriod. Asset lưu số.</summary>
+public enum LoginCheckInCycle
+{
+    SevenDay = 0, // Luôn mở; nhận đủ mọi ô thì sang ngày sau bắt đầu vòng mới.
+    Month = 1,    // Theo tháng dương lịch UTC, reset ngày 1; nhận tối đa bằng số ngày của tháng.
+    Period = 2,   // Chu kỳ cố định Period Days ngày, tính từ Period Start.
+    Event = 3     // Mở trong [Event Start, Event End); không reset.
+}
+
+/// <summary>Trạng thái một ô ngày trên UI.</summary>
+public enum LoginCheckInDayState
+{
+    Locked = 0,    // Chưa tới lượt (hoặc hôm nay đã nhận rồi).
+    Claimable = 1, // Ô kế tiếp, nhận được hôm nay.
+    Claimed = 2    // Đã nhận.
+}
+
+#endregion
+
+#region Shop
+
+/// <summary>Giới hạn số lần mua một gói; một switch duy nhất trong ShopPackSO.GetCycle. Asset lưu số.</summary>
+public enum PurchaseLimit
+{
+    None = 0,     // Mua không giới hạn.
+    Daily = 1,    // Limit Count lần mỗi ngày (0h UTC).
+    Weekly = 2,   // Limit Count lần mỗi tuần (thứ Hai 0h UTC).
+    Lifetime = 3  // Limit Count lần trong cả tài khoản.
+}
+
+/// <summary>Cách trả tiền của một gói; chọn bước kiểm tra điều kiện (IPurchaseCheck) trong ShopManager.</summary>
+public enum PaymentKind
+{
+    Currency = 0, // Tài nguyên trong game (vàng, kim cương); không có giá = miễn phí.
+    Store = 1     // Tiền thật qua store (IAP).
+}
+
+/// <summary>Lý do không mua được; <see cref="None"/> = mua được. Thêm giá trị mới ở cuối.</summary>
+public enum PurchaseBlock
+{
+    None = 0,
+    Closed = 1,            // Gói đang đóng (nguồn giờ chưa có giờ).
+    LimitReached = 2,      // Hết lượt mua trong kỳ.
+    NotEnoughCurrency = 3,
+    StoreUnavailable = 4,
+    PaymentFailed = 5,     // Store từ chối hoặc người chơi hủy thanh toán.
+    Busy = 6               // Đang xử lý một lần mua khác.
+}
+
+#endregion
+
+#region Gacha
+
+/// <summary>
+/// Bậc quay ra của gacha. Cùng số và thứ tự với <see cref="CharacterRarity"/> và <see cref="EquipmentRarity"/> (pool đổi thẳng bằng số),
+/// nên bảng tỉ lệ dùng chung cho gacha tướng và gacha trang bị. Thêm bậc mới ở cuối, không đổi số cũ.
+/// </summary>
+public enum GachaTier { Common = 0, Uncommon = 1, Rare = 2, Epic = 3, Legendary = 4 }
+
+#endregion
+
+#region Notification
+
+/// <summary>Khóa thông báo (chấm báo trên UI). Asset/scene lưu số: thêm ở cuối, không đổi số đã dùng.</summary>
+public enum NotificationKey
+{
+    Quest = 0,  // Mission đã xong chưa nhận. Mục: ID nhóm mission (daily, weekly, event_launch…).
+    Login = 1,  // Lịch đăng nhập còn quà hôm nay. Mục: ID lịch (7day, period30…).
+    Shop = 2,   // Gói miễn phí còn lượt. Mục: ID gói.
+    Heroes = 3, // Nhân vật lên level được (đủ vàng cả level), lên sao được hoặc ghép được. Mục: CharacterType.
+    Gear = 4,   // Đồ ĐANG MẶC nâng cấp được. Mục: EquipmentSlot.
+    Home = 5    // Khóa gộp: Quest + Login (nút Battle khi đang ở tab khác).
+}
+
+/// <summary>Cách một chấm báo hiển thị.</summary>
+public enum NotificationBadgeMode
+{
+    Dot = 0,   // Chỉ bật/tắt (chấm than).
+    Count = 1  // Hiện số việc đang chờ (lớn hơn 9 thì "9+").
+}
+
+#endregion

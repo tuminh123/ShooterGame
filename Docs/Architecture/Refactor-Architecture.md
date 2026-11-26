@@ -48,6 +48,10 @@ SaveManager
 ├── SaveStorage, SaveMigration
 ⬆ ISaveStore, ISaveMaintenance
 
+ClockManager   (nơi duy nhất đọc giờ; không phụ thuộc miền nào)
+├── IClockSource ← DeviceClockSource / ServerClockSource                         (Strategy)
+⬆ IGameClock, IClockSync   ⚡ Changed
+
 ProgressionManager
 ├── Wallet, CharacterLevels, EquipmentInventory (+ EquipmentGrowth), EquipmentLoadout, StageProgress
 ⬆ IWallet, IPermanentBonuses, ICharacterProgress, ICharacterUpgrades, IStageProgress, IEquipment
@@ -99,8 +103,27 @@ GameManager
 ├── GameStateMachine, GamePause, GamePrewarm
 ⬆ IGameState, IGameFlow, IGamePause, ILoadingProgress   ⚡ StateChanged
 
+MissionManager   (nằm trên mọi miền gameplay, chỉ NGHE event của chúng; chỉ UI dùng Mission)
+├── IMissionTracker[] (Kill / BattleResult / Upgrade), MissionBoard[] → MissionRuntime
+⬆ IMissions   ⚡ Changed
+   (giờ mỗi nhóm lấy qua IGameClock theo MissionDatabaseSO.Clock)
+
+LoginCheckInManager   (quà đăng nhập theo lịch; chỉ UI dùng — xem LoginCheckIn.md)
+├── LoginCheckInCalendar[]   (luật kỳ: một switch trong LoginCheckInCalendarSO.TryGetPeriod)
+⬆ ILoginCheckIn   ⚡ Changed
+   (phụ thuộc Save · Clock · Progression/IRewardGrant)
+
+ShopManager   (gói mua bằng tài nguyên/tiền thật; chỉ UI dùng — xem Shop.md)
+├── ShopPackRuntime[], IPurchaseCheck ← CurrencyPurchaseCheck / StorePurchaseCheck            (Strategy)
+⬆ IShop   ⚡ Changed
+   (phụ thuộc Save · Clock · Progression/IWallet + IRewardGrant.PurchaseRewards)
+
+NotificationManager   (TẦNG TRÊN CÙNG: chỉ đọc interface của các Manager dưới — xem Notification.md)
+├── NotificationCounter, INotificationSource ← Quest / Login / Shop / Heroes / Gear             (Strategy)
+⬆ INotifications   ⚡ Changed(key)
+
 UI (MonoBehaviour trong scene, SceneContext tự inject; không có Manager C# thuần)
-├── UIManager           chọn panel theo GameState (không bind: không ai inject nó)
+├── UIManager           chọn panel theo GameState (không bind: không ai inject nó); một màn + tối đa một overlay đè lên (IsOverlay, ví dụ LoginCheckInPopup)
 ├── ScreenTransitionController   binding UI duy nhất (Home + menu pause dùng chung)
 └── Home, Loading, HUD (BattleHud), SkillChoice, Result, Pause …
 ⬆ (không có cho miền khác; UIContracts.cs chỉ dùng giữa các panel)
@@ -109,19 +132,26 @@ UI (MonoBehaviour trong scene, SceneContext tự inject; không có Manager C# t
 ## 4. Chiều phụ thuộc và giao tiếp
 
 ```text
-            Save
-              ↑
-        Progression     Pool     Simulation        ← hạ tầng, không biết gameplay
-              ↑           ↑          ↑
-              └──────── Character ───┘
-                      ↑        ↑
-                      │      World          ← map nền (đọc vị trí Player)
-                      │        ↑
-                  Combat     Stage          ← Stage gọi World để đặt map
-                      ↑        ↑
-                      └── Battle ─┘
+            Save                  Clock
+              ↑                     ↑
+        Progression     Pool     Simulation     │   ← hạ tầng, không biết gameplay
+              ↑           ↑          ↑          │
+              └──────── Character ───┘          │
+                      ↑        ↑                │
+                      │      World              │   ← map nền (đọc vị trí Player)
+                      │        ↑                │
+                  Combat     Stage              │   ← Stage gọi World để đặt map
+                      ↑        ↑                │
+                      └── Battle ─┘             │
+                           ↑                    │
+                         Game                   │
+                           ↑                    │
+                        Mission ────────────────┤   ← nghe mọi miền dưới; đọc giờ qua Clock
+                                                │
+          LoginCheckIn ─────────────────────────┤   ← chỉ dùng Save, Progression (trao thưởng), Clock
+          Shop ─────────────────────────────────┘   ← chỉ dùng Save, Progression (ví, mua gói), Clock
                            ↑
-                         Game
+                     Notification                   ← tầng trên cùng: đọc Mission, LoginCheckIn, Shop, Progression, Character
                            ↑
                            UI
 ```
@@ -234,12 +264,14 @@ qua registry của Character, `SkillAreaVisual` và VFX trong Combat). **Check S
 Scripts/
 ├── Shared/          CharacterHandle, DamageInfo, GameConstants
 ├── Save/  Progression/  Pooling/
+├── Clock/           ClockManager.cs, ClockContracts.cs, ClockSources.cs
+├── Utils/           hàm/lớp dùng chung không có trạng thái (TimeCycles, popup tween)
 ├── Simulation/      Movement/, Spatial/
 ├── Characters/      CharacterManager.cs, CharacterContracts.cs, Character.cs,
 │                    CharacterView.cs, Controllers/, Data/
 ├── Combat/          CombatManager.cs, CombatContracts.cs, Skills/, Shooting/,
 │                    Projectiles/, Effects/, Vfx/ (data SO nằm trong Data/ của từng nhóm)
-├── Stage/  Battle/  Game/  UI/
+├── Stage/  Battle/  Game/  Mission/  LoginCheckIn/  Shop/  Notification/  UI/
 └── Installers/      GameSceneInstaller.cs
 ```
 

@@ -56,6 +56,12 @@ public sealed class HomeNavigationBar : UIPanelController
     [SerializeField] private EquipmentScreenController equipmentScreen;
     [Tooltip("Màn Mission có header riêng nên hai thanh ẩn khi nó mở; để trống thì bỏ qua.")]
     [SerializeField] private MissionScreenController missionScreen;
+    [Tooltip("Tab Shop trên thanh bar (bản thường Button_01 + bản nổi Button_01_Focus); mở màn Shop, hai thanh vẫn hiện như Heroes/Gear.")]
+    [SerializeField] private NavTab shopTab;
+    [SerializeField] private ShopScreenController shopScreen;
+    [Tooltip("Nút menu (ba gạch) trên thanh trên; mở popup Settings. Để trống thì bỏ qua.")]
+    [SerializeField] private Button settingsButton;
+    [SerializeField] private SettingsPopup settingsPopup;
 
     #endregion
 
@@ -92,13 +98,16 @@ public sealed class HomeNavigationBar : UIPanelController
         battleTab.normal.onClick.AddListener(OnBattle);
         heroesTab.normal.onClick.AddListener(OnHeroes);
         equipmentTab.normal.onClick.AddListener(OnEquipment);
+        shopTab.normal.onClick.AddListener(OnShop);
         // Scene lưu các nút mockup ở trạng thái khóa; trước đây HomeController mở khóa khi chúng còn nằm trong MainUI.
         // Thanh bar giờ tự mở khóa nút của nó (cả bản nổi, để không bị tô màu xám "disabled").
         battleTab.SetInteractable();
         heroesTab.SetInteractable();
         equipmentTab.SetInteractable();
+        shopTab.SetInteractable();
         foreach (Button button in lockedButtons)
             if (button != null) button.interactable = false;
+        if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
         Subscribe();
     }
 
@@ -107,6 +116,8 @@ public sealed class HomeNavigationBar : UIPanelController
         battleTab.normal.onClick.RemoveListener(OnBattle);
         heroesTab.normal.onClick.RemoveListener(OnHeroes);
         equipmentTab.normal.onClick.RemoveListener(OnEquipment);
+        shopTab.normal.onClick.RemoveListener(OnShop);
+        if (settingsButton != null) settingsButton.onClick.RemoveListener(OnSettings);
         Unsubscribe();
     }
 
@@ -120,6 +131,7 @@ public sealed class HomeNavigationBar : UIPanelController
             missionScreen.NavigationChanged += OnNavigationChanged;
             missionScreen.GoRequested += OnMissionGo;
         }
+        if (shopScreen != null) shopScreen.NavigationChanged += OnNavigationChanged;
         Refresh(false);
     }
 
@@ -132,6 +144,7 @@ public sealed class HomeNavigationBar : UIPanelController
             missionScreen.NavigationChanged -= OnNavigationChanged;
             missionScreen.GoRequested -= OnMissionGo;
         }
+        if (shopScreen != null) shopScreen.NavigationChanged -= OnNavigationChanged;
     }
 
     #endregion
@@ -144,11 +157,23 @@ public sealed class HomeNavigationBar : UIPanelController
     {
         characterScreen.Close();
         equipmentScreen.Close();
+        if (shopScreen != null) shopScreen.Close();
     }
 
     private void OnHeroes() => characterScreen.Open();
 
     private void OnEquipment() => equipmentScreen.Open();
+
+    private void OnShop()
+    {
+        if (shopScreen != null) shopScreen.Open();
+    }
+
+    // Popup đè lên màn đang hiện (Home, Heroes, Gear, Shop); UIManager đóng nó khi đổi màn.
+    private void OnSettings()
+    {
+        if (settingsPopup != null) settingsPopup.Open();
+    }
 
     // Nút Go của mission: Mission đã tự đóng nên chỉ cần mở màn đích. Battle = Home, người chơi tự bấm chơi.
     private void OnMissionGo(MissionDestination destination)
@@ -168,10 +193,12 @@ public sealed class HomeNavigationBar : UIPanelController
     {
         bool heroesOpen = characterScreen.IsShown;
         bool equipmentOpen = equipmentScreen.IsShown;
+        bool shopOpen = shopScreen != null && shopScreen.IsShown; // Shop là tab menu: hai thanh vẫn hiện, nút Shop nổi lên.
         if (sharedBackground != null) sharedBackground.SetActive(shown);
-        battleTab.SetFocused(!heroesOpen && !equipmentOpen);
+        battleTab.SetFocused(!heroesOpen && !equipmentOpen && !shopOpen);
         heroesTab.SetFocused(heroesOpen);
         equipmentTab.SetFocused(equipmentOpen);
+        shopTab.SetFocused(shopOpen);
         bool missionOpen = missionScreen != null && missionScreen.IsShown;
         SetBarsShown(shown && !missionOpen && !(heroesOpen && characterScreen.IsOnDetail), instant);
     }

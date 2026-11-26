@@ -38,6 +38,13 @@ public static class GameConstants
         public const string StageProgress = "stage_progress";
         /// <summary>Section lưu tiến độ mission theo nhóm và kỳ.</summary>
         public const string Missions = "missions";
+        /// <summary>Section lưu tiến độ các lịch đăng nhập (số ô đã nhận, ngày nhận gần nhất).</summary>
+        public const string LoginCheckIn = "login_check_in";
+        /// <summary>Section lưu số lần đã mua từng gói shop theo kỳ giới hạn.</summary>
+        public const string Shop = "shop";
+
+        /// <summary>Section lưu bộ đếm pity của từng banner gacha.</summary>
+        public const string Gacha = "gacha";
 
         #endregion
     }

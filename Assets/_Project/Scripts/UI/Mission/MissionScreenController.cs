@@ -44,6 +44,7 @@ public sealed class MissionScreenController : UIPanelController
     private IMissions missions;
     private IGameState game;
     private IWallet wallet;
+    private INotifications notifications; // Chấm trên tab: luật nằm ở miền Notification (khóa Quest + ID nhóm).
     private bool subscribed;
     private bool themeValid;
     private string selectedId; // ID database của tab đang xem; giữ theo ID vì event mở/đóng làm đổi vị trí tab.
@@ -74,12 +75,13 @@ public sealed class MissionScreenController : UIPanelController
 
     /// <summary>Zenject inject cả object đang tắt; đăng ký event khi object được bật.</summary>
     [Inject]
-    public void Construct(IMissions missionService, IGameState gameState, IWallet walletService)
+    public void Construct(IMissions missionService, IGameState gameState, IWallet walletService, INotifications notificationService)
     {
         Unsubscribe();
         missions = missionService;
         game = gameState;
         wallet = walletService;
+        notifications = notificationService;
         if (isActiveAndEnabled) Subscribe();
     }
 
@@ -245,7 +247,8 @@ public sealed class MissionScreenController : UIPanelController
 
         var tabs = new List<MissionTabModel>(openBoards.Count);
         foreach (MissionBoard board in openBoards)
-            tabs.Add(new MissionTabModel(board.Database.DisplayName, board == selected, HasClaimable(board)));
+            tabs.Add(new MissionTabModel(board.Database.DisplayName, board == selected,
+                notifications.Get(NotificationKey.Quest, board.Database.Id).Active));
         var cards = new List<MissionCardModel>();
         MissionCardModel? finalCard = null;
         string title = string.Empty, complete = string.Empty;
@@ -270,13 +273,6 @@ public sealed class MissionScreenController : UIPanelController
         foreach (MissionBoard board in openBoards)
             if (board.Database.Id == selectedId) return board;
         return openBoards.Count > 0 ? openBoards[0] : null;
-    }
-
-    private static bool HasClaimable(MissionBoard board)
-    {
-        foreach (MissionRuntime mission in board.Missions)
-            if (mission.State == MissionState.Claimable) return true;
-        return false;
     }
 
     #endregion

@@ -18,7 +18,7 @@ MonoBehaviour:
   icon: {fileID: 0}
   tasks:
   - id: win
-    description: Win 5 runs
+    description: Win 5 level battle
     activity: 1
     detail: 1
     subject: 0

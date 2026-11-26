@@ -15,6 +15,7 @@ MonoBehaviour:
   id: event_launch
   displayName: Event
   category: 2
+  clock: 1
   eventStart: 2026-11-20
   eventEnd: 2026-12-20
   missions:

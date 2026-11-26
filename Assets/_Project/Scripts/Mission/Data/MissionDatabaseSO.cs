@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using UnityEngine;
 
 /// <summary>
@@ -12,13 +11,14 @@ public sealed class MissionDatabaseSO : ScriptableObject
 {
     #region Configuration
 
-    private const string DateFormat = "yyyy-MM-dd";
-
     [Tooltip("ID ổn định được lưu trong save; không trống, không trùng giữa các database.")]
     [SerializeField] private string id;
     [Tooltip("Chữ trên tab UI.")]
     [SerializeField] private string displayName;
     [SerializeField] private MissionCategory category;
+    [Tooltip("Nơi lấy giờ để tính kỳ và cửa sổ event. Device: giờ máy, chỉnh được (Daily/Weekly). " +
+             "Server: giờ server, chống chỉnh giờ; chưa có giờ (mất mạng) thì nhóm bị ẩn và không nhận được (Event).")]
+    [SerializeField] private ClockSource clock = ClockSource.Device;
     [Tooltip("Chỉ dùng cho Event: ngày mở (UTC), dạng yyyy-MM-dd.")]
     [SerializeField] private string eventStart;
     [Tooltip("Chỉ dùng cho Event: ngày đóng (UTC, không gồm ngày này), dạng yyyy-MM-dd.")]
@@ -36,6 +36,9 @@ public sealed class MissionDatabaseSO : ScriptableObject
     /// <summary>Loại nhóm, quyết định kỳ reset.</summary>
     public MissionCategory Category => category;
 
+    /// <summary>Nơi lấy giờ của nhóm: giờ máy hay giờ server (đọc qua <see cref="IGameClock"/>).</summary>
+    public ClockSource Clock => clock;
+
     /// <summary>Các mission của nhóm.</summary>
     public IReadOnlyList<MissionDataSO> Missions => missions;
 
@@ -49,35 +52,31 @@ public sealed class MissionDatabaseSO : ScriptableObject
     /// <summary>
     /// Nơi DUY NHẤT tính kỳ của nhóm tại <paramref name="utcNow"/>. <paramref name="cycle"/> đổi nghĩa là sang kỳ mới (reset);
     /// <paramref name="endsAt"/> là lúc kỳ kết thúc. False nếu nhóm đang đóng (event ngoài thời gian).
+    /// Hàm thuần: giờ do bên gọi đưa vào theo <see cref="Clock"/>, phép tính ngày/tuần nằm ở <see cref="TimeCycles"/>.
     /// </summary>
     public bool TryGetCycle(DateTime utcNow, out long cycle, out DateTime endsAt)
     {
-        long day = utcNow.Ticks / TimeSpan.TicksPerDay;
+        long day = TimeCycles.DayOf(utcNow);
         switch (category)
         {
             case MissionCategory.Daily:
                 cycle = day;
-                endsAt = FromDay(day + 1);
+                endsAt = TimeCycles.DayStart(day + 1);
                 return true;
             case MissionCategory.Weekly:
-                cycle = day / 7; // 0001-01-01 là thứ Hai nên mỗi nhóm 7 ngày bắt đầu từ thứ Hai.
-                endsAt = FromDay((cycle + 1) * 7);
+                cycle = TimeCycles.WeekOf(day);
+                endsAt = TimeCycles.WeekStart(cycle + 1);
                 return true;
             case MissionCategory.Event:
-                DateTime start = ParseDate(eventStart);
-                endsAt = ParseDate(eventEnd);
-                cycle = start.Ticks / TimeSpan.TicksPerDay;
+                // Mã kỳ theo ngày mở: gia hạn eventEnd không làm mất tiến độ.
+                DateTime start = TimeCycles.ParseDate(eventStart);
+                endsAt = TimeCycles.ParseDate(eventEnd);
+                cycle = TimeCycles.DayOf(start);
                 return utcNow >= start && utcNow < endsAt;
             default:
                 throw new ArgumentOutOfRangeException(nameof(category), category, "Unknown mission category.");
         }
     }
-
-    private static DateTime FromDay(long day) => new DateTime(day * TimeSpan.TicksPerDay, DateTimeKind.Utc);
-
-    private static DateTime ParseDate(string value)
-        => DateTime.ParseExact(value, DateFormat, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
     #endregion
 
@@ -88,16 +87,17 @@ public sealed class MissionDatabaseSO : ScriptableObject
     {
         if (string.IsNullOrWhiteSpace(id)) throw new InvalidOperationException($"{name}: database chưa có ID.");
         if (!Enum.IsDefined(typeof(MissionCategory), category)) throw new InvalidOperationException($"{name}: loại không hợp lệ.");
+        if (!Enum.IsDefined(typeof(ClockSource), clock)) throw new InvalidOperationException($"{name}: nguồn giờ không hợp lệ.");
         if (category == MissionCategory.Event)
         {
             try
             {
-                if (ParseDate(eventStart) >= ParseDate(eventEnd))
+                if (TimeCycles.ParseDate(eventStart) >= TimeCycles.ParseDate(eventEnd))
                     throw new InvalidOperationException($"{name}: Event Start phải trước Event End.");
             }
             catch (Exception exception) when (exception is FormatException || exception is ArgumentNullException)
             {
-                throw new InvalidOperationException($"{name}: ngày event phải có dạng {DateFormat}.");
+                throw new InvalidOperationException($"{name}: ngày event phải có dạng {TimeCycles.DateFormat}.");
             }
         }
         var ids = new HashSet<string>(StringComparer.Ordinal);

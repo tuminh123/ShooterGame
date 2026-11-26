@@ -9,7 +9,8 @@ using Zenject;
 /// </summary>
 /// <remarks>
 /// GameManager quyết định luồng game và phát StateChanged; UIManager chỉ nghe và chọn "hiện gì":
-/// màn gốc theo bảng route, các tab menu trong stack, và panel nền (chrome) theo <see cref="UIPanelController.ShowsInState"/>.
+/// màn gốc theo bảng route, các tab menu trong stack, một popup overlay đè lên màn đang hiện (<see cref="UIPanelController.IsOverlay"/>),
+/// và panel nền (chrome) theo <see cref="UIPanelController.ShowsInState"/>.
 /// Panel được tự thu thập trong scene (kể cả đang tắt) và bị tắt hết khi bắt đầu, nên scene lưu bật hay tắt đều như nhau.
 /// </remarks>
 [AddComponentMenu("Shooter Game/UI/UI Manager")]
@@ -38,6 +39,8 @@ public sealed class UIManager : MonoBehaviour
     private IGameState game; // Đọc state hiện tại khi UI được bật lại sau một khoảng tắt subscription.
     private UIPanelController rootPanel; // Gốc luồng hiện tại do SetRootPanel chỉ định lúc chạy, không phải cấu hình default.
     private UIPanelController activePanel; // Controller đang được manager cấp quyền hiển thị.
+    private UIPanelController activeOverlay; // Popup đang đè lên activePanel; null = không có.
+    private UIPanelController overlayHost; // Màn bên dưới lúc mở overlay; màn này đổi thì overlay đóng.
     private bool visible = true; // Ẩn toàn bộ UI vẫn bảo toàn lịch sử để tiếp tục khi hiện lại.
     private bool subscribed; // Chống đăng ký sự kiện lặp khi OnEnable và API điều hướng cùng chạy.
     private bool listeningToGame; // Tách khỏi `subscribed`: OnEnable có thể chạy trước Construct, lúc đó chưa có `game` để nghe.
@@ -108,7 +111,9 @@ public sealed class UIManager : MonoBehaviour
             panel.VisibilityRequested -= OnVisibilityRequested;
             panel.VisibilityRequested += OnVisibilityRequested;
             panel.Present(false, false);
-            if (!panel.IsChrome && panel != rootPanel && panel.WantsVisible && !history.Contains(panel)) history.Add(panel);
+            // Overlay là popup tạm thời: không khôi phục sau khi bật lại, phải được mở lại từ màn bên dưới.
+            if (panel.IsOverlay) panel.RecordVisibilityRequest(false);
+            else if (!panel.IsChrome && panel != rootPanel && panel.WantsVisible && !history.Contains(panel)) history.Add(panel);
         }
         RefreshFlow(false);
     }
@@ -135,6 +140,8 @@ public sealed class UIManager : MonoBehaviour
             panel.Present(false, false);
         }
         activePanel = null;
+        activeOverlay = null;
+        overlayHost = null;
         history.Clear();
         shownChrome.Clear();
         subscribed = false;
@@ -159,6 +166,7 @@ public sealed class UIManager : MonoBehaviour
     {
         Subscribe();
         EnsureNavigable(panel);
+        if (panel.IsOverlay) { OpenOverlay(panel); return; }
         if (panel == rootPanel) { SetRootPanel(panel); return; }
         panel.RecordVisibilityRequest(true);
         if (panel.IsMenuTab && history.Count > 0)
@@ -179,6 +187,12 @@ public sealed class UIManager : MonoBehaviour
     public void ClosePanel(UIPanelController panel)
     {
         Subscribe();
+        if (panel != null && panel.IsOverlay)
+        {
+            if (panel == activeOverlay) CloseOverlay(true);
+            else panel.RecordVisibilityRequest(false);
+            return;
+        }
         if (panel != null && panel == rootPanel) return;
         if (panel != null) panel.RecordVisibilityRequest(false);
         history.Remove(panel);
@@ -188,7 +202,8 @@ public sealed class UIManager : MonoBehaviour
     /// <summary>Quay về UI trước thông qua cùng chính sách điều hướng; không tự bỏ queue nghiệp vụ của panel.</summary>
     public void Back()
     {
-        if (activePanel != null && activePanel != rootPanel) ClosePanel(activePanel);
+        if (activeOverlay != null) CloseOverlay(true); // Popup đang đè thì Back đóng popup trước, giữ màn bên dưới.
+        else if (activePanel != null && activePanel != rootPanel) ClosePanel(activePanel);
     }
 
     /// <summary>
@@ -222,6 +237,7 @@ public sealed class UIManager : MonoBehaviour
     private void RefreshFlow(bool animate)
     {
         UIPanelController next = visible && history.Count > 0 ? history[history.Count - 1] : null; // Lịch sử rỗng thì không có UI; GameState quyết định luồng tiếp theo.
+        if (activeOverlay != null && next != overlayHost) CloseOverlay(animate); // Màn dưới đổi: popup đè lên nó đóng trước.
         if (activePanel != next)
         {
             UIPanelController previous = activePanel; // Đổi state trước callback để không giữ panel cũ trong lúc nó đóng.
@@ -230,6 +246,32 @@ public sealed class UIManager : MonoBehaviour
             if (next != null) next.Present(true, animate);
         }
         RefreshChrome(animate);
+    }
+
+    // Overlay hiện đè lên màn đang hiện mà không làm ẩn nó. Không có màn nào đang hiện thì từ chối (overlay luôn cần màn bên dưới).
+    // Present tự bật object nếu scene lưu nó đang tắt, giống mọi panel khác.
+    private void OpenOverlay(UIPanelController overlay)
+    {
+        if (!visible || activePanel == null)
+        {
+            overlay.RecordVisibilityRequest(false);
+            return;
+        }
+        if (activeOverlay != null && activeOverlay != overlay) CloseOverlay(true);
+        overlay.RecordVisibilityRequest(true);
+        activeOverlay = overlay;
+        overlayHost = activePanel;
+        overlay.Present(true, true);
+    }
+
+    // Đổi state trước callback, để overlay đóng xong mà xin mở lại thì không bị coi là đang mở.
+    private void CloseOverlay(bool animate)
+    {
+        UIPanelController overlay = activeOverlay;
+        activeOverlay = null;
+        overlayHost = null;
+        overlay.RecordVisibilityRequest(false);
+        overlay.Present(false, animate);
     }
 
     // Panel nền hiện khi UI đang hiện và state hiện tại nằm trong ShowsInState của nó; chỉ gọi panel khi kết quả đổi.
