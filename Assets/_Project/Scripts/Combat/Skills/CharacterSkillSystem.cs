@@ -20,20 +20,43 @@ public sealed class CharacterSkillSystem : IDisposable
 {
     #region Types
 
-    /// <summary>Bộ skill của một lượt spawn, kèm handle để nhận ra lượt spawn đó (vỏ có thể bị pool tái sử dụng).</summary>
-    private sealed class Entry
+    /// <summary>
+    /// Bộ skill của một lượt spawn, kèm handle để nhận ra lượt spawn đó (vỏ có thể bị pool tái sử dụng).
+    /// </summary>
+    /// <remarks>
+    /// Dùng lại qua pool: mỗi Entry đi kèm một <see cref="CharacterSkills"/> cố định và hai delegate tạo một lần
+    /// (đọc View hiện tại của Entry), nên spawn lại không cấp phát closure mới.
+    /// </remarks>
+    private sealed class Entry : IPoolable
     {
-        public readonly CharacterHandle Handle;
-        public readonly CharacterSkills Skills;
+        public readonly CharacterSkills Skills = new CharacterSkills();
         public readonly Action Activated; // Giữ delegate để gỡ đúng listener khi thu hồi.
         public readonly Action Deactivated;
+        public CharacterHandle Handle;
+        public CharacterView View;
 
-        public Entry(CharacterHandle handle, CharacterSkills skills, Action activated, Action deactivated)
+        public Entry(CharacterSkillSystem system)
         {
-            Handle = handle;
-            Skills = skills;
-            Activated = activated;
-            Deactivated = deactivated;
+            // View null = entry đang nằm trong pool (đã gỡ listener); chặn phòng khi event còn sót.
+            Activated = () => { if (View != null) system.SetPaused(View, false); };
+            Deactivated = () => { if (View != null) system.SetPaused(View, true); };
+        }
+
+        public void Initialize(CharacterView view)
+        {
+            View = view;
+            Handle = new CharacterHandle(view);
+        }
+
+        // Kết thúc bộ skill nếu còn chạy, rồi bỏ tham chiếu tới vỏ của lượt cũ.
+        void IPoolable.ResetForPool()
+        {
+            try { ((IPoolable)Skills).ResetForPool(); }
+            finally
+            {
+                View = null;
+                Handle = default;
+            }
         }
     }
 
@@ -52,7 +75,17 @@ public sealed class CharacterSkillSystem : IDisposable
     private readonly EffectSystem effects;
     private readonly Dictionary<CharacterView, Entry> entries = new Dictionary<CharacterView, Entry>(128);
     private readonly List<Entry> tickSnapshot = new List<Entry>(128);
+    private readonly List<Entry> stopSnapshot = new List<Entry>(128); // StopAll dùng lại, không tạo list mỗi lần kết thúc trận.
+    private readonly Pool<Entry> entryPool; // Entry + CharacterSkills của lượt spawn, dùng lại cho lượt sau.
+    // Entry bị thu hồi trong lúc chính bộ skill của nó đang tick (đòn đánh làm chủ bị despawn): chờ hết vòng tick mới trả pool,
+    // để vòng tick đang chạy không đọc bộ skill đã bị dọn hoặc đã được lượt spawn khác mượn lại.
+    private readonly List<Entry> pendingEntries = new List<Entry>();
+    private bool ticking; // Đang duyệt tickSnapshot.
     private bool disposed;
+
+    /// <summary>Số entry (bộ skill) đang rảnh / đang dùng (kiểm tra).</summary>
+    public int AvailableEntries => entryPool.AvailableCount;
+    public int LeasedEntries => entryPool.LeasedCount;
 
     #endregion
 
@@ -67,6 +100,7 @@ public sealed class CharacterSkillSystem : IDisposable
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         this.gameplaySkills = gameplaySkills ?? throw new ArgumentNullException(nameof(gameplaySkills));
         this.effects = effects ?? throw new ArgumentNullException(nameof(effects));
+        entryPool = new Pool<Entry>(() => new Entry(this));
         characters.CharacterAdded += OnCharacterAdded;
         characters.CharacterRemoved += OnCharacterRemoved;
         deaths.CharacterDied += OnCharacterDied;
@@ -99,6 +133,7 @@ public sealed class CharacterSkillSystem : IDisposable
         // Chụp danh sách trước: một đòn đánh có thể giết nhân vật khác và làm entry bị gỡ ngay trong vòng lặp.
         tickSnapshot.Clear();
         tickSnapshot.AddRange(entries.Values);
+        ticking = true;
         try
         {
             foreach (Entry entry in tickSnapshot)
@@ -110,7 +145,12 @@ public sealed class CharacterSkillSystem : IDisposable
                 catch (Exception exception) { Debug.LogException(exception, entry.Handle.View); }
             }
         }
-        finally { tickSnapshot.Clear(); }
+        finally
+        {
+            ticking = false;
+            tickSnapshot.Clear();
+            FlushPendingEntries(); // Entry thu hồi giữa vòng chỉ về pool khi không còn trong bản chụp.
+        }
     }
 
     #endregion
@@ -126,12 +166,20 @@ public sealed class CharacterSkillSystem : IDisposable
         if (entries.ContainsKey(view)) Release(view);
 
         CollectSkillGrants(template, grantBuffer);
-        CharacterSkills skills = new CharacterSkills(view, grantBuffer, factory);
-        Action activated = () => SetPaused(view, false);
-        Action deactivated = () => SetPaused(view, true);
-        entries.Add(view, new Entry(new CharacterHandle(view), skills, activated, deactivated));
-        view.Activated += activated;
-        view.Deactivated += deactivated;
+        Entry entry = entryPool.Rent();
+        try
+        {
+            entry.Initialize(view);
+            entry.Skills.Initialize(view, grantBuffer, factory);
+        }
+        catch
+        {
+            entryPool.Return(entry); // Khởi tạo skill lỗi: dọn và cất lại, không lọt entry dở dang.
+            throw;
+        }
+        entries.Add(view, entry);
+        view.Activated += entry.Activated;
+        view.Deactivated += entry.Deactivated;
     }
 
     /// <summary>
@@ -153,8 +201,12 @@ public sealed class CharacterSkillSystem : IDisposable
             case CharacterTeam.Enemy:
                 // Enemy và boss: mọi skill có sẵn, ở cấp mặc định ghi trong asset của skill.
                 result.Clear();
-                foreach (SkillDataSO skill in template.Skills)
+                // Chỉ số, không foreach: chạy mỗi lần quái spawn, enumerator của IReadOnlyList sẽ cấp phát.
+                for (int i = 0; i < template.Skills.Count; i++)
+                {
+                    SkillDataSO skill = template.Skills[i];
                     result.Add(new SkillGrant(skill, skill.Level));
+                }
                 break;
 
             default:
@@ -213,17 +265,44 @@ public sealed class CharacterSkillSystem : IDisposable
     /// </summary>
     public void StopAll()
     {
-        foreach (Entry entry in new List<Entry>(entries.Values))
-            DisposeSafely(entry.Skills, entry.Handle.View);
+        stopSnapshot.Clear();
+        stopSnapshot.AddRange(entries.Values);
+        try
+        {
+            foreach (Entry entry in stopSnapshot)
+                DisposeSafely(entry.Skills, entry.Handle.View);
+        }
+        finally { stopSnapshot.Clear(); }
     }
 
+    // Quên lượt spawn: dọn combat rồi cất entry (kèm bộ skill) về pool cho lượt spawn sau.
     private void Release(CharacterView view)
     {
         if (!entries.TryGetValue(view, out Entry entry)) return;
         entries.Remove(view);
         view.Activated -= entry.Activated;
         view.Deactivated -= entry.Deactivated;
-        EndCombat(view, entry);
+        try { EndCombat(view, entry); }
+        finally
+        {
+            // Đang trong vòng tick (của hệ thống hoặc của chính bộ skill): chờ hết vòng, để bản chụp không gặp lại entry
+            // đã được lượt spawn mới mượn (tick thừa) hay bộ skill đã dọn.
+            if (ticking || entry.Skills.IsTicking) pendingEntries.Add(entry);
+            else ReturnEntry(entry);
+        }
+    }
+
+    private void ReturnEntry(Entry entry)
+    {
+        try { entryPool.Return(entry); }
+        catch (Exception exception) { Debug.LogException(exception); }
+    }
+
+    // Trả các entry đã thu hồi giữa vòng tick (gọi sau vòng tick và khi dọn scene).
+    private void FlushPendingEntries()
+    {
+        for (int i = 0; i < pendingEntries.Count; i++) ReturnEntry(pendingEntries[i]);
+        pendingEntries.Clear();
     }
 
     // Thứ tự giữ như khi còn nằm trong CharacterView: skill vốn có → skill gameplay của owner → effect đang bám.
@@ -262,6 +341,7 @@ public sealed class CharacterSkillSystem : IDisposable
         deaths.CharacterDied -= OnCharacterDied;
         foreach (CharacterView view in new List<CharacterView>(entries.Keys)) Release(view);
         tickSnapshot.Clear();
+        FlushPendingEntries();
     }
 
     #endregion

@@ -145,7 +145,8 @@ public sealed class DamageTextSystem : IDisposable
         bool critical = damage.IsCritical && target.RuntimeData.Team != CharacterTeam.Player;
         float amount = damage.Amount;
 
-        int index = FindMergeable(handle, critical, now);
+        Color32 color = PickColor(target, result, critical);
+        int index = FindMergeable(handle, critical, color, now);
         if (index >= 0)
         {
             ref Entry merged = ref entries[index];
@@ -166,7 +167,7 @@ public sealed class DamageTextSystem : IDisposable
         entry.Start = entry.PopStart = entry.LastHit = now;
         entry.Value = amount;
         entry.Critical = critical;
-        entry.Color = PickColor(target, result, critical);
+        entry.Color = color;
         entry.Drift = UnityEngine.Random.Range(-style.Drift, style.Drift);
         entry.Length = Format(index, entry.Value, critical);
     }
@@ -182,24 +183,30 @@ public sealed class DamageTextSystem : IDisposable
         }
     }
 
+    // Đòn chỉ trừ giáp (chưa mất HP) luôn màu giáp, kể cả trên Player: kiểm tra trước phe, nếu không khiên của Player
+    // (EmergencyShield, giáp) sẽ luôn hiện đỏ như mất máu.
     private Color32 PickColor(CharacterView target, DamageResult result, bool critical)
     {
+        if (result.HealthLost <= 0f && result.ShieldLost > 0f) return style.ShieldHit;
         if (target.RuntimeData.Team == CharacterTeam.Player) return style.PlayerHit;
-        if (result.HealthLost <= 0f) return style.ShieldHit;
         return critical ? style.Critical : style.EnemyHit;
     }
 
-    private int FindMergeable(CharacterHandle handle, bool critical, float now)
+    // Chỉ gộp số cùng mục tiêu, cùng loại chí mạng và cùng màu: đòn vào khiên không bị cộng dồn vào số mất máu.
+    private int FindMergeable(CharacterHandle handle, bool critical, Color32 color, float now)
     {
         if (style.MergeWindow <= 0f) return -1;
         for (int i = 0; i < entries.Length; i++)
         {
             ref Entry entry = ref entries[i];
-            if (entry.Active && entry.Critical == critical && now - entry.LastHit <= style.MergeWindow && entry.Target.Equals(handle))
+            if (entry.Active && entry.Critical == critical && SameColor(entry.Color, color) &&
+                now - entry.LastHit <= style.MergeWindow && entry.Target.Equals(handle))
                 return i;
         }
         return -1;
     }
+
+    private static bool SameColor(Color32 a, Color32 b) => a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
 
     // Ô trống đầu tiên; đầy thì thay số cũ nhất.
     private int FreeSlot()

@@ -24,7 +24,7 @@ public readonly struct EffectHandle
 /// (thêm modifier, gây sát thương định kỳ); thời hạn và quyền sở hữu do <see cref="EffectSystem"/> quản lý.
 /// </summary>
 /// <remarks>Được pool tái sử dụng: mọi state phải được xóa trong <see cref="Reset"/>.</remarks>
-public abstract class EffectRuntime
+public abstract class EffectRuntime : IPoolable
 {
     #region Context And Manager State
 
@@ -90,6 +90,9 @@ public abstract class EffectRuntime
         IsMaintained = false;
         FeedbackApplied = false;
     }
+
+    // Pool<T> gọi qua interface; Reset vẫn internal virtual để lớp con dọn phần riêng.
+    void IPoolable.ResetForPool() => Reset();
 
     #endregion
 }

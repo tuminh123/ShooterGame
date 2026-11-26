@@ -1,15 +1,21 @@
 using System;
+using System.Collections.Generic;
 
 /// <summary>
 /// Class nền cho mọi hành vi skill. Cung cấp phần gắn context và hành vi mặc định
 /// cho các hàm không bắt buộc của <see cref="ISkill"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="SkillFactory"/> tạo mỗi hành vi bằng <c>new</c> theo <see cref="SkillBehaviourType"/>, nên mỗi skill
-/// đang chạy là một object riêng và không có gì được lưu vào asset. Asset chỉ lưu enum, vì vậy đổi tên class
-/// hành vi không làm mất dữ liệu.
+/// <see cref="SkillFactory"/> tạo hành vi theo <see cref="SkillBehaviourType"/> và <b>dùng lại</b> chúng qua
+/// <see cref="Pool{T}"/> (mỗi loại một pool), nên không có gì được lưu vào asset. Asset chỉ lưu enum, vì vậy đổi tên
+/// class hành vi không làm mất dữ liệu.
+/// <para>
+/// Vòng đời: Rent → <see cref="Bind"/> (gọi <see cref="InitializeRuntime"/>) → ApplyData → … → Dispose → trả pool
+/// (<see cref="IPoolable.ResetForPool"/> cũng gọi <see cref="InitializeRuntime"/>). Vì vậy InitializeRuntime phải
+/// <b>xóa</b> collection có sẵn thay vì tạo mới, và không được dùng Owner/Services.
+/// </para>
 /// </remarks>
-public abstract class Skill : ISkill
+public abstract class Skill : ISkill, IPoolable
 {
     #region Runtime Context
 
@@ -27,7 +33,7 @@ public abstract class Skill : ISkill
     #region Runtime Creation
 
     /// <summary>
-    /// Gắn chủ sở hữu và dịch vụ ngay sau khi factory <c>new</c>. Data theo cấp được áp dụng sau,
+    /// Gắn chủ sở hữu và dịch vụ ngay sau khi factory lấy hành vi ra. Data theo cấp được áp dụng sau,
     /// khi <see cref="SkillRuntime"/> đã nhận quyền sở hữu hành vi này.
     /// </summary>
     internal void Bind(CharacterSkills owner, SkillServices services)
@@ -37,8 +43,38 @@ public abstract class Skill : ISkill
         InitializeRuntime();
     }
 
-    /// <summary>Hook cho class con chuẩn bị state runtime (buffer, collection) sau khi đã có Owner/Services.</summary>
+    /// <summary>
+    /// Đưa state runtime về ban đầu (data, cờ, bộ đếm). Gọi cả khi gắn chủ mới lẫn khi trả về pool:
+    /// xóa collection có sẵn thay vì tạo mới, không dùng Owner/Services.
+    /// </summary>
     protected virtual void InitializeRuntime() { }
+
+    // Pool gọi sau Dispose: bỏ tham chiếu tới chủ và dịch vụ, rồi đưa state về ban đầu.
+    void IPoolable.ResetForPool()
+    {
+        Owner = null;
+        Services = null;
+        InitializeRuntime();
+    }
+
+    /// <summary>
+    /// Snapshot danh sách effect của cấp: dùng lại mảng cũ nếu cùng nội dung (cùng loại quái spawn lại thì không cấp phát),
+    /// khác thì tạo mảng mới — đạn đang bay vẫn giữ đúng mảng của lúc bắn.
+    /// </summary>
+    protected static IGameplayEffect[] SnapshotEffects(IGameplayEffect[] current, IReadOnlyList<IGameplayEffect> source)
+    {
+        int count = source != null ? source.Count : 0;
+        if (count == 0) return Array.Empty<IGameplayEffect>();
+        if (current != null && current.Length == count)
+        {
+            bool same = true;
+            for (int i = 0; i < count && same; i++) same = ReferenceEquals(current[i], source[i]);
+            if (same) return current;
+        }
+        var snapshot = new IGameplayEffect[count];
+        for (int i = 0; i < count; i++) snapshot[i] = source[i];
+        return snapshot;
+    }
 
     #endregion
 

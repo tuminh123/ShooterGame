@@ -15,6 +15,9 @@ public sealed class SkillSystem : IDisposable
     public const int GameplayStartLevel = 1;
 
     private readonly List<SkillRuntime> skills = new List<SkillRuntime>(); // Runtime gameplay, mỗi phần tử có owner + definition riêng.
+    // Bản duyệt ổn định khi callback đổi danh sách. Mượn list riêng mỗi lần vì dọn skill có thể gọi lồng
+    // (gỡ buff → chủ chết → RemoveOwner lại); trả lại sau đó nên chạy ổn định không cấp phát.
+    private readonly Stack<List<SkillRuntime>> spareSnapshots = new Stack<List<SkillRuntime>>();
     private readonly SkillFactory factory; // Tạo toàn bộ bộ hành vi trước khi đăng ký một runtime.
     private bool disposed, ticking, clearing, adding; // Chặn callback lồng nhau khi collection đang thay đổi.
     private int battleVersion; // Reset trong callback vô hiệu hóa thao tác grant đang dang dở.
@@ -116,19 +119,49 @@ public sealed class SkillSystem : IDisposable
     }
 
     // Owner tạm tắt: pause mọi hành vi và timer ngay, không chờ tới frame tick tiếp theo.
+    // Chỉ duyệt khi owner thật sự có skill gameplay (thường chỉ Player): quái spawn/chết không tốn gì ở đây.
     public void SetOwnerPaused(CharacterView owner, bool paused)
     {
-        foreach (SkillRuntime skill in skills.ToArray()) if (skill.IsActive && skill.BelongsTo(owner)) skill.SetPaused(paused);
+        if (!HasOwner(owner)) return;
+        List<SkillRuntime> snapshot = RentSnapshot();
+        try { foreach (SkillRuntime skill in snapshot) if (skill.IsActive && skill.BelongsTo(owner)) skill.SetPaused(paused); }
+        finally { ReturnSnapshot(snapshot); }
     }
 
     // Thu hồi toàn bộ skill của một lượt spawn; không ảnh hưởng skill của owner khác.
+    // Danh sách lỗi chỉ tạo khi thật sự có lỗi (quái chết mỗi lần trước đây đều cấp phát một list).
     public void RemoveOwner(CharacterView owner)
     {
-        var failures = new List<Exception>(); // Một hành vi cleanup lỗi không được giữ các skill còn lại của owner.
-        foreach (SkillRuntime skill in skills.ToArray()) if (skill.BelongsTo(owner))
-            try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); }
+        if (!HasOwner(owner)) return;
+        List<Exception> failures = null; // Một hành vi cleanup lỗi không được giữ các skill còn lại của owner.
+        List<SkillRuntime> snapshot = RentSnapshot();
+        try
+        {
+            foreach (SkillRuntime skill in snapshot) if (skill.BelongsTo(owner))
+                try { skill.Dispose(); } catch (Exception exception) { (failures ??= new List<Exception>()).Add(exception); }
+        }
+        finally { ReturnSnapshot(snapshot); }
         if (!ticking && !clearing) RemoveInactive();
-        if (failures.Count > 0) throw new AggregateException("Owner skill cleanup failed.", failures);
+        if (failures != null) throw new AggregateException("Owner skill cleanup failed.", failures);
+    }
+
+    private bool HasOwner(CharacterView owner)
+    {
+        foreach (SkillRuntime skill in skills) if (skill.BelongsTo(owner)) return true;
+        return false;
+    }
+
+    private List<SkillRuntime> RentSnapshot()
+    {
+        List<SkillRuntime> snapshot = spareSnapshots.Count > 0 ? spareSnapshots.Pop() : new List<SkillRuntime>(8);
+        snapshot.AddRange(skills);
+        return snapshot;
+    }
+
+    private void ReturnSnapshot(List<SkillRuntime> snapshot)
+    {
+        snapshot.Clear();
+        spareSnapshots.Push(snapshot);
     }
 
     #endregion
@@ -141,14 +174,18 @@ public sealed class SkillSystem : IDisposable
         if (clearing) return;
         clearing = true;
         battleVersion++;
-        var failures = new List<Exception>();
-        try { foreach (SkillRuntime skill in skills) try { skill.Dispose(); } catch (Exception exception) { failures.Add(exception); } }
+        List<Exception> failures = null;
+        try
+        {
+            foreach (SkillRuntime skill in skills)
+                try { skill.Dispose(); } catch (Exception exception) { (failures ??= new List<Exception>()).Add(exception); }
+        }
         finally
         {
             clearing = false;
             if (!ticking) RemoveInactive();
         }
-        if (failures.Count > 0) throw new AggregateException("Skill cleanup failed.", failures);
+        if (failures != null) throw new AggregateException("Skill cleanup failed.", failures);
     }
 
     // Chỉ xóa entry đã Dispose để không làm sai chỉ số khi đang duyệt callback.

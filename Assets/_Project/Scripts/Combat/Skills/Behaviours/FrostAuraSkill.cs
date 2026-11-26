@@ -30,13 +30,18 @@ public sealed class FrostAuraSkill : Skill
     // Cấp phát state độc lập cho đúng owner.
     protected override void InitializeRuntime()
     {
+        // Lần đầu tạo collection; các lượt sau (pool) chỉ xóa nội dung. Dispose đã gỡ mọi slow và trả visual.
         data = null;
-        effectSnapshot = Array.Empty<IGameplayEffect>();
-        slowed = new Dictionary<CharacterHandle, EffectHandle>();
+        if (effectSnapshot == null) effectSnapshot = Array.Empty<IGameplayEffect>();
+        if (slowed == null) slowed = new Dictionary<CharacterHandle, EffectHandle>();
+        else slowed.Clear();
         slowEffect = null;
-        inside = new HashSet<CharacterHandle>();
-        leaving = new List<CharacterHandle>();
-        targets = Array.Empty<CharacterHandle>();
+        if (inside == null) inside = new HashSet<CharacterHandle>();
+        else inside.Clear();
+        if (leaving == null) leaving = new List<CharacterHandle>();
+        else leaving.Clear();
+        if (targets == null) targets = Array.Empty<CharacterHandle>();
+        else Array.Clear(targets, 0, targets.Length);
         visual = null;
         radius = 0f;
         revision = 0;
@@ -58,7 +63,7 @@ public sealed class FrostAuraSkill : Skill
         data = next;
         slowEffect = new SlowEffect(next.SlowFraction);
         radius = next.Radius;
-        effectSnapshot = next.Effects.ToArray();
+        effectSnapshot = SnapshotEffects(effectSnapshot, next.Effects);
         if (visual != null) visual.SetRadius(radius);
     }
 

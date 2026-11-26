@@ -17,17 +17,38 @@ public static class StatCalculator
     /// </summary>
     public static BaseStats Calculate(BaseStats baseStats, IEnumerable<StatModifier[]> groups)
     {
-        BaseStats stats = baseStats;
         BaseStats additions = default;
         BaseStats percentages = default;
-        foreach (StatModifier[] group in groups)
-            foreach (StatModifier modifier in group)
-            {
-                if (modifier.operation == StatOperation.Add)
-                    additions.Set(modifier.stat, additions.Get(modifier.stat) + modifier.value);
-                else
-                    percentages.Set(modifier.stat, percentages.Get(modifier.stat) + modifier.value);
-            }
+        foreach (StatModifier[] group in groups) Accumulate(group, ref additions, ref percentages);
+        return Finish(baseStats, additions, percentages);
+    }
+
+    /// <summary>
+    /// Cùng công thức, cho bảng nguồn của <see cref="StatSheet"/>: duyệt thẳng ValueCollection (enumerator struct) nên
+    /// không cấp phát — được gọi mỗi khi chỉ số đổi (buff, slow, level).
+    /// </summary>
+    internal static BaseStats Calculate(BaseStats baseStats, Dictionary<long, StatModifier[]>.ValueCollection groups)
+    {
+        BaseStats additions = default;
+        BaseStats percentages = default;
+        foreach (StatModifier[] group in groups) Accumulate(group, ref additions, ref percentages);
+        return Finish(baseStats, additions, percentages);
+    }
+
+    private static void Accumulate(StatModifier[] group, ref BaseStats additions, ref BaseStats percentages)
+    {
+        foreach (StatModifier modifier in group)
+        {
+            if (modifier.operation == StatOperation.Add)
+                additions.Set(modifier.stat, additions.Get(modifier.stat) + modifier.value);
+            else
+                percentages.Set(modifier.stat, percentages.Get(modifier.stat) + modifier.value);
+        }
+    }
+
+    private static BaseStats Finish(BaseStats baseStats, BaseStats additions, BaseStats percentages)
+    {
+        BaseStats stats = baseStats;
         foreach (StatType type in statTypes)
         {
             float value = (stats.Get(type) + additions.Get(type)) * (1f + percentages.Get(type) / 100f);

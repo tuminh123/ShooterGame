@@ -17,11 +17,11 @@ public sealed class NormalAttackSkill : Skill
 
     #region Configuration And Execution
 
-    // Không giữ collection/state của template.
+    // Gắn chủ mới hoặc trả pool: bỏ data cũ. Mảng effect được giữ để lượt sau cùng cấu hình dùng lại.
     protected override void InitializeRuntime()
     {
         data = null;
-        effects = Array.Empty<IGameplayEffect>();
+        if (effects == null) effects = Array.Empty<IGameplayEffect>();
     }
 
     // Cập nhật cấu hình mà không tạo lại runtime.
@@ -29,7 +29,7 @@ public sealed class NormalAttackSkill : Skill
     {
         data = configuration as NormalAttackData ?? throw new ArgumentException("NormalAttackSkill requires NormalAttackData.");
         data.Validate();
-        effects = data.Effects.ToArray();
+        effects = SnapshotEffects(effects, data.Effects);
     }
 
     // Chỉ tiêu cooldown khi hitbox chạm và mục tiêu nhận đòn.

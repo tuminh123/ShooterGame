@@ -25,8 +25,10 @@ public abstract class SkillBehaviourData
     protected static void ValidateEffects(IReadOnlyList<IGameplayEffect> effects)
     {
         if (effects == null) throw new InvalidOperationException("Missing effect list.");
-        foreach (IGameplayEffect effect in effects)
+        // Duyệt bằng chỉ số: foreach trên IReadOnlyList cấp phát enumerator, mà hàm này chạy mỗi lần spawn.
+        for (int i = 0; i < effects.Count; i++)
         {
+            IGameplayEffect effect = effects[i];
             if (effect == null) throw new InvalidOperationException("Missing effect.");
             effect.Validate();
         }

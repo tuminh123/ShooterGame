@@ -5,7 +5,7 @@
 See [Skill Run Progression](Skill-Run-Progression.md) for the current model.
 
 SkillDataSO stores complete per-level behavior data and a list of behavior types
-(`SkillBehaviourType[]`). `SkillFactory` creates each behavior with `new` from one switch;
+(`SkillBehaviourType[]`). `SkillFactory` creates each behavior from one switch and reuses it through a per-type `Pool<T>`;
 the same enum pairs the level data with the behavior. Abstract Skill supplies default
 lifecycle methods. SkillRuntime activates only behaviors with data at its level.
 There is no ShootingLevelTable, root stat bonus, string behavior ID or wrapper entry.

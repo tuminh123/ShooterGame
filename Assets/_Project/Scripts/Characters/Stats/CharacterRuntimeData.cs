@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -9,7 +10,7 @@ using UnityEngine;
 /// HP/giáp được lưu dưới dạng <b>lượng đã mất</b>: current = max − đã mất. Nhờ vậy bonus tăng max không xóa
 /// sát thương đã nhận, và giảm max (mất buff) có thể làm nhân vật chết giống như nhận sát thương.
 /// </remarks>
-public sealed class CharacterRuntimeData
+public sealed class CharacterRuntimeData : IPoolable
 {
     #region Vitals State
 
@@ -45,7 +46,23 @@ public sealed class CharacterRuntimeData
     public bool IsAlive => CurrentHealth > 0f;
 
     /// <summary>Phát sau khi toàn bộ trạng thái đã nhất quán, để UI đọc current/max mới.</summary>
-    public event Action Changed;
+    /// <remarks>
+    /// Listener giữ trong List (không phải delegate gộp) để mỗi lần báo không phải gọi GetInvocationList — vốn tạo mảng mới
+    /// mỗi lần HP/chỉ số đổi, tức mỗi đòn trúng. Cùng ngữ nghĩa với event thường: thêm trùng thì gọi hai lần, gỡ thì gỡ lần thêm cuối.
+    /// </remarks>
+    public event Action Changed
+    {
+        add { if (value != null) changedListeners.Add(value); }
+        remove
+        {
+            int index = changedListeners.LastIndexOf(value);
+            if (index >= 0) changedListeners.RemoveAt(index);
+        }
+    }
+
+    private readonly List<Action> changedListeners = new List<Action>(2);
+    // Bản duyệt ổn định khi listener thêm/gỡ trong lúc báo; mượn list riêng mỗi lần vì có thể báo lồng nhau.
+    private readonly Stack<List<Action>> spareNotifySnapshots = new Stack<List<Action>>();
 
     #endregion
 
@@ -91,7 +108,7 @@ public sealed class CharacterRuntimeData
     /// </summary>
     internal void ResetForPool()
     {
-        Changed = null;
+        changedListeners.Clear();
         Stats.Clear();
         receivedBonus = default;
         lostHealth = lostShield = 0f;
@@ -101,6 +118,9 @@ public sealed class CharacterRuntimeData
         CharacterType = default;
         Team = default;
     }
+
+    // Pool<T> gọi qua interface; hàm dọn vẫn internal để code ngoài miền không gọi nhầm. Generation được giữ.
+    void IPoolable.ResetForPool() => ResetForPool();
 
     #endregion
 
@@ -177,14 +197,23 @@ public sealed class CharacterRuntimeData
     // Runtime không biết UI cụ thể; một listener lỗi không chặn các listener còn lại.
     private void NotifyChanged()
     {
-        Action listeners = Changed;
-        if (listeners == null) return;
+        if (changedListeners.Count == 0) return;
         ulong generation = Generation;
-        foreach (Action listener in listeners.GetInvocationList())
+        List<Action> snapshot = spareNotifySnapshots.Count > 0 ? spareNotifySnapshots.Pop() : new List<Action>(2);
+        snapshot.AddRange(changedListeners);
+        try
         {
-            if (generation != Generation) break; // Listener vừa trả runtime về pool và spawn lại: dừng thông báo của lượt cũ.
-            try { listener(); }
-            catch (Exception exception) { Debug.LogException(exception); }
+            foreach (Action listener in snapshot)
+            {
+                if (generation != Generation) break; // Listener vừa trả runtime về pool và spawn lại: dừng thông báo của lượt cũ.
+                try { listener(); }
+                catch (Exception exception) { Debug.LogException(exception); }
+            }
+        }
+        finally
+        {
+            snapshot.Clear();
+            spareNotifySnapshots.Push(snapshot);
         }
     }
 

@@ -33,12 +33,17 @@ public sealed class OrbitSawSkill : Skill
     // Cấp phát lại state mutable, không chia sẻ collection với mẫu hoặc owner khác.
     protected override void InitializeRuntime()
     {
+        // Lần đầu tạo collection; các lượt sau (pool) chỉ xóa nội dung để dùng lại. Dispose đã trả mọi lưỡi về pool.
         data = null;
-        effectSnapshot = Array.Empty<IGameplayEffect>();
-        blades = Array.Empty<SkillAreaVisual>();
-        nextHits = Array.Empty<Dictionary<CharacterHandle, float>>();
-        expired = new List<CharacterHandle>();
-        targets = Array.Empty<CharacterHandle>();
+        if (effectSnapshot == null) effectSnapshot = Array.Empty<IGameplayEffect>();
+        if (blades == null) blades = Array.Empty<SkillAreaVisual>();
+        else Array.Clear(blades, 0, blades.Length);
+        if (nextHits == null) nextHits = Array.Empty<Dictionary<CharacterHandle, float>>();
+        else foreach (Dictionary<CharacterHandle, float> hits in nextHits) hits?.Clear();
+        if (expired == null) expired = new List<CharacterHandle>();
+        else expired.Clear();
+        if (targets == null) targets = Array.Empty<CharacterHandle>();
+        else Array.Clear(targets, 0, targets.Length);
         count = revision = 0;
         angle = clock = 0f;
         hasPrevious = paused = disposed = false;
@@ -66,7 +71,7 @@ public sealed class OrbitSawSkill : Skill
             if (blades[i] != null) blades[i].SetRadius(next.BladeRadius);
         }
         data = next;
-        effectSnapshot = next.Effects.ToArray();
+        effectSnapshot = SnapshotEffects(effectSnapshot, next.Effects);
         count = next.BladeCount;
         hasPrevious = false;
     }

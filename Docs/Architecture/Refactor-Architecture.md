@@ -208,7 +208,12 @@ nằm trong **một file** `XxxContracts.cs` đặt cạnh Manager.
 
 ### Pool
 - Pool GameObject: `PoolManager` (LeanPool). Clone không được Zenject inject; Manager sở hữu truyền dữ liệu qua `beforeActivate`/`Initialize`.
-- Pool class C# thuần: `Stack<T>` do Manager sở hữu tự `new` (ví dụ `CharacterRuntimePool`, `EffectRuntimePool`). Không dùng `MemoryPool` của Zenject.
+- Pool class C# thuần: `Pool<T>` chung (`Scripts/Shared/Pool.cs`) do Manager sở hữu tự `new` (ví dụ `CharacterRuntimePool`, `EffectRuntimePool`). Không dùng `MemoryPool` của Zenject.
+  - **Ai implement `IPoolable`:** chỉ class (1) bị tạo đi tạo lại trong lúc chơi (theo quái, theo đòn, theo effect) **và** (2) Profiler cho thấy cấp phát đáng kể. Manager, System, runtime tạo một lần thì không. Mặc định là không.
+  - `IPoolable` chỉ có `ResetForPool()`; không kế thừa `IDisposable` (Dispose = hết đời, trả pool = dùng lại). Khởi tạo là hàm riêng có tham số của từng kiểu, Manager gọi ngay sau `Rent`. Implement tường minh (`void IPoolable.ResetForPool()`) để hàm dọn vẫn `internal`.
+  - Họ nhiều lớp con: mỗi lớp con một `Pool<T>`, chọn bằng switch trong pool của họ đó (xem `EffectRuntimePool`). Kiểm tra: **Shooter Game > Verification > Check Object Pools**.
+  - **Không trả về pool khi object còn đang chạy code.** Một đòn đánh có thể kéo theo callback dọn chính object đó (Player chết → kết thúc trận → dọn skill của mọi nhân vật) trong lúc hàm của nó chạy dở. Trả về lúc đó sẽ xóa tham chiếu dưới chân nó hoặc cho chủ khác mượn lại ngay. Cách làm: đếm độ sâu "đang bận" và hoãn việc trả tới khi lượt chạy ngoài cùng kết thúc (xem `SkillRuntime.Enter/Exit`, `SkillFactory.Release`, `CharacterSkillSystem.pendingEntries`).
+  - Đang pool: `CharacterRuntimeData`, `EffectRuntime`, `SkillRuntime` của skill vốn có, mọi lớp hành vi skill (`Skill`), `CharacterSkills` + entry của `CharacterSkillSystem`. Skill nhận trong trận (`SkillSystem`) tạo mới vì UI có thể giữ tham chiếu.
 
 ### Chặn callback cũ bằng version
 Callback chạy trễ (tween xong, animation xong, effect hết hạn) có thể thuộc một lượt đã bị hủy. Mẫu chung:

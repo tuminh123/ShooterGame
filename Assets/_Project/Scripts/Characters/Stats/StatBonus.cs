@@ -81,17 +81,28 @@ public struct StatBonus
     /// </summary>
     public StatModifier[] ToModifiers()
     {
+        var modifiers = new StatModifier[ModifierCount];
+        WriteModifiers(modifiers);
+        return modifiers;
+    }
+
+    /// <summary>Số modifier mà một bonus tạo ra (mỗi chỉ số một modifier).</summary>
+    public const int ModifierCount = 8;
+
+    /// <summary>
+    /// Ghi các modifier vào mảng có sẵn (<see cref="ModifierCount"/> phần tử). StatSheet dùng để không tạo mảng mới mỗi lượt spawn.
+    /// </summary>
+    public void WriteModifiers(StatModifier[] target)
+    {
+        if (target == null || target.Length != ModifierCount) throw new ArgumentException("Target must hold " + ModifierCount + " modifiers.");
         Validate();
-        return new[]
-        {
-            new StatModifier(StatType.MaxHealth, StatOperation.Add, maxHealth),
-            new StatModifier(StatType.Damage, StatOperation.Add, damage),
-            new StatModifier(StatType.Defense, StatOperation.Add, defense),
-            new StatModifier(StatType.MoveSpeed, StatOperation.Add, moveSpeed),
-            new StatModifier(StatType.CritChance, StatOperation.Add, critChance),
-            new StatModifier(StatType.CritDamageMultiplier, StatOperation.Add, critDamageMultiplier),
-            new StatModifier(StatType.EffectResistance, StatOperation.Add, effectResistance),
-            new StatModifier(StatType.EffectHit, StatOperation.Add, effectHit)
-        };
+        target[0] = new StatModifier(StatType.MaxHealth, StatOperation.Add, maxHealth);
+        target[1] = new StatModifier(StatType.Damage, StatOperation.Add, damage);
+        target[2] = new StatModifier(StatType.Defense, StatOperation.Add, defense);
+        target[3] = new StatModifier(StatType.MoveSpeed, StatOperation.Add, moveSpeed);
+        target[4] = new StatModifier(StatType.CritChance, StatOperation.Add, critChance);
+        target[5] = new StatModifier(StatType.CritDamageMultiplier, StatOperation.Add, critDamageMultiplier);
+        target[6] = new StatModifier(StatType.EffectResistance, StatOperation.Add, effectResistance);
+        target[7] = new StatModifier(StatType.EffectHit, StatOperation.Add, effectHit);
     }
 }

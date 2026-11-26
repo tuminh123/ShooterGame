@@ -16,7 +16,7 @@ There is no CLI build or lint step. You compile by opening the project in Unity,
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, after Home is ready: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
-  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha** and **Check Notifications** (temporary save file, fake clock)
+  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha**, **Check Notifications** and **Check Object Pools** (temporary save file, fake clock)
 - **Zenject graph check (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolves every dependency without entering Play Mode. See `Docs/Tools/Verification.md` for the full checklist.
 - **Editor tools.** **Tools/Shooter Game/Hitbox Editor** and **Tools/Shooter Game/Formation & Path Workbench**.
 
@@ -36,7 +36,7 @@ The project was moved (phases 0–7, all done) to a **data-driven architecture w
 - ScriptableObject fields are `[SerializeField] private` with getters only. Data holds parameters; any flag that changes control flow becomes a strategy.
 - **All enums of game code live in `Scripts/Core/GameEnums.cs`**, grouped by domain region. Assets store enums as numbers: add new values at the end (or give explicit numbers) and never renumber existing ones. Editor-only enums stay in the Editor assembly.
 - Manager configuration always goes through the manager's own `Settings` class bound with `BindInstance`; never `WithArguments` (Zenject matches those by type, so a new parameter of the same type can be filled silently with the wrong value).
-- Pools of plain C# objects are plain C# (`Stack<T>`), created with `new` by their manager; no Zenject `MemoryPool`. Pooled prefabs have no `[Inject]` and `PoolManager` does not inject clones: the owning manager passes what a view needs (`beforeActivate` / `Initialize`).
+- Pools of plain C# objects use the shared `Pool<T>` (`Scripts/Shared/Pool.cs`, a `Stack<T>` that rejects double or foreign returns), created with `new` by their manager; no Zenject `MemoryPool`. Only types that are recreated during play and show up in the Profiler implement `IPoolable` (one method, `ResetForPool`); it is not `IDisposable`, and each type keeps its own typed init method called right after `Rent`. Pooled prefabs have no `[Inject]` and `PoolManager` does not inject clones: the owning manager passes what a view needs (`beforeActivate` / `Initialize`).
 - Comments are in Vietnamese. Public and internal members get a `/// <summary>`, and comments explain *why*. Use `#region` to group a class into logical sections when it has two or more.
 - Keep `.meta` GUIDs when moving MonoBehaviours or SOs. Work one task at a time, the game must compile after each task, and report to the user before starting the next task.
 
@@ -99,7 +99,7 @@ Không có bước build hay lint bằng CLI. Muốn biên dịch thì mở dự
   - Edit Mode: **Shooter Game > Verification > Check Service Contracts**
   - Play Mode, sau khi vào Home: **Shooter Game > Verification > Run Service Smoke Checks**
   - **Shooter Game > Verification > Report Missing Scripts**
-  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha** và **Check Notifications** (file save tạm, đồng hồ giả)
+  - Edit Mode: **Shooter Game > Verification > Check Missions**, **Check Login Check-in**, **Check Shop**, **Check Gacha**, **Check Notifications** và **Check Object Pools** (file save tạm, đồng hồ giả)
 - **Kiểm tra đồ thị Zenject (Edit Mode):** **Edit > Zenject > Validate Current Scenes** resolve mọi dependency mà không cần vào Play Mode. Danh sách đầy đủ xem `Docs/Tools/Verification.md`.
 - **Công cụ Editor.** **Tools/Shooter Game/Hitbox Editor** và **Tools/Shooter Game/Formation & Path Workbench**.
 
@@ -119,7 +119,7 @@ Dự án đã được chuyển (giai đoạn 0–7, đã xong) sang kiến trú
 - Field của ScriptableObject là `[SerializeField] private` và chỉ có getter. Data chỉ chứa tham số; cờ nào làm thay đổi luồng xử lý thì chuyển thành strategy.
 - **Mọi enum của code game nằm trong `Scripts/Core/GameEnums.cs`**, chia vùng theo miền. Asset lưu enum bằng số: thêm giá trị mới ở cuối (hoặc gán số rõ ràng), không đổi số của giá trị đã dùng. Enum chỉ dùng trong Editor ở lại assembly Editor.
 - Cấu hình của Manager luôn đi qua class `Settings` riêng của Manager đó, bind bằng `BindInstance`; không dùng `WithArguments` (Zenject ghép theo kiểu, thêm một tham số cùng kiểu có thể bị ghép nhầm mà không báo lỗi).
-- Pool cho object C# thuần viết bằng C# thuần (`Stack<T>`), do Manager sở hữu `new`; không dùng `MemoryPool` của Zenject. Prefab trong pool không có `[Inject]` và `PoolManager` không inject clone: Manager sở hữu truyền dữ liệu view cần qua `beforeActivate` / `Initialize`.
+- Pool cho object C# thuần dùng `Pool<T>` chung (`Scripts/Shared/Pool.cs`, một `Stack<T>` chặn trả hai lần và trả object lạ), do Manager sở hữu `new`; không dùng `MemoryPool` của Zenject. Chỉ kiểu bị tạo lại trong lúc chơi và hiện trên Profiler mới implement `IPoolable` (một hàm `ResetForPool`); không phải `IDisposable`, và mỗi kiểu giữ hàm khởi tạo riêng có tham số, gọi ngay sau `Rent`. Prefab trong pool không có `[Inject]` và `PoolManager` không inject clone: Manager sở hữu truyền dữ liệu view cần qua `beforeActivate` / `Initialize`.
 - Comment bằng tiếng Việt. Member public/internal có `/// <summary>`, comment giải thích *tại sao*. Dùng `#region` để chia class thành các nhóm logic khi có từ hai nhóm trở lên.
 - Giữ GUID trong file `.meta` khi di chuyển MonoBehaviour hoặc SO. Làm từng task một, game phải biên dịch được sau mỗi task, và báo người dùng trước khi sang task tiếp theo.
 

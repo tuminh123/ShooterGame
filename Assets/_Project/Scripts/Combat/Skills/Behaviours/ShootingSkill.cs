@@ -25,7 +25,7 @@ public sealed class ShootingSkill : Skill
         data = null;
         liveShooter = null;
         movement = null;
-        effectSnapshot = Array.Empty<IGameplayEffect>();
+        if (effectSnapshot == null) effectSnapshot = Array.Empty<IGameplayEffect>(); // Giữ mảng cũ để dùng lại.
     }
 
     // Giữ trạng thái shooter khi chỉ đổi thông số; đổi kiểu bắn thì tạo shooter đúng cấu hình mới.
@@ -36,7 +36,7 @@ public sealed class ShootingSkill : Skill
         if (data == null || !SameShooter(data.Shooter, next.Shooter))
             liveShooter = next.Shooter.CreateRuntime(); // Bản sao riêng, để góc Spiral không dùng chung với template.
         movement = next.ProjectileMove;
-        effectSnapshot = next.Effects.ToArray();
+        effectSnapshot = SnapshotEffects(effectSnapshot, next.Effects);
         data = next;
     }
 
