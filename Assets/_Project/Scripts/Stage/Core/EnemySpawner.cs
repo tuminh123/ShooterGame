@@ -23,8 +23,11 @@ public sealed class EnemySpawner
         [Tooltip("Camera làm tâm Path. Bỏ trống dùng Main Camera; Area lấy tâm player.")]
         [SerializeField] private Camera formationCamera;
         [Header("Enemy Separation")]
+        [Tooltip("Cách quái phát hiện và né nhau khi đông. Dùng chung cho mọi loại quái; chỉ quái sinh ra sau khi chỉnh mới nhận số mới.\n" +
+                 "Quái đi theo đội hình/đường (pattern) không dùng phần này.")]
         [SerializeField] private EnemyController.SeparationSettings separation = new EnemyController.SeparationSettings();
         [Header("Ordinary Attack Recoil")]
+        [Tooltip("Cú lùi của quái sau khi đánh trúng Player bằng đòn thường.")]
         [SerializeField] private EnemyController.RecoilSettings recoil = new EnemyController.RecoilSettings();
         [Header("Spawn Perimeter")]
         [Tooltip("Kích thước hình chữ nhật vùng sinh quanh tâm; quái xuất hiện trên viền.")]

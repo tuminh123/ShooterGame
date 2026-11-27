@@ -204,8 +204,9 @@ public sealed class CharacterScreenController : UIPanelController
         NavigationChanged?.Invoke();
         ApplyScreenVisibility(visible);
         if (!visible) return;
-        // Mở ở trang Collection thì Detail phải tắt (lần trước có thể bị ẩn giữa chừng khi đang ở Detail).
-        if (page == CharacterScreenPage.Collection) detail.gameObject.SetActive(false);
+        // Mở ở trang Collection thì Detail phải ẩn (lần trước có thể bị ẩn giữa chừng khi đang ở Detail).
+        // Chỉ ẩn mềm (tắt Canvas) để lần mở Detail sau không phải bật lại cả cây UI.
+        if (page == CharacterScreenPage.Collection) HideInstant(detail);
         Redraw();
     }
 
@@ -256,7 +257,13 @@ public sealed class CharacterScreenController : UIPanelController
         else view.gameObject.SetActive(true);
     }
 
-    // Trượt ra rồi tắt; onComplete chạy sau khi đã tắt (dùng để báo UIManager đóng màn).
+    private static void HideInstant(MonoBehaviour view)
+    {
+        if (view.TryGetComponent(out SlideTransition slide)) slide.HideInstant();
+        else view.gameObject.SetActive(false);
+    }
+
+    // Trượt ra rồi ẩn; onComplete chạy sau khi đã ẩn (dùng để báo UIManager đóng màn).
     private static void PlayOut(MonoBehaviour view, Action onComplete = null)
     {
         if (view.TryGetComponent(out SlideTransition slide)) slide.PlayOut(onComplete);

@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: ForestRanger_Character
+  m_EditorClassIdentifier: 
+  displayName: Forest Ranger
+  characterType: 4
+  team: 0
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 1072898852085543901, guid: d8a6ff4f47462df408cd6c6fea38c9f1, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: -0.0048361644, y: 0.020097136, z: 0}
+    Hitbox:
+      Size: {x: 0.11878261, y: 0.21841657}
+      Offset: {x: -0.0017149448, y: 0.12585342}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 21300000, guid: 324c6084e85dc4349a1f7f542682e310, type: 3}
+  shardIcon: {fileID: 21300000, guid: eb845a093d79f6446a09103d60c01686, type: 3}
+  uiVisualPrefab: {fileID: 2306533117261970077, guid: b71439e48de57f14781214bcdc87f6a8, type: 3}
+  rarity: 0
+  baseStats:
+    maxHealth: 90
+    damage: 11
+    defense: 90
+    moveSpeed: 1.05
+    critChance: 6
+    critDamageMultiplier: 50
+    effectResistance: 0
+    effectHit: 0
+  skills: []
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

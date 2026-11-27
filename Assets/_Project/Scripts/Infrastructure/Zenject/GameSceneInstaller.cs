@@ -39,6 +39,8 @@ public sealed class GameSceneInstaller : MonoInstaller
     [SerializeField] private ShopManager.Settings shop = new ShopManager.Settings();
     [Tooltip("Các banner gacha (tướng, trang bị); thứ tự là thứ tự trên màn Gacha. Tỉ lệ nằm trong từng asset banner.")]
     [SerializeField] private GachaManager.Settings gacha = new GachaManager.Settings();
+    [Tooltip("Danh mục âm thanh/nhạc/rung theo AudioId và số âm kêu cùng lúc.")]
+    [SerializeField] private AudioManager.Settings audioConfig = new AudioManager.Settings();
 
     #endregion
 
@@ -106,6 +108,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         loginCheckIn.Validate();
         shop.Validate();
         gacha.Validate();
+        audioConfig.Validate();
     }
 
     // Dùng đúng asset đã gán trong Inspector; không tạo bản sao hoặc giữ trạng thái trận trên DataSO.
@@ -132,6 +135,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         Container.BindInstance(loginCheckIn); // LoginCheckInManager.Settings
         Container.BindInstance(shop); // ShopManager.Settings
         Container.BindInstance(gacha); // GachaManager.Settings
+        Container.BindInstance(audioConfig); // AudioManager.Settings
         Container.Bind<VirtualJoystick>().FromInstance(joystick).AsSingle();
     }
 
@@ -145,6 +149,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     {
         Container.BindInterfacesTo<SaveManager>().AsSingle().NonLazy(); // Save: đọc/ghi + migration
         Container.BindInterfacesTo<ClockManager>().AsSingle().NonLazy(); // Clock: giờ máy / giờ server, không phụ thuộc miền nào
+        Container.BindInterfacesTo<AudioManager>().AsSingle().NonLazy(); // Audio: âm thanh, nhạc, rung; không phụ thuộc miền nào
         Container.BindInterfacesTo<ProgressionManager>().AsSingle().NonLazy(); // Progression: ví, level vĩnh viễn, trang bị, mốc vượt màn
         Container.BindInterfacesTo<PoolManager>().AsSingle().NonLazy(); // Pool: LeanPool + holder
         Container.BindInterfacesTo<SimulationManager>().AsSingle().NonLazy(); // Simulation: job di chuyển + lưới không gian
@@ -175,6 +180,7 @@ public sealed class GameSceneInstaller : MonoInstaller
     {
         typeof(SaveManager),        // Mở save + migration trước mọi miền đọc dữ liệu.
         typeof(ClockManager),       // Bắt đầu hỏi giờ server sớm nhất có thể; trả lời đến sau thì Mission tự mở nhóm.
+        typeof(AudioManager),       // Tạo nguồn âm và đọc công tắc trước khi GameManager vào Home (phát nhạc Home).
         typeof(ProgressionManager), // Ví, level vĩnh viễn, trang bị, mốc vượt màn.
         typeof(CharacterManager),   // Nhân vật đang chọn (đọc Progression).
         typeof(WorldManager),       // Map ban đầu trước khi GameManager vào Home.
@@ -194,6 +200,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(CharacterManager),
         typeof(WorldManager),       // Nền theo Player sau khi nhân vật đã tick.
         typeof(NotificationManager), // Cuối frame: báo UI các chấm đã đổi, mỗi giây kiểm tra sang ngày mới.
+        typeof(AudioManager),       // Pause âm theo timeScale và fade nhạc; độc lập với gameplay.
     };
 
     private static readonly Type[] LateTickOrder =
@@ -223,6 +230,7 @@ public sealed class GameSceneInstaller : MonoInstaller
         typeof(PoolManager),
         typeof(ProgressionManager), // Sau mọi miền gameplay (còn đọc/ghi ví khi dọn).
         typeof(ClockManager),       // Sau Mission (còn nghe Changed): hủy request hỏi giờ đang chờ.
+        typeof(AudioManager),       // Sau GameManager (còn gọi Play khi đổi state): xóa nguồn âm.
         typeof(SaveManager),        // Thử ghi lần cuối phần còn chờ.
         typeof(SimulationManager),  // Cuối: mọi miền đã gỡ đăng ký movement/hitbox. Bên trong: movement rồi spatial.
     };

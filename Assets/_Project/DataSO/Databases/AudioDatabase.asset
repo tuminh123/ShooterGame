@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06ad448928fc77d4d8aee5fbf0ba4ba7, type: 3}
+  m_Name: AudioDatabase
+  m_EditorClassIdentifier: 
+  entries:
+  - id: 1
+    category: 0
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0.05
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 2
+    category: 0
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0.2
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 3
+    category: 0
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0.05
+    ignorePause: 0
+    hapticMilliseconds: 0
+  - id: 4
+    category: 0
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0.1
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 100
+    category: 1
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 101
+    category: 1
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 102
+    category: 1
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 103
+    category: 1
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 104
+    category: 1
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 0
+  - id: 200
+    category: 2
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 20
+  - id: 201
+    category: 2
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 40
+  - id: 202
+    category: 2
+    clips: []
+    volume: 1
+    loop: 0
+    minInterval: 0
+    ignorePause: 1
+    hapticMilliseconds: 80

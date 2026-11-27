@@ -45,12 +45,42 @@ public enum CharacterTeam
 /// Khóa ổn định của loại nhân vật: dùng cho template, cấu hình level và tiến trình đã lưu.
 /// Không đổi giá trị số đã có (save lưu số); nhân vật mới nhận một giá trị mới.
 /// </summary>
+/// <remarks>
+/// Chia vùng theo nhóm để dễ đọc; số đã dùng giữ nguyên (save và asset lưu số), nên vài số cũ nằm lệch vùng.
+/// Số mới cho từng nhóm: nhân vật Player tiếp 13, 14…; quái thường từ 100; boss từ 200.
+/// </remarks>
 public enum CharacterType
 {
     None = 0,
-    BlessedGladiator = 1,
+
+    // ===== Nhân vật Player (phe Player) =====
+    BlessedGladiator = 1,   // Common, nhân vật khởi đầu
+    ForestRanger = 4,       // Common
+    ApprenticeMage = 5,     // Common
+    IronGuard = 6,          // Uncommon
+    SwampAlchemist = 7,     // Uncommon
+    WildHuntress = 8,       // Uncommon
+    FrostSentinel = 9,      // Rare
+    EmberSorceress = 10,    // Rare
+    ShadowReaper = 11,      // Epic
+    CelestialPaladin = 12,  // Legendary
+
+    // ===== Quái thường (phe Enemy) =====
     ForagingMaggot = 2,
-    Boss = 3
+    HornedShroom = 100,
+    JellyRabbit = 101,
+    HornedToad = 102,
+    PumpkinImp = 103,
+    StingerBee = 104,
+    OrcRookie = 105,
+    ShellCrawler = 106,
+    SnowSprite = 107,
+    SwampRaptor = 108,
+
+    // ===== Boss (phe Enemy, isBoss) =====
+    BerryMonarch = 3,       // Tên cũ: Boss
+    OrcWarlord = 200,
+    GrimReaper = 201
 }
 
 /// <summary>Các chỉ số của nhân vật. Giữ nguyên thứ tự tám giá trị đầu: asset buff lưu số, đổi thứ tự sẽ đổi chỉ số bị buff.</summary>
@@ -91,7 +121,7 @@ public enum SkillConditionType
 #region Combat
 
 /// <summary>Loại hình ảnh đạn. Giá trị đã serialize trong asset: chỉ thêm ở cuối.</summary>
-public enum BulletType { Holy, Fire, Ice, Poison }
+public enum BulletType { Holy, Fire, Ice, Poison, Lightning }
 
 /// <summary>Loại VFX chạy một lần. Giá trị số đã serialize trong asset, không được đổi số của giá trị cũ.</summary>
 public enum EffectType { None = 0, HolyImpact = 1, FireImpact = 2, IceImpact = 3, PoisonImpact = 4, LightningImpact = 5, WindImpact = 6 }
@@ -441,6 +471,51 @@ public enum NotificationBadgeMode
 {
     Dot = 0,   // Chỉ bật/tắt (chấm than).
     Count = 1  // Hiện số việc đang chờ (lớn hơn 9 thì "9+").
+}
+
+#endregion
+
+#region Audio
+
+/// <summary>
+/// Loại của một <see cref="AudioId"/>: AudioManager switch theo loại này để phát âm thanh, nhạc hay rung.
+/// Cũng là khóa của công tắc bật/tắt trong Settings. Không đặt tên AudioType vì trùng UnityEngine.AudioType.
+/// </summary>
+public enum AudioCategory
+{
+    Sound = 0,
+    Music = 1,
+    Haptic = 2
+}
+
+/// <summary>
+/// Khóa của mọi âm thanh, bài nhạc và kiểu rung; tra entry trong <see cref="AudioDatabaseSO"/>.
+/// </summary>
+/// <remarks>
+/// Mỗi loại một dải số để đọc là biết loại: Sound 1–99, Music 100–199, Haptic 200–299.
+/// Asset lưu số: thêm giá trị mới ở cuối dải của nó, không đổi số đã dùng.
+/// </remarks>
+public enum AudioId
+{
+    None = 0,
+
+    // ===== Sound (1–99) =====
+    ButtonClick = 1,
+    LevelUp = 2,
+    EnemyDie = 3,
+    RewardClaim = 4,
+
+    // ===== Music (100–199) =====
+    MusicHome = 100,
+    MusicBattle = 101,
+    MusicBoss = 102,
+    MusicVictory = 103,
+    MusicDefeat = 104,
+
+    // ===== Haptic (200–299) =====
+    HapticLight = 200,
+    HapticMedium = 201,
+    HapticHeavy = 202
 }
 
 #endregion

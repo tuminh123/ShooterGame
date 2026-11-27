@@ -48,8 +48,9 @@ public abstract class UIPanelController : MonoBehaviour
     public virtual bool IsOverlay => false;
 
     /// <summary>
-    /// True với màn nặng (dựng list/thẻ lần đầu tốn hàng chục ms): UIManager vẽ sẵn một lần lúc rời Boot, khi màn Loading
-    /// còn che. Nếu không, lần mở đầu dồn chi phí đó vào đúng frame tween trượt bắt đầu; tween chạy theo thời gian thực
+    /// True với màn nặng mở từ Home (dựng list/thẻ tốn hàng chục ms): mỗi lần vào Home, UIManager vẽ sẵn lúc màn Loading
+    /// hoặc màn chuyển cảnh còn che, rồi giữ màn bật nhưng ẩn (tắt Canvas); rời Home thì tắt hẳn (<see cref="Deactivate"/>).
+    /// Nếu không, lần mở dồn chi phí bật cả cây UI vào đúng frame tween trượt bắt đầu; tween chạy theo thời gian thực
     /// nên frame dài bị tính hết vào đường trượt và màn hiện ra khi đã đi mất một phần ba quãng.
     /// </summary>
     public virtual bool PrewarmOnLoad => false;
@@ -71,14 +72,15 @@ public abstract class UIPanelController : MonoBehaviour
     }
 
     /// <summary>
-    /// Hiện/ẩn cả màn theo cờ <see cref="PlayTransition"/>: có SlideTransition thì trượt khi điều hướng menu, bật/tắt ngay khi
-    /// đổi state hoặc khởi động; không có SlideTransition thì SetActive. Bật/tắt ngay giúp màn lỡ để bật trong scene
-    /// tắt hẳn lúc khởi động chứ không phụ thuộc một tween có thể bị ngắt.
+    /// Hiện/ẩn cả màn theo cờ <see cref="PlayTransition"/>: có SlideTransition thì trượt khi điều hướng menu, hiện/ẩn ngay khi
+    /// đổi state hoặc khởi động; không có SlideTransition thì SetActive. Ẩn ngay chỉ tắt Canvas (rẻ, dùng cả cho bước vẽ sẵn);
+    /// việc tắt hẳn object khi rời Home do UIManager làm qua <see cref="Deactivate"/>.
     /// </summary>
     protected void ApplyScreenVisibility(bool visible)
     {
         if (!TryGetComponent(out SlideTransition slide)) gameObject.SetActive(visible);
-        else if (!PlayTransition) slide.SetVisibleInstant(visible);
+        else if (!PlayTransition && visible) slide.SetVisibleInstant(true);
+        else if (!PlayTransition) slide.HideInstant();
         else if (visible) slide.PlayIn();
         else slide.PlayOut();
     }
@@ -89,6 +91,7 @@ public abstract class UIPanelController : MonoBehaviour
 
     /// <summary>
     /// Đi đúng đường mở thật (hiện tức thì, vẽ lại), ép Canvas dựng layout và lưới chữ, rồi ẩn lại trong cùng frame.
+    /// Màn có SlideTransition chỉ bị tắt Canvas nên lần mở sau không phải dựng lại.
     /// Không ghi yêu cầu hiển thị nên UIManager và thanh điều hướng vẫn coi màn là đang đóng.
     /// </summary>
     internal void Prewarm()
@@ -97,6 +100,12 @@ public abstract class UIPanelController : MonoBehaviour
         Canvas.ForceUpdateCanvases();
         Present(false, false);
     }
+
+    /// <summary>
+    /// Tắt hẳn object của màn đang ẩn (rời Home): Animator, Update và event đăng ký trong OnEnable của màn và các con dừng hẳn,
+    /// để không có chi phí nào của Home chạy trong trận.
+    /// </summary>
+    internal void Deactivate() => gameObject.SetActive(false);
 
     #endregion
 

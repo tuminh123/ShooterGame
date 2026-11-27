@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Popup Settings mở từ nút menu (ba gạch) trên thanh trên. Hiện chỉ mở/đóng: dự án chưa có hệ thống âm thanh nên thanh
-/// Music/SFX và công tắc Screenshake của bản dựng chưa điều khiển gì.
+/// Popup Settings mở từ nút menu (ba gạch) trên thanh trên. Class này chỉ lo mở/đóng; ba công tắc Sound/Music/Vibration
+/// do <see cref="AudioSettingsPanel"/> trên Group_List điều khiển.
 /// </summary>
 /// <remarks>
 /// Là overlay do UIManager quản lý (<see cref="IsOverlay"/>): đè lên màn đang hiện (Home, Heroes, Gear, Shop) mà không ẩn nó,

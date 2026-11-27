@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: FrostSentinel_Character
+  m_EditorClassIdentifier: 
+  displayName: Frost Sentinel
+  characterType: 9
+  team: 0
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 8616991680564129770, guid: c3b3317b7ec075646b06aa1a10531f95, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: -0.0048361644, y: 0.020097136, z: 0}
+    Hitbox:
+      Size: {x: 0.11878261, y: 0.21841657}
+      Offset: {x: -0.0017149448, y: 0.12585342}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 21300000, guid: 4c413bccffeea464fb6656feb20ca955, type: 3}
+  shardIcon: {fileID: 21300000, guid: 55d6c6c8ec3c83e4c8303a9b402f128c, type: 3}
+  uiVisualPrefab: {fileID: 6776501988394355344, guid: 5ca6538679a01684f825950904bbd8f0, type: 3}
+  rarity: 2
+  baseStats:
+    maxHealth: 160
+    damage: 14
+    defense: 150
+    moveSpeed: 1
+    critChance: 8
+    critDamageMultiplier: 60
+    effectResistance: 10
+    effectHit: 0
+  skills: []
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

@@ -44,7 +44,6 @@ public sealed class UIManager : MonoBehaviour
     private bool visible = true; // Ẩn toàn bộ UI vẫn bảo toàn lịch sử để tiếp tục khi hiện lại.
     private bool subscribed; // Chống đăng ký sự kiện lặp khi OnEnable và API điều hướng cùng chạy.
     private bool listeningToGame; // Tách khỏi `subscribed`: OnEnable có thể chạy trước Construct, lúc đó chưa có `game` để nghe.
-    private bool screensPrewarmed; // Chỉ vẽ sẵn một lần cho cả phiên.
     /// <summary>Chỉ đọc panel hiện tại để các hệ thống quan sát luồng UI.</summary>
     public UIPanelController ActivePanel => activePanel;
 
@@ -72,26 +71,35 @@ public sealed class UIManager : MonoBehaviour
     }
 
     // Mỗi state chỉ chọn route hiển thị, không spawn/reset hoặc quyết định thắng/thua.
-    // Rời Boot: vẽ sẵn màn nặng trước khi đổi route, lúc màn Loading vẫn đang che (frame này không có tween nào chạy).
+    // Đổi state luôn xảy ra khi màn Loading/chuyển cảnh đang che và không có tween nào chạy, nên bật/tắt nặng ở đây không ai thấy.
     private void OnGameStateChanged(GameState previous, GameState current)
     {
-        if (previous == GameState.Boot) PrewarmScreens();
         ApplyGameState(current);
+        if (current == GameState.Home) PrewarmScreens();
+        else DeactivateScreens();
     }
 
+    // Vào Home: vẽ sẵn màn nặng và giữ chúng bật nhưng ẩn, để lần mở đầu không dồn việc vào frame tween bắt đầu.
     // Lỗi của một màn không được chặn việc vào game: ghi log rồi làm tiếp màn khác.
     private void PrewarmScreens()
     {
-        if (screensPrewarmed) return;
-        screensPrewarmed = true;
         Subscribe();
         foreach (UIPanelController panel in panels)
         {
-            if (!panel.PrewarmOnLoad || panel.IsChrome || panel.IsOverlay || panel.WantsVisible) continue;
+            if (!IsWarmScreen(panel) || panel.WantsVisible) continue;
             try { panel.Prewarm(); }
             catch (Exception exception) { Debug.LogException(exception, panel); }
         }
     }
+
+    // Rời Home: màn đang ẩn mềm (Canvas tắt, object bật) bị tắt hẳn để script, Animator và event của chúng không chạy trong trận.
+    private void DeactivateScreens()
+    {
+        foreach (UIPanelController panel in panels)
+            if (IsWarmScreen(panel) && panel != activePanel) panel.Deactivate();
+    }
+
+    private static bool IsWarmScreen(UIPanelController panel) => panel.PrewarmOnLoad && !panel.IsChrome && !panel.IsOverlay;
 
     // Đăng ký đúng một lần, và chỉ khi Zenject đã cấp nguồn state.
     private void ListenToGame()

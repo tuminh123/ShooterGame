@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: SnowSprite_Character
+  m_EditorClassIdentifier: 
+  displayName: Snow Sprite
+  characterType: 107
+  team: 1
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 4026664385654429063, guid: 991676e724c62ae42a2cb0ec5ee5c872, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.14463755, y: 0.165}
+      Offset: {x: -0.0018219089, y: 0.07500236}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: 0, y: -0.06883384, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 0}
+  shardIcon: {fileID: 0}
+  uiVisualPrefab: {fileID: 0}
+  rarity: 0
+  baseStats:
+    maxHealth: 30
+    damage: 12
+    defense: 10
+    moveSpeed: 0.5
+    critChance: 5
+    critDamageMultiplier: 50
+    effectResistance: 20
+    effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

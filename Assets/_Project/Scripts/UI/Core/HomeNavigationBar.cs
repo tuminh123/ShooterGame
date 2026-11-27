@@ -23,6 +23,14 @@ public sealed class HomeNavigationBar : UIPanelController
     {
         public Button normal;
         public Button focused;
+        [Tooltip("SlideTransition của màn mà tab này mở (tab Battle: màn Home). Để trống thì màn trượt theo hướng mặc định.")]
+        public SlideTransition screen;
+
+        /// <summary>
+        /// Thứ tự trái → phải của nút trên thanh. Thanh dùng HorizontalLayoutGroup xếp theo thứ tự anh em, nên đọc sibling index
+        /// thay cho vị trí: bản Focus vừa bật chưa được layout xếp chỗ (vị trí cũ) khi người chơi bấm nhanh.
+        /// </summary>
+        public int Order => normal.transform.GetSiblingIndex();
 
         public void SetFocused(bool value)
         {
@@ -45,7 +53,8 @@ public sealed class HomeNavigationBar : UIPanelController
     [SerializeField] private SlideTransition bar;
     [Tooltip("Thanh trên (Topbar: tiền tệ, nút menu); cần SlideTransition hướng Up để trượt lên ẩn / trượt xuống hiện.")]
     [SerializeField] private SlideTransition topBar;
-    [Tooltip("Nền dùng chung của Home và màn Character; hiện suốt trạng thái Home để lúc trượt không lộ bản đồ.")]
+    [Tooltip("Nền dùng chung của Home và các màn menu; hiện suốt trạng thái Home để lúc trượt không lộ bản đồ. " +
+        "Cần Canvas riêng: khi một màn menu đã trượt xong và che kín, chỉ tắt Canvas này để bớt vẽ thừa.")]
     [SerializeField] private GameObject sharedBackground;
     [SerializeField] private NavTab battleTab;
     [SerializeField] private NavTab heroesTab;
@@ -70,6 +79,8 @@ public sealed class HomeNavigationBar : UIPanelController
     private bool shown; // UIManager đang cho phép hiện khối thanh bar (state Home); chưa được bật thì mọi thứ ẩn.
     private bool barShown;
     private bool barInitialized; // Lần áp dụng đầu bật/tắt ngay, không trượt.
+    private Canvas backgroundCanvas; // Canvas của nền chung; lấy lần đầu cần dùng.
+    private SlideTransition missionSlide; // Màn Mission cũng che kín nền khi mở xong.
 
     #endregion
 
@@ -132,6 +143,10 @@ public sealed class HomeNavigationBar : UIPanelController
             missionScreen.GoRequested += OnMissionGo;
         }
         if (shopScreen != null) shopScreen.NavigationChanged += OnNavigationChanged;
+        missionSlide = missionScreen != null ? missionScreen.GetComponent<SlideTransition>() : null;
+        // NavigationChanged phát lúc bắt đầu chuyển màn; nền chỉ được tắt khi màn menu trượt xong, nên nghe thêm Finished.
+        foreach (SlideTransition slide in MenuSlides())
+            if (slide != null) slide.Finished += RefreshBackground;
         Refresh(false);
     }
 
@@ -145,7 +160,12 @@ public sealed class HomeNavigationBar : UIPanelController
             missionScreen.GoRequested -= OnMissionGo;
         }
         if (shopScreen != null) shopScreen.NavigationChanged -= OnNavigationChanged;
+        foreach (SlideTransition slide in MenuSlides())
+            if (slide != null) slide.Finished -= RefreshBackground;
     }
+
+    // Các màn menu che kín nền chung khi mở xong (phần tử có thể null). Chỉ gọi lúc bật/tắt thanh bar nên mảng nhỏ không đáng kể.
+    private SlideTransition[] MenuSlides() => new[] { heroesTab.screen, equipmentTab.screen, shopTab.screen, missionSlide };
 
     #endregion
 
@@ -155,18 +175,29 @@ public sealed class HomeNavigationBar : UIPanelController
     // Về Battle thì đóng cả hai tab; còn đổi giữa hai tab chỉ cần mở tab mới, UIManager tự thay tab cũ trong một lần cập nhật.
     private void OnBattle()
     {
+        PrepareSlide(battleTab);
         characterScreen.Close();
         equipmentScreen.Close();
         if (shopScreen != null) shopScreen.Close();
     }
 
-    private void OnHeroes() => characterScreen.Open();
+    private void OnHeroes()
+    {
+        PrepareSlide(heroesTab);
+        characterScreen.Open();
+    }
 
-    private void OnEquipment() => equipmentScreen.Open();
+    private void OnEquipment()
+    {
+        PrepareSlide(equipmentTab);
+        equipmentScreen.Open();
+    }
 
     private void OnShop()
     {
-        if (shopScreen != null) shopScreen.Open();
+        if (shopScreen == null) return;
+        PrepareSlide(shopTab);
+        shopScreen.Open();
     }
 
     // Popup đè lên màn đang hiện (Home, Heroes, Gear, Shop); UIManager đóng nó khi đổi màn.
@@ -180,9 +211,30 @@ public sealed class HomeNavigationBar : UIPanelController
     {
         switch (destination)
         {
-            case MissionDestination.Heroes: characterScreen.Open(); break;
-            case MissionDestination.Equipment: equipmentScreen.Open(); break;
+            case MissionDestination.Heroes: OnHeroes(); break;
+            case MissionDestination.Equipment: OnEquipment(); break;
         }
+    }
+
+    // Hướng trượt theo vị trí nút: đích nằm bên trái tab đang mở thì cả hai màn dịch sang phải (màn cũ ra bên phải,
+    // màn mới vào từ bên trái), và ngược lại. Mọi lần đổi tab đều đi qua thanh bar (kể cả nút Go của Mission),
+    // nên chỉ chỗ này cần biết thứ tự tab; các màn không biết nhau. Đọc thứ tự nút trên scene nên đổi chỗ nút vẫn đúng.
+    private void PrepareSlide(NavTab target)
+    {
+        NavTab current = CurrentTab();
+        if (current == target || current.screen == null || target.screen == null) return;
+        SlideDirection toward = target.Order < current.Order ? SlideDirection.Right : SlideDirection.Left;
+        current.screen.SetDirection(toward);
+        target.screen.SetDirection(toward);
+    }
+
+    // Tab đang mở suy ra từ màn đang hiện, cùng cách Refresh chọn nút nổi; không màn menu nào mở thì là Battle (Home).
+    private NavTab CurrentTab()
+    {
+        if (characterScreen.IsShown) return heroesTab;
+        if (equipmentScreen.IsShown) return equipmentTab;
+        if (shopScreen != null && shopScreen.IsShown) return shopTab;
+        return battleTab;
     }
 
     // Vào/ra Detail hoặc đổi tab trong menu: vẫn ở Home nên thanh bar trượt chứ không bật/tắt ngay.
@@ -194,7 +246,7 @@ public sealed class HomeNavigationBar : UIPanelController
         bool heroesOpen = characterScreen.IsShown;
         bool equipmentOpen = equipmentScreen.IsShown;
         bool shopOpen = shopScreen != null && shopScreen.IsShown; // Shop là tab menu: hai thanh vẫn hiện, nút Shop nổi lên.
-        if (sharedBackground != null) sharedBackground.SetActive(shown);
+        RefreshBackground();
         battleTab.SetFocused(!heroesOpen && !equipmentOpen && !shopOpen);
         heroesTab.SetFocused(heroesOpen);
         equipmentTab.SetFocused(equipmentOpen);
@@ -202,6 +254,27 @@ public sealed class HomeNavigationBar : UIPanelController
         bool missionOpen = missionScreen != null && missionScreen.IsShown;
         SetBarsShown(shown && !missionOpen && !(heroesOpen && characterScreen.IsOnDetail), instant);
     }
+
+    // Nền chung bật suốt state Home (tắt hẳn khi rời Home). Khi một màn menu đã trượt xong và đứng yên, màn đó che kín nền
+    // (đã kiểm bằng ảnh chụp: Heroes, Gear, Shop, Mission đều có nền đục toàn màn), nên chỉ tắt Canvas của nền để GPU khỏi tô
+    // thêm 2–3 lớp ảnh toàn màn không ai thấy (luật overdraw O1). Lúc đang trượt thì nền vẫn bật để khe giữa hai màn không lộ bản đồ.
+    private void RefreshBackground()
+    {
+        if (sharedBackground == null) return;
+        sharedBackground.SetActive(shown);
+        if (backgroundCanvas == null) backgroundCanvas = sharedBackground.GetComponent<Canvas>();
+        if (backgroundCanvas != null) backgroundCanvas.enabled = !MenuCoversBackground();
+    }
+
+    // Đọc cả ý định mở (IsShown) chứ không chỉ trạng thái trượt: lúc bắt đầu đóng menu, NavigationChanged phát trước khi
+    // menu kịp trượt ra (vẫn đứng yên), mà nền phải bật lại ngay từ lúc đó.
+    private bool MenuCoversBackground() =>
+        Covers(characterScreen.IsShown, heroesTab.screen)
+        || Covers(equipmentScreen.IsShown, equipmentTab.screen)
+        || (shopScreen != null && Covers(shopScreen.IsShown, shopTab.screen))
+        || (missionScreen != null && Covers(missionScreen.IsShown, missionSlide));
+
+    private static bool Covers(bool open, SlideTransition slide) => open && slide != null && slide.IsFullyShown;
 
     // Hai thanh luôn hiện/ẩn cùng nhau; hướng trượt do SlideTransition của từng thanh quyết định.
     private void SetBarsShown(bool show, bool instant)

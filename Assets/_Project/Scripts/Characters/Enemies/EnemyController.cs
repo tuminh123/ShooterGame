@@ -13,18 +13,30 @@ public sealed class EnemyController : CharacterControllerBase
     [System.Serializable]
     public sealed class SeparationSettings
     {
-        [Min(0.01f)] public float radius = 0.2f; // Khoảng cách mong muốn giữa hai tâm tránh nhau, tính bằng world unit.
-        public float offsetY = -0.05f; // Cộng vào world Y của vỏ; âm dịch xuống, dương dịch lên, không dời visual/collider.
-        [Min(0f)] public float strength = 2f; // Trọng số hướng ra xa hàng xóm so với hướng đuổi Player có độ dài 1.
-        [Min(0.01f)] public float scanInterval = 0.1f; // Số giây game giữa hai lần quét; không quét lại trong mọi Update.
+        [Tooltip("Tầm phát hiện và khoảng cách giữ giữa hai quái (world unit, tính từ tâm tới tâm).\n" +
+                 "Quái có tâm xa hơn số này thì bị bỏ qua, gần hơn thì bị đẩy ra; càng gần đẩy càng mạnh.\n" +
+                 "Muốn quái không chồng lên nhau: đặt bằng hoặc lớn hơn bề ngang hitbox (ví dụ hitbox 0.23 thì đặt 0.25).\n" +
+                 "Chọn quái trong tab Scene lúc Play để thấy vòng tròn vàng.")]
+        [Min(0.01f)] public float radius = 0.2f;
+        [Tooltip("Dời tâm vòng phát hiện theo trục Y (world unit). Âm = xuống, dương = lên.\n" +
+                 "Dùng để vòng tròn nằm giữa thân quái thay vì dưới chân. Không dời hình hay hitbox.")]
+        public float offsetY = -0.05f;
+        [Tooltip("Độ mạnh của lực né so với lực đuổi Player (lực đuổi = 1).\n" +
+                 "Tăng lên (khoảng 3) nếu cả đàn lao vào Player vẫn bị dồn cục; quá cao thì quái đi chậm và rung.")]
+        [Min(0f)] public float strength = 2f;
+        [Tooltip("Số giây giữa hai lần quét tìm quái xung quanh.\n" +
+                 "Nhỏ hơn = phản ứng nhanh hơn nhưng tốn CPU hơn khi đông quái. Nên giữ khoảng 0.1.")]
+        [Min(0.01f)] public float scanInterval = 0.1f;
     }
 
     // Độ giật là cấu hình di chuyển; hành vi tấn công và cooldown lấy từ asset/manager của skill.
     [System.Serializable]
     public sealed class RecoilSettings
     {
-        [Min(0f)] public float knockbackDistance = 0.35f; // Chính Enemy lùi ra xa Player sau khi gây damage thành công.
-        [Min(0.01f)] public float knockbackDuration = 0.18f; // Dịch chuyển bằng MovementSystem, không dùng lực Rigidbody.
+        [Tooltip("Quãng đường (world unit) quái tự lùi ra xa Player sau khi đánh trúng.")]
+        [Min(0f)] public float knockbackDistance = 0.35f;
+        [Tooltip("Thời gian (giây) của cú lùi. Trong lúc lùi, quái tạm ngừng né nhau.")]
+        [Min(0.01f)] public float knockbackDuration = 0.18f;
     }
 
     #endregion

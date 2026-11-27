@@ -276,10 +276,12 @@ public sealed class CharacterDetailView : MonoBehaviour, IBeginDragHandler, IDra
         shownTab = tab;
     }
 
+    // Ẩn chỉ tắt Canvas của tab (không tắt object) để lần đổi tab sau không phải bật lại cả cây UI.
     private static void SetTabInstant(GameObject tabObject, bool visible)
     {
-        if (tabObject.TryGetComponent(out SlideTransition slide)) slide.SetVisibleInstant(visible);
-        else tabObject.SetActive(visible);
+        if (!tabObject.TryGetComponent(out SlideTransition slide)) tabObject.SetActive(visible);
+        else if (visible) slide.SetVisibleInstant(true);
+        else slide.HideInstant();
     }
 
     private void BindLevelTab(CharacterDetailModel model, bool sameCharacter)

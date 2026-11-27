@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: SwampRaptor_Character
+  m_EditorClassIdentifier: 
+  displayName: Swamp Raptor
+  characterType: 108
+  team: 1
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 8052896557016244308, guid: 1c6869238c2bb7e429eaf6a2789de9de, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.17365958, y: 0.165}
+      Offset: {x: -0.005470752, y: 0.090047866}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: 0, y: -0.06883384, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 0}
+  shardIcon: {fileID: 0}
+  uiVisualPrefab: {fileID: 0}
+  rarity: 0
+  baseStats:
+    maxHealth: 35
+    damage: 16
+    defense: 10
+    moveSpeed: 0.7
+    critChance: 10
+    critDamageMultiplier: 50
+    effectResistance: 0
+    effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

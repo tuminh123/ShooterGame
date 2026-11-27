@@ -197,7 +197,8 @@ public sealed class ShopScreenController : UIPanelController
             if (panel == null) continue;
             if (i == index && slide) panel.PlayIn(SlideTransition.Opposite(exitTo));
             else if (i == previous && slide) panel.PlayOut(exitTo);
-            else panel.SetVisibleInstant(i == index);
+            else if (i == index) panel.SetVisibleInstant(true);
+            else panel.HideInstant(); // Chỉ tắt Canvas: lần chọn lại tab này không phải bật lại cả panel.
         }
         DrawTimer();
     }

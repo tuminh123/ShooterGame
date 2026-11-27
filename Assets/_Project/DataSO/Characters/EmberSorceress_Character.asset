@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: EmberSorceress_Character
+  m_EditorClassIdentifier: 
+  displayName: Ember Sorceress
+  characterType: 10
+  team: 0
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 133477704044017493, guid: 28f5bbd708a40ac4a809d2c2e7f7ff10, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: -0.0048361644, y: 0.020097136, z: 0}
+    Hitbox:
+      Size: {x: 0.11878261, y: 0.21841657}
+      Offset: {x: -0.0017149448, y: 0.12585342}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 21300000, guid: cd58ac5c362aa7b44ad1d98bb7b49639, type: 3}
+  shardIcon: {fileID: 21300000, guid: 85dfb10dc874cfa41a59af5a2e76502f, type: 3}
+  uiVisualPrefab: {fileID: 2281933989622362529, guid: 965dd0b3b5dbdf64da36329e0f3e73d5, type: 3}
+  rarity: 2
+  baseStats:
+    maxHealth: 125
+    damage: 17
+    defense: 120
+    moveSpeed: 1.05
+    critChance: 10
+    critDamageMultiplier: 65
+    effectResistance: 0
+    effectHit: 10
+  skills: []
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

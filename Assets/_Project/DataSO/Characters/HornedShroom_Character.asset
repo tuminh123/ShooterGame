@@ -10,38 +10,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
-  m_Name: Boss_Character
+  m_Name: HornedShroom_Character
   m_EditorClassIdentifier: 
-  displayName: Boss
-  characterType: 3
+  displayName: Horned Shroom
+  characterType: 100
   team: 1
-  isBoss: 1
+  isBoss: 0
   visualSettings:
-    Prefab: {fileID: 108019695963274740, guid: cf9dc8c3a4a694748a857b0a8ff04841, type: 3}
+    Prefab: {fileID: 4460633850588580954, guid: f9ac39ad457569545b228e532daa36d3, type: 3}
     Scale: {x: 1, y: 1, z: 1}
     Offset: {x: 0, y: 0, z: 0}
     Hitbox:
-      Size: {x: 0.60554504, y: 0.6208844}
-      Offset: {x: -0.023008823, y: 0.619063}
-    HealthBarSize: {x: 200, y: 50}
-    HealthBarOffset: {x: 0, y: 0.06, z: 0}
+      Size: {x: 0.09696721, y: 0.15}
+      Offset: {x: -0.0045286925, y: 0.07930328}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: 0, y: -0.06883384, z: 0}
     HealthBarScale: 0.0035
-    ShieldThickness: 4
+    ShieldThickness: 3
   portrait: {fileID: 0}
+  shardIcon: {fileID: 0}
   uiVisualPrefab: {fileID: 0}
   rarity: 0
   baseStats:
-    maxHealth: 1000
-    damage: 30
-    defense: 100
-    moveSpeed: 0.7
+    maxHealth: 25
+    damage: 10
+    defense: 5
+    moveSpeed: 0.45
     critChance: 5
     critDamageMultiplier: 50
-    effectResistance: 50
+    effectResistance: 0
     effectHit: 0
   skills:
-  - {fileID: 11400000, guid: 061da97c15db4a5dab3305462bfec056, type: 2}
-  - {fileID: 11400000, guid: e730abcb6d2a4e15b2888543fdd8c20e, type: 2}
+  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
   skillProgression: []
   starStats:
   - stat: 0

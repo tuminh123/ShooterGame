@@ -1,6 +1,7 @@
 using System;
 using PrimeTween;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Trượt một panel vào/ra khỏi khung cha bằng anchoredPosition (cùng cách với banner cảnh báo enemy).
@@ -11,9 +12,16 @@ using UnityEngine;
 /// Trong lúc trượt, panel không nhận click (CanvasGroup.blocksRaycasts) để tránh bấm Back/đổi tab giữa chừng.
 /// Bị gọi lại giữa chừng (bấm đổi tab nhanh) thì trượt tiếp từ vị trí hiện tại, không đặt lại ra ngoài màn,
 /// và thời gian tỉ lệ với quãng còn lại để tốc độ trượt không đổi.
+/// <para>
+/// Hai cách ẩn (luật UI6 trong Performance-Rules): trượt ra hoặc <see cref="HideInstant"/> chỉ tắt Canvas riêng của panel,
+/// object vẫn bật, vì bật lại cả cây UI (OnEnable, Layout, TMP, Canvas lồng) tốn ~10–25 ms đúng vào frame tween bắt đầu
+/// nên tween nhảy một đoạn. <see cref="SetVisibleInstant"/>(false) tắt hẳn object, dùng khi đổi state game (màn đang tối),
+/// để mọi script con dừng hẳn trong trận. Vì vậy panel cần Canvas + GraphicRaycaster riêng (Canvas lồng phải có raycaster
+/// thì nút bên trong mới bấm được).
+/// </para>
 /// </remarks>
 [DisallowMultipleComponent]
-[RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
+[RequireComponent(typeof(RectTransform), typeof(CanvasGroup), typeof(GraphicRaycaster))]
 public sealed class SlideTransition : MonoBehaviour
 {
     #region Settings
@@ -31,16 +39,24 @@ public sealed class SlideTransition : MonoBehaviour
 
     private RectTransform rect;
     private CanvasGroup group;
+    private Canvas canvas; // Canvas riêng của panel: tắt nó là ẩn mà không tắt object.
     private Vector2 restPosition; // Vị trí nghỉ chụp một lần trước tween đầu tiên, không chụp lại giữa lúc trượt.
     private bool restCached;
     private Tween tween;
     private Action completion; // Xóa khi bị ngắt để callback cũ không chạy sau một lần trượt mới.
+    private int playInFrame = -1; // Frame bắt đầu trượt vào gần nhất; bị gọi ra ngay trong frame đó thì chưa ai thấy panel.
     // Panel đã được hiện (PlayIn/SetVisibleInstant(true)) và chưa bị ẩn. Không dùng activeSelf: UIPanelController.Present
     // bật object trước khi gọi PlayIn, nên activeSelf không phân biệt được "vừa bật để trượt vào" với "đang hiện sẵn".
     private bool shown;
 
     /// <summary>Đang trượt vào hoặc ra.</summary>
     public bool IsPlaying => tween.isAlive;
+
+    /// <summary>Đang hiện và đã trượt xong, đứng yên ở vị trí nghỉ (che kín phần nó phủ).</summary>
+    public bool IsFullyShown => shown && !tween.isAlive && isActiveAndEnabled && canvas != null && canvas.enabled;
+
+    /// <summary>Phát khi một lần trượt vào hoặc ra kết thúc (không phát khi bị ngắt giữa chừng hay hiện/ẩn ngay).</summary>
+    public event Action Finished;
 
     #endregion
 
@@ -59,39 +75,51 @@ public sealed class SlideTransition : MonoBehaviour
         // Đọc trước Stop: đang trượt dở (vào hoặc ra) hoặc đang hiện sẵn thì giữ vị trí hiện tại.
         bool keepPosition = tween.isAlive || (shown && gameObject.activeSelf);
         Stop();
-        gameObject.SetActive(true);
+        gameObject.SetActive(true); // Chỉ tốn khi object bị tắt hẳn do đổi state; ẩn mềm thì object vẫn bật.
+        canvas.enabled = true;
         shown = true;
         Vector2 offset = Offset(from);
         // Không đặt lại ra ngoài màn khi panel đang trên màn hình: đó là cú nhảy khi bấm đổi tab nhanh.
         Vector2 start = keepPosition ? rect.anchoredPosition : restPosition + offset;
         rect.anchoredPosition = start;
         Begin(onComplete);
+        playInFrame = Time.frameCount;
         float duration = enterDuration * RemainingFraction(start, restPosition, offset);
         if (duration < MinDuration)
         {
             rect.anchoredPosition = restPosition;
-            Finish(deactivate: false);
+            Finish(hide: false);
             return;
         }
         tween = Tween.UIAnchoredPosition(rect, start, restPosition, duration, Ease.OutCubic, useUnscaledTime: true)
-            .OnComplete(this, slide => slide.Finish(deactivate: false));
+            .OnComplete(this, slide => slide.Finish(hide: false));
     }
 
     /// <summary>Trượt ra theo hướng mặc định rồi tắt panel.</summary>
     public void PlayOut(Action onComplete = null) => PlayOut(exitTo, onComplete);
 
-    /// <summary>Trượt về phía <paramref name="to"/>, tắt panel, rồi gọi <paramref name="onComplete"/>.</summary>
+    /// <summary>Trượt về phía <paramref name="to"/>, ẩn panel (tắt Canvas), rồi gọi <paramref name="onComplete"/>.</summary>
     public void PlayOut(SlideDirection to, Action onComplete = null)
     {
         CacheRest();
+        // Đọc trước Stop: vừa bắt đầu trượt vào trong chính frame này (ví dụ nút Go của Mission: Home hiện lại rồi bị thay
+        // ngay bởi màn đích) thì chưa frame nào vẽ panel. Trượt ra lúc này có thể kéo panel băng ngang qua màn nếu hướng ra
+        // khác hướng vào, nên ẩn luôn.
+        bool unseen = tween.isAlive && playInFrame == Time.frameCount;
         Stop();
         shown = false;
-        if (!isActiveAndEnabled)
+        // Đã ẩn (tắt hẳn hoặc tắt Canvas) thì không trượt một panel không ai thấy.
+        if (!isActiveAndEnabled || !canvas.enabled)
         {
             onComplete?.Invoke();
             return;
         }
         Begin(onComplete);
+        if (unseen)
+        {
+            Finish(hide: true);
+            return;
+        }
         Vector2 offset = Offset(to);
         Vector2 start = rect.anchoredPosition;
         Vector2 end = restPosition + offset;
@@ -99,21 +127,47 @@ public sealed class SlideTransition : MonoBehaviour
         float duration = exitDuration * RemainingFraction(start, end, offset);
         if (duration < MinDuration)
         {
-            Finish(deactivate: true);
+            Finish(hide: true);
             return;
         }
         tween = Tween.UIAnchoredPosition(rect, start, end, duration, Ease.InCubic, useUnscaledTime: true)
-            .OnComplete(this, slide => slide.Finish(deactivate: true));
+            .OnComplete(this, slide => slide.Finish(hide: true));
     }
 
-    /// <summary>Bật/tắt ngay, không trượt (lần hiện đầu tiên, vẽ lại cùng tab).</summary>
+    /// <summary>
+    /// Bật/tắt hẳn object ngay, không trượt. Dùng khi đổi state game (vào trận, về Home): màn đang tối nên chi phí
+    /// bật/tắt không ai thấy, và tắt hẳn thì Animator, Update, event của panel dừng hẳn trong trận.
+    /// </summary>
     public void SetVisibleInstant(bool visible)
     {
         CacheRest();
         Stop();
         ResetPose();
         shown = visible;
+        canvas.enabled = true; // Object tắt hẳn thì Canvas để sẵn bật, lần SetActive(true) sau hiện ngay.
         gameObject.SetActive(visible);
+    }
+
+    /// <summary>
+    /// Đặt hướng mặc định cho các lần trượt sau: cả lần vào lẫn lần ra đều dịch về phía <paramref name="toward"/>
+    /// (vào từ phía đối diện). Thanh điều hướng gọi cho cả màn cũ và màn mới trước khi đổi tab, để hai màn đẩy nhau cùng chiều.
+    /// </summary>
+    public void SetDirection(SlideDirection toward)
+    {
+        exitTo = toward;
+        enterFrom = Opposite(toward);
+    }
+
+    /// <summary>
+    /// Ẩn ngay không trượt nhưng giữ object bật (tắt Canvas): đổi tab không có hiệu ứng, ẩn màn con khi mở lại màn,
+    /// cuối bước vẽ sẵn. Lần hiện sau không phải dựng lại cả cây UI.
+    /// </summary>
+    public void HideInstant()
+    {
+        CacheRest();
+        Stop();
+        shown = false;
+        if (gameObject.activeSelf) HideSoft();
     }
 
     #endregion
@@ -136,16 +190,24 @@ public sealed class SlideTransition : MonoBehaviour
         group.blocksRaycasts = false;
     }
 
-    private void Finish(bool deactivate)
+    private void Finish(bool hide)
     {
         tween = default;
-        group.blocksRaycasts = true;
-        // Lấy callback TRƯỚC khi tắt panel: SetActive(false) gọi OnDisable → Stop() sẽ xóa completion,
-        // làm controller không bao giờ biết đã trượt xong (kẹt Busy, bấm thẻ không được).
+        // Lấy callback trước khi ẩn: callback được phép bắt đầu lần trượt mới, không được bị xóa giữa chừng.
         Action callback = completion;
         completion = null;
-        if (deactivate) gameObject.SetActive(false); // OnDisable trả panel về vị trí nghỉ cho lần mở sau.
+        if (hide) HideSoft();
+        else group.blocksRaycasts = true;
         callback?.Invoke(); // Callback được phép đổi trang hoặc bắt đầu lần trượt mới.
+        Finished?.Invoke(); // Sau callback: người nghe đọc trạng thái cuối (callback có thể đã bắt đầu lần trượt mới).
+    }
+
+    // Ẩn mềm: tắt Canvas (tắt luôn Canvas lồng bên trong), chặn chạm, trả về vị trí nghỉ cho lần mở sau.
+    private void HideSoft()
+    {
+        canvas.enabled = false;
+        group.blocksRaycasts = false;
+        rect.anchoredPosition = restPosition;
     }
 
     // PrimeTween.Stop không gọi OnComplete; bỏ luôn callback đang chờ của lần trước.
@@ -168,6 +230,7 @@ public sealed class SlideTransition : MonoBehaviour
         if (restCached) return;
         rect = (RectTransform)transform;
         group = GetComponent<CanvasGroup>();
+        canvas = GetComponent<Canvas>(); // Có sẵn nhờ RequireComponent(GraphicRaycaster) → Canvas.
         restPosition = rect.anchoredPosition;
         restCached = true;
     }
@@ -206,7 +269,7 @@ public sealed class SlideTransition : MonoBehaviour
 
     #region Unity Cleanup
 
-    // Bị tắt từ ngoài (UIManager ẩn màn) giữa lúc trượt: dừng tween, trả vị trí nghỉ, không chạy callback cũ.
+    // Bị tắt hẳn từ ngoài (đổi state game, cha bị tắt) giữa lúc trượt: dừng tween, trả vị trí nghỉ, không chạy callback cũ.
     private void OnDisable()
     {
         Stop();

@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: ShellCrawler_Character
+  m_EditorClassIdentifier: 
+  displayName: Shell Crawler
+  characterType: 106
+  team: 1
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 2404940668228544058, guid: 0d1b457c1fa5f2a45899f46d3aa37c51, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.2050632, y: 0.16499999}
+      Offset: {x: -0.009349993, y: 0.09587368}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: 0, y: -0.06883384, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 0}
+  shardIcon: {fileID: 0}
+  uiVisualPrefab: {fileID: 0}
+  rarity: 0
+  baseStats:
+    maxHealth: 60
+    damage: 10
+    defense: 40
+    moveSpeed: 0.35
+    critChance: 5
+    critDamageMultiplier: 50
+    effectResistance: 10
+    effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: f65c4bad347448bcbe33edd2c6033737, type: 2}
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

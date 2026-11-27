@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: OrcWarlord_Character
+  m_EditorClassIdentifier: 
+  displayName: Orc Warlord
+  characterType: 200
+  team: 1
+  isBoss: 1
+  visualSettings:
+    Prefab: {fileID: 4075354960295995737, guid: 0b80fdd727e9fb14e98ff03b12a35155, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: 0, y: 0, z: 0}
+    Hitbox:
+      Size: {x: 0.60452014, y: 0.6375}
+      Offset: {x: -0.08959007, y: 0.36261004}
+    HealthBarSize: {x: 200, y: 50}
+    HealthBarOffset: {x: 0, y: 0.06, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 4
+  portrait: {fileID: 0}
+  shardIcon: {fileID: 0}
+  uiVisualPrefab: {fileID: 0}
+  rarity: 0
+  baseStats:
+    maxHealth: 1500
+    damage: 35
+    defense: 150
+    moveSpeed: 0.65
+    critChance: 10
+    critDamageMultiplier: 50
+    effectResistance: 50
+    effectHit: 0
+  skills:
+  - {fileID: 11400000, guid: 061da97c15db4a5dab3305462bfec056, type: 2}
+  - {fileID: 11400000, guid: e730abcb6d2a4e15b2888543fdd8c20e, type: 2}
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0

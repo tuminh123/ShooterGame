@@ -11,7 +11,14 @@
 - Vào **Detail** thì thanh bar trượt xuống ẩn (SlideTransition hướng Down), Back về Collection thì trượt lên.
 - `MainUI/Background` tách thành nền dùng chung `HomeBackground` (hiện suốt trạng thái Home) để lúc trượt không lộ bản đồ.
 - **Bỏ nút Back của Collection** (về Home bằng thanh bar). `CharacterScreenController` có `Close()`, `IsShown`, `IsOnDetail`, event `NavigationChanged`.
-- Hướng trượt chỉnh trong Inspector: `SlideTransition` (Enter From / Exit To) cho màn và thanh bar; `CharacterDetailView.Tab Slide Forward` cho tab.
+- Hướng trượt chỉnh trong Inspector: `SlideTransition` (Enter From / Exit To) cho thanh bar và màn con; `CharacterDetailView.Tab Slide Forward` cho tab.
+  **Cập nhật 2026-11-27:** hướng trượt của các màn chính (Home, Heroes, Gear, Shop) do `HomeNavigationBar.PrepareSlide` đặt theo
+  thứ tự nút trên thanh (Shop · Heroes · Battle · Gear): đích bên trái thì hai màn cùng dịch sang phải và ngược lại. Mỗi `NavTab`
+  có ô `screen` trỏ tới SlideTransition của màn nó mở.
+- **Ẩn mềm (2026-11-27):** `SlideTransition` trượt ra hoặc `HideInstant` chỉ tắt Canvas riêng của panel, không `SetActive(false)`:
+  đo trong Editor, bật lại cả cây UI tốn ~10–25 ms đúng frame tween bắt đầu nên tween nhảy (luật UI6). Vì vậy mọi panel có
+  SlideTransition cần Canvas + GraphicRaycaster riêng (RequireComponent tự thêm). Đổi state game thì vẫn tắt hẳn: `SetVisibleInstant(false)`,
+  và `UIManager` tắt hẳn các màn `PrewarmOnLoad` khi rời Home, vẽ sẵn lại khi vào Home, để không Animator/Update/event nào của Home chạy trong trận.
 
 ## Thay đổi 2026-11-20: UX — tween nút, trượt màn/tab, số nhảy, Canvas lồng (người dùng duyệt)
 

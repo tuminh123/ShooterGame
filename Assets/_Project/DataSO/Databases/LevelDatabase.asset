@@ -16,6 +16,26 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b888c6c1969665e8025f68393d43f7a1, type: 2}
   - {fileID: 11400000, guid: ecd8e1f477d6477fb00d63a3ca42d7e2, type: 2}
   - {fileID: 11400000, guid: 5c1f8f5ab34a4a51a2d05544873bed92, type: 2}
+  - {fileID: 11400000, guid: 3d5cfb4da91105848ae6cfb5b44bf72c, type: 2}
+  - {fileID: 11400000, guid: 39ad0e5857fd75845b4ee176d7cf156e, type: 2}
+  - {fileID: 11400000, guid: e73a7d9b57472d744a4264187f89f0dd, type: 2}
+  - {fileID: 11400000, guid: b7f5afc1a0dff104198ef5a2ce21fe19, type: 2}
+  - {fileID: 11400000, guid: c1fa8091eed5d334485ca2c72fb63c3e, type: 2}
+  - {fileID: 11400000, guid: 7e79aa54df700914fbe657d25e396194, type: 2}
+  - {fileID: 11400000, guid: 35da00f302a295a45aaee84a2e12f741, type: 2}
+  - {fileID: 11400000, guid: 2801f39390eeb3048a9f6a2778191f8e, type: 2}
+  - {fileID: 11400000, guid: 9d4603d49cbe5194b8044ad23b7ef372, type: 2}
+  - {fileID: 11400000, guid: e49891a07647f9d4babc410b9950d852, type: 2}
+  - {fileID: 11400000, guid: 9853256e7868ae249a759f27fbec56fe, type: 2}
+  - {fileID: 11400000, guid: 742603b738f96f34db46d66990dfdf5f, type: 2}
+  - {fileID: 11400000, guid: 1e89aa93cf05001438811d7cefa488d3, type: 2}
+  - {fileID: 11400000, guid: 515bcfd701dfcab46a3be841819b1e43, type: 2}
+  - {fileID: 11400000, guid: 14ae1cc6d517bef4c975d648cad0794c, type: 2}
+  - {fileID: 11400000, guid: 0da1d8b46778f3849973cf8972c9ad61, type: 2}
+  - {fileID: 11400000, guid: 78e36be82f522544fb1cdcbc1c9dc519, type: 2}
+  - {fileID: 11400000, guid: 7f2f44692e078f5438c2e77145ad0645, type: 2}
+  - {fileID: 11400000, guid: 76f905e7ce3da4a4d9b3b982a0879dde, type: 2}
+  - {fileID: 11400000, guid: f37717fb4d8265043abc8fc5b3fe4b5a, type: 2}
   permanentLevelCurrency: 0
   permanentLevelCost:
     formula:
@@ -30,19 +50,19 @@ MonoBehaviour:
   collectionRules:
   - rarity: 0
     unlockShards: 30
-    shardsPerCopy: 10
+    shardsPerDuplicate: 10
   - rarity: 1
     unlockShards: 45
-    shardsPerCopy: 15
+    shardsPerDuplicate: 15
   - rarity: 2
     unlockShards: 75
-    shardsPerCopy: 25
+    shardsPerDuplicate: 25
   - rarity: 3
     unlockShards: 120
-    shardsPerCopy: 40
+    shardsPerDuplicate: 40
   - rarity: 4
     unlockShards: 180
-    shardsPerCopy: 60
+    shardsPerDuplicate: 60
   starCost:
     formula:
       rid: 8867964228872699918
@@ -52,7 +72,7 @@ MonoBehaviour:
     - 2.5
     - 4
     - 6
-  runLevelConfig: {fileID: 11400000, guid: 93efe895ced70c8395eb4eac439696dc, type: 2}
+  inBattleLevelConfig: {fileID: 11400000, guid: 93efe895ced70c8395eb4eac439696dc, type: 2}
   references:
     version: 2
     RefIds:

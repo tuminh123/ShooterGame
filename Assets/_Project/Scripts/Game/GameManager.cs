@@ -54,6 +54,7 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
     private readonly ICombatLifecycle combat; // Dọn đạn/effect/VFX và skill gameplay.
     private readonly IStageBattleLifecycle stageLifecycle;
     private readonly IStageResults stageResults;
+    private readonly IAudio audio; // Đổi nhạc nền theo state: Game gọi xuống Audio, Audio không nghe Game.
     private readonly Settings settings;
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
@@ -116,6 +117,7 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
         IStageBattleLifecycle stageLifecycle, // Hai vai trò Stage đều do StageManager implement (StageContracts.cs).
         IStageResults stageResults,
         IPoolCleanup poolCleanup,
+        IAudio audio,
         // Dữ liệu và dung lượng cho bước prewarm.
         PoolPrewarmSettingsSO prewarmSettings,
         CharacterDatabaseSO characterDatabase,
@@ -137,8 +139,10 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
         this.stageLifecycle = stageLifecycle;
         this.stageResults = stageResults;
         this.poolCleanup = poolCleanup;
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
 
         states = new GameStateMachine();
+        states.StateChanged += PlayStateMusic;
         pause = new GamePause();
         prewarm = new GamePrewarm(prewarmSettings, settings.CharacterPrefab, characterDatabase, combatAssets, lootDatabase,
             poolPreparation, characterCapacity, combatCapacity, simulationCapacity);
@@ -192,6 +196,22 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
         catch (Exception exception) { Fail(exception); }
         finally { transitioning = false; }
         if (!disposed && settings.AutoStartBattle && State == GameState.Home) StartBattle();
+    }
+
+    #endregion
+
+    #region Music
+
+    // Nhạc nền theo state. Restart vào lại Playing thì cùng bài nên Audio tự bỏ qua; state trung gian giữ nhạc cũ.
+    private void PlayStateMusic(GameState previous, GameState current)
+    {
+        switch (current)
+        {
+            case GameState.Home: audio.Play(AudioId.MusicHome); break;
+            case GameState.Playing: audio.Play(AudioId.MusicBattle); break;
+            case GameState.Won: audio.Play(AudioId.MusicVictory); break;
+            case GameState.Lost: audio.Play(AudioId.MusicDefeat); break;
+        }
     }
 
     #endregion

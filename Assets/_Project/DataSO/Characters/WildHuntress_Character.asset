@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e3387f1d404f7bbd44da8f94bba398, type: 3}
+  m_Name: WildHuntress_Character
+  m_EditorClassIdentifier: 
+  displayName: Wild Huntress
+  characterType: 8
+  team: 0
+  isBoss: 0
+  visualSettings:
+    Prefab: {fileID: 7548242862357055608, guid: 513cf9ed29aa0d74b95045a9d0bce383, type: 3}
+    Scale: {x: 1, y: 1, z: 1}
+    Offset: {x: -0.0048361644, y: 0.020097136, z: 0}
+    Hitbox:
+      Size: {x: 0.11878261, y: 0.21841657}
+      Offset: {x: -0.0017149448, y: 0.12585342}
+    HealthBarSize: {x: 66.54, y: 16.06}
+    HealthBarOffset: {x: -0.005996898, y: -0.049994856, z: 0}
+    HealthBarScale: 0.0035
+    ShieldThickness: 3
+  portrait: {fileID: 21300000, guid: cdd4b79e836fdac4eb267122d7822f90, type: 3}
+  shardIcon: {fileID: 21300000, guid: 697b65fda8425fb45a0850a72b3081a0, type: 3}
+  uiVisualPrefab: {fileID: 7296311333080939152, guid: 4efa1743f1fa1ca40bec55b2ffcda2d0, type: 3}
+  rarity: 1
+  baseStats:
+    maxHealth: 110
+    damage: 13
+    defense: 100
+    moveSpeed: 1.1
+    critChance: 8
+    critDamageMultiplier: 55
+    effectResistance: 0
+    effectHit: 0
+  skills: []
+  skillProgression: []
+  starStats:
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
+  - stat: 0
+    value: 0
