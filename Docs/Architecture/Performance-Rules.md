@@ -219,7 +219,7 @@ Các dòng dưới thuộc **chuỗi 0.2** (CPU), một số thêm **chuỗi 0.1
 | T3 | Manager tick bằng `for` trên `List`, delegate tĩnh (`CharacterRegistry.TickStep`) | Delegate tạo một lần | Delegate/closure mới mỗi frame → rác (G1) |
 | T4 | Việc không cần mỗi frame thì chạy theo chu kỳ (ví dụ kiểm tra sang ngày mới mỗi giây) | Kết quả không đổi giữa các frame | CPU thừa mỗi frame |
 | T5 | Thoát sớm khi không có gì để làm (`if (list.Count == 0) return;`) | Bỏ được phần chuẩn bị vô ích | CPU thừa nhỏ nhưng cộng dồn |
-| T6 | Script trang trí (`VfxSpin`, `VfxBob`) chỉ dùng `Update` khi số lượng nhỏ (vài chục) | T1 | Nếu gắn vào prefab xuất hiện hàng trăm lần → chi phí như T1 |
+| T6 | Prefab VFX/visual trong pool không có script `Update` (kể cả script trang trí xoay/nhún); chuyển động trang trí dùng module của Particle System hoặc do chủ visual tick hộ | T1 | Mỗi bản trong pool một lần gọi mỗi frame; `VfxSpin`/`VfxBob` từng vi phạm luật này qua đạn Ice và đã bị xóa (2026-11-27) |
 
 ### 5.2 Thứ tự frame (đã chốt)
 

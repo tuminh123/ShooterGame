@@ -77,6 +77,10 @@ public sealed class ShopScreenController : UIPanelController
     // Tab menu như Heroes/Gear: mở từ Heroes thì thay thế màn đó, hai thanh của Home vẫn hiện.
     public override bool IsMenuTab => true;
 
+    /// <inheritdoc/>
+    // Dựng các gói lần đầu tốn ~10 ms: vẽ sẵn lúc Loading để lần mở đầu trượt trọn vẹn.
+    public override bool PrewarmOnLoad => true;
+
     private RewardSlotFactory Slots => slots ??= new RewardSlotFactory(theme, amountFormat, levelFormat, plainFrame);
 
     /// <summary>Màn đang mở theo yêu cầu điều hướng.</summary>

@@ -187,6 +187,10 @@ public sealed class EquipmentScreenController : UIPanelController
     // Là một tab của menu: mở khi tab Character đang đứng trên thì thay thế nó, Home không bật lại giữa hai tab.
     public override bool IsMenuTab => true;
 
+    /// <inheritdoc/>
+    // Dựng kho đồ lần đầu tốn ~20 ms: vẽ sẵn lúc Loading để lần mở đầu trượt trọn vẹn.
+    public override bool PrewarmOnLoad => true;
+
     /// <summary>Mở màn Equipment. Chỉ mở được khi game đang ở Home.</summary>
     public void Open()
     {

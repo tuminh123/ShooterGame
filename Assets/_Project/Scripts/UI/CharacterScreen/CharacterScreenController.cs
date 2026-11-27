@@ -184,6 +184,10 @@ public sealed class CharacterScreenController : UIPanelController
     // Là một tab của menu: mở khi tab Equipment đang đứng trên thì thay thế nó, Home không bật lại giữa hai tab.
     public override bool IsMenuTab => true;
 
+    /// <inheritdoc/>
+    // Dựng lưới thẻ lần đầu tốn ~30 ms: vẽ sẵn lúc Loading để lần mở đầu trượt trọn vẹn.
+    public override bool PrewarmOnLoad => true;
+
     /// <summary>Mở màn Character ở trang Collection. Chỉ mở được khi game đang ở Home.</summary>
     public void Open()
     {

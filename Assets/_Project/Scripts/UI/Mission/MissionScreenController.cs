@@ -63,6 +63,10 @@ public sealed class MissionScreenController : UIPanelController
     /// <summary>Màn đang mở theo yêu cầu điều hướng.</summary>
     public bool IsShown => WantsVisible;
 
+    /// <inheritdoc/>
+    // Dựng danh sách nhiệm vụ lần đầu tốn ~30 ms: vẽ sẵn lúc Loading để lần mở đầu trượt trọn vẹn.
+    public override bool PrewarmOnLoad => true;
+
     /// <summary>Phát khi màn mở/đóng.</summary>
     public event Action NavigationChanged;
 

@@ -16,31 +16,33 @@ MonoBehaviour:
   effectPrefab: {fileID: 11400000, guid: 203b70ef700543ff8a9bc792e5d76aa1, type: 3}
   bullets:
   - type: 0
-    visualPrefab: {fileID: 6580206447204991778, guid: 980b3523135a404459cde48a58410a7e, type: 3}
+    visualPrefab: {fileID: 1141239420020085222, guid: 41f764bf3fd6f51408c66a31a1e707a0, type: 3}
     impactEffect: 1
     hitRadius: 0.022210669
     hitOffset: {x: -0.068385005, y: -0.009437747}
   - type: 1
-    visualPrefab: {fileID: 3632014842230442584, guid: f8278d0a76c209946a07b32d3a1444ef, type: 3}
+    visualPrefab: {fileID: 977664126498229335, guid: 9d6b9ed71a045b14aa642b2ccf38aaf7, type: 3}
     impactEffect: 2
     hitRadius: 0.028608631
     hitOffset: {x: 0.016360667, y: -0.002150476}
   - type: 2
-    visualPrefab: {fileID: 7505816549021227451, guid: bf078e2c106929744af226805ada7f24, type: 3}
+    visualPrefab: {fileID: 2726838381350925692, guid: e9ee02a0707d9444f948f8fd85ecdc59, type: 3}
     impactEffect: 3
     hitRadius: 0.019813549
     hitOffset: {x: 0.017556194, y: -0.004965149}
   - type: 3
-    visualPrefab: {fileID: 5419121304220893742, guid: f6300e2dd575ead4b9ae3a844d665b45, type: 3}
+    visualPrefab: {fileID: 1662464265281183706, guid: 6180bffb337750a4c8489d23d6e5d877, type: 3}
     impactEffect: 4
     hitRadius: 0.037991405
     hitOffset: {x: -0.036260813, y: 0}
   effects:
   - type: 1
-    visualPrefab: {fileID: 4315666784685074380, guid: 72183d9e12ccb814f8c9bb6a4dc1fe0c, type: 3}
+    visualPrefab: {fileID: 8163383315606750604, guid: b05598beeeee86045923b9e4849f138b, type: 3}
   - type: 2
-    visualPrefab: {fileID: 8874398619954958610, guid: 3048a78743ac19e41b7ecd899a0ec025, type: 3}
+    visualPrefab: {fileID: 5093359370992258628, guid: 59b0192605f5b3f45884560e1c2b1afa, type: 3}
   - type: 4
-    visualPrefab: {fileID: 1212333235037039244, guid: 5cb6570acc6e1024f84c8cdb57d173a0, type: 3}
+    visualPrefab: {fileID: 3508274302138787341, guid: 51b7249fe36c9ef41820d6b7a8766f96, type: 3}
   - type: 3
-    visualPrefab: {fileID: 51900795002117674, guid: 8114df43f49cf5b459c9e38eff621dc6, type: 3}
+    visualPrefab: {fileID: 3398050770845595974, guid: d2f4c5802a20afc43b4337542cfd5742, type: 3}
+  maxNewEffectsPerFrame: 8
+  maxActiveEffects: 64

@@ -41,12 +41,12 @@ public sealed class CombatAssetsSO : ScriptableObject
     {
         [Tooltip("ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.")]
         [SerializeField] private EffectType type; // ID chọn VFX; độc lập hiệu ứng gameplay như slow/cháy/độc.
-        [Tooltip("Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.")]
+        [Tooltip("Prefab visual con có IEffectVisual (hiện là ParticleEffectVisual) trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.")]
         [SerializeField] private GameObject visualPrefab;
 
         /// <summary>ID VFX được Bullet Impact hoặc hệ gameplay yêu cầu. Không dùng None làm entry; mỗi ID xuất hiện một lần.</summary>
         public EffectType Type => type;
-        /// <summary>Prefab visual con có AnimationEffectVisual, ParticleEffectVisual hoặc ObjectEffectVisual trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.</summary>
+        /// <summary>Prefab visual con có IEffectVisual (hiện là ParticleEffectVisual) trên root. CombatVfx hỏi visual mỗi frame và thu hồi khi phát xong.</summary>
         public GameObject VisualPrefab => visualPrefab;
     }
 
@@ -58,11 +58,24 @@ public sealed class CombatAssetsSO : ScriptableObject
     [SerializeField] private BulletVisual[] bullets = Array.Empty<BulletVisual>();
     [Tooltip("Danh sách VFX theo EffectType; prefab phải có IEffectVisual trên root để báo hoàn tất và thu hồi về pool.")]
     [SerializeField] private EffectEntry[] effects = Array.Empty<EffectEntry>();
+    [Tooltip("Số VFX (impact) mới tối đa trong một frame; vượt thì bỏ qua (chỉ là hình, gameplay không đổi). 0 = không giới hạn.")]
+    [SerializeField, Min(0)] private int maxNewEffectsPerFrame = 8;
+    [Tooltip("Số VFX đang phát tối đa cùng lúc; vượt thì bỏ qua cái mới. Nên bằng tổng vỏ EffectView tạo sẵn để không Instantiate giữa trận. 0 = không giới hạn.")]
+    [SerializeField, Min(0)] private int maxActiveEffects = 64;
 
     public ProjectileView BulletPrefab => bulletPrefab;
     public EffectView EffectPrefab => effectPrefab;
     public IReadOnlyList<BulletVisual> BulletEntries => bullets;
     public IReadOnlyList<EffectEntry> EffectEntries => effects;
+
+    /// <summary>Số VFX mới tối đa trong một frame; 0 = không giới hạn.</summary>
+    /// <remarks>
+    /// Đo trong Editor: 200 impact một lúc tạo frame 260 ms (Instantiate khi vượt pool + render 5–7 lớp mỗi impact).
+    /// VFX chỉ là hình nên bỏ bớt khi quá đông không ảnh hưởng gameplay, mà giữ frame mượt.
+    /// </remarks>
+    public int MaxNewEffectsPerFrame => maxNewEffectsPerFrame;
+    /// <summary>Số VFX đang phát tối đa cùng lúc; 0 = không giới hạn.</summary>
+    public int MaxActiveEffects => maxActiveEffects;
 
     public BulletVisual GetBullet(BulletType type)
     {

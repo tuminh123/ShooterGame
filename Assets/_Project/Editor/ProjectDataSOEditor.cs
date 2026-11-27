@@ -153,6 +153,8 @@ public abstract class ProjectDataSOEditor : Editor
                 DataInspectorTone.Visual, "bullets");
             Section("IMPACT / EFFECT VISUALS", "VFX độc lập với hiệu ứng gameplay như độc/cháy. Prefab cần IEffectVisual trên root để CombatVfx biết khi nào phát xong.",
                 DataInspectorTone.Visual, "effects");
+            Section("EFFECT BUDGET", "Giới hạn VFX khi quá đông (chỉ là hình, gameplay không đổi). 0 = không giới hạn. Max Active nên bằng tổng vỏ EffectView tạo sẵn.",
+                DataInspectorTone.Advanced, "maxNewEffectsPerFrame", "maxActiveEffects");
         }
         else if (target is LootDatabaseSO)
         {
@@ -470,8 +472,10 @@ public abstract class ProjectDataSOEditor : Editor
     {
         Section("LOADING BATCH", "Số object tạo mỗi batch trước khi nhường frame cho Loading cập nhật tiến độ.",
             DataInspectorTone.Info, "objectsPerFrame");
-        Section("SHARED GAMEOBJECT SHELLS", "Số object chuẩn bị trước trận, không phải giới hạn spawn. Bullets và Effects còn chuẩn bị visual cho từng loại.",
+        Section("SHARED GAMEOBJECT SHELLS", "Số vỏ chuẩn bị trước trận, không phải giới hạn spawn. Vỏ rẻ (không có hình).",
             DataInspectorTone.Info, "characterShells", "bullets", "effectShells", "pickups");
+        Section("COMBAT VISUALS PER TYPE", "Visual particle theo từng BulletType/EffectType (nặng hơn vỏ nhiều). Đặt theo số cùng loại cùng lúc nhiều nhất; thiếu thì Instantiate giữa trận.",
+            DataInspectorTone.Visual, "bulletVisualsPerType", "impactVisualsPerType");
         Section("VISUALS PER CHARACTER TEMPLATE", "Số clone tính riêng cho mỗi template. Nhiều template dùng chung prefab sẽ cộng số lượng cần chuẩn bị.",
             DataInspectorTone.Visual, "playerVisuals", "enemyVisuals", "bossVisuals");
         Section("MANAGED RUNTIME POOLS", "Dữ liệu C# thuần được chuẩn bị riêng với GameObject. Tăng theo số nhân vật/hiệu ứng đồng thời dự kiến.",

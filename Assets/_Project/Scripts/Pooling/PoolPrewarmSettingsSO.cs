@@ -38,10 +38,14 @@ public sealed class PoolPrewarmSettingsSO : ScriptableObject
 
     [Tooltip("Số vỏ CharacterView dùng chung được tạo sẵn cho Player, Enemy và Boss; không phải giới hạn số nhân vật.")]
     [SerializeField, Min(0)] private int characterShells = 64;
-    [Tooltip("Số vỏ đạn dùng chung và số visual cho MỖI loại đạn được tạo sẵn. Tăng theo lượng đạn đồng thời dự kiến.")]
+    [Tooltip("Số vỏ đạn dùng chung tạo sẵn, cũng là sức chứa buffer di chuyển/đạn. Vỏ rẻ (không có hình); visual theo loại ở Bullet Visuals Per Type.")]
     [SerializeField, Min(0)] private int bullets = 256;
-    [Tooltip("Số vỏ VFX và số visual tạo sẵn cho MỖI EffectType; nhiều loại dùng chung prefab sẽ cộng số clone.")]
+    [Tooltip("Số vỏ VFX dùng chung tạo sẵn, tính cho MỖI EffectType (cộng dồn). Visual theo loại ở Impact Visuals Per Type.")]
     [SerializeField, Min(0)] private int effectShells = 16;
+    [Tooltip("Số visual tạo sẵn cho MỖI loại đạn (sprite + vệt). Đặt theo số viên CÙNG LOẠI bay cùng lúc nhiều nhất.")]
+    [SerializeField, Min(0)] private int bulletVisualsPerType = 128;
+    [Tooltip("Số visual tạo sẵn cho MỖI EffectType (impact particle 5–7 hệ hạt). Đặt theo số impact CÙNG LOẠI cùng lúc nhiều nhất.")]
+    [SerializeField, Min(0)] private int impactVisualsPerType = 32;
     [Tooltip("Số vỏ PickupView tạo sẵn cho EXP và tiền; hình ảnh lấy từ Loot Database.")]
     [SerializeField, Min(0)] private int pickups = 128;
     [Tooltip("Số clone visual tạo sẵn cho MỖI template thuộc phe Player.")]
@@ -67,10 +71,19 @@ public sealed class PoolPrewarmSettingsSO : ScriptableObject
     public int ObjectsPerFrame => objectsPerFrame;
     /// <summary>Số vỏ <c>CharacterView</c> dùng chung tạo sẵn.</summary>
     public int CharacterShells => characterShells;
-    /// <summary>Số vỏ đạn và số visual cho mỗi loại đạn tạo sẵn.</summary>
+    /// <summary>Số vỏ đạn tạo sẵn; cũng là sức chứa buffer di chuyển/đạn.</summary>
     public int Bullets => bullets;
-    /// <summary>Số vỏ VFX và visual cho mỗi EffectType tạo sẵn.</summary>
+    /// <summary>Số vỏ VFX tạo sẵn cho mỗi EffectType (cộng dồn).</summary>
     public int EffectShells => effectShells;
+    /// <summary>Số visual tạo sẵn cho mỗi loại đạn.</summary>
+    /// <remarks>
+    /// Tách khỏi <see cref="Bullets"/> để chỉnh riêng số visual mỗi loại (4 loại × số này) với số vỏ dùng chung.
+    /// Visual đạn là sprite + vệt (~0,05 ms, vài KB mỗi bản) nên vượt số này chỉ tốn ít khi tạo thêm.
+    /// </remarks>
+    public int BulletVisualsPerType => bulletVisualsPerType;
+    /// <summary>Số visual tạo sẵn cho mỗi EffectType.</summary>
+    /// <remarks>Tách khỏi <see cref="EffectShells"/>: impact particle nặng, thiếu thì Instantiate giữa trận.</remarks>
+    public int ImpactVisualsPerType => impactVisualsPerType;
     /// <summary>Số vỏ pickup (EXP, tiền) tạo sẵn.</summary>
     public int Pickups => pickups;
     /// <summary>Số visual tạo sẵn cho mỗi template phe Player.</summary>
@@ -96,6 +109,7 @@ public sealed class PoolPrewarmSettingsSO : ScriptableObject
     public void Validate()
     {
         if (objectsPerFrame < 1 || characterShells < 0 || bullets < 0 || effectShells < 0 || pickups < 0 ||
+            bulletVisualsPerType < 0 || impactVisualsPerType < 0 ||
             playerVisuals < 0 || enemyVisuals < 0 || bossVisuals < 0 || characterRuntimes < 0 ||
             slowRuntimes < 0 || damageOverTimeRuntimes < 0 || additionalPrefabs == null)
             throw new InvalidOperationException("Prewarm counts must be nonnegative.");

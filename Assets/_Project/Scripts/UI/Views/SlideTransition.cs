@@ -9,6 +9,8 @@ using UnityEngine;
 /// <remarks>
 /// Chạy bằng unscaled time vì Home và màn Character hoạt động khi game đang pause.
 /// Trong lúc trượt, panel không nhận click (CanvasGroup.blocksRaycasts) để tránh bấm Back/đổi tab giữa chừng.
+/// Bị gọi lại giữa chừng (bấm đổi tab nhanh) thì trượt tiếp từ vị trí hiện tại, không đặt lại ra ngoài màn,
+/// và thời gian tỉ lệ với quãng còn lại để tốc độ trượt không đổi.
 /// </remarks>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
@@ -33,6 +35,9 @@ public sealed class SlideTransition : MonoBehaviour
     private bool restCached;
     private Tween tween;
     private Action completion; // Xóa khi bị ngắt để callback cũ không chạy sau một lần trượt mới.
+    // Panel đã được hiện (PlayIn/SetVisibleInstant(true)) và chưa bị ẩn. Không dùng activeSelf: UIPanelController.Present
+    // bật object trước khi gọi PlayIn, nên activeSelf không phân biệt được "vừa bật để trượt vào" với "đang hiện sẵn".
+    private bool shown;
 
     /// <summary>Đang trượt vào hoặc ra.</summary>
     public bool IsPlaying => tween.isAlive;
@@ -44,16 +49,31 @@ public sealed class SlideTransition : MonoBehaviour
     /// <summary>Bật panel và trượt vào theo hướng mặc định.</summary>
     public void PlayIn(Action onComplete = null) => PlayIn(enterFrom, onComplete);
 
-    /// <summary>Bật panel và trượt từ phía <paramref name="from"/> vào vị trí nghỉ.</summary>
+    /// <summary>
+    /// Bật panel và trượt từ phía <paramref name="from"/> vào vị trí nghỉ.
+    /// Panel đang hiện (kể cả đang trượt ra dở) thì trượt tiếp từ chỗ hiện tại; đã đứng ở vị trí nghỉ thì xong ngay.
+    /// </summary>
     public void PlayIn(SlideDirection from, Action onComplete = null)
     {
         CacheRest();
+        // Đọc trước Stop: đang trượt dở (vào hoặc ra) hoặc đang hiện sẵn thì giữ vị trí hiện tại.
+        bool keepPosition = tween.isAlive || (shown && gameObject.activeSelf);
         Stop();
         gameObject.SetActive(true);
-        Vector2 start = restPosition + Offset(from);
+        shown = true;
+        Vector2 offset = Offset(from);
+        // Không đặt lại ra ngoài màn khi panel đang trên màn hình: đó là cú nhảy khi bấm đổi tab nhanh.
+        Vector2 start = keepPosition ? rect.anchoredPosition : restPosition + offset;
         rect.anchoredPosition = start;
         Begin(onComplete);
-        tween = Tween.UIAnchoredPosition(rect, start, restPosition, enterDuration, Ease.OutCubic, useUnscaledTime: true)
+        float duration = enterDuration * RemainingFraction(start, restPosition, offset);
+        if (duration < MinDuration)
+        {
+            rect.anchoredPosition = restPosition;
+            Finish(deactivate: false);
+            return;
+        }
+        tween = Tween.UIAnchoredPosition(rect, start, restPosition, duration, Ease.OutCubic, useUnscaledTime: true)
             .OnComplete(this, slide => slide.Finish(deactivate: false));
     }
 
@@ -65,13 +85,24 @@ public sealed class SlideTransition : MonoBehaviour
     {
         CacheRest();
         Stop();
+        shown = false;
         if (!isActiveAndEnabled)
         {
             onComplete?.Invoke();
             return;
         }
         Begin(onComplete);
-        tween = Tween.UIAnchoredPosition(rect, rect.anchoredPosition, restPosition + Offset(to), exitDuration, Ease.InCubic, useUnscaledTime: true)
+        Vector2 offset = Offset(to);
+        Vector2 start = rect.anchoredPosition;
+        Vector2 end = restPosition + offset;
+        // Đang trượt vào dở mà bị gọi ra: chỉ đi nốt quãng còn lại, cùng tốc độ với một lần trượt ra đủ.
+        float duration = exitDuration * RemainingFraction(start, end, offset);
+        if (duration < MinDuration)
+        {
+            Finish(deactivate: true);
+            return;
+        }
+        tween = Tween.UIAnchoredPosition(rect, start, end, duration, Ease.InCubic, useUnscaledTime: true)
             .OnComplete(this, slide => slide.Finish(deactivate: true));
     }
 
@@ -81,12 +112,23 @@ public sealed class SlideTransition : MonoBehaviour
         CacheRest();
         Stop();
         ResetPose();
+        shown = visible;
         gameObject.SetActive(visible);
     }
 
     #endregion
 
     #region Playback Helpers
+
+    // Dưới ngưỡng này coi như đã tới nơi: không tạo tween chỉ để chạy một frame.
+    private const float MinDuration = 0.01f;
+
+    // Tỉ lệ quãng còn lại so với một lần trượt đủ (0..1). Dùng chung cho vào/ra để mọi lần trượt cùng một tốc độ.
+    private static float RemainingFraction(Vector2 from, Vector2 to, Vector2 fullOffset)
+    {
+        float full = fullOffset.magnitude;
+        return full > 0f ? Mathf.Clamp01((to - from).magnitude / full) : 0f;
+    }
 
     private void Begin(Action onComplete)
     {
@@ -169,6 +211,7 @@ public sealed class SlideTransition : MonoBehaviour
     {
         Stop();
         ResetPose();
+        shown = false; // Lần bật sau là một lần mở mới: trượt từ ngoài màn vào.
     }
 
     #endregion

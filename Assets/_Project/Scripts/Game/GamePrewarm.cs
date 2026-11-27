@@ -96,15 +96,17 @@ public sealed class GamePrewarm
         }
 
         // Mỗi loại VFX cộng thêm EffectShells vỏ dùng chung, để nhiều loại có thể phát cùng lúc.
+        // Visual theo loại có số riêng: impact particle nặng hơn vỏ nhiều, số cần khác số vỏ.
         foreach (CombatAssetsSO.EffectEntry effect in combat.EffectEntries)
         {
             Add(plan, combat.EffectPrefab.gameObject, settings.EffectShells);
-            Add(plan, effect.VisualPrefab, settings.EffectShells);
+            Add(plan, effect.VisualPrefab, settings.ImpactVisualsPerType);
         }
 
         // Vỏ và visual là hai object có pool riêng; làm nóng cả visual để không Instantiate lúc bắn.
+        // Số visual theo loại tách khỏi số vỏ: vỏ rẻ và dùng chung, visual particle nặng và chia theo loại.
         foreach (CombatAssetsSO.BulletVisual bullet in combat.BulletEntries)
-            Add(plan, bullet.VisualPrefab, settings.Bullets);
+            Add(plan, bullet.VisualPrefab, settings.BulletVisualsPerType);
         foreach (PoolPrewarmSettingsSO.PrefabEntry entry in settings.AdditionalPrefabs)
             Add(plan, entry.Prefab, entry.Count);
 

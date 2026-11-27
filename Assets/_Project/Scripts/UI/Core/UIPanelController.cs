@@ -48,6 +48,13 @@ public abstract class UIPanelController : MonoBehaviour
     public virtual bool IsOverlay => false;
 
     /// <summary>
+    /// True với màn nặng (dựng list/thẻ lần đầu tốn hàng chục ms): UIManager vẽ sẵn một lần lúc rời Boot, khi màn Loading
+    /// còn che. Nếu không, lần mở đầu dồn chi phí đó vào đúng frame tween trượt bắt đầu; tween chạy theo thời gian thực
+    /// nên frame dài bị tính hết vào đường trượt và màn hiện ra khi đã đi mất một phần ba quãng.
+    /// </summary>
+    public virtual bool PrewarmOnLoad => false;
+
+    /// <summary>
     /// UIManager đặt trước mỗi lần gọi <see cref="SetVisible"/>: true khi đổi do điều hướng trong menu (nên trượt),
     /// false khi đổi do state game hoặc lúc khởi động (bật/tắt ngay, màn đang tối hoặc chưa hiện).
     /// </summary>
@@ -74,6 +81,21 @@ public abstract class UIPanelController : MonoBehaviour
         else if (!PlayTransition) slide.SetVisibleInstant(visible);
         else if (visible) slide.PlayIn();
         else slide.PlayOut();
+    }
+
+    #endregion
+
+    #region Prewarm
+
+    /// <summary>
+    /// Đi đúng đường mở thật (hiện tức thì, vẽ lại), ép Canvas dựng layout và lưới chữ, rồi ẩn lại trong cùng frame.
+    /// Không ghi yêu cầu hiển thị nên UIManager và thanh điều hướng vẫn coi màn là đang đóng.
+    /// </summary>
+    internal void Prewarm()
+    {
+        Present(true, false);
+        Canvas.ForceUpdateCanvases();
+        Present(false, false);
     }
 
     #endregion

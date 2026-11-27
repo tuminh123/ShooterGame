@@ -20,6 +20,11 @@ public sealed class CombatVfx : IDisposable
     private readonly CombatAssetsSO combatAssets; // Catalog: EffectType → prefab visual.
     private readonly List<EffectView> activeEffects = new List<EffectView>(64); // Để tick và dọn hết khi kết thúc trận.
     private bool disposed;
+    private int budgetFrame = -1; // Frame của bộ đếm spawnedThisFrame.
+    private int spawnedThisFrame;
+
+    /// <summary>Số VFX đã bỏ qua vì vượt giới hạn (từ lúc tạo). Dùng để kiểm tra và đo.</summary>
+    internal int SkippedEffects { get; private set; }
 
     #endregion
 
@@ -35,10 +40,14 @@ public sealed class CombatVfx : IDisposable
 
     #region Spawn And Release
 
-    /// <summary>Phát VFX <paramref name="effectType"/> tại vị trí cho trước. <see cref="EffectType.None"/> thì không làm gì.</summary>
+    /// <summary>
+    /// Phát VFX <paramref name="effectType"/> tại vị trí cho trước. <see cref="EffectType.None"/> thì không làm gì.
+    /// Vượt giới hạn mỗi frame hoặc tổng số đang phát (<see cref="CombatAssetsSO"/>) thì bỏ qua: VFX chỉ là hình.
+    /// </summary>
     public void Spawn(EffectType effectType, Vector3 position)
     {
         if (disposed || effectType == EffectType.None) return;
+        if (!TryTakeBudget()) return;
         CombatAssetsSO.EffectEntry entry = combatAssets.GetEffect(effectType); // Ném lỗi nếu catalog thiếu loại này.
         GameObject shell = pools.Spawn(combatAssets.EffectPrefab.gameObject, position, Quaternion.identity, PoolGroup.Other);
         if (shell == null) return;
@@ -51,6 +60,26 @@ public sealed class CombatVfx : IDisposable
             throw;
         }
         activeEffects.Add(view);
+    }
+
+    // Giới hạn chi phí khi quá đông: mỗi impact là 5–7 hệ hạt; vượt pool thì còn Instantiate ngay trong frame.
+    // Đếm theo Time.frameCount nên không cần ai reset từ bên ngoài.
+    private bool TryTakeBudget()
+    {
+        int frame = Time.frameCount;
+        if (frame != budgetFrame)
+        {
+            budgetFrame = frame;
+            spawnedThisFrame = 0;
+        }
+        int perFrame = combatAssets.MaxNewEffectsPerFrame, maxActive = combatAssets.MaxActiveEffects;
+        if ((perFrame > 0 && spawnedThisFrame >= perFrame) || (maxActive > 0 && activeEffects.Count >= maxActive))
+        {
+            SkippedEffects++;
+            return false;
+        }
+        spawnedThisFrame++;
+        return true;
     }
 
     // Trả visual con trước (vỏ còn bật), rồi mới trả vỏ.

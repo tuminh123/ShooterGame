@@ -16,6 +16,8 @@ MonoBehaviour:
   characterShells: 64
   bullets: 256
   effectShells: 16
+  bulletVisualsPerType: 128
+  impactVisualsPerType: 32
   pickups: 128
   playerVisuals: 1
   enemyVisuals: 64
