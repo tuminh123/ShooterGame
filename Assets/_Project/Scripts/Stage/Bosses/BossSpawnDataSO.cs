@@ -42,6 +42,8 @@ public sealed class BossSpawnDataSO : ScriptableObject, IStageSpawnData
     [SerializeField] private BossAppearanceCondition bossAppearanceCondition;
     [Tooltip("Kích thước vùng chiến đấu quanh player khi Boss xuất hiện.")]
     [SerializeField] private Vector2 arenaSize = new Vector2(12f, 8f);
+    [Tooltip("Nhạc phát khi Boss xuất hiện (loại Music trong Audio Database). Mỗi Stage có thể chọn bài riêng; None = giữ nhạc trận.")]
+    [SerializeField] private AudioId bossMusic = AudioId.MusicBoss;
 
     /// <summary>Nhiều Elite được phép; tối đa một entry Boss trong một Stage.</summary>
     public IReadOnlyList<Entry> Entries => entries;
@@ -49,6 +51,8 @@ public sealed class BossSpawnDataSO : ScriptableObject, IStageSpawnData
     public BossAppearanceCondition BossAppearanceCondition => bossAppearanceCondition;
     /// <summary>Kích thước vùng chiến đấu quanh player khi Boss xuất hiện.</summary>
     public Vector2 ArenaSize => arenaSize;
+    /// <summary>Nhạc khi Boss xuất hiện; None thì giữ nhạc trận.</summary>
+    public AudioId BossMusic => bossMusic;
 
     /// <summary>Kiểm tra vai trò, điều kiện Boss và giới hạn skill của Elite.</summary>
     public void Validate()

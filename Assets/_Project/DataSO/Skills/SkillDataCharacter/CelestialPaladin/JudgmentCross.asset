@@ -1,0 +1,266 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: JudgmentCross
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Judgment Cross
+  description: A cross of holy light explodes on the nearest enemy.
+  icon: {fileID: 21300000, guid: d518fcae7cac56f47901cad3b59369de, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Base] Cross (arms 0.4), 160% damage. Cooldown 1.0s.'
+    behaviours:
+    - rid: 3102418934778823316
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 1] Arms 0.5.'
+    behaviours:
+    - rid: 3102418934778823317
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 2] 185% damage.'
+    behaviours:
+    - rid: 3102418934778823318
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 3] 2 crosses on random enemies.'
+    behaviours:
+    - rid: 3102418934778823319
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 4] Stuns 0.4s.'
+    behaviours:
+    - rid: 3102418934778823320
+  - displayName: Archangel
+    icon: {fileID: 21300000, guid: f860bb0bb0b432e4e848101cc68fc59a, type: 3}
+    description: '[Star 5] Adds a guardian angel that follows you and fires homing
+      light (80%) every 0.5s.'
+    behaviours:
+    - rid: 3102418934778823321
+    - rid: 3102418934778823322
+  behaviourTypes: 070000000c000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823316
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 160
+        target:
+          rid: 3102418934778823323
+        targetCount: 1
+        shape:
+          rid: 3102418934778823324
+        telegraph: 0.2
+        interval: 0.1
+        effects: []
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823317
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 160
+        target:
+          rid: 3102418934778823325
+        targetCount: 1
+        shape:
+          rid: 3102418934778823326
+        telegraph: 0.2
+        interval: 0.1
+        effects: []
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823318
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 185
+        target:
+          rid: 3102418934778823327
+        targetCount: 1
+        shape:
+          rid: 3102418934778823328
+        telegraph: 0.2
+        interval: 0.1
+        effects: []
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823319
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 185
+        target:
+          rid: 3102418934778823329
+        targetCount: 2
+        shape:
+          rid: 3102418934778823330
+        telegraph: 0.2
+        interval: 0.1
+        effects: []
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823320
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 185
+        target:
+          rid: 3102418934778823331
+        targetCount: 2
+        shape:
+          rid: 3102418934778823332
+        telegraph: 0.2
+        interval: 0.1
+        effects:
+        - rid: 3102418934778823333
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823321
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 200
+        target:
+          rid: 3102418934778823334
+        targetCount: 2
+        shape:
+          rid: 3102418934778823335
+        telegraph: 0.2
+        interval: 0.1
+        effects:
+        - rid: 3102418934778823336
+        knockback: 0
+        landVfx: 1
+        telegraphColor: {r: 1, g: 0.92, b: 0.45, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823322
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 0
+        sprite: {fileID: 21300000, guid: 2a0610d333bf3a041a761ac14af5df9f, type: 3}
+        spriteSize: 0.14
+        count: 1
+        lifetime: 0
+        movement: 0
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 1
+        attackInterval: 0.5
+        damagePercent: 80
+        rangeScale: 1
+        effects: []
+        bulletType: 0
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 1
+        chainJumps: 0
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823337
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778823323
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823324
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 2
+        radius: 0.1
+    - rid: 3102418934778823325
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823326
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 2
+        radius: 0.1
+    - rid: 3102418934778823327
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823328
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 2
+        radius: 0.1
+    - rid: 3102418934778823329
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823330
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 2
+        radius: 0.1
+    - rid: 3102418934778823331
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823332
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 2
+        radius: 0.1
+    - rid: 3102418934778823333
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.4
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823334
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823335
+      type: {class: CrossStrike, ns: , asm: Assembly-CSharp}
+      data:
+        armCircles: 3
+        radius: 0.1
+    - rid: 3102418934778823336
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.4
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823337
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0

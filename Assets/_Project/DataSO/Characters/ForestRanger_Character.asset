@@ -31,6 +31,7 @@ MonoBehaviour:
   shardIcon: {fileID: 21300000, guid: eb845a093d79f6446a09103d60c01686, type: 3}
   uiVisualPrefab: {fileID: 2306533117261970077, guid: b71439e48de57f14781214bcdc87f6a8, type: 3}
   rarity: 0
+  deathSound: 5
   baseStats:
     maxHealth: 90
     damage: 11
@@ -40,8 +41,30 @@ MonoBehaviour:
     critDamageMultiplier: 50
     effectResistance: 0
     effectHit: 0
-  skills: []
-  skillProgression: []
+  combatRange: 1.1
+  skills:
+  - {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+  skillProgression:
+  - skill: {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+    skillLevel: 2
+    condition: 1
+    required: 1
+  - skill: {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+    skillLevel: 3
+    condition: 1
+    required: 2
+  - skill: {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+    skillLevel: 4
+    condition: 1
+    required: 3
+  - skill: {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+    skillLevel: 5
+    condition: 1
+    required: 4
+  - skill: {fileID: 11400000, guid: c05748d956da71342aacb170f9fb2432, type: 2}
+    skillLevel: 6
+    condition: 1
+    required: 5
   starStats:
   - stat: 0
     value: 0

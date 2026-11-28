@@ -282,6 +282,14 @@ public sealed class EnemyController : CharacterControllerBase
     }
 
     // Chỉ gửi lệnh di chuyển cho view enemy này; không tác động controller hoặc Transform của player.
+    /// <inheritdoc/>
+    /// <remarks>Dùng chung cú lùi với phản lực sau khi cắn: trong lúc bị đẩy, quái không đuổi/tách đàn.</remarks>
+    public override void Push(CharacterView view, Vector2 direction, float distance, float duration)
+    {
+        if (disposed || paused) return;
+        StartKnockback(view, direction, distance, duration);
+    }
+
     private void StartKnockback(CharacterView view, Vector2 away, float distance, float duration)
     {
         if (knockback.Start(view, away, distance, duration)) separation.Clear();

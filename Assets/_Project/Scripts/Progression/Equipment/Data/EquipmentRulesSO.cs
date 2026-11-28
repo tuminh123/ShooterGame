@@ -227,7 +227,8 @@ public sealed class EquipmentRulesSO : ScriptableObject
         {
             if (rule == null || !Enum.IsDefined(typeof(EquipmentSlot), rule.Slot) || !seen.Add(rule.Slot))
                 throw new InvalidOperationException($"{name}: luật ô trống, sai hoặc trùng.");
-            if (!Enum.IsDefined(typeof(StatType), rule.MainStat))
+            // Chỉ số trang bị đi qua StatBonus (chỉ có chỉ số gốc), nên không nhận bonus chiến đấu.
+            if (!Enum.IsDefined(typeof(StatType), rule.MainStat) || StatTypes.IsCombatBonus(rule.MainStat))
                 throw new InvalidOperationException($"{name}: chỉ số chính của ô {rule.Slot} không hợp lệ.");
             foreach (EquipmentRarity rarity in (EquipmentRarity[])Enum.GetValues(typeof(EquipmentRarity)))
             {
@@ -257,7 +258,7 @@ public sealed class EquipmentRulesSO : ScriptableObject
         var seen = new HashSet<StatType>();
         foreach (SubstatRoll roll in substatRolls)
         {
-            if (roll == null || !Enum.IsDefined(typeof(StatType), roll.Stat) || !seen.Add(roll.Stat))
+            if (roll == null || !Enum.IsDefined(typeof(StatType), roll.Stat) || StatTypes.IsCombatBonus(roll.Stat) || !seen.Add(roll.Stat))
                 throw new InvalidOperationException($"{name}: khoảng roll trống, sai hoặc trùng chỉ số.");
             if (float.IsNaN(roll.Min) || float.IsNaN(roll.Max) || roll.Min < 0f || roll.Min > roll.Max)
                 throw new InvalidOperationException($"{name}: khoảng roll của {roll.Stat} phải có 0 <= Min <= Max.");

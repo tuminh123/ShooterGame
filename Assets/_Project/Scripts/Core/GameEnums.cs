@@ -83,11 +83,33 @@ public enum CharacterType
     GrimReaper = 201
 }
 
-/// <summary>Các chỉ số của nhân vật. Giữ nguyên thứ tự tám giá trị đầu: asset buff lưu số, đổi thứ tự sẽ đổi chỉ số bị buff.</summary>
+/// <summary>
+/// Các chỉ số của nhân vật. Giữ nguyên thứ tự tám giá trị đầu: asset buff lưu số, đổi thứ tự sẽ đổi chỉ số bị buff.
+/// </summary>
+/// <remarks>
+/// Hai dải số, nhìn số là biết nhóm (xem <see cref="StatTypes.IsCombatBonus"/>):
+/// <list type="bullet">
+/// <item>0–99: chỉ số gốc, nằm trong <see cref="BaseStats"/> (có giá trị gốc trong CharacterDataSO, màn Character hiển thị).</item>
+/// <item>100+: bonus chiến đấu, nằm trong <see cref="CombatBonuses"/> (gốc luôn 0, chỉ đến từ skill/buff; chỉ cộng thẳng).</item>
+/// </list>
+/// Cả hai nhóm thêm vào nhân vật cùng một cách: <c>runtime.Stats.AddSource(...)</c>.
+/// </remarks>
 public enum StatType
 {
     MaxHealth, Damage, Defense, MoveSpeed, CritChance,
-    CritDamageMultiplier, EffectResistance, EffectHit
+    CritDamageMultiplier, EffectResistance, EffectHit,
+
+    // ===== Bonus chiến đấu (100+) =====
+    BossDamage = 100, // % sát thương cộng thêm lên boss.
+    ExecuteThreshold = 101, // % HP: quái thường dưới ngưỡng này bị kết liễu (không áp lên boss).
+    LifeSteal = 102, // % lượng HP thật đã trừ được hồi cho người đánh.
+    PickupRange = 103, // % tầm nhặt loot cộng thêm.
+    CombatRange = 104, // % tầm chiến đấu cộng thêm (mọi skill tìm mục tiêu/chọn chỗ xuất hiện xa hơn).
+    DamageTaken = 105, // % sát thương NHẬN thêm (dấu săn, giảm giáp): đặt trên mục tiêu, không phải bên đánh.
+    BurningDamage = 106, // % sát thương thêm lên mục tiêu đang cháy.
+    CritStun = 107, // % cơ hội đòn chí mạng gây choáng ngắn.
+    FarDamage = 108, // % sát thương thêm lên mục tiêu ở nửa ngoài tầm chiến đấu.
+    MagnetPulse = 109 // Giây giữa hai lần hút toàn bộ EXP trên màn; 0 = không có.
 }
 
 /// <summary>Percent là phần trăm tương đối; Add trên chỉ số % là cộng điểm phần trăm.</summary>
@@ -121,14 +143,27 @@ public enum SkillConditionType
 #region Combat
 
 /// <summary>Loại hình ảnh đạn. Giá trị đã serialize trong asset: chỉ thêm ở cuối.</summary>
-public enum BulletType { Holy, Fire, Ice, Poison, Lightning }
+public enum BulletType { Holy, Fire, Ice, Poison, Lightning, Arrow, Spear, Axe, Shield, Dagger, Flask, Ball, ArcaneOrb, FlameWall, Shard }
 
 /// <summary>Loại VFX chạy một lần. Giá trị số đã serialize trong asset, không được đổi số của giá trị cũ.</summary>
 public enum EffectType { None = 0, HolyImpact = 1, FireImpact = 2, IceImpact = 3, PoisonImpact = 4, LightningImpact = 5, WindImpact = 6 }
 
 /// <summary>Loại hành vi skill; dùng để ghép template hành vi với data của từng cấp.</summary>
 /// <remarks>Giá trị đã được serialize trong asset: chỉ thêm giá trị mới ở cuối, không đổi thứ tự hay xóa giá trị cũ.</remarks>
-public enum SkillBehaviourType { NormalAttack, Shooting, OrbitSaw, SlowAura, Regeneration, EmergencyShield, StatBuff }
+public enum SkillBehaviourType
+{
+    NormalAttack, Shooting, OrbitSaw, SlowAura, Regeneration, EmergencyShield, StatBuff,
+    Strike, Zone, Chain, Beam, Slash, Summon, KillStack, SkillScaling, ShieldRegen
+}
+
+/// <summary>Quãng bay tối đa của đạn: chỉ theo thời gian, tới mép tầm chiến đấu, hoặc đúng tới điểm nhắm (bình ném).</summary>
+public enum ProjectileRange { Lifetime = 0, CombatRange = 1, TargetPoint = 2 }
+
+/// <summary>Kiểu di chuyển của pet (Summon).</summary>
+public enum PetMovement { Follow = 0, Lunge = 1, Stationary = 2 }
+
+/// <summary>Kiểu tấn công của pet (Summon).</summary>
+public enum PetAttack { Bite = 0, Shoot = 1, Chain = 2 }
 
 /// <summary>Nguồn của skill. Chỉ <see cref="Gameplay"/> mới được cấp/nâng qua bảng chọn khi lên cấp.</summary>
 public enum SkillSource { Gameplay, Character, Equipment }
@@ -504,6 +539,7 @@ public enum AudioId
     LevelUp = 2,
     EnemyDie = 3,
     RewardClaim = 4,
+    PlayerDie = 5,
 
     // ===== Music (100–199) =====
     MusicHome = 100,

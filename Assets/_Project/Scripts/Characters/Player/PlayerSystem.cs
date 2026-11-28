@@ -41,6 +41,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
     // Cập nhật tại chỗ khi level/trang bị đổi; không cộng dồn thêm nguồn mới.
     private StatModifierLease playerBonus;
     private bool disposed; // Chặn tạo player sau khi dịch vụ kết thúc.
+    private readonly IAudio audio; // Rung khi Player trúng đòn/chết; âm chết do CharacterManager phát theo DeathSound.
 
     #endregion
 
@@ -98,7 +99,8 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         Settings settings,
         CharacterDatabaseSO characterDatabase,
         ISaveStore saves,
-        IPermanentBonuses permanentBonuses)
+        IPermanentBonuses permanentBonuses,
+        IAudio audio)
     {
         this.characterSpawn = characterFactory ?? throw new ArgumentNullException(nameof(characterFactory));
         this.characterDespawn = characterFactory;
@@ -109,6 +111,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         characters = characterDatabase.CreateLookup();
         this.permanentBonuses = permanentBonuses ?? throw new ArgumentNullException(nameof(permanentBonuses));
         this.permanentBonuses.BonusesChanged += RefreshRuntime;
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
     }
 
     #endregion
@@ -143,6 +146,7 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
         }
         CurrentPlayer = player;
         CurrentPlayer.Released += OnPlayerReleased;
+        CurrentPlayer.DamageReceived += OnPlayerDamaged;
         PlayerChanged?.Invoke(CurrentPlayer); // Phát sau khi bonus đã áp, để UI đọc đúng chỉ số cuối.
         return CurrentPlayer;
     }
@@ -172,9 +176,17 @@ public sealed class PlayerSystem : IDisposable, IPlayerReader, IPlayerLifecycle
     private void DetachPlayer(CharacterView player)
     {
         player.Released -= OnPlayerReleased;
+        player.DamageReceived -= OnPlayerDamaged; // Vỏ về pool có thể thành quái: không được rung theo nó nữa.
         // Không Dispose: gỡ nguồn sẽ tính lại chỉ số và phát Changed trên một Player đang bị thu hồi.
         // Runtime về pool sẽ xóa mọi nguồn và vô hiệu hóa lease này.
         playerBonus = null;
+    }
+
+    // Đòn còn sống rung nhẹ, đòn chết rung mạnh. AudioManager giới hạn mỗi kiểu rung 0.1 giây một lần.
+    private void OnPlayerDamaged(DamageInfo damage, DamageResult result)
+    {
+        if (!result.Accepted) return;
+        audio.Play(result.Killed ? AudioId.HapticHeavy : AudioId.HapticLight);
     }
 
     #endregion

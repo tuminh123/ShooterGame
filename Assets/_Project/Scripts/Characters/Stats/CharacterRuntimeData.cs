@@ -18,6 +18,8 @@ public sealed class CharacterRuntimeData : IPoolable
     private float lostHealth; // HP đã mất; bonus tăng max không xóa lượng damage này.
     private float lostShield; // Giáp đã mất; max 100, mất 70 thì current là 30.
     private bool defeated; // Đã chết thì đổi bonus hay dọn dẹp cũng không được tự hồi sinh.
+    private int stunCount; // Số nguồn choáng/đóng băng đang giữ; > 0 thì không đánh được.
+    private float invulnerableUntil; // Time.time mà trước đó mọi sát thương bị bỏ qua.
 
     #endregion
 
@@ -38,6 +40,17 @@ public sealed class CharacterRuntimeData : IPoolable
 
     /// <summary>Chỉ số cuối cùng sau mọi nguồn bonus và HP/giáp được cấp trực tiếp.</summary>
     public BaseStats FinalStats { get; private set; }
+
+    /// <summary>Bonus chiến đấu cuối (boss, kết liễu, hút máu, tầm nhặt), tính cùng lúc với <see cref="FinalStats"/>.</summary>
+    public CombatBonuses FinalBonuses { get; private set; }
+
+    /// <summary>
+    /// Tầm chiến đấu cuối (world unit): tầm gốc của template × (1 + bonus CombatRange / 100).
+    /// Mọi luật chọn mục tiêu của skill dùng số này thay vì skill tự giữ tầm.
+    /// </summary>
+    public float CombatRange => baseCombatRange * (1f + FinalBonuses.combatRange / 100f);
+
+    private float baseCombatRange; // Tầm gốc của template lượt spawn này.
 
     public float MaxHealth => FinalStats.maxHealth;
     public float MaxShield => FinalStats.defense;
@@ -88,6 +101,7 @@ public sealed class CharacterRuntimeData : IPoolable
         CharacterType = template.CharacterType;
         Team = template.Team;
         DisplayName = template.DisplayName;
+        baseCombatRange = template.CombatRange;
         Stats.Reset(template.BaseStats, bonus);
         RebuildFinalStats();
         NotifyChanged();
@@ -113,7 +127,11 @@ public sealed class CharacterRuntimeData : IPoolable
         receivedBonus = default;
         lostHealth = lostShield = 0f;
         defeated = false;
+        stunCount = 0;
+        invulnerableUntil = 0f;
         FinalStats = default;
+        FinalBonuses = default;
+        baseCombatRange = 0f;
         DisplayName = null;
         CharacterType = default;
         Team = default;
@@ -137,12 +155,13 @@ public sealed class CharacterRuntimeData : IPoolable
     // Công thức nằm trong StatCalculator (qua StatSheet); runtime chỉ cộng HP/giáp được cấp trực tiếp và kẹp lượng đã mất.
     private void RebuildFinalStats()
     {
-        BaseStats stats = Stats.Calculate();
+        BaseStats stats = Stats.Calculate(out CombatBonuses bonuses);
         // HP/giáp cấp trực tiếp là lượng đã chốt, không bị nhân lại mỗi lần tính buff/debuff.
         stats.maxHealth += receivedBonus.maxHealth;
         stats.defense += receivedBonus.defense;
         stats.Validate();
         FinalStats = stats;
+        FinalBonuses = bonuses;
         if (lostHealth >= stats.maxHealth) defeated = true;
         // Không để lượng đã mất vượt max: nếu không, giáp âm ẩn sẽ nuốt mất những lần được cấp giáp tiếp theo.
         lostHealth = Mathf.Min(lostHealth, stats.maxHealth);
@@ -153,7 +172,46 @@ public sealed class CharacterRuntimeData : IPoolable
 
     #endregion
 
+    #region Control State
+
+    /// <summary>Đang bị choáng/đóng băng: skill và đòn cắn không chạy (CharacterView.CanUseSkills).</summary>
+    public bool IsStunned => stunCount > 0;
+
+    /// <summary>Đang bất tử tạm thời: mọi sát thương bị bỏ qua.</summary>
+    public bool IsInvulnerable => Time.time < invulnerableUntil;
+
+    /// <summary>Thêm một nguồn choáng; effect choáng gọi khi áp và gọi <see cref="RemoveStun"/> khi gỡ.</summary>
+    internal void AddStun() => stunCount++;
+
+    /// <summary>Gỡ một nguồn choáng; không xuống dưới 0 (runtime có thể đã reset khi về pool).</summary>
+    internal void RemoveStun() => stunCount = Mathf.Max(0, stunCount - 1);
+
+    /// <summary>Bất tử thêm <paramref name="seconds"/> giây kể từ bây giờ; không rút ngắn lần bất tử dài hơn đang chạy.</summary>
+    internal void GrantInvulnerability(float seconds)
+    {
+        if (!Finite(seconds) || seconds < 0f) throw new ArgumentOutOfRangeException(nameof(seconds));
+        invulnerableUntil = Mathf.Max(invulnerableUntil, Time.time + seconds);
+    }
+
+    #endregion
+
     #region HP And Shield Mutation
+
+    /// <summary>
+    /// Hồi HP/giáp ĐÃ MẤT, không vượt max và không tăng max (khác <see cref="SetVitals"/> khi cộng thẳng).
+    /// Dùng cho hút máu, vùng hồi máu, hồi giáp: hồi máu thật thay vì phình HP tối đa.
+    /// </summary>
+    internal void Restore(float health, float shield)
+    {
+        if (!Finite(health) || !Finite(shield) || health < 0f || shield < 0f) throw new ArgumentOutOfRangeException(nameof(health));
+        if (defeated || (health == 0f && shield == 0f)) return;
+        float nextLostHealth = Mathf.Max(0f, lostHealth - health);
+        float nextLostShield = Mathf.Max(0f, lostShield - shield);
+        if (nextLostHealth == lostHealth && nextLostShield == lostShield) return;
+        lostHealth = nextLostHealth;
+        lostShield = nextLostShield;
+        NotifyChanged();
+    }
 
     /// <summary>Cấp giáp: tăng cả max và current cùng một lượng.</summary>
     internal void AddShield(float amount)

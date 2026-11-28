@@ -1,0 +1,110 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: RadiantLance
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Radiant Lance
+  description: Fires a beam of light in your moving direction.
+  icon: {fileID: 21300000, guid: 052e0b0f4a9728b489a4522a0744b1cd, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: Beam as long as your combat range, 50% damage every 0.2s for 1s.
+    behaviours:
+    - rid: 3102418934778822962
+  - displayName: 
+    icon: {fileID: 0}
+    description: Wider beam.
+    behaviours:
+    - rid: 3102418934778822963
+  - displayName: 
+    icon: {fileID: 0}
+    description: 65% damage every 0.2s.
+    behaviours:
+    - rid: 3102418934778822964
+  - displayName: 
+    icon: {fileID: 0}
+    description: Lasts 1.5s.
+    behaviours:
+    - rid: 3102418934778822965
+  - displayName: Solar Ray
+    icon: {fileID: 21300000, guid: 9ab9401f46b2e16499b9c9453abadc40, type: 3}
+    description: "The beam spins 360\xB0 around you for 3s, 70% damage every 0.2s."
+    behaviours:
+    - rid: 3102418934778822966
+  behaviourTypes: 0a000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822962
+      type: {class: BeamData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        duration: 1
+        tickInterval: 0.2
+        damagePercent: 50
+        lengthScale: 1
+        width: 0.05
+        rotateDegreesPerSecond: 0
+        effects: []
+        color: {r: 1, g: 0.92, b: 0.45, a: 0.9}
+    - rid: 3102418934778822963
+      type: {class: BeamData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        duration: 1
+        tickInterval: 0.2
+        damagePercent: 50
+        lengthScale: 1
+        width: 0.065
+        rotateDegreesPerSecond: 0
+        effects: []
+        color: {r: 1, g: 0.92, b: 0.45, a: 0.9}
+    - rid: 3102418934778822964
+      type: {class: BeamData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        duration: 1
+        tickInterval: 0.2
+        damagePercent: 65
+        lengthScale: 1
+        width: 0.065
+        rotateDegreesPerSecond: 0
+        effects: []
+        color: {r: 1, g: 0.92, b: 0.45, a: 0.9}
+    - rid: 3102418934778822965
+      type: {class: BeamData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        duration: 1.5
+        tickInterval: 0.2
+        damagePercent: 65
+        lengthScale: 1
+        width: 0.065
+        rotateDegreesPerSecond: 0
+        effects: []
+        color: {r: 1, g: 0.92, b: 0.45, a: 0.9}
+    - rid: 3102418934778822966
+      type: {class: BeamData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        duration: 3
+        tickInterval: 0.2
+        damagePercent: 70
+        lengthScale: 1
+        width: 0.07
+        rotateDegreesPerSecond: 120
+        effects: []
+        color: {r: 1, g: 0.92, b: 0.45, a: 0.9}

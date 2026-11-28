@@ -1,0 +1,285 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: SpikeTrap
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Spike Trap
+  description: Scatters spike traps around you that hurt enemies stepping on them.
+  icon: {fileID: 21300000, guid: 90e27c8f18765a143a6eed750a42a43e, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 3 traps, 120% damage each, last 6s.
+    behaviours:
+    - rid: 3102418934778822895
+  - displayName: 
+    icon: {fileID: 0}
+    description: 4 traps.
+    behaviours:
+    - rid: 3102418934778822896
+  - displayName: 
+    icon: {fileID: 0}
+    description: 150% damage.
+    behaviours:
+    - rid: 3102418934778822897
+  - displayName: 
+    icon: {fileID: 0}
+    description: 5 traps, each trap triggers twice.
+    behaviours:
+    - rid: 3102418934778822898
+  - displayName: Caltrops Field
+    icon: {fileID: 21300000, guid: 90e27c8f18765a143a6eed750a42a43e, type: 3}
+    description: 6 traps, 180% damage, each trigger explodes onto nearby enemies.
+    behaviours:
+    - rid: 3102418934778822899
+  behaviourTypes: 07000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822895
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        damagePercent: 0
+        target:
+          rid: 3102418934778822900
+        targetCount: 1
+        shape:
+          rid: 3102418934778822901
+        telegraph: 0
+        interval: 0
+        effects: []
+        knockback: 0
+        landVfx: 0
+        telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 0.3}
+        onLand:
+        - rid: 3102418934778822902
+    - rid: 3102418934778822896
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        damagePercent: 0
+        target:
+          rid: 3102418934778822903
+        targetCount: 1
+        shape:
+          rid: 3102418934778822904
+        telegraph: 0
+        interval: 0
+        effects: []
+        knockback: 0
+        landVfx: 0
+        telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 0.3}
+        onLand:
+        - rid: 3102418934778822905
+    - rid: 3102418934778822897
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        damagePercent: 0
+        target:
+          rid: 3102418934778822906
+        targetCount: 1
+        shape:
+          rid: 3102418934778822907
+        telegraph: 0
+        interval: 0
+        effects: []
+        knockback: 0
+        landVfx: 0
+        telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 0.3}
+        onLand:
+        - rid: 3102418934778822908
+    - rid: 3102418934778822898
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        damagePercent: 0
+        target:
+          rid: 3102418934778822909
+        targetCount: 1
+        shape:
+          rid: 3102418934778822910
+        telegraph: 0
+        interval: 0
+        effects: []
+        knockback: 0
+        landVfx: 0
+        telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 0.3}
+        onLand:
+        - rid: 3102418934778822911
+    - rid: 3102418934778822899
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 4
+        damagePercent: 0
+        target:
+          rid: 3102418934778822912
+        targetCount: 1
+        shape:
+          rid: 3102418934778822913
+        telegraph: 0
+        interval: 0
+        effects: []
+        knockback: 0
+        landVfx: 0
+        telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 0.3}
+        onLand:
+        - rid: 3102418934778822914
+    - rid: 3102418934778822900
+      type: {class: FacingDirection, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822901
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 1
+        spacing: 0.25
+        radius: 0.05
+        stepDelay: 0
+        lines: 3
+        spreadAngle: 240
+    - rid: 3102418934778822902
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.12
+          duration: 6
+          tickInterval: 0.5
+          damagePercent: 120
+          effects: []
+          healPercentPerSecond: 0
+          trapCharges: 1
+          onTrigger: []
+          onExpire: []
+          tickVfx: 6
+          color: {r: 0.75, g: 0.7, b: 0.6, a: 0.4}
+    - rid: 3102418934778822903
+      type: {class: FacingDirection, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822904
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 1
+        spacing: 0.25
+        radius: 0.05
+        stepDelay: 0
+        lines: 4
+        spreadAngle: 270
+    - rid: 3102418934778822905
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.12
+          duration: 6
+          tickInterval: 0.5
+          damagePercent: 120
+          effects: []
+          healPercentPerSecond: 0
+          trapCharges: 1
+          onTrigger: []
+          onExpire: []
+          tickVfx: 6
+          color: {r: 0.75, g: 0.7, b: 0.6, a: 0.4}
+    - rid: 3102418934778822906
+      type: {class: FacingDirection, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822907
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 1
+        spacing: 0.25
+        radius: 0.05
+        stepDelay: 0
+        lines: 4
+        spreadAngle: 270
+    - rid: 3102418934778822908
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.12
+          duration: 6
+          tickInterval: 0.5
+          damagePercent: 150
+          effects: []
+          healPercentPerSecond: 0
+          trapCharges: 1
+          onTrigger: []
+          onExpire: []
+          tickVfx: 6
+          color: {r: 0.75, g: 0.7, b: 0.6, a: 0.4}
+    - rid: 3102418934778822909
+      type: {class: FacingDirection, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822910
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 1
+        spacing: 0.25
+        radius: 0.05
+        stepDelay: 0
+        lines: 5
+        spreadAngle: 288
+    - rid: 3102418934778822911
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.12
+          duration: 6
+          tickInterval: 0.5
+          damagePercent: 150
+          effects: []
+          healPercentPerSecond: 0
+          trapCharges: 2
+          onTrigger: []
+          onExpire: []
+          tickVfx: 6
+          color: {r: 0.75, g: 0.7, b: 0.6, a: 0.4}
+    - rid: 3102418934778822912
+      type: {class: FacingDirection, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822913
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 1
+        spacing: 0.25
+        radius: 0.05
+        stepDelay: 0
+        lines: 6
+        spreadAngle: 300
+    - rid: 3102418934778822914
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.12
+          duration: 6
+          tickInterval: 0.5
+          damagePercent: 180
+          effects: []
+          healPercentPerSecond: 0
+          trapCharges: 2
+          onTrigger:
+          - rid: 3102418934778822915
+          onExpire: []
+          tickVfx: 6
+          color: {r: 0.75, g: 0.7, b: 0.6, a: 0.4}
+    - rid: 3102418934778822915
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 90
+        knockback: 0
+        vfx: 6
+        effects: []
+        skipDirectTarget: 0

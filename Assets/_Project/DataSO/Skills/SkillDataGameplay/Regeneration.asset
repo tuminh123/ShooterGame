@@ -15,23 +15,61 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Regeneration
-  description: Every 2 seconds, adds +1 maximum HP and +1 current HP, even at full
-    health. Existing HP loss is preserved; each activation grows both values instead
-    of only filling missing HP.
-  icon: {fileID: 21300000, guid: 5c4b5809f79204e9dbf65047bfc3102a, type: 3}
+  description: Restores HP over time.
+  icon: {fileID: 21300000, guid: 8459aea879048d145b11ead685d141f6, type: 3}
   shootingVisualState: 3
   levels:
-  - description: Every 2 seconds, adds +1 maximum HP and +1 current HP, even at full
-      health. Existing HP loss is preserved; each activation grows both values instead
-      of only filling missing HP.
+  - displayName: 
+    icon: {fileID: 0}
+    description: Restores 1 HP every 2s.
     behaviours:
-    - rid: 1002
+    - rid: 3102418934778823413
+  - displayName: 
+    icon: {fileID: 0}
+    description: Restores 2 HP every 2s.
+    behaviours:
+    - rid: 3102418934778823414
+  - displayName: 
+    icon: {fileID: 0}
+    description: Restores 3 HP every 2s.
+    behaviours:
+    - rid: 3102418934778823415
+  - displayName: 
+    icon: {fileID: 0}
+    description: Restores 4 HP every 2s.
+    behaviours:
+    - rid: 3102418934778823416
+  - displayName: 
+    icon: {fileID: 0}
+    description: Restores 5 HP every 1.5s.
+    behaviours:
+    - rid: 3102418934778823417
   behaviourTypes: 04000000
   references:
     version: 2
     RefIds:
-    - rid: 1002
+    - rid: 3102418934778823413
       type: {class: RegenerationData, ns: , asm: Assembly-CSharp}
       data:
         healAmount: 1
         cooldown: 2
+    - rid: 3102418934778823414
+      type: {class: RegenerationData, ns: , asm: Assembly-CSharp}
+      data:
+        healAmount: 2
+        cooldown: 2
+    - rid: 3102418934778823415
+      type: {class: RegenerationData, ns: , asm: Assembly-CSharp}
+      data:
+        healAmount: 3
+        cooldown: 2
+    - rid: 3102418934778823416
+      type: {class: RegenerationData, ns: , asm: Assembly-CSharp}
+      data:
+        healAmount: 4
+        cooldown: 2
+    - rid: 3102418934778823417
+      type: {class: RegenerationData, ns: , asm: Assembly-CSharp}
+      data:
+        healAmount: 5
+        cooldown: 1.5

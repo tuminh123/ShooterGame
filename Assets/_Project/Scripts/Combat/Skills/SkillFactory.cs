@@ -159,6 +159,15 @@ public sealed class SkillFactory
             case SkillBehaviourType.Regeneration: return new RegenerationSkill();
             case SkillBehaviourType.EmergencyShield: return new EmergencyShieldSkill();
             case SkillBehaviourType.StatBuff: return new StatBonusSkill();
+            case SkillBehaviourType.Strike: return new StrikeSkill();
+            case SkillBehaviourType.Zone: throw new ArgumentOutOfRangeException(nameof(type), type, "Zone chỉ tạo qua tác động SpawnZone.");
+            case SkillBehaviourType.Chain: return new ChainSkill();
+            case SkillBehaviourType.Beam: return new BeamSkill();
+            case SkillBehaviourType.Slash: return new SlashSkill();
+            case SkillBehaviourType.Summon: return new SummonSkill();
+            case SkillBehaviourType.KillStack: return new KillStackSkill();
+            case SkillBehaviourType.SkillScaling: return new SkillScalingSkill();
+            case SkillBehaviourType.ShieldRegen: return new ShieldRegenSkill();
             default: throw new ArgumentOutOfRangeException(nameof(type), type, "No behaviour class for this type.");
         }
     }

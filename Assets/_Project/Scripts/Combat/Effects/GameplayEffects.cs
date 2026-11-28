@@ -26,6 +26,9 @@ public abstract class GameplayEffectData : IGameplayEffect
     // Cho cấu hình tạo bằng code chọn có tính effectHit/kháng hay không.
     protected GameplayEffectData(bool useEffectStats) { this.useEffectStats = useEffectStats; }
 
+    // Cấu hình tạo bằng code đặt thời hạn riêng.
+    protected void SetDuration(float seconds) => duration = seconds;
+
     #endregion
 
     #region Configuration Access
@@ -104,7 +107,14 @@ public abstract class DamageOverTimeEffect : GameplayEffectData
 
     [SerializeField, Min(0.01f)] private float tickInterval = 1f; // Số giây giữa hai lần gây sát thương.
     [SerializeField, Min(0f)] private float damagePerTick = 2f; // Sát thương cố định mỗi nhịp, cấu hình riêng cho skill.
+    [Tooltip("Sát thương mỗi nhịp theo % Damage của bên gây effect lúc trúng (cộng với Damage Per Tick). 10 = 10% Damage mỗi nhịp.")]
+    [SerializeField, Min(0f)] private float damagePercentPerTick;
+    [Tooltip("Số lớp cộng dồn tối đa. Trúng lại khi đang có effect: gia hạn và thêm 1 lớp (mỗi lớp gây trọn sát thương một nhịp).")]
+    [SerializeField, Min(1)] private int maxStacks = 1;
     public override float TickInterval => tickInterval;
+
+    /// <summary>Số lớp cộng dồn tối đa (1 = không cộng dồn).</summary>
+    public int MaxStacks => Mathf.Max(1, maxStacks);
 
     #endregion
 
@@ -115,7 +125,8 @@ public abstract class DamageOverTimeEffect : GameplayEffectData
     {
         base.Validate();
         if (!(tickInterval > 0f) || float.IsInfinity(tickInterval) ||
-            float.IsNaN(damagePerTick) || float.IsInfinity(damagePerTick) || damagePerTick < 0f)
+            float.IsNaN(damagePerTick) || float.IsInfinity(damagePerTick) || damagePerTick < 0f ||
+            float.IsNaN(damagePercentPerTick) || float.IsInfinity(damagePercentPerTick) || damagePercentPerTick < 0f)
             throw new InvalidOperationException("Invalid periodic damage configuration.");
     }
 
@@ -124,6 +135,8 @@ public abstract class DamageOverTimeEffect : GameplayEffectData
     {
         DamageOverTimeEffectRuntime runtime = pool.RentDamageOverTime();
         runtime.DamagePerTick = damagePerTick;
+        runtime.DamagePercentPerTick = damagePercentPerTick;
+        runtime.Stacks = 1;
         return runtime;
     }
 
@@ -137,3 +150,68 @@ public sealed class BurnEffect : DamageOverTimeEffect { }
 /// <summary>Độc. Dùng chung logic sát thương định kỳ; class riêng để chọn trong Inspector và hiện feedback riêng.</summary>
 [Serializable]
 public sealed class PoisonEffect : DamageOverTimeEffect { }
+
+/// <summary>Chảy máu (cắn của sói). Dùng chung logic sát thương định kỳ.</summary>
+[Serializable]
+public sealed class BleedEffect : DamageOverTimeEffect { }
+
+/// <summary>
+/// Class nền cho effect giữ một trạng thái trên mục tiêu trong suốt thời hạn: choáng, đóng băng, dấu săn.
+/// Dùng chung <see cref="ControlEffectRuntime"/>: một modifier chỉ số và/hoặc một nguồn choáng.
+/// </summary>
+[Serializable]
+public abstract class ControlEffectData : GameplayEffectData
+{
+    protected ControlEffectData() { }
+    protected ControlEffectData(float duration) : base(useEffectStats: false) => SetDuration(duration);
+
+    /// <summary>Có khóa đánh và đứng yên hay không.</summary>
+    protected abstract bool Stuns { get; }
+
+    /// <summary>Modifier giữ trên mục tiêu; value 0 = không có.</summary>
+    protected abstract StatModifier Modifier { get; }
+
+    public override EffectRuntime RentRuntime(EffectRuntimePool pool)
+    {
+        ControlEffectRuntime runtime = pool.RentControl();
+        runtime.Stuns = Stuns;
+        runtime.Modifier = Modifier;
+        return runtime;
+    }
+}
+
+/// <summary>Choáng: đứng yên và không đánh trong thời hạn. Boss miễn nhiễm.</summary>
+[Serializable]
+public sealed class StunEffect : ControlEffectData
+{
+    public StunEffect() { }
+    /// <summary>Cấu hình tạo bằng code (chí mạng gây choáng…): luôn áp, không tính chỉ số hiệu ứng.</summary>
+    public StunEffect(float duration) : base(duration) { }
+    protected override bool Stuns => true;
+    protected override StatModifier Modifier => default;
+}
+
+/// <summary>Đóng băng: như choáng, kèm màu băng. Boss miễn nhiễm.</summary>
+[Serializable]
+public sealed class FreezeEffect : ControlEffectData
+{
+    protected override bool Stuns => true;
+    protected override StatModifier Modifier => default;
+}
+
+/// <summary>Dấu săn: mục tiêu nhận thêm % sát thương từ mọi nguồn trong thời hạn.</summary>
+[Serializable]
+public sealed class MarkEffect : ControlEffectData
+{
+    [Tooltip("% sát thương nhận thêm khi bị đánh dấu (30 = +30%).")]
+    [SerializeField, Min(0f)] private float damageTakenPercent = 30f;
+    protected override bool Stuns => false;
+    protected override StatModifier Modifier => new StatModifier(StatType.DamageTaken, StatOperation.Add, damageTakenPercent);
+
+    public override void Validate()
+    {
+        base.Validate();
+        if (!(damageTakenPercent >= 0f) || float.IsInfinity(damageTakenPercent))
+            throw new InvalidOperationException("Mark damage must be finite and not negative.");
+    }
+}

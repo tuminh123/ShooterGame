@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 /// <summary>
 /// Thông số của một viên đạn, chốt tại thời điểm bắn. Skill, AI hay bất kỳ nguồn nào cũng có thể
@@ -12,8 +11,8 @@ public readonly struct ProjectileSpawnData
     /// <summary>Loại hình ảnh đạn, tra trong <see cref="CombatAssetsSO"/>.</summary>
     public BulletType BulletType { get; }
 
-    /// <summary>Sát thương và phe của bên bắn, đã tính sẵn chí mạng.</summary>
-    public DamageInfo Damage { get; }
+    /// <summary>Thông tin đòn của bên bắn (chỉ số, phe, % sát thương, effect); sát thương tính lúc trúng.</summary>
+    public HitPayload Hit { get; }
 
     /// <summary>Tốc độ bay, world unit mỗi giây.</summary>
     public float Speed { get; }
@@ -24,32 +23,30 @@ public readonly struct ProjectileSpawnData
     /// <summary>Strategy quyết định hướng bay mỗi frame.</summary>
     public IProjectileMove Movement { get; }
 
-    /// <summary>Effect áp khi trúng. Cấu hình dùng chung, chỉ đọc; không bao giờ null.</summary>
-    public IReadOnlyList<IGameplayEffect> Effects { get; }
+    /// <summary>Xuyên, kích thước, tác động phụ. Không bao giờ null (mặc định <see cref="ProjectileTraits.Default"/>).</summary>
+    public ProjectileTraits Traits { get; }
 
-    /// <summary>Chỉ số chính xác hiệu ứng của bên bắn, chốt lúc bắn.</summary>
-    public float EffectHit { get; }
+    /// <summary>Quãng bay tối đa của lượt đi (world unit); vô cực = chỉ giới hạn bằng thời gian.</summary>
+    public float MaxDistance { get; }
+
+    /// <summary>Bộ tìm mục tiêu cho đạn xuyên/nảy và tác động phụ; null với đạn thường (quét theo lô).</summary>
+    public ICharacterSearch Search { get; }
 
     #endregion
 
     #region Constructor
 
-    public ProjectileSpawnData(
-        BulletType bulletType,
-        DamageInfo damage,
-        float speed,
-        float lifetime,
-        IProjectileMove movement,
-        IReadOnlyList<IGameplayEffect> effects = null,
-        float effectHit = 0f)
+    public ProjectileSpawnData(BulletType bulletType, in HitPayload hit, float speed, float lifetime, IProjectileMove movement,
+        ProjectileTraits traits = null, float maxDistance = float.PositiveInfinity, ICharacterSearch search = null)
     {
         BulletType = bulletType;
-        Damage = damage;
+        Hit = hit;
         Speed = speed;
         Lifetime = lifetime;
         Movement = movement;
-        Effects = effects ?? Array.Empty<IGameplayEffect>();
-        EffectHit = effectHit;
+        Traits = traits ?? ProjectileTraits.Default;
+        MaxDistance = maxDistance;
+        Search = search;
     }
 
     #endregion
@@ -59,20 +56,9 @@ public readonly struct ProjectileSpawnData
     /// <summary>Chặn dữ liệu sai từ mọi nguồn bắn trước khi đạn được tạo. Ném <see cref="ArgumentException"/> nếu sai.</summary>
     public void Validate()
     {
-        if (!IsDefined(BulletType) || Movement == null ||
-            !IsPositiveFinite(Speed) || !IsPositiveFinite(Lifetime) ||
-            float.IsNaN(EffectHit) || float.IsInfinity(EffectHit))
+        if (!IsDefined(BulletType) || Movement == null || !IsPositiveFinite(Speed) || !IsPositiveFinite(Lifetime) || !(MaxDistance > 0f))
             throw new ArgumentException("Invalid projectile spawn data.");
-        // default(ProjectileSpawnData) có Effects null vì bỏ qua constructor.
-        if (Effects == null) throw new ArgumentException("Initialize projectile spawn data before use.");
-
-        // Duyệt theo index để không boxing enumerator khi đi qua IReadOnlyList.
-        for (int index = 0; index < Effects.Count; index++)
-        {
-            IGameplayEffect effect = Effects[index];
-            if (effect == null) throw new ArgumentException("Projectile effects cannot contain null entries.");
-            effect.Validate();
-        }
+        Hit.Validate();
     }
 
     // NaN so sánh luôn false nên tự bị loại bởi "> 0".

@@ -42,12 +42,23 @@ public sealed class EffectSystem : IDisposable
 
     // Effect có thời hạn: cùng instance cấu hình trên cùng mục tiêu sẽ gia hạn, không thêm stack mới.
     // Trả false nếu mục tiêu không hợp lệ, cùng phe, roll thất bại hoặc effect bị dọn ngay trong Apply.
+    // sourceDamage: Damage của bên gây effect lúc trúng, cho effect tính theo % Damage (cháy/độc/chảy máu).
     public bool Apply(
         IGameplayEffect configuration,
         CharacterHandle target,
         CharacterTeam sourceTeam,
-        float effectHit = 0f)
-        => ApplyInternal(configuration, target, sourceTeam, effectHit, false, out _);
+        float effectHit = 0f,
+        float sourceDamage = 0f)
+        => ApplyInternal(configuration, target, sourceTeam, effectHit, sourceDamage, false, out _);
+
+    /// <summary>Mục tiêu đang có ít nhất một effect kiểu <typeparamref name="T"/> (ví dụ đang cháy). Chỉ duyệt nhóm của mục tiêu.</summary>
+    public bool HasEffect<T>(CharacterRuntimeData target) where T : IGameplayEffect
+    {
+        if (target == null || !targetEffects.TryGetValue(target, out List<EffectRuntime> group)) return false;
+        for (int index = 0; index < group.Count; index++)
+            if (group[index].IsActive && group[index].Configuration is T) return true;
+        return false;
+    }
 
     // Skill giữ handle và gỡ khi ra vùng. Mỗi lần gọi tạo runtime riêng, không tự hết hạn theo Duration.
     // Vẫn kiểm tra chance/kháng theo cấu hình; nếu không áp dụng được thì trả handle mặc định.
@@ -57,7 +68,7 @@ public sealed class EffectSystem : IDisposable
         CharacterTeam sourceTeam,
         float effectHit = 0f)
     {
-        ApplyInternal(configuration, target, sourceTeam, effectHit, true, out EffectHandle handle);
+        ApplyInternal(configuration, target, sourceTeam, effectHit, 0f, true, out EffectHandle handle);
         return handle;
     }
 
@@ -92,6 +103,7 @@ public sealed class EffectSystem : IDisposable
         CharacterHandle target,
         CharacterTeam sourceTeam,
         float effectHit,
+        float sourceDamage,
         bool maintained,
         out EffectHandle handle)
     {
@@ -102,7 +114,7 @@ public sealed class EffectSystem : IDisposable
 
         ValidateRequest(configuration, effectHit);
         if (!RollApplication(configuration, effectHit, character)) return false;
-        if (!maintained && TryRefreshExisting(configuration, character)) return true;
+        if (!maintained && TryRefreshExisting(configuration, character, sourceDamage)) return true;
 
         operationDepth++;
         EffectRuntime created = null;
@@ -110,6 +122,7 @@ public sealed class EffectSystem : IDisposable
         {
             created = configuration.RentRuntime(runtimePool);
             Register(created, configuration, character, sourceTeam, maintained);
+            created.SourceDamage = Mathf.Max(0f, sourceDamage);
             created.Apply();
 
             // Apply có thể kích hoạt callback thu hồi mục tiêu hoặc kết thúc trận.
@@ -150,10 +163,15 @@ public sealed class EffectSystem : IDisposable
 
     // Effect cùng cấu hình đang chạy trên mục tiêu: kéo dài thời gian nhưng giữ nhịp,
     // để bắn liên tục không trì hoãn độc/cháy mãi.
-    private bool TryRefreshExisting(IGameplayEffect configuration, CharacterView character)
+    // Effect cộng dồn (độc nhiều lớp) thêm 1 lớp mỗi lần trúng lại, tới MaxStacks.
+    private bool TryRefreshExisting(IGameplayEffect configuration, CharacterView character, float sourceDamage)
     {
         if (!lookup.TryGetValue((character.RuntimeData, configuration), out EffectRuntime active)) return false;
         active.Remaining = configuration.Duration;
+        active.SourceDamage = Mathf.Max(active.SourceDamage, sourceDamage);
+        if (active is DamageOverTimeEffectRuntime damageOverTime && configuration is DamageOverTimeEffect stacking &&
+            damageOverTime.Stacks < stacking.MaxStacks)
+            damageOverTime.Stacks++;
         return true;
     }
 
@@ -316,7 +334,9 @@ public sealed class EffectSystem : IDisposable
         {
             case PoisonEffect _: kind = CharacterFeedbackKind.Poison; break;
             case BurnEffect _: kind = CharacterFeedbackKind.Burn; break;
+            case BleedEffect _: kind = CharacterFeedbackKind.Burn; break;
             case SlowEffect _: kind = CharacterFeedbackKind.Slow; break;
+            case FreezeEffect _: kind = CharacterFeedbackKind.Slow; break;
             default: return;
         }
         runtime.Owner.NotifyEffectFeedback(runtime.Target, kind, active);

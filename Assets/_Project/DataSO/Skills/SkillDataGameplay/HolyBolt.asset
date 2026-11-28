@@ -1,0 +1,279 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: HolyBolt
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Holy Bolt
+  description: Homing light bolts that hit bosses harder.
+  icon: {fileID: 21300000, guid: 066258544b532304b8d45aae27dbaaa5, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 homing bolt, 90% damage, +20% damage to bosses and elites.
+    behaviours:
+    - rid: 3102418934778822763
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 bolts.
+    behaviours:
+    - rid: 3102418934778822764
+  - displayName: 
+    icon: {fileID: 0}
+    description: 110% damage.
+    behaviours:
+    - rid: 3102418934778822765
+  - displayName: 
+    icon: {fileID: 0}
+    description: 3 bolts, cooldown 1.2s.
+    behaviours:
+    - rid: 3102418934778822766
+  - displayName: Divine Volley
+    icon: {fileID: 21300000, guid: 392b06b9aee9f6b47883bd9ba7503c42, type: 3}
+    description: 3 piercing rays, 140% damage, +50% damage to bosses and elites.
+    behaviours:
+    - rid: 3102418934778822767
+  behaviourTypes: 01000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822763
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.5
+        damagePercent: 90
+        target:
+          rid: 3102418934778822768
+        shooter:
+          rid: 3102418934778822769
+        projectileMove:
+          rid: 3102418934778822770
+        bulletType: 0
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 20
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822764
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.5
+        damagePercent: 90
+        target:
+          rid: 3102418934778822771
+        shooter:
+          rid: 3102418934778822772
+        projectileMove:
+          rid: 3102418934778822773
+        bulletType: 0
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 20
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822765
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.5
+        damagePercent: 110
+        target:
+          rid: 3102418934778822774
+        shooter:
+          rid: 3102418934778822775
+        projectileMove:
+          rid: 3102418934778822776
+        bulletType: 0
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 20
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822766
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 110
+        target:
+          rid: 3102418934778822777
+        shooter:
+          rid: 3102418934778822778
+        projectileMove:
+          rid: 3102418934778822779
+        bulletType: 0
+        projectileCount: 3
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 20
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822767
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 140
+        target:
+          rid: 3102418934778822780
+        shooter:
+          rid: 3102418934778822781
+        projectileMove:
+          rid: 3102418934778822782
+        bulletType: 0
+        projectileCount: 3
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.4
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 50
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822768
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822769
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822770
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822771
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822772
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 30
+    - rid: 3102418934778822773
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822774
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822775
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 30
+    - rid: 3102418934778822776
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822777
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822778
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 40
+    - rid: 3102418934778822779
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822780
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822781
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 40
+    - rid: 3102418934778822782
+      type: {class: HomingProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 

@@ -19,6 +19,7 @@ public sealed class CombatVfx : IDisposable
     private readonly IGameObjectPool pools;
     private readonly CombatAssetsSO combatAssets; // Catalog: EffectType → prefab visual.
     private readonly List<EffectView> activeEffects = new List<EffectView>(64); // Để tick và dọn hết khi kết thúc trận.
+    private readonly List<SkillLineVisual> activeLines = new List<SkillLineVisual>(16); // Đường sét/tia đang hiện.
     private bool disposed;
     private int budgetFrame = -1; // Frame của bộ đếm spawnedThisFrame.
     private int spawnedThisFrame;
@@ -102,6 +103,25 @@ public sealed class CombatVfx : IDisposable
 
     #endregion
 
+    #region Lines
+
+    /// <summary>
+    /// Vẽ một đường sáng từ <paramref name="from"/> tới <paramref name="to"/>, mờ dần trong <paramref name="seconds"/> giây
+    /// (sét nảy, tia). Trả visual để tia kéo dài cập nhật điểm mỗi frame; null nếu không có prefab.
+    /// </summary>
+    public SkillLineVisual SpawnLine(Vector3 from, Vector3 to, Color color, float width, float seconds)
+    {
+        if (disposed || combatAssets.LinePrefab == null) return null;
+        GameObject clone = pools.Spawn(combatAssets.LinePrefab.gameObject, from, Quaternion.identity, PoolGroup.Other);
+        if (clone == null) return null;
+        SkillLineVisual line = clone.GetComponent<SkillLineVisual>();
+        line.Show(from, to, color, width, seconds);
+        activeLines.Add(line);
+        return line;
+    }
+
+    #endregion
+
     #region Frame
 
     /// <summary>
@@ -110,8 +130,15 @@ public sealed class CombatVfx : IDisposable
     /// </summary>
     internal void LateTick()
     {
-        if (disposed || activeEffects.Count == 0) return;
+        if (disposed) return;
         float deltaTime = Time.deltaTime;
+        for (int index = activeLines.Count - 1; index >= 0; index--)
+        {
+            SkillLineVisual line = activeLines[index];
+            if (line != null && !line.Advance(deltaTime)) continue;
+            ReleaseLineAt(index);
+        }
+        if (activeEffects.Count == 0) return;
         for (int index = activeEffects.Count - 1; index >= 0; index--)
         {
             EffectView view = activeEffects[index];
@@ -135,6 +162,17 @@ public sealed class CombatVfx : IDisposable
     {
         for (int index = activeEffects.Count - 1; index >= 0; index--)
             ReleaseAt(index);
+        for (int index = activeLines.Count - 1; index >= 0; index--)
+            ReleaseLineAt(index);
+    }
+
+    private void ReleaseLineAt(int index)
+    {
+        SkillLineVisual line = activeLines[index];
+        int last = activeLines.Count - 1;
+        activeLines[index] = activeLines[last];
+        activeLines.RemoveAt(last);
+        if (line != null) pools.Despawn(line.gameObject);
     }
 
     public void Dispose()

@@ -1091,6 +1091,7 @@ GameObject:
   - component: {fileID: 6862444560294396372}
   - component: {fileID: 1901135397089849690}
   - component: {fileID: 1157675244563179063}
+  - component: {fileID: 1868561236277365869}
   m_Layer: 5
   m_Name: Button_Claim
   m_TagString: Untagged
@@ -1236,6 +1237,19 @@ MonoBehaviour:
   peakScale: 1.08
   growDuration: 0.12
   settleDuration: 0.12
+--- !u!114 &1868561236277365869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3569428856824703265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3972d9218d364e4783d94dbc5c009c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sound: 1
 --- !u!1 &4786875341155483498
 GameObject:
   m_ObjectHideFlags: 0
@@ -2138,6 +2152,7 @@ MonoBehaviour:
   rewardPrefab: {fileID: 5573879952258271733, guid: 432c2a88493de054b933a5bbf2490622, type: 3}
   claimButton: {fileID: 1901135397089849690}
   claimText: {fileID: 9000308340953485867}
+  goButton: {fileID: 0}
   statusRoot: {fileID: 4786875341155483498}
   statusText: {fileID: 8333956395451820399}
   dim: {fileID: 2986404849471632098}

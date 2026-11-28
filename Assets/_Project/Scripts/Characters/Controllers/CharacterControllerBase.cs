@@ -60,7 +60,7 @@ public abstract class CharacterControllerBase : ICharacterController
     public DamageResult ReceiveDamage(CharacterView view, CharacterRuntimeData runtime, DamageInfo damage)
     {
         if (!IsCurrent(view, runtime) || !view.isActiveAndEnabled || !runtime.IsAlive ||
-            damage.SourceTeam == runtime.Team || damage.Amount <= 0f)
+            damage.SourceTeam == runtime.Team || damage.Amount <= 0f || runtime.IsInvulnerable)
             return default;
 
         float health = runtime.CurrentHealth;
@@ -127,6 +127,19 @@ public abstract class CharacterControllerBase : ICharacterController
             if (!runtime.IsAlive) CompleteDeath(view, runtime);
         }
     }
+
+    /// <inheritdoc/>
+    public void Restore(CharacterView view, CharacterRuntimeData runtime, float health, float shield)
+    {
+        if (IsCurrent(view, runtime) && view.isActiveAndEnabled && runtime.IsAlive)
+            runtime.Restore(health, shield);
+    }
+
+    /// <summary>
+    /// Bị đẩy/kéo bởi skill: dịch <paramref name="distance"/> theo <paramref name="direction"/> trong <paramref name="duration"/> giây.
+    /// Mặc định không làm gì (Player không bị đẩy); quái dùng cú lùi sẵn có.
+    /// </summary>
+    public virtual void Push(CharacterView view, Vector2 direction, float distance, float duration) { }
 
     /// <inheritdoc/>
     public void GrantShield(CharacterView view, CharacterRuntimeData runtime, float amount)

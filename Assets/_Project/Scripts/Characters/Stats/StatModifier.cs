@@ -28,6 +28,9 @@ public struct StatModifier
         if (!IsDefined(DefinedStats, (int)stat) || !IsDefined(DefinedOperations, (int)operation) ||
             float.IsNaN(value) || float.IsInfinity(value))
             throw new ArgumentException("Invalid stat modifier.");
+        // Bonus chiến đấu có gốc 0: "+x% của 0" không có nghĩa, nên chỉ cho cộng thẳng.
+        if (StatTypes.IsCombatBonus(stat) && operation != StatOperation.Add)
+            throw new ArgumentException($"Combat bonus stat {stat} only supports Add.");
     }
 
     // Enum.IsDefined boxing giá trị mỗi lần gọi, mà Validate chạy mỗi lần thêm buff/slow: tra bảng dựng sẵn một lần.

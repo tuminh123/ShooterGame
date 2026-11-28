@@ -34,8 +34,13 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
     private readonly ICharacterDeathEvents characterDeaths;
     private readonly ICombatLifecycle combat; // Dọn skill gameplay khi reset lượt (trước đây SkillSystem tự nghe BattleReset).
     private readonly IWallet wallet; // Ví vĩnh viễn (miền Progression): vàng được lưu ngay khi nhặt.
+    private readonly IAudio audio; // Âm + rung khi lên cấp: Battle sở hữu sự kiện này nên tự phát.
     private bool resetting; // Chặn ResetBattle lồng nhau từ callback của chính lần reset.
     private bool disposed;
+    private float magnetTimer; // Đếm tới lần hút toàn bộ EXP kế tiếp (Magnet Stone Lv5).
+
+    /// <summary>Hệ số tầm nhặt đủ lớn để hút mọi loot trên màn (lần hút theo nhịp).</summary>
+    private const float MagnetPulseRadiusMultiplier = 1000f;
 
     #endregion
 
@@ -101,7 +106,8 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
         ISkillGrant skillGrant, // Ba vai trò Combat đều do CombatManager implement (CombatContracts.cs).
         IOwnedSkillReader ownedSkills,
         SkillDatabaseSO skillDatabase,
-        IWallet wallet)
+        IWallet wallet,
+        IAudio audio)
     {
         if (levelDatabase == null) throw new ArgumentNullException(nameof(levelDatabase));
         if (skillDatabase == null) throw new ArgumentNullException(nameof(skillDatabase));
@@ -109,6 +115,7 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
         this.characterDeaths = characterDeaths ?? throw new ArgumentNullException(nameof(characterDeaths));
         combat = combatLifecycle ?? throw new ArgumentNullException(nameof(combatLifecycle));
         this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
 
         clock = new BattleTimer();
         statistics = new BattleStatistics();
@@ -129,6 +136,7 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
         loot.Collected += OnLootCollected;
         // Đăng ký trong constructor, trước mọi UI: khi UI nhận LevelUp thì số lượt chờ đã được cộng.
         level.LevelUp += choices.AddLevels;
+        level.LevelUp += OnLevelUp;
         characterDeaths.CharacterDied += OnCharacterDied;
     }
 
@@ -143,7 +151,15 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
     public override void LateTick()
     {
         if (disposed || !IsPlayerActive(out CharacterView player)) return;
-        loot.Collect(player.transform.position);
+        // Tầm nhặt là bonus chiến đấu của Player (Magnet Stone…): Battle tự đọc, Combat không biết gì về loot.
+        CombatBonuses bonuses = player.RuntimeData.FinalBonuses;
+        loot.Collect(player.transform.position, 1f + bonuses.pickupRange / 100f);
+        // Hút toàn bộ theo nhịp: bonus là số giây giữa hai lần hút; 0 = không có.
+        if (bonuses.magnetPulse <= 0f) { magnetTimer = 0f; return; }
+        magnetTimer += UnityEngine.Time.deltaTime;
+        if (magnetTimer < bonuses.magnetPulse) return;
+        magnetTimer = 0f;
+        loot.Collect(player.transform.position, MagnetPulseRadiusMultiplier);
     }
 
     /// <summary>
@@ -157,6 +173,7 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
         characterDeaths.CharacterDied -= OnCharacterDied;
         loot.Collected -= OnLootCollected;
         level.LevelUp -= choices.AddLevels;
+        level.LevelUp -= OnLevelUp;
         DisposeSafely(choices);
         DisposeSafely(loot);
         DisposeSafely(level);
@@ -240,6 +257,13 @@ public sealed class BattleManager : DomainManager, IBattleProgress, IBattleReset
         if (disposed || character == null || character.RuntimeData == null || character.RuntimeData.Team != CharacterTeam.Enemy) return;
         statistics.AddDefeat();
         loot.DropAt(character.transform.position); // Chốt vị trí ngay, trước khi quái được trả về pool.
+    }
+
+    // Nhận nhiều cấp trong một lần nhặt vẫn chỉ kêu một lần (một event cho cả bước nhảy cấp).
+    private void OnLevelUp(int previousLevel, int newLevel)
+    {
+        audio.Play(AudioId.LevelUp);
+        audio.Play(AudioId.HapticMedium);
     }
 
     private void OnLootCollected(PickupType type, int amount)

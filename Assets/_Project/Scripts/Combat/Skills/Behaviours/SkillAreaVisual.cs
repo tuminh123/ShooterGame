@@ -27,13 +27,20 @@ public sealed class SkillAreaVisual : MonoBehaviour
 
     #region Geometry & Owner Binding
     [SerializeField] private bool sawBlade;
+    [Tooltip("Ẩn mesh tự vẽ, chỉ hiện các object con (ví dụ cầu lửa xoay dùng particle con).")]
+    [SerializeField] private bool hideMesh;
+    [Tooltip("Màu viền của vùng tròn (không áp cho lưỡi cưa). Tâm dùng cùng màu, mờ hơn 5 lần.")]
+    [SerializeField] private Color areaColor = new Color(0.25f, 0.75f, 1f, 0.2f);
     private CharacterView owner;
+    private bool anchored; // Đứng yên tại anchor (vùng trên đất, báo vùng) thay vì bám chủ.
+    private Vector2 anchor;
     private Vector2 offset;
     private float rotation;
     private Mesh mesh;
     private Material material;
     private MeshRenderer meshRenderer;
     private Renderer[] renderers; // Mesh và mọi VFX con trong prefab: ẩn/hiện cùng nhau khi skill tạm dừng.
+    private Color baseColor = Color.white; // Màu material gốc, trả lại khi visual được thuê cho skill bám chủ.
 
     private void Awake() => EnsureGeometry();
 
@@ -59,8 +66,8 @@ public sealed class SkillAreaVisual : MonoBehaviour
         else
         {
             sortingOrder = -1; // Default layer: băng dưới nhân vật, trên layer Ground.
-            tint = new Color(0.25f, 0.75f, 1f, 0.2f);
-            centerColor = new Color(0.4f, 0.9f, 1f, 0.04f);
+            tint = areaColor;
+            centerColor = new Color(Mathf.Min(1f, areaColor.r + 0.15f), Mathf.Min(1f, areaColor.g + 0.15f), areaColor.b, areaColor.a * 0.2f);
             toothRadius = 1f; // Vùng băng tròn đều, không có răng.
             meshName = "Frost Aura Mesh";
         }
@@ -95,6 +102,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
         mesh.RecalculateBounds();
         filter.sharedMesh = mesh;
         renderers = GetComponentsInChildren<Renderer>(true); // Lấy sau khi đã thêm MeshRenderer để gồm cả mesh.
+        baseColor = material.color;
     }
 
     /// <summary>
@@ -106,10 +114,42 @@ public sealed class SkillAreaVisual : MonoBehaviour
         tracker = frameTracker ?? throw new System.ArgumentNullException(nameof(frameTracker));
         if (isActiveAndEnabled) tracker.Add(this);
         owner = character;
+        anchored = false;
         offset = Vector2.zero;
         rotation = 0f;
         transform.localScale = Vector3.one * radius;
+        material.color = baseColor;
         SetVisible(true); // Lượt thuê trước có thể đã ẩn (skill tạm dừng) rồi mới trả về pool.
+        ApplyPose();
+    }
+
+    /// <summary>
+    /// Gắn visual đứng yên tại <paramref name="position"/> (vùng trên đất, báo vùng của đòn từ trời), tô màu <paramref name="color"/>.
+    /// Prefab hình tròn: màu nhân với màu đỉnh của mesh (tâm nhạt, viền đậm).
+    /// </summary>
+    public void InitializeAt(Vector2 position, float radius, Color color, SkillAreaVisuals frameTracker)
+    {
+        EnsureGeometry();
+        tracker = frameTracker ?? throw new System.ArgumentNullException(nameof(frameTracker));
+        if (isActiveAndEnabled) tracker.Add(this);
+        owner = null;
+        anchored = true;
+        anchor = position;
+        offset = Vector2.zero;
+        rotation = 0f;
+        transform.localScale = Vector3.one * radius;
+        material.color = new Color(color.r * 4f, color.g * 4f, color.b * 4f, color.a * 4f); // Mesh vùng có alpha đỉnh 0.2–0.04.
+        SetVisible(true);
+        ApplyPose();
+    }
+
+    /// <summary>Đổi màu (độ mờ dần của vùng báo, vòng sóng…).</summary>
+    public void SetColor(Color color) => material.color = new Color(color.r * 4f, color.g * 4f, color.b * 4f, color.a * 4f);
+
+    /// <summary>Dời tâm của visual đứng yên (vòng sóng bám chủ khi đang lan…).</summary>
+    public void SetAnchor(Vector2 position)
+    {
+        anchor = position;
         ApplyPose();
     }
 
@@ -124,7 +164,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
     {
         if (renderers == null) return;
         foreach (Renderer part in renderers)
-            if (part != null) part.enabled = visible;
+            if (part != null) part.enabled = visible && !(hideMesh && part == meshRenderer);
     }
 
     /// <summary>Bám theo chủ sau khi di chuyển đã áp dụng. <see cref="SkillAreaVisuals"/> gọi mỗi frame.</summary>
@@ -138,6 +178,11 @@ public sealed class SkillAreaVisual : MonoBehaviour
     {
         // Visual không làm con của character: cleanup không reparent một hierarchy đang bị Unity hủy.
         // Theo vị trí mới sau movement; quỹ đạo không bị flip/scale của sprite nhân vật ảnh hưởng.
+        if (anchored)
+        {
+            transform.SetPositionAndRotation(new Vector3(anchor.x, anchor.y, 0f), Quaternion.Euler(0f, 0f, rotation));
+            return;
+        }
         if (owner == null || owner.RuntimeData == null) return;
         Vector3 center = owner.HitPosition;
         transform.SetPositionAndRotation(new Vector3(center.x + offset.x, center.y + offset.y, center.z),
@@ -148,6 +193,7 @@ public sealed class SkillAreaVisual : MonoBehaviour
     {
         tracker?.Remove(this);
         owner = null;
+        anchored = false;
         offset = Vector2.zero;
     }
 

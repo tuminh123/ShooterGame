@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 8244292669912497438}
   - component: {fileID: 6284819249802350526}
   - component: {fileID: 1167166101663273271}
+  - component: {fileID: 276391892912476778}
   m_Layer: 0
   m_Name: SkillSlot
   m_TagString: Untagged
@@ -141,6 +142,19 @@ MonoBehaviour:
   label: {fileID: 8222790265986792200}
   lockOverlay: {fileID: 6862475043641605869}
   lockedIconColor: {r: 0.35, g: 0.35, b: 0.4, a: 1}
+--- !u!114 &276391892912476778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 364952871425752522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3972d9218d364e4783d94dbc5c009c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sound: 1
 --- !u!1 &1636368437567205299
 GameObject:
   m_ObjectHideFlags: 0

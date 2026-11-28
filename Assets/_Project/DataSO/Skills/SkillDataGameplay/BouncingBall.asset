@@ -1,0 +1,288 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: BouncingBall
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Bouncing Ball
+  description: A ball that passes through enemies and bounces off the screen edges.
+  icon: {fileID: 21300000, guid: 68be7b1e28cb15d489df7de4bb6a956a, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 ball, 70% damage, 3 bounces, lasts 3s.
+    behaviours:
+    - rid: 3102418934778822803
+  - displayName: 
+    icon: {fileID: 0}
+    description: 5 bounces.
+    behaviours:
+    - rid: 3102418934778822804
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 balls, 85% damage.
+    behaviours:
+    - rid: 3102418934778822805
+  - displayName: 
+    icon: {fileID: 0}
+    description: Balls 30% larger, last 4s.
+    behaviours:
+    - rid: 3102418934778822806
+  - displayName: Wrecking Ball
+    icon: {fileID: 21300000, guid: ef9e980b214d3d34c80205682892e9a5, type: 3}
+    description: A giant ball, 120% damage, bounces endlessly for 5s and knocks enemies
+      back.
+    behaviours:
+    - rid: 3102418934778822807
+  behaviourTypes: 01000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822803
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        damagePercent: 70
+        target:
+          rid: 3102418934778822808
+        shooter:
+          rid: 3102418934778822809
+        projectileMove:
+          rid: 3102418934778822810
+        bulletType: 11
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 360
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822804
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        damagePercent: 70
+        target:
+          rid: 3102418934778822811
+        shooter:
+          rid: 3102418934778822812
+        projectileMove:
+          rid: 3102418934778822813
+        bulletType: 11
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 360
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822805
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        damagePercent: 85
+        target:
+          rid: 3102418934778822814
+        shooter:
+          rid: 3102418934778822815
+        projectileMove:
+          rid: 3102418934778822816
+        bulletType: 11
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 3
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 360
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822806
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        damagePercent: 85
+        target:
+          rid: 3102418934778822817
+        shooter:
+          rid: 3102418934778822818
+        projectileMove:
+          rid: 3102418934778822819
+        bulletType: 11
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.3
+          spinDegreesPerSecond: 360
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822807
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 3
+        damagePercent: 120
+        target:
+          rid: 3102418934778822820
+        shooter:
+          rid: 3102418934778822821
+        projectileMove:
+          rid: 3102418934778822822
+        bulletType: 11
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 1.8
+        lifetime: 5
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 2.2
+          spinDegreesPerSecond: 300
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.15
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822808
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822809
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822810
+      type: {class: BounceInCameraMove, ns: , asm: Assembly-CSharp}
+      data:
+        maxBounces: 3
+        inset: 0.05
+    - rid: 3102418934778822811
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822812
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822813
+      type: {class: BounceInCameraMove, ns: , asm: Assembly-CSharp}
+      data:
+        maxBounces: 5
+        inset: 0.05
+    - rid: 3102418934778822814
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822815
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 40
+    - rid: 3102418934778822816
+      type: {class: BounceInCameraMove, ns: , asm: Assembly-CSharp}
+      data:
+        maxBounces: 5
+        inset: 0.05
+    - rid: 3102418934778822817
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822818
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 40
+    - rid: 3102418934778822819
+      type: {class: BounceInCameraMove, ns: , asm: Assembly-CSharp}
+      data:
+        maxBounces: 6
+        inset: 0.05
+    - rid: 3102418934778822820
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822821
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822822
+      type: {class: BounceInCameraMove, ns: , asm: Assembly-CSharp}
+      data:
+        maxBounces: -1
+        inset: 0.05

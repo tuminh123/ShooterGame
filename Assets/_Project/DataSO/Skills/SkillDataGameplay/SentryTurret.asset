@@ -1,0 +1,276 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: SentryTurret
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Sentry Turret
+  description: Places a turret where you stand that shoots enemies in range.
+  icon: {fileID: 21300000, guid: 357aadc16c72c3044a124bf4409eb188, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 turret for 8s, shoots 60% every 0.5s.
+    behaviours:
+    - rid: 3102418934778822998
+  - displayName: 
+    icon: {fileID: 0}
+    description: Lasts 10s.
+    behaviours:
+    - rid: 3102418934778822999
+  - displayName: 
+    icon: {fileID: 0}
+    description: 75% damage.
+    behaviours:
+    - rid: 3102418934778823000
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 turrets.
+    behaviours:
+    - rid: 3102418934778823001
+  - displayName: Tesla Tower
+    icon: {fileID: 21300000, guid: 357aadc16c72c3044a124bf4409eb188, type: 3}
+    description: Turrets fire chain lightning that jumps to 3 enemies, 90% damage,
+      last 12s.
+    behaviours:
+    - rid: 3102418934778823002
+  behaviourTypes: 0c000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822998
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 10
+        sprite: {fileID: 21300000, guid: cb0eea439362f284db69d8434c53cd4f, type: 3}
+        spriteSize: 0.16
+        count: 1
+        lifetime: 8
+        movement: 2
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 1
+        attackInterval: 0.5
+        damagePercent: 60
+        rangeScale: 1
+        effects: []
+        bulletType: 4
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 0
+        chainJumps: 0
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823003
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778822999
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 10
+        sprite: {fileID: 21300000, guid: cb0eea439362f284db69d8434c53cd4f, type: 3}
+        spriteSize: 0.16
+        count: 1
+        lifetime: 10
+        movement: 2
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 1
+        attackInterval: 0.5
+        damagePercent: 60
+        rangeScale: 1
+        effects: []
+        bulletType: 4
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 0
+        chainJumps: 0
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823004
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778823000
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 10
+        sprite: {fileID: 21300000, guid: cb0eea439362f284db69d8434c53cd4f, type: 3}
+        spriteSize: 0.16
+        count: 1
+        lifetime: 10
+        movement: 2
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 1
+        attackInterval: 0.5
+        damagePercent: 75
+        rangeScale: 1
+        effects: []
+        bulletType: 4
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 0
+        chainJumps: 0
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823005
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778823001
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 10
+        sprite: {fileID: 21300000, guid: cb0eea439362f284db69d8434c53cd4f, type: 3}
+        spriteSize: 0.16
+        count: 2
+        lifetime: 10
+        movement: 2
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 1
+        attackInterval: 0.5
+        damagePercent: 75
+        rangeScale: 1
+        effects: []
+        bulletType: 4
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 0
+        chainJumps: 0
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823006
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778823002
+      type: {class: SummonData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 10
+        sprite: {fileID: 21300000, guid: cb0eea439362f284db69d8434c53cd4f, type: 3}
+        spriteSize: 0.16
+        count: 2
+        lifetime: 12
+        movement: 2
+        orbitRadius: 0.22
+        moveSpeed: 2
+        attack: 2
+        attackInterval: 0.7
+        damagePercent: 90
+        rangeScale: 1
+        effects: []
+        bulletType: 4
+        projectileSpeed: 2.6
+        projectileCount: 1
+        spreadAngle: 12
+        homing: 0
+        chainJumps: 2
+        chainRange: 0.55
+        missileInterval: 0
+        missileDamagePercent: 150
+        missileTraits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823007
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+    - rid: 3102418934778823003
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0
+    - rid: 3102418934778823004
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0
+    - rid: 3102418934778823005
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0
+    - rid: 3102418934778823006
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0
+    - rid: 3102418934778823007
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 0
+        knockback: 0
+        vfx: 2
+        effects: []
+        skipDirectTarget: 0

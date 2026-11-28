@@ -108,14 +108,15 @@ public sealed class CharacterScreenThemeSO : ScriptableObject
 
     #region Validation
 
-    /// <summary>Kiểm tra đủ 8 StatType (không trùng, có tên), đủ mọi CharacterRarity và mọi CurrencyType.</summary>
+    /// <summary>Kiểm tra đủ mọi chỉ số gốc (không trùng, có tên), đủ mọi CharacterRarity và mọi CurrencyType.</summary>
     public void Validate()
     {
         var seen = new HashSet<StatType>();
         foreach (StatEntry entry in stats)
             if (entry == null || !seen.Add(entry.Stat) || string.IsNullOrWhiteSpace(entry.DisplayName))
                 throw new InvalidOperationException("Character Screen Theme has an empty, duplicate or unnamed stat entry.");
-        foreach (StatType type in (StatType[])Enum.GetValues(typeof(StatType)))
+        // Chỉ chỉ số gốc: màn Character không hiển thị bonus chiến đấu (chúng chỉ có trong trận, từ skill).
+        foreach (StatType type in StatTypes.Base)
             if (!seen.Contains(type))
                 throw new InvalidOperationException($"Character Screen Theme is missing stat {type}.");
         if (rarityStyles == null)

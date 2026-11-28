@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
-/// <summary>Hành vi bắn: tìm mục tiêu gần nhất rồi bắn một lượt đạn, chia hướng bằng <see cref="IShooter"/>.</summary>
-/// <remarks>Không có mục tiêu thì không tiêu cooldown (trừ khi data cho bắn không cần mục tiêu). Data: <see cref="ShootingData"/>.</remarks>
+/// <summary>Hành vi bắn: hỏi luật chọn chỗ bắn rồi bắn một lượt đạn, chia hướng bằng <see cref="IShooter"/>.</summary>
+/// <remarks>
+/// Không có mục tiêu thì không tiêu cooldown (trừ khi data cho bắn không cần mục tiêu). Lượt bắn nối đuôi (dao ném) được
+/// xếp hàng và bắn dần trong <see cref="Tick"/> từ vị trí hiện tại của chủ. Data: <see cref="ShootingData"/>.
+/// </remarks>
 public sealed class ShootingSkill : Skill
 {
     #region Runtime State
@@ -13,6 +15,16 @@ public sealed class ShootingSkill : Skill
     private IShooter liveShooter; // Trạng thái bắn riêng, ví dụ góc Spiral.
     private IProjectileMove movement; // Quỹ đạo của cấp hiện tại; không trạng thái nên dùng thẳng instance trong asset.
     private IGameplayEffect[] effectSnapshot; // Đạn giữ snapshot của cấp lúc bắn.
+    private readonly List<SkillAim> aims = new List<SkillAim>(1); // Kết quả luật chọn; dùng lại, không cấp phát mỗi lần bắn.
+
+    // Lượt bắn nối đuôi đang chờ: chốt cấu hình, gói đòn và hướng của lượt đó.
+    private ShootingData burstData;
+    private HitPayload burstHit;
+    private Vector2 burstAim;
+    private CharacterHandle burstTarget;
+    private float burstMaxDistance, burstTimer;
+    private int burstNext;
+
     public override SkillBehaviourType Type => SkillBehaviourType.Shooting;
 
     #endregion
@@ -25,7 +37,9 @@ public sealed class ShootingSkill : Skill
         data = null;
         liveShooter = null;
         movement = null;
+        aims.Clear();
         if (effectSnapshot == null) effectSnapshot = Array.Empty<IGameplayEffect>(); // Giữ mảng cũ để dùng lại.
+        ClearBurst();
     }
 
     // Giữ trạng thái shooter khi chỉ đổi thông số; đổi kiểu bắn thì tạo shooter đúng cấu hình mới.
@@ -48,48 +62,115 @@ public sealed class ShootingSkill : Skill
 
     #region Execution
 
-    // Tìm mục tiêu rồi thực hiện một volley; thiếu mục tiêu không tiêu cooldown.
+    // Hỏi luật chọn (data.Target) chỗ bắn rồi thực hiện một volley. Không có chỗ bắn mà RequiresTarget thì không tiêu cooldown;
+    // tắt RequiresTarget thì bắn theo DefaultDirection.
     public override bool TryExecute()
     {
         if (!Owner.CanRun || data == null) return false;
-        CharacterHandle selected = default;
-        Vector2 position = (Vector2)Owner.Owner.HitPosition + data.MuzzleOffset;
+        CharacterView self = Owner.Owner;
+        // Tầm chiến đấu là của nhân vật (gồm bonus CombatRange), không phải của skill.
+        float range = Owner.Identity.CombatRange;
+        var origin = new SkillOrigin(self.HitPosition, self.AimDirection, Owner.Identity.Team, self, range);
+        Vector2 position = origin.Position + data.MuzzleOffset;
         Vector2 direction = data.DefaultDirection.normalized;
-        // Đạn đuổi cần mục tiêu để bay, kể cả khi data cho phép bắn khi không có mục tiêu.
-        if (data.RequiresTarget || movement.TracksTarget)
+        Vector2 aimPoint = position + direction * range;
+        CharacterHandle selected = default;
+        if (data.Target.Select(in origin, self.Search, 1, aims) > 0)
         {
-            selected = Owner.Owner.Search.FindNearest(Owner.Owner.HitPosition, data.Range,
-                CharacterSearch.OpponentOf(Owner.Identity.Team), Owner.Owner);
-            if (selected.TryGetCharacter(out CharacterView target))
-            {
-                Vector2 offset = (Vector2)target.HitPosition - position;
-                if (offset.sqrMagnitude > 0.000001f) direction = offset.normalized;
-            }
-            else if (data.RequiresTarget) return false;
+            SkillAim aim = aims[0];
+            selected = aim.Target;
+            aimPoint = aim.Point;
+            // Có mục tiêu thì ngắm từ nòng tới mục tiêu; luật chỉ trả hướng thì dùng thẳng hướng đó.
+            Vector2 toward = selected.TryGetCharacter(out CharacterView target) ? (Vector2)target.HitPosition - position : aim.Direction;
+            if (selected.TryGetCharacter(out target)) aimPoint = target.HitPosition;
+            if (toward.sqrMagnitude > 0.000001f) direction = toward.normalized;
         }
-        return ExecuteVolley(position, direction, selected) > 0;
+        else if (data.RequiresTarget) return false;
+        return ExecuteVolley(position, direction, selected, MaxDistance(data, range, position, aimPoint)) > 0;
+    }
+
+    private static float MaxDistance(ShootingData shot, float combatRange, Vector2 from, Vector2 aimPoint)
+    {
+        switch (shot.RangeMode)
+        {
+            case ProjectileRange.CombatRange: return combatRange * shot.RangeScale;
+            case ProjectileRange.TargetPoint: return Mathf.Max(0.05f, Vector2.Distance(from, aimPoint));
+            default: return float.PositiveInfinity;
+        }
     }
 
     // Chốt cả cấu hình và stats trước callback spawn; nâng cấp giữa volley không trộn hai cấp.
-    private int ExecuteVolley(Vector2 position, Vector2 aim, CharacterHandle target)
+    private int ExecuteVolley(Vector2 position, Vector2 aim, CharacterHandle target, float maxDistance)
     {
         ShootingData shot = data;
-        IShooter shooter = liveShooter;
-        IProjectileMove move = movement;
-        IGameplayEffect[] effects = effectSnapshot;
-        BaseStats stats = Owner.Identity.FinalStats;
-        CharacterTeam team = Owner.Identity.Team;
+        // Một gói đòn cho cả loạt: chỉ số chụp một lần, mỗi viên vẫn tung chí mạng riêng lúc trúng (CombatHits).
+        var hit = new HitPayload(Owner.Handle, Owner.Identity.FinalStats, shot.HitBonus.AddTo(Owner.Identity.FinalBonuses),
+            Owner.Identity.Team, shot.DamageMultiplier, effectSnapshot, shot.Knockback);
+        if (shot.BurstInterval > 0f && shot.ProjectileCount > 1)
+        {
+            if (!SpawnOne(shot, in hit, position, aim.normalized, target, maxDistance, 0)) return 0;
+            burstData = shot;
+            burstHit = hit;
+            burstAim = aim.normalized;
+            burstTarget = target;
+            burstMaxDistance = maxDistance;
+            burstNext = 1;
+            burstTimer = shot.BurstInterval;
+            return 1;
+        }
         int spawned = 0;
         for (int i = 0; i < shot.ProjectileCount; i++)
         {
             if (!Owner.CanRun) break;
-            Vector2 direction = shooter.GetDirection(aim.normalized, i, shot.ProjectileCount);
-            var projectile = new ProjectileSpawnData(shot.BulletType, CharacterRuntimeData.CreateDamage(stats, team),
-                shot.Speed, shot.Lifetime, move, effects, stats.effectHit);
-            if (Services.Projectiles.SpawnBullet(projectile, position, direction, target)) spawned++;
+            if (SpawnOne(shot, in hit, position, aim.normalized, target, maxDistance, i)) spawned++;
         }
-        if (spawned > 0) shooter.OnShotCompleted();
+        if (spawned > 0) liveShooter.OnShotCompleted();
         return spawned;
+    }
+
+    private bool SpawnOne(ShootingData shot, in HitPayload hit, Vector2 position, Vector2 aim, CharacterHandle target, float maxDistance, int index)
+    {
+        Vector2 direction = liveShooter.GetDirection(aim, index, shot.ProjectileCount);
+        var projectile = new ProjectileSpawnData(shot.BulletType, in hit, shot.Speed, shot.Lifetime, movement, shot.Traits,
+            maxDistance, Owner.Owner.Search);
+        return Services.Projectiles.SpawnBullet(in projectile, position, direction, target);
+    }
+
+    #endregion
+
+    #region Burst
+
+    /// <summary>Bắn các viên còn lại của lượt nối đuôi, từ vị trí hiện tại của chủ.</summary>
+    public override void Tick(float deltaTime)
+    {
+        if (burstData == null) return;
+        if (!Owner.CanRun) { ClearBurst(); return; }
+        burstTimer -= deltaTime;
+        while (burstData != null && burstTimer <= 0f)
+        {
+            Vector2 position = (Vector2)Owner.Owner.HitPosition + burstData.MuzzleOffset;
+            SpawnOne(burstData, in burstHit, position, burstAim, burstTarget, burstMaxDistance, burstNext);
+            burstNext++;
+            burstTimer += burstData.BurstInterval;
+            if (burstNext >= burstData.ProjectileCount)
+            {
+                liveShooter.OnShotCompleted();
+                ClearBurst();
+            }
+        }
+    }
+
+    public override void SetPaused(bool paused) { if (paused) ClearBurst(); }
+
+    public override void Dispose() => ClearBurst();
+
+    private void ClearBurst()
+    {
+        burstData = null;
+        burstHit = default;
+        burstTarget = default;
+        burstNext = 0;
+        burstTimer = 0f;
     }
 
     #endregion

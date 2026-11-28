@@ -38,6 +38,10 @@ public sealed class CombatManager :
     private readonly EffectSystem effects;
     private readonly CombatVfx vfx;
     private readonly SkillAreaVisuals areaVisuals;
+    private readonly CombatHits hits; // Nơi duy nhất skill gây đòn; đạn và hành vi skill dùng chung.
+    private readonly TimedBuffSystem buffs; // Buff chỉ số có thời hạn (khiên về tay, cộng dồn khi giết quái).
+    private readonly ImpactServices impacts; // Tác động phụ dùng chung (nổ, tách đạn, tạo vùng).
+    private readonly ZoneSystem zones; // Vùng trên đất (vũng lửa, nấm độc, bẫy, vùng thánh).
     private readonly ProjectileSystem projectiles;
     private readonly SkillFactory skillFactory;
     private readonly SkillSystem skills;
@@ -72,13 +76,21 @@ public sealed class CombatManager :
             effects = new EffectSystem(effectRuntimes);
             vfx = new CombatVfx(pools, combatAssets);
             areaVisuals = new SkillAreaVisuals();
-            // Đạn cần EffectSystem (áp effect khi trúng) và CombatVfx (phát VFX trúng đòn).
+            // CombatHits cần EffectSystem (áp effect khi trúng) và CombatVfx (phát VFX trúng đòn).
+            hits = new CombatHits(effects, vfx);
+            buffs = new TimedBuffSystem();
+            impacts = new ImpactServices(hits, vfx, buffs);
+            // Đạn gây đòn qua CombatHits khi trúng; tự gán mình vào impacts để tác động tách đạn bắn được đạn con.
             projectiles = new ProjectileSystem(pools, combatAssets, movementRegistration, movementCommand,
-                spatialResolution, spatialQuery, queryBuilder, effects, vfx);
-            // Hành vi skill cần ProjectileSystem để bắn, pool để thuê visual, EffectSystem để áp aura/slow
-            // và SkillAreaVisuals để visual vùng/lưỡi được tick.
-            skillFactory = new SkillFactory(new SkillServices(projectiles, pools, effects, areaVisuals));
+                spatialResolution, spatialQuery, queryBuilder, hits, impacts);
+            zones = new ZoneSystem(pools, areaVisuals, combatAssets.CirclePrefab, impacts);
+            impacts.Zones = zones;
+            // Hành vi skill cần ProjectileSystem để bắn, CombatHits để gây đòn trực tiếp (cưa…), pool để thuê visual,
+            // EffectSystem để áp aura/slow và SkillAreaVisuals để visual vùng/lưỡi được tick.
+            var services = new SkillServices(projectiles, hits, pools, effects, areaVisuals, impacts, combatAssets);
+            skillFactory = new SkillFactory(services);
             skills = new SkillSystem(skillFactory);
+            services.GameplaySkills = skills;
             // Tạo sau cùng: khi nhân vật chết/thu hồi, nó dọn cả skill gameplay (SkillSystem) và effect (EffectSystem).
             characterSkills = new CharacterSkillSystem(characters, characterDeaths, characterProgress, skillFactory, skills, effects);
         }
@@ -110,8 +122,10 @@ public sealed class CombatManager :
         if (disposed) return;
         float deltaTime = UnityEngine.Time.deltaTime;
         effects.Tick();
+        buffs.Tick(deltaTime);
         skills.Tick();
         characterSkills.Tick(deltaTime);
+        zones.Tick(deltaTime);
         projectiles.Tick();
     }
 
@@ -150,8 +164,10 @@ public sealed class CombatManager :
     {
         // Đạn trước: đạn đang bay có thể áp effect và phát VFX khi trúng, nên dừng nguồn sinh trước.
         projectiles.ClearProjectiles();
+        zones.Clear();
         // Skill vốn có tiếp theo: aura/cưa xoay đang giữ visual và effect duy trì.
         characterSkills.StopAll();
+        buffs.Clear();
         effects.ClearAll();
         vfx.ClearEffects();
     }
@@ -188,6 +204,7 @@ public sealed class CombatManager :
         disposed = true;
         DisposeSafely(characterSkills);
         DisposeSafely(skills);
+        DisposeSafely(zones);
         DisposeSafely(projectiles);
         DisposeSafely(vfx);
         DisposeSafely(effects);

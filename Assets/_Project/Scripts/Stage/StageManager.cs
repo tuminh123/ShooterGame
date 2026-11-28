@@ -56,7 +56,8 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         IMovementArena movementArena,
         ISpatialInvalidation spatialInvalidation,
         IRewardGrant rewardGrant, // Hai vai trò Progression đều do ProgressionManager implement (ProgressionContracts.cs).
-        IStageProgress stageProgress)
+        IStageProgress stageProgress,
+        IAudio audio)
     {
         Database = database != null ? database : throw new ArgumentNullException(nameof(database));
         stages = database.CreateLookup();
@@ -69,7 +70,7 @@ public sealed class StageManager : DomainManager, ITickable, ILateTickable, IDis
         waves = new WaveSpawnSystem(spawner);
         formations = new FormationSpawnSystem(spawner, playerReader, spatialInvalidation);
         boss = new BossSpawnSystem(spawner,
-            new BossArena(characterRegistry, playerReader, spawner, movementArena));
+            new BossArena(characterRegistry, playerReader, spawner, movementArena), audio);
 
         waves.SpawnScheduled += ForwardSpawnSchedule;
         boss.SpawnScheduled += ForwardSpawnSchedule;

@@ -1,0 +1,170 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: FlameRing
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Flame Ring
+  description: Fireballs orbit around you and burn enemies.
+  icon: {fileID: 21300000, guid: 89a258db56b398540ab7aeebf54c8fbf, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 fireballs, 60% damage, burn 10%/s for 2s, radius 0.5.
+    behaviours:
+    - rid: 3102418934778822844
+  - displayName: 
+    icon: {fileID: 0}
+    description: 3 fireballs.
+    behaviours:
+    - rid: 3102418934778822845
+  - displayName: 
+    icon: {fileID: 0}
+    description: 75% damage, radius 0.6.
+    behaviours:
+    - rid: 3102418934778822846
+  - displayName: 
+    icon: {fileID: 0}
+    description: 4 fireballs, burn lasts 3s.
+    behaviours:
+    - rid: 3102418934778822847
+  - displayName: Sun Wheel
+    icon: {fileID: 21300000, guid: 89a258db56b398540ab7aeebf54c8fbf, type: 3}
+    description: A solid ring of 12 fireballs, 40% damage, burn twice as strong.
+    behaviours:
+    - rid: 3102418934778822848
+  behaviourTypes: 02000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822844
+      type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 2785015859132345124, guid: 9ce01e36d92144a4196320b78bce8db6, type: 3}
+        bladeCount: 2
+        damagePercent: 60
+        orbitRadius: 0.5
+        bladeRadius: 0.07
+        degreesPerSecond: 150
+        hitInterval: 0.5
+        effects:
+        - rid: 3102418934778822849
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778822845
+      type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 2785015859132345124, guid: 9ce01e36d92144a4196320b78bce8db6, type: 3}
+        bladeCount: 3
+        damagePercent: 60
+        orbitRadius: 0.5
+        bladeRadius: 0.07
+        degreesPerSecond: 150
+        hitInterval: 0.5
+        effects:
+        - rid: 3102418934778822850
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778822846
+      type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 2785015859132345124, guid: 9ce01e36d92144a4196320b78bce8db6, type: 3}
+        bladeCount: 3
+        damagePercent: 75
+        orbitRadius: 0.6
+        bladeRadius: 0.07
+        degreesPerSecond: 150
+        hitInterval: 0.5
+        effects:
+        - rid: 3102418934778822851
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778822847
+      type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 2785015859132345124, guid: 9ce01e36d92144a4196320b78bce8db6, type: 3}
+        bladeCount: 4
+        damagePercent: 75
+        orbitRadius: 0.6
+        bladeRadius: 0.07
+        degreesPerSecond: 150
+        hitInterval: 0.5
+        effects:
+        - rid: 3102418934778822852
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778822848
+      type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 2785015859132345124, guid: 9ce01e36d92144a4196320b78bce8db6, type: 3}
+        bladeCount: 12
+        damagePercent: 40
+        orbitRadius: 0.6
+        bladeRadius: 0.08
+        degreesPerSecond: 120
+        hitInterval: 0.5
+        effects:
+        - rid: 3102418934778822853
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778822849
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778822850
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778822851
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778822852
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778822853
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 10
+        maxStacks: 1

@@ -35,6 +35,7 @@ public abstract class EffectRuntime : IPoolable
     /// <summary>Danh tính lượt spawn của mục tiêu; kiểm tra lại giữa các tick và sau callback sát thương.</summary>
     internal CharacterHandle Target;
     protected CharacterTeam SourceTeam; // Chốt phe nguồn lúc áp dụng; runtime không cần giữ người bắn.
+    internal float SourceDamage; // Damage của bên gây effect lúc trúng; effect theo % Damage dùng số này.
     internal double Remaining, TickElapsed; // Thời hạn và pha tick riêng của lượt effect này.
     internal bool Paused;
     internal EffectSystem Manager; // Bên duy nhất cập nhật và trả runtime về pool; handle so sánh để chặn handle của manager khác.
@@ -81,6 +82,7 @@ public abstract class EffectRuntime : IPoolable
         Identity = null;
         Target = default;
         SourceTeam = default;
+        SourceDamage = 0f;
         Remaining = TickElapsed = 0d;
         Paused = false;
         Manager = null;
@@ -150,6 +152,8 @@ public sealed class DamageOverTimeEffectRuntime : EffectRuntime
     #region Periodic Damage State
 
     internal float DamagePerTick; // Damage cố định mỗi nhịp, không tự nhân damage hiện tại của nguồn.
+    internal float DamagePercentPerTick; // % Damage của nguồn mỗi nhịp (chụp SourceDamage lúc trúng).
+    internal int Stacks = 1; // Số lớp cộng dồn hiện tại.
 
     #endregion
 
@@ -164,7 +168,8 @@ public sealed class DamageOverTimeEffectRuntime : EffectRuntime
         for (int index = 0; index < tickCount && IsActive && Target.TryGetCharacter(out CharacterView target); index++)
         {
             // Đi qua luồng damage chung để vẫn trừ giáp trước rồi mới trừ máu.
-            target.ReceiveDamage(new DamageInfo(DamagePerTick, SourceTeam));
+            float amount = (DamagePerTick + DamagePercentPerTick / 100f * SourceDamage) * Stacks;
+            if (amount > 0f) target.ReceiveDamage(new DamageInfo(amount, SourceTeam));
         }
     }
 
@@ -177,7 +182,64 @@ public sealed class DamageOverTimeEffectRuntime : EffectRuntime
 
     internal override void Reset()
     {
-        DamagePerTick = 0f;
+        DamagePerTick = DamagePercentPerTick = 0f;
+        Stacks = 1;
+        base.Reset();
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Runtime của choáng/đóng băng/dấu săn: giữ một modifier chỉ số và/hoặc một nguồn choáng trên mục tiêu cho tới khi bị gỡ.
+/// </summary>
+/// <remarks>Choáng = đứng yên (MoveSpeed −100%) + không đánh. Boss miễn nhiễm phần choáng.</remarks>
+public sealed class ControlEffectRuntime : EffectRuntime
+{
+    #region State
+
+    internal bool Stuns; // Có khóa đánh/đứng yên hay không.
+    internal StatModifier Modifier; // value 0 = không có modifier riêng.
+    private StatModifierLease modifier;
+    private StatModifierLease stunMove;
+    private bool stunned;
+
+    #endregion
+
+    #region Lifecycle
+
+    public override void Apply()
+    {
+        if (Modifier.value != 0f) Keep(ref modifier, Identity.Stats.AddSource(Modifier));
+        if (!Stuns || Owner.IsBoss || !IsActive || !Target.IsCurrent) return;
+        Identity.AddStun();
+        stunned = true;
+        Keep(ref stunMove, Identity.Stats.AddSource(new StatModifier(StatType.MoveSpeed, StatOperation.Percent, -100f)));
+    }
+
+    // AddSource phát Changed đồng bộ: callback có thể vừa dọn effect hoặc đổi lượt spawn.
+    private void Keep(ref StatModifierLease slot, StatModifierLease token)
+    {
+        if (!IsActive || !Target.IsCurrent) token.Dispose();
+        else slot = token;
+    }
+
+    public override void Remove()
+    {
+        StatModifierLease previousModifier = modifier, previousMove = stunMove;
+        modifier = stunMove = null;
+        // Lượt spawn đã kết thúc thì runtime nhân vật đã reset bộ đếm choáng; không trừ nhầm lượt mới.
+        if (stunned && Target.IsCurrent) Identity.RemoveStun();
+        stunned = false;
+        previousModifier?.Dispose();
+        previousMove?.Dispose();
+    }
+
+    internal override void Reset()
+    {
+        modifier = stunMove = null;
+        stunned = Stuns = false;
+        Modifier = default;
         base.Reset();
     }
 

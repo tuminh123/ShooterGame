@@ -21,3 +21,4 @@ MonoBehaviour:
     eliteHealthMultiplier: 2
   bossAppearanceCondition: 1
   arenaSize: {x: 5, y: 5}
+  bossMusic: 102

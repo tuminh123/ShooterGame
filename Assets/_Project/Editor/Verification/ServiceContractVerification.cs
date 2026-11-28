@@ -289,12 +289,15 @@ public static class ServiceContractVerification
     private static void CheckProjectile(DiContainer container, CharacterView player, CharacterView enemy)
     {
         float before = enemy.RuntimeData.CurrentHealth + enemy.RuntimeData.CurrentShield;
+        // Chỉ số tự tạo, không chí mạng: sát thương cố định nhỏ để mục tiêu chắc chắn còn sống.
+        BaseStats stats = default;
+        stats.damage = Mathf.Min(0.1f, before * 0.1f);
+        var payload = new HitPayload(default, stats, default, CharacterTeam.Player, 1f, Array.Empty<IGameplayEffect>());
         var data = new ProjectileSpawnData(container.Resolve<CombatAssetsSO>().BulletEntries[0].Type,
-            new DamageInfo(Mathf.Min(0.1f, before * 0.1f), CharacterTeam.Player), 50f, 1f,
-            new StraightProjectileMove(), Array.Empty<IGameplayEffect>(), 0f);
+            in payload, 50f, 1f, new StraightProjectileMove());
         Vector2 direction = (enemy.HitPosition - player.HitPosition).normalized;
         ProjectileSystem projectiles = GetManagerSystem<ICombatLifecycle, ProjectileSystem>(container, "projectiles");
-        Require(projectiles.SpawnBullet(data, player.HitPosition, direction, default),
+        Require(projectiles.SpawnBullet(in data, player.HitPosition, direction, default),
             "Projectile spawner failed.");
         ProjectileView projectile = UnityEngine.Object.FindObjectsOfType<ProjectileView>().Single();
         MethodInfo prepare = typeof(ProjectileView).GetMethod("PrepareQuery", BindingFlags.Instance | BindingFlags.NonPublic);

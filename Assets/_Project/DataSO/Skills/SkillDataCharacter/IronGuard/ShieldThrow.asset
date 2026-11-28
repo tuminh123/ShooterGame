@@ -1,0 +1,377 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: ShieldThrow
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Shield Throw
+  description: Throws a shield that ricochets between enemies and returns to your
+    hand.
+  icon: {fileID: 21300000, guid: fb6b1b4d5c703324ca18699afe920ccc, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Base] 130% damage, bounces through 3 enemies then returns. Cooldown
+      1.4s.'
+    behaviours:
+    - rid: 3102418934778823107
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 1] 145% damage.'
+    behaviours:
+    - rid: 3102418934778823108
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 2] Bounces through 4 enemies.'
+    behaviours:
+    - rid: 3102418934778823109
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 3] Stuns each enemy hit for 0.3s.'
+    behaviours:
+    - rid: 3102418934778823110
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 4] Cooldown 1.2s.'
+    behaviours:
+    - rid: 3102418934778823111
+  - displayName: Guardian Bulwark
+    icon: {fileID: 21300000, guid: 79c63ae2f57c40f479991572ce95582f, type: 3}
+    description: '[Star 5] Throws 2 shields; each returning shield grants +20% DEF
+      for 3s.'
+    behaviours:
+    - rid: 3102418934778823112
+  behaviourTypes: 01000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823107
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.4
+        damagePercent: 130
+        target:
+          rid: 3102418934778823113
+        shooter:
+          rid: 3102418934778823114
+        projectileMove:
+          rid: 3102418934778823115
+        bulletType: 8
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823108
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.4
+        damagePercent: 145
+        target:
+          rid: 3102418934778823116
+        shooter:
+          rid: 3102418934778823117
+        projectileMove:
+          rid: 3102418934778823118
+        bulletType: 8
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823109
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.4
+        damagePercent: 145
+        target:
+          rid: 3102418934778823119
+        shooter:
+          rid: 3102418934778823120
+        projectileMove:
+          rid: 3102418934778823121
+        bulletType: 8
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823110
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.4
+        damagePercent: 145
+        target:
+          rid: 3102418934778823122
+        shooter:
+          rid: 3102418934778823123
+        projectileMove:
+          rid: 3102418934778823124
+        bulletType: 8
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects:
+        - rid: 3102418934778823125
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823111
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 145
+        target:
+          rid: 3102418934778823126
+        shooter:
+          rid: 3102418934778823127
+        projectileMove:
+          rid: 3102418934778823128
+        bulletType: 8
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects:
+        - rid: 3102418934778823129
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823112
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 160
+        target:
+          rid: 3102418934778823130
+        shooter:
+          rid: 3102418934778823131
+        projectileMove:
+          rid: 3102418934778823132
+        bulletType: 8
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects:
+        - rid: 3102418934778823133
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 720
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823134
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0.08
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823113
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823114
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823115
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 2
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823116
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823117
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823118
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 2
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823119
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823120
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823121
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 3
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823122
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823123
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823124
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 3
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823125
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.3
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823126
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823127
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823128
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 3
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823129
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.3
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823130
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823131
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 40
+    - rid: 3102418934778823132
+      type: {class: RicochetMove, ns: , asm: Assembly-CSharp}
+      data:
+        bounces: 3
+        bounceRange: 0.55
+        returnToOwner: 1
+    - rid: 3102418934778823133
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.3
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823134
+      type: {class: BuffOwnerImpact, ns: , asm: Assembly-CSharp}
+      data:
+        modifier:
+          stat: 2
+          operation: 1
+          value: 20
+        seconds: 3

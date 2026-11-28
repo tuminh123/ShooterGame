@@ -15,6 +15,7 @@ public sealed class EffectRuntimePool
     private readonly Pool<SlowEffectRuntime> slowPool = new Pool<SlowEffectRuntime>(() => new SlowEffectRuntime());
     private readonly Pool<DamageOverTimeEffectRuntime> damageOverTimePool =
         new Pool<DamageOverTimeEffectRuntime>(() => new DamageOverTimeEffectRuntime());
+    private readonly Pool<ControlEffectRuntime> controlPool = new Pool<ControlEffectRuntime>(() => new ControlEffectRuntime());
 
     /// <summary>Số runtime làm chậm đang rảnh (kiểm tra và prewarm).</summary>
     public int AvailableSlow => slowPool.AvailableCount;
@@ -31,6 +32,9 @@ public sealed class EffectRuntimePool
 
     /// <summary>Thuê runtime sát thương theo thời gian (burn, poison).</summary>
     public DamageOverTimeEffectRuntime RentDamageOverTime() => damageOverTimePool.Rent();
+
+    /// <summary>Thuê runtime choáng/đóng băng/dấu săn.</summary>
+    public ControlEffectRuntime RentControl() => controlPool.Rent();
 
     #endregion
 
@@ -59,6 +63,7 @@ public sealed class EffectRuntimePool
         {
             case SlowEffectRuntime slow: returned = slowPool.Return(slow); break;
             case DamageOverTimeEffectRuntime damageOverTime: returned = damageOverTimePool.Return(damageOverTime); break;
+            case ControlEffectRuntime control: returned = controlPool.Return(control); break;
             default: throw new InvalidOperationException($"No runtime pool for {runtime.GetType().Name}.");
         }
         if (!returned) throw new InvalidOperationException("Effect runtime was returned twice or was not rented from this pool.");

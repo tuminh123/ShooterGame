@@ -58,12 +58,24 @@ public sealed class CombatAssetsSO : ScriptableObject
     [SerializeField] private BulletVisual[] bullets = Array.Empty<BulletVisual>();
     [Tooltip("Danh sách VFX theo EffectType; prefab phải có IEffectVisual trên root để báo hoàn tất và thu hồi về pool.")]
     [SerializeField] private EffectEntry[] effects = Array.Empty<EffectEntry>();
+    [Tooltip("Visual hình tròn đứng yên (vùng trên đất, báo vùng đòn từ trời, vòng sóng). SkillAreaVisual không bật Saw Blade, không có object con.")]
+    [SerializeField] private SkillAreaVisual circlePrefab;
+    [Tooltip("Visual đường thẳng (sét nảy, tia) có SkillLineVisual.")]
+    [SerializeField] private SkillLineVisual linePrefab;
+    [Tooltip("Vỏ hình pet (Summon): GameObject có SpriteRenderer; sprite lấy từ data của skill.")]
+    [SerializeField] private SpriteRenderer petPrefab;
     [Tooltip("Số VFX (impact) mới tối đa trong một frame; vượt thì bỏ qua (chỉ là hình, gameplay không đổi). 0 = không giới hạn.")]
     [SerializeField, Min(0)] private int maxNewEffectsPerFrame = 8;
     [Tooltip("Số VFX đang phát tối đa cùng lúc; vượt thì bỏ qua cái mới. Nên bằng tổng vỏ EffectView tạo sẵn để không Instantiate giữa trận. 0 = không giới hạn.")]
     [SerializeField, Min(0)] private int maxActiveEffects = 64;
 
     public ProjectileView BulletPrefab => bulletPrefab;
+    /// <summary>Visual hình tròn đứng yên (vùng, báo vùng, vòng sóng).</summary>
+    public SkillAreaVisual CirclePrefab => circlePrefab;
+    /// <summary>Visual đường thẳng (sét nảy, tia).</summary>
+    public SkillLineVisual LinePrefab => linePrefab;
+    /// <summary>Vỏ hình pet.</summary>
+    public SpriteRenderer PetPrefab => petPrefab;
     public EffectView EffectPrefab => effectPrefab;
     public IReadOnlyList<BulletVisual> BulletEntries => bullets;
     public IReadOnlyList<EffectEntry> EffectEntries => effects;

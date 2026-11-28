@@ -15,24 +15,82 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Toughness
-  description: While owned, grants +2 maximum DEF (shield capacity) and +2 current
-    shield once. Existing shield loss is preserved. This passive does not regenerate
-    depleted shield over time.
-  icon: {fileID: 21300000, guid: 9b48aebbded0f48c782d54dd6078bd7a, type: 3}
+  description: Increases DEF (shield capacity).
+  icon: {fileID: 21300000, guid: af278c5ef5de64c49844923884deae21, type: 3}
   shootingVisualState: 3
   levels:
-  - description: While owned, grants +2 maximum DEF (shield capacity) and +2 current
-      shield once. Existing shield loss is preserved. This passive does not regenerate
-      depleted shield over time.
+  - displayName: 
+    icon: {fileID: 0}
+    description: +4 DEF.
     behaviours:
-    - rid: 1002
-  behaviourTypes: 06000000
+    - rid: 3102418934778823455
+  - displayName: 
+    icon: {fileID: 0}
+    description: +8 DEF.
+    behaviours:
+    - rid: 3102418934778823456
+  - displayName: 
+    icon: {fileID: 0}
+    description: +12 DEF.
+    behaviours:
+    - rid: 3102418934778823457
+  - displayName: 
+    icon: {fileID: 0}
+    description: +16 DEF.
+    behaviours:
+    - rid: 3102418934778823458
+  - displayName: 
+    icon: {fileID: 0}
+    description: +20 DEF; DEF regenerates 1/s after 3s without being hit.
+    behaviours:
+    - rid: 3102418934778823459
+    - rid: 3102418934778823460
+  behaviourTypes: 060000000f000000
   references:
     version: 2
     RefIds:
-    - rid: 1002
+    - rid: 3102418934778823455
       type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
       data:
         stat: 2
         operation: 0
-        value: 2
+        value: 4
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823456
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 2
+        operation: 0
+        value: 8
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823457
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 2
+        operation: 0
+        value: 12
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823458
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 2
+        operation: 0
+        value: 16
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823459
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 2
+        operation: 0
+        value: 20
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823460
+      type: {class: ShieldRegenData, ns: , asm: Assembly-CSharp}
+      data:
+        delay: 3
+        perSecond: 1

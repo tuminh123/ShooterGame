@@ -21,6 +21,9 @@ public sealed class FrostAuraSkill : Skill
     private bool paused; // Pause phải gỡ slow duy trì.
     private bool disposed; // Cleanup một lần.
     private int revision; // Chặn vòng Tick cũ sau callback thay data.
+    private IGameplayEffect[] tickSnapshot; // Effect của nhịp đánh.
+    private IGameplayEffect[] pulseSnapshot; // Effect của lần nổ.
+    private float damageTimer, pulseTimer; // Đếm nhịp đánh và nhịp nổ.
     public override SkillBehaviourType Type => SkillBehaviourType.SlowAura;
 
     #endregion
@@ -45,6 +48,9 @@ public sealed class FrostAuraSkill : Skill
         visual = null;
         radius = 0f;
         revision = 0;
+        if (tickSnapshot == null) tickSnapshot = Array.Empty<IGameplayEffect>();
+        if (pulseSnapshot == null) pulseSnapshot = Array.Empty<IGameplayEffect>();
+        damageTimer = pulseTimer = 0f;
         paused = disposed = false;
     }
 
@@ -64,6 +70,9 @@ public sealed class FrostAuraSkill : Skill
         slowEffect = new SlowEffect(next.SlowFraction);
         radius = next.Radius;
         effectSnapshot = SnapshotEffects(effectSnapshot, next.Effects);
+        tickSnapshot = SnapshotEffects(tickSnapshot, next.TickEffects);
+        pulseSnapshot = SnapshotEffects(pulseSnapshot, next.PulseEffects);
+        if (pulseTimer <= 0f) pulseTimer = next.PulseInterval;
         if (visual != null) visual.SetRadius(radius);
     }
 
@@ -85,6 +94,9 @@ public sealed class FrostAuraSkill : Skill
             for (int i = 0; i < found && StillValid(tickRevision); i++)
                 TryEnterAura(targets[i], tickRevision);
             RemoveTargetsThatLeft();
+            if (StillValid(tickRevision)) Heal(deltaTime);
+            if (StillValid(tickRevision) && data.DamageMultiplier > 0f) DamageTick(found, deltaTime, tickRevision);
+            if (StillValid(tickRevision) && data.PulseInterval > 0f) Pulse(found, deltaTime, tickRevision);
         }
         finally
         {
@@ -130,6 +142,57 @@ public sealed class FrostAuraSkill : Skill
             if (!Owner.CanRun || disposed || tickRevision != revision) break;
             Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
         }
+    }
+
+    // Hồi máu cho chủ; HP đầy thì phần thừa thành giáp tới mức trần.
+    private void Heal(float deltaTime)
+    {
+        if (data.HealPercentPerSecond <= 0f) return;
+        CharacterRuntimeData runtime = Owner.Identity;
+        float amount = runtime.MaxHealth * data.HealPercentPerSecond / 100f * deltaTime;
+        float missing = runtime.MaxHealth - runtime.CurrentHealth;
+        if (missing > 0f) Owner.Owner.Restore(Mathf.Min(amount, missing));
+        float overflow = amount - missing;
+        float cap = runtime.MaxHealth * data.OverhealShieldPercent / 100f;
+        if (overflow > 0f && cap > 0f && runtime.CurrentShield < cap)
+            Owner.Owner.GrantShield(Mathf.Min(overflow, cap - runtime.CurrentShield));
+    }
+
+    // Nhịp đánh: mọi đối thủ trong vùng, hoặc N đối thủ ngẫu nhiên (giật sét kèm đường sét).
+    private void DamageTick(int found, float deltaTime, int tickRevision)
+    {
+        damageTimer -= deltaTime;
+        if (damageTimer > 0f) return;
+        damageTimer += data.TickInterval;
+        if (damageTimer <= 0f) damageTimer = data.TickInterval;
+        var hit = new HitPayload(Owner.Handle, Owner.Identity.FinalStats, Owner.Identity.FinalBonuses, Owner.Identity.Team,
+            data.DamageMultiplier, tickSnapshot);
+        int picks = data.TargetsPerTick > 0 ? Mathf.Min(data.TargetsPerTick, found) : found;
+        Vector3 from = Owner.Owner.HitPosition;
+        for (int i = 0; i < picks && StillValid(tickRevision); i++)
+        {
+            int pick = data.TargetsPerTick > 0 ? UnityEngine.Random.Range(i, found) : i;
+            CharacterHandle chosen = targets[pick];
+            targets[pick] = targets[i];
+            targets[i] = chosen;
+            if (!chosen.TryGetCharacter(out CharacterView victim)) continue;
+            if (data.ZapLine) Services.Vfx.SpawnLine(from, victim.HitPosition, new Color(0.55f, 0.85f, 1f, 1f), 0.03f, 0.15f);
+            Services.Hits.Apply(chosen, in hit, victim.HitPosition, data.TickVfx);
+        }
+    }
+
+    // Nổ theo nhịp quanh chủ: đánh mọi đối thủ trong vùng (đóng băng, đẩy lùi…).
+    private void Pulse(int found, float deltaTime, int tickRevision)
+    {
+        pulseTimer -= deltaTime;
+        if (pulseTimer > 0f) return;
+        pulseTimer = data.PulseInterval;
+        Services.Vfx.Spawn(data.PulseVfx, Owner.Owner.HitPosition);
+        var hit = new HitPayload(Owner.Handle, Owner.Identity.FinalStats, Owner.Identity.FinalBonuses, Owner.Identity.Team,
+            data.PulseDamageMultiplier, pulseSnapshot, data.PulseKnockback);
+        for (int i = 0; i < found && StillValid(tickRevision); i++)
+            if (targets[i].TryGetCharacter(out CharacterView victim))
+                Services.Hits.Apply(targets[i], in hit, victim.HitPosition);
     }
 
     // Gỡ slow của mục tiêu không còn trong vùng hoặc đã bị thu hồi.

@@ -86,10 +86,12 @@ public sealed class LootSystem : IDisposable
     /// Nhặt mọi vật phẩm trong bán kính quanh <paramref name="playerPosition"/>.
     /// Phải chạy sau khi movement đã áp vị trí mới trong frame (LateTick).
     /// </summary>
-    public void Collect(Vector2 playerPosition)
+    /// <param name="radiusMultiplier">Hệ số nhân bán kính nhặt của database (1 = như cấu hình; bonus PickupRange của Player).</param>
+    public void Collect(Vector2 playerPosition, float radiusMultiplier = 1f)
     {
         if (disposed) return;
-        float radiusSquared = database.PickupRadius * database.PickupRadius;
+        float radius = database.PickupRadius * Mathf.Max(0f, radiusMultiplier);
+        float radiusSquared = radius * radius;
         int startVersion = version;
         for (int index = pickups.Count - 1; index >= 0; index--)
         {

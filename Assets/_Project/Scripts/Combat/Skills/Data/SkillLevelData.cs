@@ -9,11 +9,19 @@ using UnityEngine;
 [Serializable]
 public sealed class SkillLevelData
 {
+    [Tooltip("Tên riêng của cấp (tiến hóa Lv5: Inferno Orb…). Để trống = tên chung của skill.")]
+    [SerializeField] private string displayName;
+    [Tooltip("Icon riêng của cấp (tiến hóa). Để trống = icon chung của skill.")]
+    [SerializeField] private Sprite icon;
     [Tooltip("Mô tả hiển thị khi skill đạt cấp này; để trống sẽ dùng mô tả chung của skill.")]
     [SerializeField, TextArea] private string description; // Mô tả cấp này.
     [Tooltip("Thông số của các hành vi được bật ở cấp này. Bỏ một entry để hành vi chưa mở ở cấp này.")]
     [SerializeReference] private SkillBehaviourData[] behaviours = Array.Empty<SkillBehaviourData>(); // Các loại có mặt tại cấp này mới được mở.
     public string Description => description;
+    /// <summary>Tên riêng của cấp; rỗng = dùng tên chung.</summary>
+    public string DisplayName => displayName;
+    /// <summary>Icon riêng của cấp; null = dùng icon chung.</summary>
+    public Sprite Icon => icon;
     // Trả thẳng mảng qua IReadOnlyList (không bọc ReadOnlyCollection): được đọc mỗi lần spawn khi skill áp cấp.
     // Giữ null để Validate của skill báo lỗi cấu hình thay vì giả là danh sách rỗng.
     public IReadOnlyList<SkillBehaviourData> Behaviours => behaviours;

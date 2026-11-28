@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: Executioner
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Executioner
+  description: Increases Crit damage.
+  icon: {fileID: 21300000, guid: e3bf1825ff9168b4da704d005962a109, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: +15% Crit damage.
+    behaviours:
+    - rid: 3102418934778823023
+  - displayName: 
+    icon: {fileID: 0}
+    description: +30% Crit damage.
+    behaviours:
+    - rid: 3102418934778823024
+  - displayName: 
+    icon: {fileID: 0}
+    description: +45% Crit damage.
+    behaviours:
+    - rid: 3102418934778823025
+  - displayName: 
+    icon: {fileID: 0}
+    description: +60% Crit damage.
+    behaviours:
+    - rid: 3102418934778823026
+  - displayName: 
+    icon: {fileID: 0}
+    description: +75% Crit damage; normal enemies below 15% HP are executed.
+    behaviours:
+    - rid: 3102418934778823027
+  behaviourTypes: 06000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823023
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 5
+        operation: 0
+        value: 15
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823024
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 5
+        operation: 0
+        value: 30
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823025
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 5
+        operation: 0
+        value: 45
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823026
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 5
+        operation: 0
+        value: 60
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823027
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 5
+        operation: 0
+        value: 75
+        extraModifiers:
+        - stat: 101
+          operation: 0
+          value: 15
+        restorePercentOnApply: 0

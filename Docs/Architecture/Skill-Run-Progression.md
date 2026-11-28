@@ -60,8 +60,8 @@ visual hoặc state nội bộ đã được thay đổi trước lỗi.
 
 ## Character và gameplay
 
-HolyBolt đang gắn cho BlessedGladiator là nguồn Character, không nằm trong
-SkillDatabase gameplay. EnemyNormalAttack và hai skill boss cũng là Character.
+Skill tướng (Judgment Hammer, Piercing Arrow…, xem [Skill-Design.md](Skill-Design.md)) là nguồn Character,
+không nằm trong SkillDatabase gameplay. EnemyNormalAttack và hai skill boss cũng là Character.
 CharacterDataSO trực tiếp tham chiếu các definition vốn có; GUID được giữ khi
 di chuyển asset.
 
@@ -69,7 +69,7 @@ di chuyển asset.
 - Character/Equipment: bắt đầu theo Level config, không được nâng bằng lượt thưởng.
 - SkillDatabase chỉ chấp nhận nguồn Gameplay; bộ roll cũng lọc nguồn để phòng
   caller truyền nhầm catalog.
-- Nếu sau này muốn một phiên bản HolyBolt nhận trong màn, tạo asset Gameplay riêng,
+- Skill tướng và skill trong trận là hai asset riêng, không trùng cơ chế; muốn dùng lại thì tạo asset Gameplay riêng,
   không dùng chung definition của nhân vật.
 - Hệ nâng cấp/lưu skill ở Home chưa được triển khai. Level config là giá trị
   khởi tạo hiện tại, không phải một hệ save mới.
@@ -105,8 +105,8 @@ Scripts/Combat/Skills/Data chứa cấu hình từng loại và SkillLevelData.
 Scripts/Combat/Skills/Behaviours chứa phần thực thi.
 Các class điều phối, ISkill và abstract Skill nằm ở gốc Scripts/Combat/Skills.
 
-DataSO/Skills/SkillDataGameplay chứa 8 skill nhận trong màn.
-DataSO/Skills/SkillDataCharacter/BlessedGladiator chứa HolyBolt.
+DataSO/Skills/SkillDataGameplay chứa 31 skill nhận trong màn.
+DataSO/Skills/SkillDataCharacter/<Tướng> chứa skill chủ động (6 cấp theo sao) và bị động của từng tướng.
 DataSO/Skills/SkillDataCharacter/ForagingMaggot chứa EnemyNormalAttack.
 DataSO/Skills/SkillDataCharacter/Boss chứa hai skill boss.
 

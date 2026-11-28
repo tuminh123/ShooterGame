@@ -49,6 +49,12 @@ public interface ICharacterController : IDisposable
     /// <summary>Cấp thêm giáp (tăng cả max và current).</summary>
     void GrantShield(CharacterView view, CharacterRuntimeData runtime, float amount);
 
+    /// <summary>Hồi HP/giáp đã mất, không vượt max (hút máu, vùng hồi máu, hồi giáp).</summary>
+    void Restore(CharacterView view, CharacterRuntimeData runtime, float health, float shield);
+
+    /// <summary>Bị skill đẩy/kéo một quãng theo hướng cho trước; controller không hỗ trợ thì bỏ qua.</summary>
+    void Push(CharacterView view, Vector2 direction, float distance, float duration);
+
     #endregion
 
     #region Feedback

@@ -30,11 +30,11 @@ internal sealed class ProjectileContext
     /// <summary>Đăng ký đạn để cập nhật chung một vòng, và trả vỏ đạn về pool (kèm thu hồi visual con trước).</summary>
     public ProjectileSystem Projectiles { get; }
 
-    /// <summary>Áp effect gameplay của đạn lên mục tiêu khi trúng.</summary>
-    public EffectSystem Effects { get; }
+    /// <summary>Gây đòn khi trúng: sát thương, effect và VFX trúng đòn (nơi duy nhất, dùng chung với mọi skill).</summary>
+    public CombatHits Hits { get; }
 
-    /// <summary>Phát VFX trúng đòn.</summary>
-    public CombatVfx Vfx { get; }
+    /// <summary>Tác động phụ của đạn (nổ, tách, vùng…).</summary>
+    public ImpactServices Impacts { get; }
 
     #endregion
 
@@ -46,16 +46,16 @@ internal sealed class ProjectileContext
         ISpatialQueryBuilder queryBuilder,
         IGameObjectPool pools,
         ProjectileSystem projectiles,
-        EffectSystem effects,
-        CombatVfx vfx)
+        CombatHits hits,
+        ImpactServices impacts)
     {
+        Impacts = impacts;
         MovementRegistration = movementRegistration;
         MovementCommand = movementCommand;
         QueryBuilder = queryBuilder;
         Pools = pools;
         Projectiles = projectiles;
-        Effects = effects;
-        Vfx = vfx;
+        Hits = hits;
     }
 
     #endregion

@@ -23,7 +23,7 @@ public sealed class AudioDatabaseSO : ScriptableObject
         [SerializeField] private AudioClip[] clips;
         [Tooltip("Âm lượng của riêng entry này (cân giữa các file), 0..1.")]
         [SerializeField, Range(0f, 1f)] private float volume;
-        [Tooltip("Phát lặp tới khi gọi Stop (âm aura, tia...). Music luôn lặp.")]
+        [Tooltip("Phát lặp tới khi gọi Stop (âm aura, tia...). Music: bật cho nhạc nền, tắt cho đoạn nhạc ngắn phát một lần (Victory/Defeat).")]
         [SerializeField] private bool loop;
         [Tooltip("Khoảng tối thiểu (giây, thời gian thật) giữa hai lần phát cùng id; chống rè khi nhiều quái cùng chết. 0 = không giới hạn.")]
         [SerializeField, Min(0f)] private float minInterval;

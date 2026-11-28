@@ -1,0 +1,195 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: BladeSlash
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Blade Slash
+  description: "Slashes a 120\xB0 arc toward the nearest enemy."
+  icon: {fileID: 21300000, guid: f2ed76862dd262046bd8bdf50757ee83, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: "120\xB0 arc, reach 0.4, 150% damage."
+    behaviours:
+    - rid: 3102418934778822967
+  - displayName: 
+    icon: {fileID: 0}
+    description: Reach 0.5.
+    behaviours:
+    - rid: 3102418934778822968
+  - displayName: 
+    icon: {fileID: 0}
+    description: "180% damage, 150\xB0 arc."
+    behaviours:
+    - rid: 3102418934778822969
+  - displayName: 
+    icon: {fileID: 0}
+    description: Slashes front and back.
+    behaviours:
+    - rid: 3102418934778822970
+  - displayName: Blade Dance
+    icon: {fileID: 21300000, guid: 81ad6325a383887478adc4e402f36805, type: 3}
+    description: Slashes in 4 directions at once, 160% damage each.
+    behaviours:
+    - rid: 3102418934778822971
+  behaviourTypes: 0b000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822967
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 150
+        target:
+          rid: 3102418934778822972
+        requiresTarget: 1
+        radius: 0.4
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 120
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.25
+        pullRadius: 0
+        pullDistance: 0.3
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        slashVfx: 6
+        ringColor: {r: 1, g: 0.9, b: 0.5, a: 0.35}
+        onFinish: []
+    - rid: 3102418934778822968
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 150
+        target:
+          rid: 3102418934778822973
+        requiresTarget: 1
+        radius: 0.5
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 120
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.25
+        pullRadius: 0
+        pullDistance: 0.3
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        slashVfx: 6
+        ringColor: {r: 1, g: 0.9, b: 0.5, a: 0.35}
+        onFinish: []
+    - rid: 3102418934778822969
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 180
+        target:
+          rid: 3102418934778822974
+        requiresTarget: 1
+        radius: 0.5
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 150
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.25
+        pullRadius: 0
+        pullDistance: 0.3
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        slashVfx: 6
+        ringColor: {r: 1, g: 0.9, b: 0.5, a: 0.35}
+        onFinish: []
+    - rid: 3102418934778822970
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 180
+        target:
+          rid: 3102418934778822975
+        requiresTarget: 1
+        radius: 0.5
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 150
+        directions: 2
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.25
+        pullRadius: 0
+        pullDistance: 0.3
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        slashVfx: 6
+        ringColor: {r: 1, g: 0.9, b: 0.5, a: 0.35}
+        onFinish: []
+    - rid: 3102418934778822971
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 160
+        target:
+          rid: 3102418934778822976
+        requiresTarget: 1
+        radius: 0.55
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 120
+        directions: 4
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.25
+        pullRadius: 0
+        pullDistance: 0.3
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        slashVfx: 6
+        ringColor: {r: 1, g: 0.9, b: 0.5, a: 0.35}
+        onFinish: []
+    - rid: 3102418934778822972
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822973
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822974
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822975
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822976
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 

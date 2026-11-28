@@ -62,7 +62,10 @@ MonoBehaviour:
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 1.5
+        damagePercent: 100
         range: 2
+        target:
+          rid: 3102418934778822661
         shooter:
           rid: 1003
         projectileMove:
@@ -86,7 +89,10 @@ MonoBehaviour:
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 1.5
+        damagePercent: 100
         range: 2
+        target:
+          rid: 3102418934778822662
         shooter:
           rid: 1003
         projectileMove:
@@ -110,7 +116,10 @@ MonoBehaviour:
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 1.5
+        damagePercent: 100
         range: 2
+        target:
+          rid: 3102418934778822663
         shooter:
           rid: 1003
         projectileMove:
@@ -134,7 +143,10 @@ MonoBehaviour:
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 1.5
+        damagePercent: 100
         range: 2
+        target:
+          rid: 3102418934778822664
         shooter:
           rid: 1003
         projectileMove:
@@ -158,7 +170,10 @@ MonoBehaviour:
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
         cooldown: 1.5
+        damagePercent: 100
         range: 2
+        target:
+          rid: 3102418934778822665
         shooter:
           rid: 1003
         projectileMove:
@@ -178,3 +193,23 @@ MonoBehaviour:
         stat: 1
         operation: 0
         value: 10
+    - rid: 3102418934778822661
+      type: {class: FixedDirection, ns: , asm: Assembly-CSharp}
+      data:
+        direction: {x: 1, y: 0}
+    - rid: 3102418934778822662
+      type: {class: FixedDirection, ns: , asm: Assembly-CSharp}
+      data:
+        direction: {x: 1, y: 0}
+    - rid: 3102418934778822663
+      type: {class: FixedDirection, ns: , asm: Assembly-CSharp}
+      data:
+        direction: {x: 1, y: 0}
+    - rid: 3102418934778822664
+      type: {class: FixedDirection, ns: , asm: Assembly-CSharp}
+      data:
+        direction: {x: 1, y: 0}
+    - rid: 3102418934778822665
+      type: {class: FixedDirection, ns: , asm: Assembly-CSharp}
+      data:
+        direction: {x: 1, y: 0}

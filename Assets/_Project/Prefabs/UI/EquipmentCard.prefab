@@ -146,6 +146,7 @@ GameObject:
   - component: {fileID: 5162057513041586699}
   - component: {fileID: 4254312179241790966}
   - component: {fileID: 2509077898736502253}
+  - component: {fileID: 5729122916530964876}
   m_Layer: 0
   m_Name: EquipmentCard
   m_TagString: Untagged
@@ -266,6 +267,19 @@ MonoBehaviour:
   emptyIcon: {fileID: 1757581204980407274}
   emptyBackground: {r: 0.25, g: 0.27, b: 0.33, a: 1}
   emptyBorder: {r: 0.45, g: 0.48, b: 0.56, a: 1}
+--- !u!114 &5729122916530964876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1938257855994371567}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3972d9218d364e4783d94dbc5c009c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sound: 1
 --- !u!1 &2420756848023859952
 GameObject:
   m_ObjectHideFlags: 0

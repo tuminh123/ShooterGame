@@ -538,8 +538,9 @@ public sealed class CharacterScreenController : UIPanelController
     private SkillSlotModel BuildUnlockedSlot(SkillDataSO skill, int skillLevel)
     {
         string label = string.Format(CultureInfo.InvariantCulture, skillLevelFormat, skillLevel);
-        var info = new InfoPopupModel(skill.Icon, skill.DisplayName, label, true, skill.GetLevelDescription(skillLevel));
-        return new SkillSlotModel(skill.Icon, true, label, info);
+        var info = new InfoPopupModel(skill.GetIcon(skillLevel), skill.GetDisplayName(skillLevel), label, true,
+            skill.GetLevelDescription(skillLevel));
+        return new SkillSlotModel(skill.GetIcon(skillLevel), true, label, info);
     }
 
     // Skill còn khóa: nhãn là điều kiện mở; popup hiện điều kiện + mô tả cấp 1 để người chơi biết sẽ nhận gì.

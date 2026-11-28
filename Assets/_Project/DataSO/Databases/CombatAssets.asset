@@ -40,6 +40,56 @@ MonoBehaviour:
     impactEffect: 1
     hitRadius: 0.022210669
     hitOffset: {x: 0, y: 0}
+  - type: 5
+    visualPrefab: {fileID: 3220379534231587001, guid: 2389942ecebf6a14096077d7e029fbee, type: 3}
+    impactEffect: 6
+    hitRadius: 0.02
+    hitOffset: {x: 0, y: 0}
+  - type: 6
+    visualPrefab: {fileID: 430526127745990039, guid: ac5a9045393b3e543b03beb9eec19f32, type: 3}
+    impactEffect: 6
+    hitRadius: 0.03
+    hitOffset: {x: 0, y: 0}
+  - type: 7
+    visualPrefab: {fileID: 6478607086724498027, guid: e9f4949992de20441824ca1cde869174, type: 3}
+    impactEffect: 6
+    hitRadius: 0.045
+    hitOffset: {x: 0, y: 0}
+  - type: 8
+    visualPrefab: {fileID: 5021764749638193645, guid: fb9543069fea9d34a8784293b59c532e, type: 3}
+    impactEffect: 6
+    hitRadius: 0.045
+    hitOffset: {x: 0, y: 0}
+  - type: 9
+    visualPrefab: {fileID: 175616123222023571, guid: c7e988d4d2fc0cc4184e02bd105b3f75, type: 3}
+    impactEffect: 6
+    hitRadius: 0.018
+    hitOffset: {x: 0, y: 0}
+  - type: 10
+    visualPrefab: {fileID: 7028616932715736029, guid: 7f752c1dccc94dd4c819b206a9a85923, type: 3}
+    impactEffect: 0
+    hitRadius: 0.03
+    hitOffset: {x: 0, y: 0}
+  - type: 11
+    visualPrefab: {fileID: 4088245634187509910, guid: c1edc42741ee2794185db11467eae6ac, type: 3}
+    impactEffect: 6
+    hitRadius: 0.04
+    hitOffset: {x: 0, y: 0}
+  - type: 12
+    visualPrefab: {fileID: 1141239420020085222, guid: cc258f35b074da3498e84e7f268a449d, type: 3}
+    impactEffect: 0
+    hitRadius: 0.04
+    hitOffset: {x: 0, y: 0}
+  - type: 13
+    visualPrefab: {fileID: 977664126498229335, guid: 9d6b9ed71a045b14aa642b2ccf38aaf7, type: 3}
+    impactEffect: 2
+    hitRadius: 0.08
+    hitOffset: {x: 0, y: 0}
+  - type: 14
+    visualPrefab: {fileID: 1662464265281183706, guid: 6180bffb337750a4c8489d23d6e5d877, type: 3}
+    impactEffect: 4
+    hitRadius: 0.016
+    hitOffset: {x: 0, y: 0}
   effects:
   - type: 1
     visualPrefab: {fileID: 8163383315606750604, guid: b05598beeeee86045923b9e4849f138b, type: 3}
@@ -49,5 +99,12 @@ MonoBehaviour:
     visualPrefab: {fileID: 3508274302138787341, guid: 51b7249fe36c9ef41820d6b7a8766f96, type: 3}
   - type: 3
     visualPrefab: {fileID: 3398050770845595974, guid: d2f4c5802a20afc43b4337542cfd5742, type: 3}
+  - type: 5
+    visualPrefab: {fileID: 8163383315606750604, guid: b05598beeeee86045923b9e4849f138b, type: 3}
+  - type: 6
+    visualPrefab: {fileID: 3398050770845595974, guid: d2f4c5802a20afc43b4337542cfd5742, type: 3}
+  circlePrefab: {fileID: 1927911783812735965, guid: da4ad17fd6a4eda4bbb454f62c5d77a6, type: 3}
+  linePrefab: {fileID: 7582779497811038644, guid: 1538fdcc36f3da74097a0507a828b32c, type: 3}
+  petPrefab: {fileID: 2395203372302363824, guid: 243379f243e191b4e930fd18f352977c, type: 3}
   maxNewEffectsPerFrame: 8
   maxActiveEffects: 64

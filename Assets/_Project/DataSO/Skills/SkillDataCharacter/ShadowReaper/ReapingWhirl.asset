@@ -1,0 +1,230 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: ReapingWhirl
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Reaping Whirl
+  description: Spins the scythe around you and drains life.
+  icon: {fileID: 21300000, guid: d97e565a788b6044daaae4574bee8f96, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Base] Spin radius 0.45, 120% damage, 5% life steal. Cooldown 1.0s.'
+    behaviours:
+    - rid: 3102418934778823303
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 1] 135% damage.'
+    behaviours:
+    - rid: 3102418934778823304
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 2] Radius 0.55.'
+    behaviours:
+    - rid: 3102418934778823305
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 3] Pulls enemies within 0.8 toward you before the spin.'
+    behaviours:
+    - rid: 3102418934778823306
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 4] 8% life steal, cooldown 0.9s.'
+    behaviours:
+    - rid: 3102418934778823307
+  - displayName: Death's Embrace
+    icon: {fileID: 21300000, guid: a4d01bc6da825cc438f625545f255c69, type: 3}
+    description: '[Star 5] Spins 3 times in a row (100% each), strong pull, 12% life
+      steal.'
+    behaviours:
+    - rid: 3102418934778823308
+  behaviourTypes: 0b000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823303
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 120
+        target:
+          rid: 3102418934778823309
+        requiresTarget: 1
+        radius: 0.45
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.2
+        pullRadius: 0
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 5
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823304
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 135
+        target:
+          rid: 3102418934778823310
+        requiresTarget: 1
+        radius: 0.45
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.2
+        pullRadius: 0
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 5
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823305
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 135
+        target:
+          rid: 3102418934778823311
+        requiresTarget: 1
+        radius: 0.55
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.2
+        pullRadius: 0
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 5
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823306
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 135
+        target:
+          rid: 3102418934778823312
+        requiresTarget: 1
+        radius: 0.55
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.2
+        pullRadius: 0.8
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 5
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823307
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 0.9
+        damagePercent: 135
+        target:
+          rid: 3102418934778823313
+        requiresTarget: 1
+        radius: 0.55
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 1
+        waveInterval: 0.2
+        pullRadius: 0.8
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 8
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823308
+      type: {class: SlashData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.1
+        damagePercent: 100
+        target:
+          rid: 3102418934778823314
+        requiresTarget: 1
+        radius: 0.6
+        radiusFromCombatRange: 0
+        radiusScale: 1
+        arcDegrees: 360
+        directions: 1
+        expandDuration: 0
+        waves: 3
+        waveInterval: 0.2
+        pullRadius: 1
+        pullDistance: 0.35
+        effects: []
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 12
+        slashVfx: 6
+        ringColor: {r: 0.6, g: 0.3, b: 0.9, a: 0.4}
+        onFinish: []
+    - rid: 3102418934778823309
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823310
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823311
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823312
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823313
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823314
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 

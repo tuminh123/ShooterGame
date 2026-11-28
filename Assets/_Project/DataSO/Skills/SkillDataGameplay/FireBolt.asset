@@ -15,57 +15,51 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Fire Bolt
-  description: Automatically fires the configured projectile pattern.
-  icon: {fileID: 21300000, guid: cff137be7b1cc43e29d430220047f3bb, type: 3}
+  description: Fires a bolt at the nearest enemy that explodes and burns.
+  icon: {fileID: 21300000, guid: 9cc1bff2607a97b409885ed0e7e1d76d, type: 3}
   shootingVisualState: 3
   levels:
-  - description: Fire 1 bolts that apply burn to enemies.
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 bolt, 80% damage, explodes (0.25) and burns 10%/s for 2s.
     behaviours:
-    - rid: 1006
-    - rid: 1007
-  - description: Fire 2 bolts that apply burn to enemies.
+    - rid: 3102418934778823418
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 bolts.
     behaviours:
-    - rid: 1008
-    - rid: 1009
-  - description: Fire 3 bolts that apply burn to enemies.
+    - rid: 3102418934778823419
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 bolts, 100% damage, explosion 0.3.
     behaviours:
-    - rid: 1010
-    - rid: 1011
-  - description: Fire 4 bolts that apply burn to enemies.
+    - rid: 3102418934778823420
+  - displayName: 
+    icon: {fileID: 0}
+    description: 3 bolts, burn lasts 3s.
     behaviours:
-    - rid: 1012
-    - rid: 1013
-  - description: Fire 5 bolts that apply burn to enemies.
+    - rid: 3102418934778823421
+  - displayName: Inferno Orb
+    icon: {fileID: 21300000, guid: 8f233fce730718e4fb339cf380689968, type: 3}
+    description: 3 large orbs, 130% damage, explosion 0.4, leave a burning pool for
+      2s.
     behaviours:
-    - rid: 1014
-    - rid: 1015
-  behaviourTypes: 0100000006000000
+    - rid: 3102418934778823422
+  behaviourTypes: 01000000
   references:
     version: 2
     RefIds:
-    - rid: 1002
-      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
-      data: 
-    - rid: 1003
-      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
-      data: 
-    - rid: 1004
-      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
-      data:
-        duration: 3
-        applicationChance: 100
-        useEffectStats: 1
-        tickInterval: 1
-        damagePerTick: 2
-    - rid: 1006
+    - rid: 3102418934778823418
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 0.8
-        range: 2
+        cooldown: 1.2
+        damagePercent: 80
+        target:
+          rid: 3102418934778823423
         shooter:
-          rid: 1003
+          rid: 3102418934778823424
         projectileMove:
-          rid: 1002
+          rid: 3102418934778823425
         bulletType: 1
         projectileCount: 1
         muzzleOffset: {x: 0, y: 0.02}
@@ -74,22 +68,36 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1007
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1008
+        - rid: 3102418934778823426
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823427
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823419
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 0.8
-        range: 2
+        cooldown: 1.2
+        damagePercent: 80
+        target:
+          rid: 3102418934778823428
         shooter:
-          rid: 8867963934459297792
+          rid: 3102418934778823429
         projectileMove:
-          rid: 1002
+          rid: 3102418934778823430
         bulletType: 1
         projectileCount: 2
         muzzleOffset: {x: 0, y: 0.02}
@@ -98,22 +106,74 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1009
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1010
+        - rid: 3102418934778823431
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823432
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823420
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 0.8
-        range: 2
+        cooldown: 1.2
+        damagePercent: 100
+        target:
+          rid: 3102418934778823433
         shooter:
-          rid: 8867963934459297793
+          rid: 3102418934778823434
         projectileMove:
-          rid: 1002
+          rid: 3102418934778823435
+        bulletType: 1
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects:
+        - rid: 3102418934778823436
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823437
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823421
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.2
+        damagePercent: 100
+        target:
+          rid: 3102418934778823438
+        shooter:
+          rid: 3102418934778823439
+        projectileMove:
+          rid: 3102418934778823440
         bulletType: 1
         projectileCount: 3
         muzzleOffset: {x: 0, y: 0.02}
@@ -122,74 +182,286 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1011
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1012
+        - rid: 3102418934778823441
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823442
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823422
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 0.8
-        range: 2
+        cooldown: 1.2
+        damagePercent: 130
+        target:
+          rid: 3102418934778823443
         shooter:
-          rid: 8867963934459297794
+          rid: 3102418934778823444
         projectileMove:
-          rid: 1002
+          rid: 3102418934778823445
         bulletType: 1
-        projectileCount: 4
+        projectileCount: 3
         muzzleOffset: {x: 0, y: 0.02}
         requiresTarget: 1
         defaultDirection: {x: 1, y: 0}
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1013
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+        - rid: 3102418934778823446
+        traits:
+          pierce: 0
+          hitsEnemies: 1
+          size: 1.6
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit:
+          - rid: 3102418934778823447
+          - rid: 3102418934778823448
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823423
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823424
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823425
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823426
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
       data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1014
-      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823427
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 0.8
-        range: 2
-        shooter:
-          rid: 8867963934459297795
-        projectileMove:
-          rid: 1002
-        bulletType: 1
-        projectileCount: 5
-        muzzleOffset: {x: 0, y: 0.02}
-        requiresTarget: 1
-        defaultDirection: {x: 1, y: 0}
-        speed: 2.4
-        lifetime: 3
+        radius: 0.25
+        damagePercent: 50
+        knockback: 0
+        vfx: 2
         effects:
-        - rid: 1004
-    - rid: 1015
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 8867963934459297792
+        - rid: 3102418934778823449
+        skipDirectTarget: 1
+    - rid: 3102418934778823428
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823429
       type: {class: FanShooter, ns: , asm: Assembly-CSharp}
       data:
-        spreadAngle: 60
-    - rid: 8867963934459297793
+        spreadAngle: 12
+    - rid: 3102418934778823430
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823431
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823432
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.25
+        damagePercent: 50
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823450
+        skipDirectTarget: 1
+    - rid: 3102418934778823433
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823434
       type: {class: FanShooter, ns: , asm: Assembly-CSharp}
       data:
-        spreadAngle: 60
-    - rid: 8867963934459297794
-      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+        spreadAngle: 12
+    - rid: 3102418934778823435
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823436
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
       data:
-        startAngle: 0
-    - rid: 8867963934459297795
-      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823437
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
       data:
-        startAngle: 0
+        radius: 0.3
+        damagePercent: 60
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823451
+        skipDirectTarget: 1
+    - rid: 3102418934778823438
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823439
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 20
+    - rid: 3102418934778823440
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823441
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823442
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 60
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823452
+        skipDirectTarget: 1
+    - rid: 3102418934778823443
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823444
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 20
+    - rid: 3102418934778823445
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823446
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823447
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.4
+        damagePercent: 80
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823453
+        skipDirectTarget: 1
+    - rid: 3102418934778823448
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.3
+          duration: 2
+          tickInterval: 0.5
+          damagePercent: 20
+          effects:
+          - rid: 3102418934778823454
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 1, g: 0.45, b: 0.1, a: 0.35}
+    - rid: 3102418934778823449
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823450
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823451
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823452
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823453
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823454
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1

@@ -31,6 +31,7 @@ MonoBehaviour:
   shardIcon: {fileID: 0}
   uiVisualPrefab: {fileID: 0}
   rarity: 0
+  deathSound: 3
   baseStats:
     maxHealth: 1500
     damage: 35
@@ -40,6 +41,7 @@ MonoBehaviour:
     critDamageMultiplier: 50
     effectResistance: 50
     effectHit: 0
+  combatRange: 1.1
   skills:
   - {fileID: 11400000, guid: 061da97c15db4a5dab3305462bfec056, type: 2}
   - {fileID: 11400000, guid: e730abcb6d2a4e15b2888543fdd8c20e, type: 2}

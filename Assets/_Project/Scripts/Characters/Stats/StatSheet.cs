@@ -91,8 +91,11 @@ public sealed class StatSheet
         return new StatModifierLease(this, id, leaseVersion);
     }
 
-    /// <summary>Chỉ số sau khi cộng mọi nguồn (chưa gồm HP/giáp được cấp trực tiếp, phần đó do runtime cộng).</summary>
-    internal BaseStats Calculate() => StatCalculator.Calculate(Base, sources.Values);
+    /// <summary>
+    /// Chỉ số sau khi cộng mọi nguồn (chưa gồm HP/giáp được cấp trực tiếp, phần đó do runtime cộng),
+    /// và nhóm bonus chiến đấu tính từ cùng các nguồn đó.
+    /// </summary>
+    internal BaseStats Calculate(out CombatBonuses bonuses) => StatCalculator.Calculate(Base, sources.Values, out bonuses);
 
     // Thay toàn bộ modifier của cùng nguồn tại chỗ, không có khoảnh khắc mất buff ở giữa.
     internal void Update(long id, ulong leaseVersion, StatModifier[] modifiers)

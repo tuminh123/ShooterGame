@@ -67,6 +67,7 @@ public sealed class CharacterManager :
     private readonly EnemyVisibility enemyVisibility;
     private readonly DamageTextSystem damageText; // null khi installer không gán style.
     private readonly CharacterDataSO[] playableCharacters; // Dựng một lần từ database; màn Character chỉ đọc.
+    private readonly IAudio audio; // Âm chết theo CharacterDataSO.DeathSound: Character sở hữu sự kiện chết nên tự phát.
     private bool disposed;
 
     #endregion
@@ -87,8 +88,10 @@ public sealed class CharacterManager :
         PlayerSystem.Settings playerSettings,
         CharacterDatabaseSO characterDatabase,
         ISaveStore saves,
-        IPermanentBonuses permanentBonuses)
+        IPermanentBonuses permanentBonuses,
+        IAudio audio)
     {
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
         try
         {
             runtimes = new CharacterRuntimePool();
@@ -98,9 +101,10 @@ public sealed class CharacterManager :
             var context = new CharacterContext(movementRegistration, movementCommand, spatialRegistration,
                 pools, search, runtimes, damageText);
             factory = new CharacterFactory(settings.CharacterPrefab, pools, registry, context);
-            players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses);
+            players = new PlayerSystem(factory, joystick, playerSettings, characterDatabase, saves, permanentBonuses, audio);
             enemyVisibility = new EnemyVisibility(registry);
             playableCharacters = BuildPlayableList(characterDatabase);
+            registry.CharacterDied += PlayDeathSound;
         }
         catch
         {
@@ -201,6 +205,13 @@ public sealed class CharacterManager :
     /// <inheritdoc/>
     public void PlayEnemyCelebrations() => registry.PlayEnemyCelebrations();
 
+    // Chạy mỗi lần quái chết: chỉ tra dictionary + mảng trong AudioManager, không cấp phát;
+    // minInterval của entry trong Audio Database chống rè khi chết hàng loạt.
+    private void PlayDeathSound(CharacterView character)
+    {
+        if (registry.Characters.TryGetValue(character, out CharacterDataSO data)) audio.Play(data.DeathSound);
+    }
+
     #endregion
 
     #region IPlayerReader, IPlayerLifecycle
@@ -278,6 +289,7 @@ public sealed class CharacterManager :
         if (disposed) return;
         disposed = true;
         SelectionChanged = null;
+        if (registry != null) registry.CharacterDied -= PlayDeathSound;
         DisposeSafely(enemyVisibility);
         DisposeSafely(factory);
         DisposeSafely(players);

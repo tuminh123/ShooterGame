@@ -111,7 +111,7 @@ public sealed class OrbitSawSkill : Skill
     private int FindTargetsAroundSweep(Vector2 center)
     {
         Vector2 middle = (center + previousCenter) * 0.5f;
-        float radius = data.OrbitRadius + data.BladeRadius + Vector2.Distance(center, previousCenter) * 0.5f;
+        float radius = data.OrbitAt(clock) + data.BladeRadius + Vector2.Distance(center, previousCenter) * 0.5f;
         return Owner.Owner.Search.FindAll(middle, radius,
             CharacterSearch.OpponentOf(Owner.Identity.Team), ref targets, Owner.Owner);
     }
@@ -123,23 +123,23 @@ public sealed class OrbitSawSkill : Skill
         Prune(nextHits[blade]);
         float phase = 360f * blade / count;
         int steps = Mathf.Clamp(Mathf.CeilToInt(turn / 15f), 1, 128);
-        Vector2 start = previousCenter + Direction(angle + phase) * data.OrbitRadius;
+        Vector2 start = previousCenter + Direction(angle + phase) * data.OrbitAt(clock);
 
         for (int step = 1; step <= steps && StillValid(tickRevision); step++)
         {
             float t = step / (float)steps;
-            Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.OrbitRadius;
+            Vector2 end = Vector2.Lerp(previousCenter, center, t) + Direction(angle + turn * t + phase) * data.OrbitAt(clock);
             for (int i = 0; i < found && StillValid(tickRevision); i++)
-                TryHitTarget(blade, start, end, targets[i], tickRevision);
+                TryHitTarget(blade, start, end, targets[i]);
             start = end;
         }
 
         if (!disposed && tickRevision == revision && blades[blade] != null)
-            blades[blade].SetPose(Direction(angle + turn + phase) * data.OrbitRadius, (angle + turn) * 3f);
+            blades[blade].SetPose(Direction(angle + turn + phase) * data.OrbitAt(clock), (angle + turn) * 3f);
     }
 
     // Đoạn quét của lưỡi chạm mục tiêu và mục tiêu đã hết nhịp đánh lại: gây damage rồi áp effect của cấp.
-    private void TryHitTarget(int blade, Vector2 start, Vector2 end, CharacterHandle target, int tickRevision)
+    private void TryHitTarget(int blade, Vector2 start, Vector2 end, CharacterHandle target)
     {
         if (nextHits[blade].ContainsKey(target) || !target.TryGetCharacter(out CharacterView victim)) return;
         if (!SpatialGeometry.SweepCircle(new float2(start.x, start.y), new float2(end.x, end.y),
@@ -147,14 +147,10 @@ public sealed class OrbitSawSkill : Skill
 
         // Lịch riêng theo lưỡi + danh tính spawn. Ghi trước callback damage để chống gọi lồng nhau.
         nextHits[blade][target] = clock + data.HitInterval;
-        DamageResult hit = victim.ReceiveDamage(Owner.Identity.CreateDamage());
-        if (!hit.Accepted || Services.Effects == null || !Owner.CanRun) return;
-
-        foreach (IGameplayEffect effect in effectSnapshot)
-        {
-            if (!StillValid(tickRevision)) break;
-            Services.Effects.Apply(effect, target, Owner.Identity.Team, Owner.Identity.FinalStats.effectHit);
-        }
+        // Chỉ số chụp mỗi lần chạm, nên buff vừa nhận có tác dụng ngay với nhát kế tiếp.
+        var hit = new HitPayload(Owner.Handle, Owner.Identity.FinalStats, Owner.Identity.FinalBonuses, Owner.Identity.Team,
+            data.DamageMultiplier, effectSnapshot);
+        Services.Hits.Apply(target, in hit, victim.HitPosition);
     }
 
     private static Vector2 Direction(float degrees)

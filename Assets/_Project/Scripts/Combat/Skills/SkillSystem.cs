@@ -51,6 +51,15 @@ public sealed class SkillSystem : IDisposable
         foreach (SkillRuntime skill in skills) if (skill.IsActive && skill.BelongsTo(owner)) result.Add(skill);
     }
 
+    /// <summary>Số skill trong trận đang có của <paramref name="owner"/> (buff theo số skill). Không cấp phát.</summary>
+    public int CountOwned(CharacterView owner)
+    {
+        if (owner == null) return 0;
+        int count = 0;
+        foreach (SkillRuntime skill in skills) if (skill.IsActive && skill.BelongsTo(owner)) count++;
+        return count;
+    }
+
     // Cùng asset trên hai owner vẫn là hai instance độc lập.
     public bool TryGetRuntime(SkillDataSO definition, CharacterView owner, out SkillRuntime runtime)
     {

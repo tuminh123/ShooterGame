@@ -1,0 +1,298 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: GlacierSpike
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Glacier Spike
+  description: Ice spikes erupt one after another toward the nearest enemy.
+  icon: {fileID: 21300000, guid: 6b83364b4c89ad94f8d8ce35b0d64c86, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Base] 4 spikes, 90% damage, slow 30% for 1.5s. Cooldown 1.0s.'
+    behaviours:
+    - rid: 3102418934778823238
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 1] 5 spikes.'
+    behaviours:
+    - rid: 3102418934778823239
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 2] 105% damage.'
+    behaviours:
+    - rid: 3102418934778823240
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 3] Spikes freeze enemies for 0.5s.'
+    behaviours:
+    - rid: 3102418934778823241
+  - displayName: 
+    icon: {fileID: 0}
+    description: "[Star 4] 2 rows of spikes (30\xB0 fan)."
+    behaviours:
+    - rid: 3102418934778823242
+  - displayName: Frozen Domain
+    icon: {fileID: 21300000, guid: a157e5e41d0cc454188a1322c57cc7e3, type: 3}
+    description: '[Star 5] 3 rows; every spike leaves ice for 3s that slows 50%.'
+    behaviours:
+    - rid: 3102418934778823243
+  behaviourTypes: 07000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823238
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 90
+        target:
+          rid: 3102418934778823244
+        targetCount: 1
+        shape:
+          rid: 3102418934778823245
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823246
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823239
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 90
+        target:
+          rid: 3102418934778823247
+        targetCount: 1
+        shape:
+          rid: 3102418934778823248
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823249
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823240
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 105
+        target:
+          rid: 3102418934778823250
+        targetCount: 1
+        shape:
+          rid: 3102418934778823251
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823252
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823241
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 105
+        target:
+          rid: 3102418934778823253
+        targetCount: 1
+        shape:
+          rid: 3102418934778823254
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823255
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823242
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 105
+        target:
+          rid: 3102418934778823256
+        targetCount: 1
+        shape:
+          rid: 3102418934778823257
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823258
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand: []
+    - rid: 3102418934778823243
+      type: {class: StrikeData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 115
+        target:
+          rid: 3102418934778823259
+        targetCount: 1
+        shape:
+          rid: 3102418934778823260
+        telegraph: 0.15
+        interval: 0
+        effects:
+        - rid: 3102418934778823261
+        knockback: 0
+        landVfx: 3
+        telegraphColor: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+        onLand:
+        - rid: 3102418934778823262
+    - rid: 3102418934778823244
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823245
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 4
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 1
+        spreadAngle: 0
+    - rid: 3102418934778823246
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823247
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823248
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 5
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 1
+        spreadAngle: 0
+    - rid: 3102418934778823249
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823250
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823251
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 5
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 1
+        spreadAngle: 0
+    - rid: 3102418934778823252
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823253
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823254
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 5
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 1
+        spreadAngle: 0
+    - rid: 3102418934778823255
+      type: {class: FreezeEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.5
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823256
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823257
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 5
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 2
+        spreadAngle: 30
+    - rid: 3102418934778823258
+      type: {class: FreezeEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.5
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823259
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823260
+      type: {class: LineStrike, ns: , asm: Assembly-CSharp}
+      data:
+        count: 5
+        spacing: 0.2
+        radius: 0.13
+        stepDelay: 0.06
+        lines: 3
+        spreadAngle: 60
+    - rid: 3102418934778823261
+      type: {class: FreezeEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.5
+        applicationChance: 100
+        useEffectStats: 0
+    - rid: 3102418934778823262
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.13
+          duration: 3
+          tickInterval: 0.3
+          damagePercent: 0
+          effects:
+          - rid: 3102418934778823263
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+    - rid: 3102418934778823263
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.4
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.5

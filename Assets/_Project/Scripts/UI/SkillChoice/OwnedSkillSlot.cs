@@ -26,7 +26,7 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
     public void Show(SkillRuntime skill)
     {
         currentSkill = skill;
-        icon.sprite = skill.Definition.Icon;
+        icon.sprite = skill.Definition.GetIcon(skill.BattleLevel);
         icon.enabled = icon.sprite != null;
         icon.preserveAspect = true;
         int max = Mathf.Max(1, skill.Definition.MaxBattleLevel); // Skill đơn cấp chỉ hiện một sao, không dựa vào MaxLevel cũ.
@@ -88,7 +88,7 @@ public sealed class OwnedSkillSlot : MonoBehaviour, IPointerEnterHandler, IPoint
     {
         if (currentSkill == null || !currentSkill.IsActive || tooltip == null || tooltipText == null) return;
         SkillDataSO definition = currentSkill.Definition;
-        string title = string.IsNullOrWhiteSpace(definition.DisplayName) ? definition.name : definition.DisplayName;
+        string title = definition.GetDisplayName(currentSkill.BattleLevel);
         tooltipText.text = $"<b>{title}</b>\nLv. {currentSkill.BattleLevel} / {definition.MaxBattleLevel}\n\n" +
             definition.GetLevelDescription(currentSkill.BattleLevel);
         tooltip.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,

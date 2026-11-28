@@ -106,6 +106,7 @@ public sealed class RewardRevealView : MonoBehaviour
     private Phase phase = Phase.Closed;
     private int pending; // Số icon chưa tới đích.
     private Action closed;
+    private UIAudio uiAudio; // Tìm một lần trên Canvas cha; xem UIAudio.
 
     #endregion
 
@@ -135,6 +136,7 @@ public sealed class RewardRevealView : MonoBehaviour
     {
         gameObject.SetActive(true);
         StopMotions();
+        PlayRevealSound();
         closed = onClosed;
         phase = Phase.Revealing;
         models.Clear();
@@ -181,6 +183,13 @@ public sealed class RewardRevealView : MonoBehaviour
         Action callback = closed; // OnDisable xóa callback nên lấy trước.
         gameObject.SetActive(false);
         callback?.Invoke();
+    }
+
+    // Một âm cho mọi lần nhận thưởng (Mission, Login, Shop, Gacha, Result đều mở màn này), phát lúc màn đen bắt đầu hiện.
+    private void PlayRevealSound()
+    {
+        if (uiAudio == null) uiAudio = GetComponentInParent<UIAudio>(true);
+        if (uiAudio != null) uiAudio.Play(AudioId.RewardClaim);
     }
 
     #endregion

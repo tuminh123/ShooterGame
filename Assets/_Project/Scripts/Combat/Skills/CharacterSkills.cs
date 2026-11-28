@@ -24,6 +24,8 @@ public sealed class CharacterSkills : IDisposable, IPoolable
     private bool disposed = true, ticking; // Chưa khởi tạo = đã kết thúc: IsValid false.
     internal CharacterView Owner { get; private set; }
     internal CharacterRuntimeData Identity { get; private set; } // Runtime của lượt spawn: hành vi đọc phe, chỉ số và thêm modifier qua đây.
+    /// <summary>Đúng lượt spawn của chủ; hành vi ghi vào <see cref="HitPayload.Attacker"/> khi ra đòn.</summary>
+    internal CharacterHandle Handle => handle;
 
     /// <summary>
     /// Bộ skill vẫn thuộc đúng lượt spawn đang sống. Mọi <see cref="SkillRuntime"/> của bộ này đều dựa vào

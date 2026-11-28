@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: GlacialArmor
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Glacial Armor
+  description: +10% DEF. Enemies touching you are slowed by 30%.
+  icon: {fileID: 21300000, guid: 49a396c5d13eaaa4f9f0def519182bff, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: +10% DEF; enemies touching you are slowed by 30%.
+    behaviours:
+    - rid: 3102418934778823264
+    - rid: 3102418934778823265
+  behaviourTypes: 0600000003000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823264
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 2
+        operation: 1
+        value: 10
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823265
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 11400000, guid: a80b03c9a95e420f8308f1ba4f5e0b2f, type: 3}
+        radius: 0.22
+        slowFraction: 0.3
+        effects: []
+        damagePercent: 0
+        tickInterval: 0.5
+        targetsPerTick: 0
+        tickEffects: []
+        tickVfx: 0
+        zapLine: 0
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3

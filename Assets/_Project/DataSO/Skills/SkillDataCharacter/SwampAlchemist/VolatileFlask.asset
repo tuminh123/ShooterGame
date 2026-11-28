@@ -1,0 +1,823 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: VolatileFlask
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Volatile Flask
+  description: 'Throws an unstable flask at a random enemy: fire, ice or poison.'
+  icon: {fileID: 21300000, guid: c9eedc3cfc8fba049a1c8e3a57a9d1a4, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Base] Explodes (0.3) for 130% with a random element: burn, slow
+      or poison. Cooldown 1.0s.'
+    behaviours:
+    - rid: 3102418934778823135
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 1] Explosion 0.35.'
+    behaviours:
+    - rid: 3102418934778823136
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 2] 150% damage.'
+    behaviours:
+    - rid: 3102418934778823137
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 3] Throws 2 flasks.'
+    behaviours:
+    - rid: 3102418934778823138
+  - displayName: 
+    icon: {fileID: 0}
+    description: '[Star 4] Leaves a puddle of a random element for 1.5s.'
+    behaviours:
+    - rid: 3102418934778823139
+  - displayName: Grand Concoction
+    icon: {fileID: 21300000, guid: 98118f4c3f3dd25499ff8425b8a5a6bc, type: 3}
+    description: '[Star 5] 180% damage, explosion 0.45; every flask burns, slows
+      and poisons at once.'
+    behaviours:
+    - rid: 3102418934778823140
+  behaviourTypes: 01000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823135
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823141
+        shooter:
+          rid: 3102418934778823142
+        projectileMove:
+          rid: 3102418934778823143
+        bulletType: 10
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823144
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823136
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823145
+        shooter:
+          rid: 3102418934778823146
+        projectileMove:
+          rid: 3102418934778823147
+        bulletType: 10
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823148
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823137
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823149
+        shooter:
+          rid: 3102418934778823150
+        projectileMove:
+          rid: 3102418934778823151
+        bulletType: 10
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823152
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823138
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823153
+        shooter:
+          rid: 3102418934778823154
+        projectileMove:
+          rid: 3102418934778823155
+        bulletType: 10
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823156
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823139
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823157
+        shooter:
+          rid: 3102418934778823158
+        projectileMove:
+          rid: 3102418934778823159
+        bulletType: 10
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823160
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823140
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1
+        damagePercent: 0
+        target:
+          rid: 3102418934778823161
+        shooter:
+          rid: 3102418934778823162
+        projectileMove:
+          rid: 3102418934778823163
+        bulletType: 10
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.2
+        lifetime: 2
+        effects: []
+        traits:
+          pierce: 0
+          hitsEnemies: 0
+          size: 1
+          spinDegreesPerSecond: 540
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778823164
+          - rid: 3102418934778823165
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 2
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823141
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823142
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823143
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823144
+      type: {class: RandomImpact, ns: , asm: Assembly-CSharp}
+      data:
+        options:
+        - rid: 3102418934778823166
+        - rid: 3102418934778823167
+        - rid: 3102418934778823168
+    - rid: 3102418934778823145
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823146
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823147
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823148
+      type: {class: RandomImpact, ns: , asm: Assembly-CSharp}
+      data:
+        options:
+        - rid: 3102418934778823169
+        - rid: 3102418934778823170
+        - rid: 3102418934778823171
+    - rid: 3102418934778823149
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823150
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823151
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823152
+      type: {class: RandomImpact, ns: , asm: Assembly-CSharp}
+      data:
+        options:
+        - rid: 3102418934778823172
+        - rid: 3102418934778823173
+        - rid: 3102418934778823174
+    - rid: 3102418934778823153
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823154
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823155
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823156
+      type: {class: RandomImpact, ns: , asm: Assembly-CSharp}
+      data:
+        options:
+        - rid: 3102418934778823175
+        - rid: 3102418934778823176
+        - rid: 3102418934778823177
+    - rid: 3102418934778823157
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823158
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823159
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823160
+      type: {class: RandomImpact, ns: , asm: Assembly-CSharp}
+      data:
+        options:
+        - rid: 3102418934778823178
+        - rid: 3102418934778823179
+        - rid: 3102418934778823180
+    - rid: 3102418934778823161
+      type: {class: RandomInRange, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823162
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823163
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823164
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.45
+        damagePercent: 180
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823181
+        - rid: 3102418934778823182
+        - rid: 3102418934778823183
+        skipDirectTarget: 0
+    - rid: 3102418934778823165
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.45
+          duration: 1.5
+          tickInterval: 0.5
+          damagePercent: 15
+          effects:
+          - rid: 3102418934778823184
+          - rid: 3102418934778823185
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 0.45, g: 1, b: 0.2, a: 0.32}
+    - rid: 3102418934778823166
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 130
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823186
+        skipDirectTarget: 0
+    - rid: 3102418934778823167
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 130
+        knockback: 0
+        vfx: 3
+        effects:
+        - rid: 3102418934778823187
+        skipDirectTarget: 0
+    - rid: 3102418934778823168
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.3
+        damagePercent: 130
+        knockback: 0
+        vfx: 4
+        effects:
+        - rid: 3102418934778823188
+        skipDirectTarget: 0
+    - rid: 3102418934778823169
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 130
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823189
+        skipDirectTarget: 0
+    - rid: 3102418934778823170
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 130
+        knockback: 0
+        vfx: 3
+        effects:
+        - rid: 3102418934778823190
+        skipDirectTarget: 0
+    - rid: 3102418934778823171
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 130
+        knockback: 0
+        vfx: 4
+        effects:
+        - rid: 3102418934778823191
+        skipDirectTarget: 0
+    - rid: 3102418934778823172
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823192
+        skipDirectTarget: 0
+    - rid: 3102418934778823173
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 3
+        effects:
+        - rid: 3102418934778823193
+        skipDirectTarget: 0
+    - rid: 3102418934778823174
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 4
+        effects:
+        - rid: 3102418934778823194
+        skipDirectTarget: 0
+    - rid: 3102418934778823175
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823195
+        skipDirectTarget: 0
+    - rid: 3102418934778823176
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 3
+        effects:
+        - rid: 3102418934778823196
+        skipDirectTarget: 0
+    - rid: 3102418934778823177
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 4
+        effects:
+        - rid: 3102418934778823197
+        skipDirectTarget: 0
+    - rid: 3102418934778823178
+      type: {class: MultiImpact, ns: , asm: Assembly-CSharp}
+      data:
+        impacts:
+        - rid: 3102418934778823198
+        - rid: 3102418934778823199
+    - rid: 3102418934778823179
+      type: {class: MultiImpact, ns: , asm: Assembly-CSharp}
+      data:
+        impacts:
+        - rid: 3102418934778823200
+        - rid: 3102418934778823201
+    - rid: 3102418934778823180
+      type: {class: MultiImpact, ns: , asm: Assembly-CSharp}
+      data:
+        impacts:
+        - rid: 3102418934778823202
+        - rid: 3102418934778823203
+    - rid: 3102418934778823181
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823182
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823183
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823184
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823185
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823186
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823187
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823188
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823189
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823190
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823191
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823192
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823193
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823194
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823195
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823196
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823197
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823198
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 2
+        effects:
+        - rid: 3102418934778823204
+        skipDirectTarget: 0
+    - rid: 3102418934778823199
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.35
+          duration: 1.5
+          tickInterval: 0.5
+          damagePercent: 15
+          effects:
+          - rid: 3102418934778823205
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 1, g: 0.45, b: 0.1, a: 0.35}
+    - rid: 3102418934778823200
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 3
+        effects:
+        - rid: 3102418934778823206
+        skipDirectTarget: 0
+    - rid: 3102418934778823201
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.35
+          duration: 1.5
+          tickInterval: 0.5
+          damagePercent: 10
+          effects:
+          - rid: 3102418934778823207
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 0.4, g: 0.85, b: 1, a: 0.32}
+    - rid: 3102418934778823202
+      type: {class: ExplodeImpact, ns: , asm: Assembly-CSharp}
+      data:
+        radius: 0.35
+        damagePercent: 150
+        knockback: 0
+        vfx: 4
+        effects:
+        - rid: 3102418934778823208
+        skipDirectTarget: 0
+    - rid: 3102418934778823203
+      type: {class: SpawnZoneImpact, ns: , asm: Assembly-CSharp}
+      data:
+        zone:
+          radius: 0.35
+          duration: 1.5
+          tickInterval: 0.5
+          damagePercent: 10
+          effects:
+          - rid: 3102418934778823209
+          healPercentPerSecond: 0
+          trapCharges: 0
+          onTrigger: []
+          onExpire: []
+          tickVfx: 0
+          color: {r: 0.45, g: 1, b: 0.2, a: 0.32}
+    - rid: 3102418934778823204
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823205
+      type: {class: BurnEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 2
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 5
+        maxStacks: 1
+    - rid: 3102418934778823206
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823207
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.6
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.4
+    - rid: 3102418934778823208
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3
+    - rid: 3102418934778823209
+      type: {class: PoisonEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 3
+        applicationChance: 100
+        useEffectStats: 0
+        tickInterval: 0.5
+        damagePerTick: 0
+        damagePercentPerTick: 4
+        maxStacks: 3

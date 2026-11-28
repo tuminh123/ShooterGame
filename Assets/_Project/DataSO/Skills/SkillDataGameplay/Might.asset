@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: Might
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Might
+  description: Increases Damage.
+  icon: {fileID: 21300000, guid: 3810050e40d01354eaa7e3e5f8f90ce6, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: +8% Damage.
+    behaviours:
+    - rid: 3102418934778823008
+  - displayName: 
+    icon: {fileID: 0}
+    description: +16% Damage.
+    behaviours:
+    - rid: 3102418934778823009
+  - displayName: 
+    icon: {fileID: 0}
+    description: +24% Damage.
+    behaviours:
+    - rid: 3102418934778823010
+  - displayName: 
+    icon: {fileID: 0}
+    description: +32% Damage.
+    behaviours:
+    - rid: 3102418934778823011
+  - displayName: 
+    icon: {fileID: 0}
+    description: +40% Damage and +10% damage to bosses.
+    behaviours:
+    - rid: 3102418934778823012
+  behaviourTypes: 06000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823008
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 1
+        operation: 1
+        value: 8
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823009
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 1
+        operation: 1
+        value: 16
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823010
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 1
+        operation: 1
+        value: 24
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823011
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 1
+        operation: 1
+        value: 32
+        extraModifiers: []
+        restorePercentOnApply: 0
+    - rid: 3102418934778823012
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 1
+        operation: 1
+        value: 40
+        extraModifiers:
+        - stat: 100
+          operation: 0
+          value: 10
+        restorePercentOnApply: 0

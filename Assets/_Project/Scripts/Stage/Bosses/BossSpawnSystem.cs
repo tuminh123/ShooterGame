@@ -26,6 +26,8 @@ internal sealed class BossSpawnSystem
     private readonly EnemySpawner spawner; // Tạo/thu hồi quái, vùng sinh; do StageManager tạo và dùng chung cho mọi system.
     private readonly StageSpawnRoster roster;
     private readonly BossArena summon; // Đấu trường của Boss: dọn quái thường, khóa vùng, sinh Boss.
+    private readonly IAudio audio; // Đổi nhạc + rung khi Boss xuất hiện: Stage sở hữu thời điểm này nên tự phát.
+    private AudioId bossMusic; // Theo BossSpawnDataSO của Stage đang chạy.
     private readonly List<ActiveElite> elites = new List<ActiveElite>();
     private BossSpawnDataSO.Entry boss;
     private BossAppearanceCondition condition;
@@ -47,9 +49,10 @@ internal sealed class BossSpawnSystem
 
     #region Initialization
 
-    /// <summary>Nhận spawner và đấu trường Boss do StageManager tạo.</summary>
-    public BossSpawnSystem(EnemySpawner spawner, BossArena arena)
+    /// <summary>Nhận spawner, đấu trường Boss do StageManager tạo và Audio để đổi nhạc khi Boss xuất hiện.</summary>
+    public BossSpawnSystem(EnemySpawner spawner, BossArena arena, IAudio audio)
     {
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
         this.spawner = spawner ?? throw new ArgumentNullException(nameof(spawner));
         this.summon = arena ?? throw new ArgumentNullException(nameof(arena));
         roster = new StageSpawnRoster(spawner);
@@ -74,6 +77,7 @@ internal sealed class BossSpawnSystem
     public void Execute(BossSpawnDataSO config)
     {
         condition = config.BossAppearanceCondition;
+        bossMusic = config.BossMusic;
         foreach (BossSpawnDataSO.Entry entry in config.Entries)
         {
             if (entry.Type == SpecialEnemyType.Elite)
@@ -121,6 +125,9 @@ internal sealed class BossSpawnSystem
         }
         roster.Add(summon.Summon(boss.Character, boss.EnemyLevel, arenaSize));
         bossSpawned = true;
+        // Hết trận (thắng/thua) thì Game đổi nhạc theo state; vào trận mới thì Game đặt lại nhạc trận.
+        audio.Play(bossMusic);
+        audio.Play(AudioId.HapticHeavy);
     }
 
     #endregion

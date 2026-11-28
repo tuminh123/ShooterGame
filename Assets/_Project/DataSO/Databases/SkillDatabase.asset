@@ -11,21 +11,67 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8313b47adec41208f68c95ade87b268, type: 3}
   m_Name: SkillDatabase
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   skills:
-  - skill: {fileID: 11400000, guid: 0d1cdf067efd476fa2aa19a8232230fd, type: 2}
-    availableInRunChoices: 1
   - skill: {fileID: 11400000, guid: 6ba992ce65284e7da981712090268507, type: 2}
-    availableInRunChoices: 1
-  - skill: {fileID: 11400000, guid: 115e69b9420649fbbdadd392a42c65bf, type: 2}
-    availableInRunChoices: 1
+    availableInBattleChoices: 1
   - skill: {fileID: 11400000, guid: 9df363c7241e4912baf05c4ee8838a60, type: 2}
-    availableInRunChoices: 1
-  - skill: {fileID: 11400000, guid: 23c29f8d87ba4f5397351f5a1a80a998, type: 2}
-    availableInRunChoices: 1
+    availableInBattleChoices: 1
   - skill: {fileID: 11400000, guid: 16cbce912f4a45e2967180bcb36e3dbb, type: 2}
-    availableInRunChoices: 1
-  - skill: {fileID: 11400000, guid: 156424cc38144a71a78416787a0fd77d, type: 2}
-    availableInRunChoices: 1
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 3b87a7b4cf66a4d4f8a5f992ca402b5d, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: b29d21738f4933b478a92a9b2e48851d, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 63ed77edff690ea4daa1055821ae690a, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 53b53a8dd6301954d820543bf2419ad8, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 23c29f8d87ba4f5397351f5a1a80a998, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: df7789181c70a1144bd1c5ef5fde51cf, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 115e69b9420649fbbdadd392a42c65bf, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: a00dcb70467be2841b72b1a77e40a818, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 91e3d8b400760bb4db1df8c1d5e45884, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: ab62811e90076714f9dbef3f22224c2f, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 399e9608e3fa622439f39b8dc71e6ef7, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 2607d5f2d566746419637ace24cf19ca, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 8713d008a1b4f47418efb4b9231455f4, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 7727a7f4ca89abb4c9e0da2d198cd723, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: a9518adcbb0f9214ea110d5c9e176c29, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 371e4c61d1d9ff84591947bcb1b88175, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 0cc279ef24cfaa84e8e95ca8f0d54e1a, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 6f24132e0dce69d46aab379ed5eb0d3f, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: b083d39a52c65604da5e0be1547a85de, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 4f70f1563239c66419fd9629e7ee9c42, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 1acd35ea36a7d6d4091abde2c67697a3, type: 2}
+    availableInBattleChoices: 1
   - skill: {fileID: 11400000, guid: 86aa0d136e90e816507ec2cddb880e4c, type: 2}
-    availableInRunChoices: 1
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: e8c7d4f52fb779940a88c7f439ac8b18, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 39eaabf12e14e7d41bdb6cc923d0fdb1, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 156424cc38144a71a78416787a0fd77d, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 0d1cdf067efd476fa2aa19a8232230fd, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: d539eea8be5fa79428cea49a29e9303b, type: 2}
+    availableInBattleChoices: 1
+  - skill: {fileID: 11400000, guid: 3961521970375ff489876bf4c6838a8d, type: 2}
+    availableInBattleChoices: 1

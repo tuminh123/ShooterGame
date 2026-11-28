@@ -15,24 +15,106 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Emergency Shield
-  description: At 20% HP or below, adds +30 maximum shield and +30 current shield.
-    Can activate again after 5 seconds while HP remains at or below 20%. Existing
-    shield loss is preserved.
-  icon: {fileID: 21300000, guid: 09135c198f8744fcd89493b169d11bd8, type: 3}
+  description: Grants a shield when HP drops below 20%.
+  icon: {fileID: 21300000, guid: 090d51312f1333c41bcacdc4fb883e16, type: 3}
   shootingVisualState: 3
   levels:
-  - description: At 20% HP or below, adds +30 maximum shield and +30 current shield.
-      Can activate again after 5 seconds while HP remains at or below 20%. Existing
-      shield loss is preserved.
+  - displayName: 
+    icon: {fileID: 0}
+    description: +30 shield, cooldown 20s.
     behaviours:
-    - rid: 1002
+    - rid: 3102418934778823408
+  - displayName: 
+    icon: {fileID: 0}
+    description: +40 shield.
+    behaviours:
+    - rid: 3102418934778823409
+  - displayName: 
+    icon: {fileID: 0}
+    description: Cooldown 16s.
+    behaviours:
+    - rid: 3102418934778823410
+  - displayName: 
+    icon: {fileID: 0}
+    description: +55 shield.
+    behaviours:
+    - rid: 3102418934778823411
+  - displayName: 
+    icon: {fileID: 0}
+    description: +70 shield and 1s invulnerability when triggered.
+    behaviours:
+    - rid: 3102418934778823412
   behaviourTypes: 05000000
   references:
     version: 2
     RefIds:
-    - rid: 1002
+    - rid: 3102418934778823408
       type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
       data:
         healthThreshold: 20
         shieldAmount: 30
-        cooldown: 5
+        cooldown: 20
+        restorePercent: 0
+        invulnerableSeconds: 0
+        maxTriggers: 0
+        pulseRadius: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0.4
+        pulseEffects: []
+        pulseVfx: 1
+    - rid: 3102418934778823409
+      type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
+      data:
+        healthThreshold: 20
+        shieldAmount: 40
+        cooldown: 20
+        restorePercent: 0
+        invulnerableSeconds: 0
+        maxTriggers: 0
+        pulseRadius: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0.4
+        pulseEffects: []
+        pulseVfx: 1
+    - rid: 3102418934778823410
+      type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
+      data:
+        healthThreshold: 20
+        shieldAmount: 40
+        cooldown: 16
+        restorePercent: 0
+        invulnerableSeconds: 0
+        maxTriggers: 0
+        pulseRadius: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0.4
+        pulseEffects: []
+        pulseVfx: 1
+    - rid: 3102418934778823411
+      type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
+      data:
+        healthThreshold: 20
+        shieldAmount: 55
+        cooldown: 16
+        restorePercent: 0
+        invulnerableSeconds: 0
+        maxTriggers: 0
+        pulseRadius: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0.4
+        pulseEffects: []
+        pulseVfx: 1
+    - rid: 3102418934778823412
+      type: {class: EmergencyShieldData, ns: , asm: Assembly-CSharp}
+      data:
+        healthThreshold: 20
+        shieldAmount: 70
+        cooldown: 16
+        restorePercent: 0
+        invulnerableSeconds: 1
+        maxTriggers: 0
+        pulseRadius: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0.4
+        pulseEffects: []
+        pulseVfx: 1

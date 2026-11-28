@@ -15,76 +15,101 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Orbit Saw
-  description: Five run levels. Resets to level one each run.
-  icon: {fileID: 21300000, guid: f188e9f1c5c8449cf86dbb68ccc622e2, type: 3}
+  description: Saw blades orbit around you.
+  icon: {fileID: 21300000, guid: 85da9b0010b02504ba74eb008db57d1b, type: 3}
   shootingVisualState: 3
   levels:
-  - description: 1 saw blades orbit you. Each blade deals your total damage on contact.
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 blade, 100% damage per hit, radius 0.4.
     behaviours:
-    - rid: 1002
-  - description: 2 saw blades orbit you. Each blade deals your total damage on contact.
+    - rid: 3102418934778823378
+  - displayName: 
+    icon: {fileID: 0}
+    description: 2 blades.
     behaviours:
-    - rid: 1003
-  - description: 3 saw blades orbit you. Each blade deals your total damage on contact.
+    - rid: 3102418934778823379
+  - displayName: 
+    icon: {fileID: 0}
+    description: 3 blades, 115% damage.
     behaviours:
-    - rid: 1004
-  - description: 4 saw blades orbit you. Each blade deals your total damage on contact.
+    - rid: 3102418934778823380
+  - displayName: 
+    icon: {fileID: 0}
+    description: 4 blades, spin 25% faster.
     behaviours:
-    - rid: 1005
-  - description: 5 saw blades orbit you. Each blade deals your total damage on contact.
+    - rid: 3102418934778823381
+  - displayName: Buzzsaw Storm
+    icon: {fileID: 21300000, guid: 85da9b0010b02504ba74eb008db57d1b, type: 3}
+    description: 6 blades, 140% damage, orbit radius pulses between 0.3 and 0.7.
     behaviours:
-    - rid: 1006
+    - rid: 3102418934778823382
   behaviourTypes: 02000000
   references:
     version: 2
     RefIds:
-    - rid: 1002
+    - rid: 3102418934778823378
       type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
       data:
         visualPrefab: {fileID: 11400000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
         bladeCount: 1
-        orbitRadius: 0.5
-        bladeRadius: 0.1
+        damagePercent: 100
+        orbitRadius: 0.4
+        bladeRadius: 0.08
         degreesPerSecond: 180
         hitInterval: 0.5
         effects: []
-    - rid: 1003
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778823379
       type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
       data:
         visualPrefab: {fileID: 11400000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
         bladeCount: 2
-        orbitRadius: 0.5
-        bladeRadius: 0.1
+        damagePercent: 100
+        orbitRadius: 0.4
+        bladeRadius: 0.08
         degreesPerSecond: 180
         hitInterval: 0.5
         effects: []
-    - rid: 1004
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778823380
       type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
       data:
         visualPrefab: {fileID: 11400000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
         bladeCount: 3
-        orbitRadius: 0.5
-        bladeRadius: 0.1
+        damagePercent: 115
+        orbitRadius: 0.4
+        bladeRadius: 0.08
         degreesPerSecond: 180
         hitInterval: 0.5
         effects: []
-    - rid: 1005
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778823381
       type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
       data:
         visualPrefab: {fileID: 11400000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
         bladeCount: 4
-        orbitRadius: 0.5
-        bladeRadius: 0.1
-        degreesPerSecond: 180
+        damagePercent: 115
+        orbitRadius: 0.4
+        bladeRadius: 0.08
+        degreesPerSecond: 225
         hitInterval: 0.5
         effects: []
-    - rid: 1006
+        pulsePeriod: 0
+        pulseRadius: 0.7
+    - rid: 3102418934778823382
       type: {class: OrbitSawData, ns: , asm: Assembly-CSharp}
       data:
         visualPrefab: {fileID: 11400000, guid: 8448e06456c34561a26476c53a970b82, type: 3}
-        bladeCount: 5
-        orbitRadius: 0.5
-        bladeRadius: 0.1
-        degreesPerSecond: 180
+        bladeCount: 6
+        damagePercent: 140
+        orbitRadius: 0.3
+        bladeRadius: 0.09
+        degreesPerSecond: 240
         hitInterval: 0.5
         effects: []
+        pulsePeriod: 2
+        pulseRadius: 0.7

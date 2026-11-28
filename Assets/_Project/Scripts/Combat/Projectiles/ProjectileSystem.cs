@@ -65,8 +65,8 @@ public sealed class ProjectileSystem : IDisposable
         ISpatialResolution spatialResolution,
         ISpatialQuery spatialQuery,
         ISpatialQueryBuilder queryBuilder,
-        EffectSystem effects,
-        CombatVfx vfx)
+        CombatHits hits,
+        ImpactServices impacts)
     {
         this.combatAssets = combatAssets != null ? combatAssets : throw new ArgumentNullException(nameof(combatAssets));
         combatAssets.Validate(); // Kiểm tra trước khi cấp phát NativeArray, để cấu hình sai không gây leak.
@@ -80,8 +80,9 @@ public sealed class ProjectileSystem : IDisposable
             queryBuilder ?? throw new ArgumentNullException(nameof(queryBuilder)),
             pools,
             this,
-            effects ?? throw new ArgumentNullException(nameof(effects)),
-            vfx ?? throw new ArgumentNullException(nameof(vfx)));
+            hits ?? throw new ArgumentNullException(nameof(hits)),
+            impacts ?? throw new ArgumentNullException(nameof(impacts)));
+        impacts.Projectiles = this; // Đạn tách ra đạn con qua chính system này.
 
         queries = new NativeArray<SpatialQuery>(128, Allocator.Persistent);
         results = new NativeArray<SpatialHit>(128, Allocator.Persistent);
@@ -96,7 +97,8 @@ public sealed class ProjectileSystem : IDisposable
     /// Tạo một viên đạn. Chỉ tạo đúng một viên; số viên mỗi lượt và cách chia hướng do skill quyết định.
     /// Trả về false nếu pool không tạo được vỏ.
     /// </summary>
-    public bool SpawnBullet(ProjectileSpawnData projectileData, Vector2 spawnPosition, Vector2 direction, CharacterHandle target = default)
+    /// <remarks><c>in</c>: struct khoảng 110 B (có <see cref="HitPayload"/>), truyền bằng tham chiếu để không copy mỗi viên đạn.</remarks>
+    public bool SpawnBullet(in ProjectileSpawnData projectileData, Vector2 spawnPosition, Vector2 direction, CharacterHandle target = default)
     {
         projectileData.Validate();
         if (!IsFinite(direction.x) || !IsFinite(direction.y) || direction.sqrMagnitude < 0.000001f)
@@ -107,9 +109,9 @@ public sealed class ProjectileSystem : IDisposable
         // (lambda có capture tạo closure + delegate mới cho mỗi viên).
         GameObject shell = pools.Spawn(combatAssets.BulletPrefab.gameObject, spawnPosition, Quaternion.identity, PoolGroup.Bullets);
         if (shell == null) return false;
-        shell.transform.localScale = combatAssets.BulletPrefab.transform.localScale;
+        shell.transform.localScale = combatAssets.BulletPrefab.transform.localScale * projectileData.Traits.Size;
         var view = shell.GetComponent<ProjectileView>();
-        try { view.Launch(projectileContext, bulletVisual, projectileData, direction, target); }
+        try { view.Launch(projectileContext, bulletVisual, in projectileData, direction, target); }
         catch
         {
             // Phóng lỗi thì trả vỏ ngay (visual con trước), không để một vỏ "trống" đang bật trong scene.

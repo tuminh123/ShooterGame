@@ -119,11 +119,21 @@ public sealed class CharacterSkillEditor : Editor
 // Chọn lớp cụ thể cho các interface được lưu bằng SerializeReference, bao gồm từng effect trong danh sách.
 internal static class StrategySelector
 {
-    public static Type[] GetTypes<T>()
-        => TypeCache.GetTypesDerivedFrom<T>()
+    public static Type[] GetTypes<T>() => GetTypes(typeof(T));
+
+    /// <summary>Mọi lớp cụ thể gán được cho <paramref name="baseType"/> (interface strategy, effect, tác động…).</summary>
+    public static Type[] GetTypes(Type baseType)
+        => TypeCache.GetTypesDerivedFrom(baseType)
             .Where(type => !type.IsAbstract && !type.IsInterface && type.IsSerializable &&
                            type.GetConstructor(Type.EmptyTypes) != null)
             .OrderBy(type => type.Name).ToArray();
+
+    // Kiểu khai báo của field [SerializeReference] ("Assembly-CSharp ISkillImpact"); null nếu không tra được.
+    private static Type FieldType(SerializedProperty property)
+    {
+        string[] parts = property.managedReferenceFieldTypename.Split(' ');
+        return parts.Length == 2 ? Type.GetType(parts[1] + ", " + parts[0]) : null;
+    }
 
     public static void Draw(SerializedProperty property, Type[] types, string label = null)
     {
@@ -163,6 +173,17 @@ internal static class StrategySelector
             (property.name == "shooter" || property.name == "projectileMove"))
         {
             Draw(property, property.name == "shooter" ? GetTypes<IShooter>() : GetTypes<IProjectileMove>());
+            return;
+        }
+        if (property.propertyType == SerializedPropertyType.ManagedReference && property.name == "target")
+        {
+            Draw(property, GetTypes<ITargetSelector>());
+            return;
+        }
+        // Mọi field [SerializeReference] khác (hình dạng đòn từ trời, tác động khi trúng, effect của nhịp…): chọn lớp theo kiểu khai báo.
+        if (property.propertyType == SerializedPropertyType.ManagedReference && FieldType(property) is Type declared)
+        {
+            Draw(property, GetTypes(declared));
             return;
         }
         if (property.propertyType != SerializedPropertyType.Generic)

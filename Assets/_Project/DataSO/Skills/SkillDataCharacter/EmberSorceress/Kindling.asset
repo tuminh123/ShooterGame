@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: Kindling
+  m_EditorClassIdentifier: 
+  source: 1
+  level: 1
+  displayName: Kindling
+  description: Burning enemies take 15% more damage from you.
+  icon: {fileID: 21300000, guid: b8ab7518e8820c44e9b78735fa58ad39, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: Burning enemies take +15% damage from you.
+    behaviours:
+    - rid: 3102418934778823302
+  behaviourTypes: 06000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778823302
+      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+      data:
+        stat: 106
+        operation: 0
+        value: 15
+        extraModifiers: []
+        restorePercentOnApply: 0

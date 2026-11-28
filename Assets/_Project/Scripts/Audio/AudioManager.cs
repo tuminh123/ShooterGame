@@ -12,7 +12,8 @@ using Object = UnityEngine.Object;
 /// theo <see cref="AudioCategory"/> của entry. Thêm âm mới không sửa class này (chỉ thêm enum + entry).
 /// <para>
 /// Công tắc là dữ liệu nhẹ, mất cũng không sao, nên lưu bằng PlayerPrefs thay vì save game.
-/// Entry chưa có clip thì chỉ ghi log, để test luồng gọi khi chưa có file âm thanh.
+/// Entry chưa có clip thì chỉ ghi log (tắt được bằng Log Placeholders), để test luồng gọi khi chưa có file âm thanh.
+/// Rung thật trên máy do <see cref="HapticDevice"/> lo.
 /// </para>
 /// </remarks>
 public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IInitializable, ITickable, IDisposable
@@ -29,10 +30,14 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
         [SerializeField, Min(1)] private int voiceCount = 12;
         [Tooltip("Thời gian (giây) nhạc cũ nhỏ dần và nhạc mới to dần khi đổi bài.")]
         [SerializeField, Min(0f)] private float musicFadeSeconds = 0.4f;
+        [Tooltip("Ghi log khi phát entry chưa có clip và mỗi lần rung, để test luồng gọi khi chưa có file. Tắt khi đã gán đủ clip " +
+                 "(log tạo chuỗi mỗi lần quái chết).")]
+        [SerializeField] private bool logPlaceholders = true;
 
         public AudioDatabaseSO Database => database;
         public int VoiceCount => voiceCount;
         public float MusicFadeSeconds => musicFadeSeconds;
+        public bool LogPlaceholders => logPlaceholders;
 
         /// <summary>Bắt buộc có database hợp lệ.</summary>
         public void Validate()
@@ -58,6 +63,7 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
     private AudioSource[] voices; // Pool nguồn Sound tạo sẵn.
     private AudioId[] voiceIds; // Id đang kêu trên từng nguồn, để Stop đúng id.
     private AudioSource musicSource;
+    private HapticDevice haptics;
     private AudioId currentMusic; // Bài đang phát (hoặc đang chờ phát lại khi bật Music).
     private AudioId pendingMusic; // Bài sẽ phát khi nhạc cũ nhỏ dần xong; None = không đổi bài.
     private float musicFade; // 0..1: hệ số âm lượng nhạc hiện tại.
@@ -75,6 +81,7 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
     {
         BuildLookup();
         CreateSources();
+        haptics = new HapticDevice(settings.LogPlaceholders);
         foreach (AudioCategory category in (AudioCategory[])Enum.GetValues(typeof(AudioCategory)))
             categoryOn[(int)category] = PlayerPrefs.GetInt(PrefsKeyPrefix + category, 1) == 1;
     }
@@ -100,6 +107,7 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
         if (disposed) return;
         disposed = true;
         AudioListener.pause = false;
+        haptics?.Dispose();
         if (root != null) Object.Destroy(root);
     }
 
@@ -119,8 +127,7 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
         voices = new AudioSource[settings.VoiceCount];
         voiceIds = new AudioId[settings.VoiceCount];
         for (int i = 0; i < voices.Length; i++) voices[i] = CreateSource();
-        musicSource = CreateSource();
-        musicSource.loop = true;
+        musicSource = CreateSource(); // loop đặt theo entry mỗi lần đổi bài.
         musicSource.ignoreListenerPause = true; // Nhạc vẫn chạy khi gameplay pause.
     }
 
@@ -184,7 +191,7 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
         AudioClip clip = PickClip(entry);
         if (clip == null)
         {
-            Debug.Log($"[Audio] Sound {entry.Id} (no clip)");
+            if (settings.LogPlaceholders) Debug.Log($"[Audio] Sound {entry.Id} (no clip)");
             return;
         }
         int voice = FindFreeVoice();
@@ -278,10 +285,11 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
         AudioClip clip = entry.Clips.Count > 0 ? entry.Clips[0] : null;
         if (clip == null)
         {
-            Debug.Log($"[Audio] Music {id} (no clip)");
+            if (settings.LogPlaceholders) Debug.Log($"[Audio] Music {id} (no clip)");
             return;
         }
         musicSource.clip = clip;
+        musicSource.loop = entry.Loop; // Nhạc nền lặp; Victory/Defeat phát một lần rồi im.
         musicSource.volume = 0f;
         musicSource.Play();
     }
@@ -290,11 +298,11 @@ public sealed class AudioManager : DomainManager, IAudio, IAudioSettings, IIniti
 
     #region Haptic
 
-    // Chưa rung thật trên thiết bị (Android cần Vibrator theo thời gian, iOS cần plugin); hiện chỉ ghi log để test luồng gọi.
+    // Mỗi kiểu rung có khoảng tối thiểu HapticMinInterval, để Light (trúng đòn liên tục) không rung liền một dải.
     private void Vibrate(AudioDatabaseSO.Entry entry)
     {
         if (!PassInterval(entry.Id, Mathf.Max(entry.MinInterval, HapticMinInterval))) return;
-        Debug.Log($"[Audio] Haptic {entry.Id} {entry.HapticMilliseconds}ms");
+        haptics.Vibrate(entry.HapticMilliseconds);
     }
 
     #endregion

@@ -35,11 +35,10 @@ public sealed class SkillChoiceUI : MonoBehaviour
         {
             button.gameObject.SetActive(true);
             button.interactable = true;
-            icon.sprite = offer.Definition.Icon;
+            icon.sprite = offer.Definition.GetIcon(offer.OfferedLevel);
             icon.enabled = icon.sprite != null;
             icon.preserveAspect = true;
-            title.text = string.IsNullOrWhiteSpace(offer.Definition.DisplayName)
-                ? offer.Definition.name : offer.Definition.DisplayName;
+            title.text = offer.Definition.GetDisplayName(offer.OfferedLevel);
             string action = offer.CurrentLevel == 0 ? "NEW SKILL - Lv. 1" : // Phân biệt nhận mới và nâng từ cấp đang có.
                 $"UPGRADE - Lv. {offer.CurrentLevel} > {offer.OfferedLevel}";
             description.text = action + "\n" + offer.Definition.GetLevelDescription(offer.OfferedLevel);

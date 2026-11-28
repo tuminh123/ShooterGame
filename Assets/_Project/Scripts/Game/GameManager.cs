@@ -54,7 +54,7 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
     private readonly ICombatLifecycle combat; // Dọn đạn/effect/VFX và skill gameplay.
     private readonly IStageBattleLifecycle stageLifecycle;
     private readonly IStageResults stageResults;
-    private readonly IAudio audio; // Đổi nhạc nền theo state: Game gọi xuống Audio, Audio không nghe Game.
+    private readonly IAudio audio; // Nhạc nền theo state của Game. Âm của miền khác do chính miền đó phát.
     private readonly Settings settings;
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private IDisposable flowPause; // Giữ game dừng khi chuẩn bị, ở Home, thắng/thua hoặc gặp lỗi.
@@ -203,6 +203,7 @@ public sealed class GameManager : DomainManager, IGameState, IGameFlow, IGamePau
     #region Music
 
     // Nhạc nền theo state. Restart vào lại Playing thì cùng bài nên Audio tự bỏ qua; state trung gian giữ nhạc cũ.
+    // Nhạc boss do Stage đổi khi boss xuất hiện; vào Playing của trận mới thì Game đặt lại nhạc trận.
     private void PlayStateMusic(GameState previous, GameState current)
     {
         switch (current)

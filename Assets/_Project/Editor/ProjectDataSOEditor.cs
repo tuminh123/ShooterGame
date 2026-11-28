@@ -30,6 +30,27 @@ public abstract class ProjectDataSOEditor : Editor
 
     #region Data Sections
 
+    // Mọi field CharacterDataSO đã có chỗ trong các section ở trên. Field mới chưa được thêm vào đây vẫn hiện ở
+    // section "CHƯA PHÂN NHÓM" thay vì bị ẩn (trước đây deathSound, combatRange, shardIcon đã từng bị ẩn như vậy).
+    private static readonly string[] CharacterFields =
+    {
+        "displayName", "characterType", "team", "isBoss", "visualSettings", "rarity", "portrait", "shardIcon",
+        "uiVisualPrefab", "baseStats", "combatRange", "deathSound", "skills", "skillProgression", "starStats"
+    };
+
+    // Vẽ các field cấp ngoài cùng không có trong danh sách, để field mới thêm vào SO không bị Inspector ẩn mất.
+    private void DrawUnlistedFields(string[] listed)
+    {
+        var known = new System.Collections.Generic.HashSet<string>(listed) { "m_Script" };
+        var unlisted = new System.Collections.Generic.List<string>();
+        SerializedProperty property = serializedObject.GetIterator();
+        for (bool enter = true; property.NextVisible(enter); enter = false)
+            if (!known.Contains(property.name)) unlisted.Add(property.name);
+        if (unlisted.Count == 0) return;
+        Section("CHƯA PHÂN NHÓM", "Field mới chưa được xếp vào section nào (thêm tên field vào CharacterFields trong ProjectDataSOEditor).",
+            DataInspectorTone.Advanced, unlisted.ToArray());
+    }
+
     private void DrawSections()
     {
         if (target is CharacterDataSO)
@@ -39,11 +60,16 @@ public abstract class ProjectDataSOEditor : Editor
             Section("VISUAL / HITBOX / HEALTH BAR", "Hình ảnh, hitbox và thanh máu có kích thước riêng. Mở công cụ để căn chỉnh trực tiếp trong Scene.",
                 DataInspectorTone.Visual, "visualSettings");
             if (GUILayout.Button("Mở công cụ chỉnh Visual / Hitbox")) HitboxEditorWindow.Open();
-            Section("CHARACTER SCREEN (UI)", "Ảnh thẻ Collection và nhân vật dạng UI cho màn Detail. Character UI Exporter tự xuất và gán hai field này.",
-                DataInspectorTone.Visual, "rarity", "portrait", "uiVisualPrefab");
+            Section("CHARACTER SCREEN (UI)", "Ảnh thẻ Collection, icon mảnh và nhân vật dạng UI cho màn Detail. Character UI Exporter tự xuất và gán các field ảnh.",
+                DataInspectorTone.Visual, "rarity", "portrait", "shardIcon", "uiVisualPrefab");
             if (GUILayout.Button("Mở Character UI Exporter")) CharacterUIExporter.Open();
             Section("BASE STATS", "Chỉ số cấp 1 trước bonus. Defense là giáp tiêu hao; các tỷ lệ dùng thang 100 = 100%.",
                 DataInspectorTone.Stats, "baseStats");
+            Section("COMBAT RANGE", "Tầm chiến đấu (world unit, bán kính quanh nhân vật): mọi skill chỉ nhắm mục tiêu và chọn chỗ xuất hiện trong vùng này. " +
+                "Màn 9:16 rộng ~2.0: tướng Common 1.1 (trên ~1.1 bắt đầu nhắm quái ngoài màn). Bonus CombatRange (+%) của buff nhân thêm lên số này.",
+                DataInspectorTone.Stats, "combatRange");
+            Section("AUDIO", "Âm phát khi nhân vật chết (loại Sound trong Audio Database). None = im.",
+                DataInspectorTone.Info, "deathSound");
             Section("SKILLS", "MỌI skill của nhân vật, mỗi skill một lần. Skill không có bước mở khóa bên dưới là skill có sẵn; cấp ban đầu đọc từ từng SkillDataSO. Danh sách rỗng thì màn Character không có ô skill.",
                 DataInspectorTone.Advanced, "skills");
             Section("SKILL PROGRESSION (PLAYER)", "Mỗi bước chọn một skill trong SKILLS (dropdown): skill đạt Skill Level khi thỏa điều kiện. Character Level ≥ N chỉ dùng để mở khóa (Skill Level = 1); Stars ≥ N mở hoặc nâng cấp, một sao có thể nâng nhiều skill. Cấp skill = cấp cao nhất trong các bước đã thỏa. Enemy bỏ qua phần này.",
@@ -53,6 +79,7 @@ public abstract class ProjectDataSOEditor : Editor
             if (GUILayout.Button("Random chỉ số sao (sao chưa có skill)"))
                 RandomizeStarStats();
             DrawCharacterWarnings();
+            DrawUnlistedFields(CharacterFields);
         }
         else if (target is CharacterDatabaseSO)
             Section("CHARACTER CATALOG", "Mỗi Character Type chỉ khai báo một template. Bao gồm Player, Enemy thường và Boss; không để reference trống.",
@@ -292,7 +319,7 @@ public abstract class ProjectDataSOEditor : Editor
             stars.arraySize = CharacterLevelConfigSO.MaxStars;
             BaseStats baseStats = character.BaseStats;
             var pool = new System.Collections.Generic.List<StatType>();
-            foreach (StatType stat in (StatType[])Enum.GetValues(typeof(StatType)))
+            foreach (StatType stat in StatTypes.Base) // Bonus chiến đấu không có giá trị gốc để lấy tỉ lệ.
             {
                 if (baseStats.Get(stat) > 0f)
                     pool.Add(stat);
@@ -571,6 +598,8 @@ public abstract class ProjectDataSOEditor : Editor
         }
         Section("BOSS TRIGGER & ARENA", "Boss cần CharacterData có Is Boss bật và một WaveConfig trong Stage. Arena Size là chiều rộng/cao world unit.",
             DataInspectorTone.Advanced, "bossAppearanceCondition", "arenaSize");
+        Section("BOSS MUSIC", "Nhạc phát khi Boss xuất hiện (loại Music trong Audio Database). None = giữ nhạc trận.",
+            DataInspectorTone.Info, "bossMusic");
     }
 
     #endregion

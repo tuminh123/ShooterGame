@@ -27,6 +27,8 @@ public sealed class CharacterDataSO : ScriptableObject
     [SerializeField] private CharacterUIVisual uiVisualPrefab;
     [Tooltip("Độ hiếm hiển thị trên màn Character. Chỉ là thông tin hiển thị, không đổi chỉ số.")]
     [SerializeField] private CharacterRarity rarity = CharacterRarity.Common;
+    [Tooltip("Âm phát khi nhân vật chết (loại Sound trong Audio Database). None = im. Mỗi loại quái/boss có thể chọn âm riêng.")]
+    [SerializeField] private AudioId deathSound;
 
     #region  Get
     
@@ -45,6 +47,8 @@ public sealed class CharacterDataSO : ScriptableObject
     public CharacterUIVisual UIVisualPrefab => uiVisualPrefab;
     /// <summary>Độ hiếm chỉ để hiển thị.</summary>
     public CharacterRarity Rarity => rarity;
+    /// <summary>Âm khi chết; None thì không phát.</summary>
+    public AudioId DeathSound => deathSound;
 
     #endregion
 
@@ -54,11 +58,25 @@ public sealed class CharacterDataSO : ScriptableObject
 
     [Tooltip("Chỉ số gốc ở cấp 1, trước bonus cấp và trang bị. Các tỷ lệ dùng thang 100 = 100%.")]
     [SerializeField] private BaseStats baseStats = BaseStats.Default; // Crit damage là phần trăm CỘNG THÊM vào đòn thường, không phải tổng.
+    [Tooltip("Tầm chiến đấu (world unit, bán kính quanh nhân vật): mọi skill của nhân vật chỉ nhắm mục tiêu và chọn chỗ xuất hiện " +
+             "trong vùng này. Skill chỉ quyết định hình dạng (to bao nhiêu, bay xa bao nhiêu). Màn hình rộng ~2.0, cao ~3.6; tướng Common 1.1 (trên ~1.1 bắt đầu nhắm quái ngoài màn).\n" +
+             "Bonus CombatRange (+%) của buff/trang bị nhân thêm lên số này.")]
+    // 1.1 đo bằng play test (2026-11-28): lớn nhất mà không bắn quái ngoài màn (nửa màn ngang 1.01 + nửa hitbox quái).
+    [SerializeField, Min(0.1f)] private float combatRange = 1.1f;
 
     // Trả về bản sao struct; sửa bản sao không làm thay đổi dữ liệu của asset.
     public BaseStats BaseStats => baseStats;
 
-    public void ValidateStats() => baseStats.Validate();
+    /// <summary>Tầm chiến đấu gốc (world unit), trước bonus CombatRange.</summary>
+    public float CombatRange => combatRange;
+
+    /// <summary>Chỉ số gốc và tầm chiến đấu phải hợp lệ; gọi mỗi lần spawn.</summary>
+    public void ValidateStats()
+    {
+        baseStats.Validate();
+        if (!(combatRange > 0f) || float.IsInfinity(combatRange))
+            throw new System.InvalidOperationException($"{name}: Combat Range phải là số dương hữu hạn.");
+    }
 
     #endregion
 
@@ -272,7 +290,8 @@ public sealed class CharacterDataSO : ScriptableObject
             throw new System.InvalidOperationException($"{name}: Star Stats tối đa {CharacterLevelConfigSO.MaxStars} mục (mỗi sao một mục).");
         foreach (StarStatReward reward in starStats)
         {
-            if (!System.Enum.IsDefined(typeof(StatType), reward.Stat) || float.IsNaN(reward.Value) ||
+            // Thưởng sao đi qua StatBonus (chỉ có chỉ số gốc), nên không nhận bonus chiến đấu.
+            if (!System.Enum.IsDefined(typeof(StatType), reward.Stat) || StatTypes.IsCombatBonus(reward.Stat) || float.IsNaN(reward.Value) ||
                 float.IsInfinity(reward.Value) || reward.Value < 0f)
                 throw new System.InvalidOperationException($"{name}: Star Stats có chỉ số không hợp lệ hoặc giá trị âm.");
         }

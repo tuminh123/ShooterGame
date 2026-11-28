@@ -1,0 +1,158 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: StaticField
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Static Field
+  description: Zaps random enemies inside the field.
+  icon: {fileID: 21300000, guid: b152f65e488e17649b68d63b8e8d8433, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: Radius 0.6, zaps 1 enemy every 1s for 90% damage.
+    behaviours:
+    - rid: 3102418934778822854
+  - displayName: 
+    icon: {fileID: 0}
+    description: Zaps 2 enemies.
+    behaviours:
+    - rid: 3102418934778822855
+  - displayName: 
+    icon: {fileID: 0}
+    description: 110% damage, radius 0.7.
+    behaviours:
+    - rid: 3102418934778822856
+  - displayName: 
+    icon: {fileID: 0}
+    description: Zaps 3 enemies every 0.8s.
+    behaviours:
+    - rid: 3102418934778822857
+  - displayName: Tesla Dome
+    icon: {fileID: 21300000, guid: cd7a568aa4130704ca334290aa3933ca, type: 3}
+    description: Zaps every enemy in the dome each second for 80% damage and stuns
+      0.3s.
+    behaviours:
+    - rid: 3102418934778822858
+  behaviourTypes: 03000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822854
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 4665093280791678977, guid: e61cfa2d25c9cd14bba9f5879fb0be78, type: 3}
+        radius: 0.6
+        slowFraction: 0
+        effects: []
+        damagePercent: 90
+        tickInterval: 1
+        targetsPerTick: 1
+        tickEffects: []
+        tickVfx: 5
+        zapLine: 1
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3
+    - rid: 3102418934778822855
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 4665093280791678977, guid: e61cfa2d25c9cd14bba9f5879fb0be78, type: 3}
+        radius: 0.6
+        slowFraction: 0
+        effects: []
+        damagePercent: 90
+        tickInterval: 1
+        targetsPerTick: 2
+        tickEffects: []
+        tickVfx: 5
+        zapLine: 1
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3
+    - rid: 3102418934778822856
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 4665093280791678977, guid: e61cfa2d25c9cd14bba9f5879fb0be78, type: 3}
+        radius: 0.7
+        slowFraction: 0
+        effects: []
+        damagePercent: 110
+        tickInterval: 1
+        targetsPerTick: 2
+        tickEffects: []
+        tickVfx: 5
+        zapLine: 1
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3
+    - rid: 3102418934778822857
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 4665093280791678977, guid: e61cfa2d25c9cd14bba9f5879fb0be78, type: 3}
+        radius: 0.7
+        slowFraction: 0
+        effects: []
+        damagePercent: 110
+        tickInterval: 0.8
+        targetsPerTick: 3
+        tickEffects: []
+        tickVfx: 5
+        zapLine: 1
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3
+    - rid: 3102418934778822858
+      type: {class: FrostAuraData, ns: , asm: Assembly-CSharp}
+      data:
+        visualPrefab: {fileID: 4665093280791678977, guid: e61cfa2d25c9cd14bba9f5879fb0be78, type: 3}
+        radius: 0.75
+        slowFraction: 0
+        effects: []
+        damagePercent: 80
+        tickInterval: 1
+        targetsPerTick: 0
+        tickEffects:
+        - rid: 3102418934778822859
+        tickVfx: 5
+        zapLine: 1
+        healPercentPerSecond: 0
+        overhealShieldPercent: 0
+        pulseInterval: 0
+        pulseDamagePercent: 150
+        pulseKnockback: 0
+        pulseEffects: []
+        pulseVfx: 3
+    - rid: 3102418934778822859
+      type: {class: StunEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 0.3
+        applicationChance: 100
+        useEffectStats: 0

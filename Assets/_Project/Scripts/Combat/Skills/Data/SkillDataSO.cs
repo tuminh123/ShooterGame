@@ -60,6 +60,23 @@ public sealed class SkillDataSO : ScriptableObject
     /// <summary>Skill có khai báo hành vi <paramref name="type"/> hay không.</summary>
     internal bool HasBehaviour(SkillBehaviourType type) => Array.IndexOf(behaviourTypes, type) >= 0;
 
+    /// <summary>Tên hiển thị ở cấp <paramref name="currentLevel"/>: tên tiến hóa nếu cấp đó có, không thì tên chung.</summary>
+    public string GetDisplayName(int currentLevel)
+    {
+        string fallback = string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+        if (currentLevel < 1 || currentLevel > levels.Length) return fallback;
+        string levelName = levels[currentLevel - 1].DisplayName;
+        return string.IsNullOrWhiteSpace(levelName) ? fallback : levelName;
+    }
+
+    /// <summary>Icon ở cấp <paramref name="currentLevel"/>: icon tiến hóa nếu cấp đó có, không thì icon chung.</summary>
+    public Sprite GetIcon(int currentLevel)
+    {
+        if (currentLevel < 1 || currentLevel > levels.Length) return icon;
+        Sprite levelIcon = levels[currentLevel - 1].Icon;
+        return levelIcon != null ? levelIcon : icon;
+    }
+
     // UI đọc mô tả từ cùng cấp dùng để cấu hình runtime.
     public string GetLevelDescription(int currentLevel)
     {

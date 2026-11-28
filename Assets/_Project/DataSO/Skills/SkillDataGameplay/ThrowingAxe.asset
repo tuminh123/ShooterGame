@@ -1,0 +1,289 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46fe2b02052f71a436b599f0470f86c1, type: 3}
+  m_Name: ThrowingAxe
+  m_EditorClassIdentifier: 
+  source: 0
+  level: 1
+  displayName: Throwing Axe
+  description: A spinning axe flies to the edge of your combat range and comes back.
+  icon: {fileID: 21300000, guid: 8458170695f113a4a890e21ec004e7bd, type: 3}
+  shootingVisualState: 3
+  levels:
+  - displayName: 
+    icon: {fileID: 0}
+    description: 1 axe, 80% damage, hits on the way out and back.
+    behaviours:
+    - rid: 3102418934778822823
+  - displayName: 
+    icon: {fileID: 0}
+    description: Axe 20% larger.
+    behaviours:
+    - rid: 3102418934778822824
+  - displayName: 
+    icon: {fileID: 0}
+    description: "2 axes (30\xB0), 95% damage."
+    behaviours:
+    - rid: 3102418934778822825
+  - displayName: 
+    icon: {fileID: 0}
+    description: 30% faster, cooldown 1.6s.
+    behaviours:
+    - rid: 3102418934778822826
+  - displayName: Twin Axes
+    icon: {fileID: 21300000, guid: 785ca0ba29d117c468c6e1fefd5f43f2, type: 3}
+    description: 2 axes, 120% damage; on return each splits into 4 small blades (40%).
+    behaviours:
+    - rid: 3102418934778822827
+  behaviourTypes: 01000000
+  references:
+    version: 2
+    RefIds:
+    - rid: 3102418934778822823
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 2
+        damagePercent: 80
+        target:
+          rid: 3102418934778822828
+        shooter:
+          rid: 3102418934778822829
+        projectileMove:
+          rid: 3102418934778822830
+        bulletType: 7
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 900
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 1
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822824
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 2
+        damagePercent: 80
+        target:
+          rid: 3102418934778822831
+        shooter:
+          rid: 3102418934778822832
+        projectileMove:
+          rid: 3102418934778822833
+        bulletType: 7
+        projectileCount: 1
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.2
+          spinDegreesPerSecond: 900
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 1
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822825
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 2
+        damagePercent: 95
+        target:
+          rid: 3102418934778822834
+        shooter:
+          rid: 3102418934778822835
+        projectileMove:
+          rid: 3102418934778822836
+        bulletType: 7
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.2
+          spinDegreesPerSecond: 900
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 1
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822826
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.6
+        damagePercent: 95
+        target:
+          rid: 3102418934778822837
+        shooter:
+          rid: 3102418934778822838
+        projectileMove:
+          rid: 3102418934778822839
+        bulletType: 7
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.2
+          spinDegreesPerSecond: 1000
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 1
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822827
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.6
+        damagePercent: 120
+        target:
+          rid: 3102418934778822840
+        shooter:
+          rid: 3102418934778822841
+        projectileMove:
+          rid: 3102418934778822842
+        bulletType: 7
+        projectileCount: 2
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.6
+        lifetime: 4
+        effects: []
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.4
+          spinDegreesPerSecond: 1000
+          pushAlongFlight: 0
+          onHit: []
+          onExpire:
+          - rid: 3102418934778822843
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 1
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778822828
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822829
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822830
+      type: {class: BoomerangMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822831
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822832
+      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822833
+      type: {class: BoomerangMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822834
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822835
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 30
+    - rid: 3102418934778822836
+      type: {class: BoomerangMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822837
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822838
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 30
+    - rid: 3102418934778822839
+      type: {class: BoomerangMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822840
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822841
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 30
+    - rid: 3102418934778822842
+      type: {class: BoomerangMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778822843
+      type: {class: SplitImpact, ns: , asm: Assembly-CSharp}
+      data:
+        count: 4
+        damagePercent: 40
+        spreadAngle: 360
+        bulletType: 9
+        speed: 2.4
+        lifetime: 0.5
+        effects: []

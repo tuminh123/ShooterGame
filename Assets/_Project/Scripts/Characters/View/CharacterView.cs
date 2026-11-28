@@ -72,6 +72,12 @@ public sealed class CharacterView : MonoBehaviour
     /// <summary>Tìm mục tiêu quanh nhân vật; skill (Combat) và AI tách đàn dùng qua đây.</summary>
     public ICharacterSearch Search { get; private set; }
 
+    /// <summary>
+    /// Hướng nhìn: hướng di chuyển khác 0 gần nhất, đã chuẩn hóa. Đứng yên thì giữ hướng cũ; lượt spawn mới bắt đầu nhìn phải.
+    /// Skill theo hướng nhìn (dao, chém, tia) đọc giá trị này.
+    /// </summary>
+    public Vector2 AimDirection { get; private set; } = Vector2.right;
+
     /// <summary>Phần trình bày: visual state, hướng quay, hiển thị. Tạo lazy vì component khác có thể cần trước Awake của vỏ.</summary>
     public CharacterPresentation Presentation => presentation ??= new CharacterPresentation(this, Feedback);
 
@@ -79,7 +85,8 @@ public sealed class CharacterView : MonoBehaviour
     /// Nhân vật có được dùng skill lúc này không. Trình diễn và hitbox vẫn hoạt động khi quái bị khóa đòn;
     /// đang phát kết quả thắng/thua thì không dùng skill nữa.
     /// </summary>
-    public bool CanUseSkills => !Presentation.IsResultLocked && (controller == null || controller.CanAttack);
+    public bool CanUseSkills => !Presentation.IsResultLocked && (RuntimeData == null || !RuntimeData.IsStunned) &&
+        (controller == null || controller.CanAttack);
 
     /// <summary>Lượt spawn là boss (hiện thanh máu, có animation Attack/Cast, giữ xác khi chết).</summary>
     public bool IsBoss { get; private set; }
@@ -275,6 +282,7 @@ public sealed class CharacterView : MonoBehaviour
     public void Move(Vector2 direction, float speed, float maxDistance = float.PositiveInfinity, float? facingDirection = null)
     {
         if (Presentation.IsResultLocked) return;
+        if (direction.sqrMagnitude > 0.000001f) AimDirection = direction.normalized;
         Presentation.Face(facingDirection ?? direction.x);
         movementCommand?.SetMovement(movementHandle, direction, speed, maxDistance);
         Presentation.UpdateLocomotion(direction, speed, maxDistance);
@@ -323,6 +331,19 @@ public sealed class CharacterView : MonoBehaviour
 
     /// <summary>Cấp thêm giáp.</summary>
     public void GrantShield(float amount) { if (!Presentation.IsResultLocked) controller?.GrantShield(this, RuntimeData, amount); }
+
+    /// <summary>Hồi HP/giáp đã mất, không vượt và không tăng max (hút máu, vùng hồi máu, hồi giáp).</summary>
+    public void Restore(float health, float shield = 0f) { if (!Presentation.IsResultLocked) controller?.Restore(this, RuntimeData, health, shield); }
+
+    /// <summary>Bị skill đẩy (quãng dương) theo hướng cho trước. Boss không bị đẩy.</summary>
+    public void Push(Vector2 direction, float distance, float duration)
+    {
+        if (IsBoss || Presentation.IsResultLocked || distance <= 0f || direction.sqrMagnitude < 0.000001f) return;
+        controller?.Push(this, direction.normalized, distance, duration);
+    }
+
+    /// <summary>Bất tử tạm thời <paramref name="seconds"/> giây (khiên khẩn cấp, hồi sinh).</summary>
+    public void GrantInvulnerability(float seconds) { if (RuntimeData != null && RuntimeData.IsAlive) RuntimeData.GrantInvulnerability(seconds); }
 
     /// <summary>Gây sát thương lên đúng lượt spawn của <paramref name="target"/>, tính từ chỉ số của nhân vật này.</summary>
     public DamageResult DealDamage(CharacterHandle target, float multiplier = 1f)
@@ -451,6 +472,7 @@ public sealed class CharacterView : MonoBehaviour
         RuntimeData = null;
         IsBoss = false;
         IsElite = false;
+        AimDirection = Vector2.right;
         Presentation.End();
     }
 

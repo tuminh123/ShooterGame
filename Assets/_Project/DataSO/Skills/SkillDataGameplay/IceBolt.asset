@@ -15,101 +15,50 @@ MonoBehaviour:
   source: 0
   level: 1
   displayName: Ice Bolt
-  description: Automatically fires the configured projectile pattern.
-  icon: {fileID: 21300000, guid: f75b2793525a349f38a2bd9966b0e931, type: 3}
+  description: Fans out ice shards that pierce and slow.
+  icon: {fileID: 21300000, guid: 774890622273d7641aab2f1428d2aca5, type: 3}
   shootingVisualState: 3
   levels:
-  - description: Fire 1 bolts that apply slow to enemies.
+  - displayName: 
+    icon: {fileID: 0}
+    description: "3 shards (30\xB0), 60% damage, pierce 1, slow 30% for 1.5s."
     behaviours:
-    - rid: 1006
-    - rid: 1007
-  - description: Fire 2 bolts that apply slow to enemies.
+    - rid: 3102418934778823383
+  - displayName: 
+    icon: {fileID: 0}
+    description: 4 shards.
     behaviours:
-    - rid: 1008
-    - rid: 1009
-  - description: Fire 3 bolts that apply slow to enemies.
+    - rid: 3102418934778823384
+  - displayName: 
+    icon: {fileID: 0}
+    description: 75% damage, pierce 2.
     behaviours:
-    - rid: 1010
-    - rid: 1011
-  - description: Fire 4 bolts that apply slow to enemies.
+    - rid: 3102418934778823385
+  - displayName: 
+    icon: {fileID: 0}
+    description: "5 shards, 45\xB0 fan."
     behaviours:
-    - rid: 1012
-    - rid: 1013
-  - description: Fire 5 bolts that apply slow to enemies.
+    - rid: 3102418934778823386
+  - displayName: Glacial Spear
+    icon: {fileID: 21300000, guid: 7d10c44b5787e124cb25b62e739ff358, type: 3}
+    description: 5 ice spears, 110% damage, pierce all, freeze 1s.
     behaviours:
-    - rid: 1014
-    - rid: 1015
-  behaviourTypes: 0100000006000000
+    - rid: 3102418934778823387
+  behaviourTypes: 01000000
   references:
     version: 2
     RefIds:
-    - rid: 1003
-      type: {class: StraightShooter, ns: , asm: Assembly-CSharp}
-      data: 
-    - rid: 1004
-      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
-      data:
-        duration: 2
-        applicationChance: 100
-        useEffectStats: 1
-        slowFraction: 0.3
-    - rid: 1006
+    - rid: 3102418934778823383
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 1
-        range: 2
+        cooldown: 1.5
+        damagePercent: 60
+        target:
+          rid: 3102418934778823388
         shooter:
-          rid: 1003
+          rid: 3102418934778823389
         projectileMove:
-          rid: 8867963934459297805
-        bulletType: 2
-        projectileCount: 1
-        muzzleOffset: {x: 0, y: 0.02}
-        requiresTarget: 1
-        defaultDirection: {x: 1, y: 0}
-        speed: 2.4
-        lifetime: 3
-        effects:
-        - rid: 1004
-    - rid: 1007
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1008
-      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
-      data:
-        cooldown: 1
-        range: 2
-        shooter:
-          rid: 8867963934459297796
-        projectileMove:
-          rid: 8867963934459297804
-        bulletType: 2
-        projectileCount: 2
-        muzzleOffset: {x: 0, y: 0.02}
-        requiresTarget: 1
-        defaultDirection: {x: 1, y: 0}
-        speed: 2.4
-        lifetime: 3
-        effects:
-        - rid: 1004
-    - rid: 1009
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1010
-      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
-      data:
-        cooldown: 1
-        range: 2
-        shooter:
-          rid: 8867963934459297797
-        projectileMove:
-          rid: 8867963934459297806
+          rid: 3102418934778823390
         bulletType: 2
         projectileCount: 3
         muzzleOffset: {x: 0, y: 0.02}
@@ -118,22 +67,35 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1011
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1012
+        - rid: 3102418934778823391
+        traits:
+          pierce: 1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823384
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 1
-        range: 2
+        cooldown: 1.5
+        damagePercent: 60
+        target:
+          rid: 3102418934778823392
         shooter:
-          rid: 8867963934459297798
+          rid: 3102418934778823393
         projectileMove:
-          rid: 8867963934459297807
+          rid: 3102418934778823394
         bulletType: 2
         projectileCount: 4
         muzzleOffset: {x: 0, y: 0.02}
@@ -142,22 +104,72 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1013
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
-      data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 1014
+        - rid: 3102418934778823395
+        traits:
+          pierce: 1
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823385
       type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        cooldown: 1
-        range: 2
+        cooldown: 1.5
+        damagePercent: 75
+        target:
+          rid: 3102418934778823396
         shooter:
-          rid: 8867963934459297799
+          rid: 3102418934778823397
         projectileMove:
-          rid: 8867963934459297808
+          rid: 3102418934778823398
+        bulletType: 2
+        projectileCount: 4
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects:
+        - rid: 3102418934778823399
+        traits:
+          pierce: 2
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823386
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
+      data:
+        cooldown: 1.5
+        damagePercent: 75
+        target:
+          rid: 3102418934778823400
+        shooter:
+          rid: 3102418934778823401
+        projectileMove:
+          rid: 3102418934778823402
         bulletType: 2
         projectileCount: 5
         muzzleOffset: {x: 0, y: 0.02}
@@ -166,41 +178,142 @@ MonoBehaviour:
         speed: 2.4
         lifetime: 3
         effects:
-        - rid: 1004
-    - rid: 1015
-      type: {class: StatBonusData, ns: , asm: Assembly-CSharp}
+        - rid: 3102418934778823403
+        traits:
+          pierce: 2
+          hitsEnemies: 1
+          size: 1
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823387
+      type: {class: ShootingData, ns: , asm: Assembly-CSharp}
       data:
-        stat: 1
-        operation: 0
-        value: 10
-    - rid: 8867963934459297796
+        cooldown: 1.5
+        damagePercent: 110
+        target:
+          rid: 3102418934778823404
+        shooter:
+          rid: 3102418934778823405
+        projectileMove:
+          rid: 3102418934778823406
+        bulletType: 2
+        projectileCount: 5
+        muzzleOffset: {x: 0, y: 0.02}
+        requiresTarget: 1
+        defaultDirection: {x: 1, y: 0}
+        speed: 2.4
+        lifetime: 3
+        effects:
+        - rid: 3102418934778823407
+        traits:
+          pierce: -1
+          hitsEnemies: 1
+          size: 1.5
+          spinDegreesPerSecond: 0
+          pushAlongFlight: 0
+          onHit: []
+          onExpire: []
+          pulseInterval: 0
+          onPulse: []
+        rangeMode: 0
+        rangeScale: 1
+        knockback: 0
+        hitBonus:
+          bossDamage: 0
+          lifeSteal: 0
+        burstInterval: 0
+    - rid: 3102418934778823388
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823389
       type: {class: FanShooter, ns: , asm: Assembly-CSharp}
       data:
-        spreadAngle: 60
-    - rid: 8867963934459297797
+        spreadAngle: 30
+    - rid: 3102418934778823390
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823391
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823392
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823393
       type: {class: FanShooter, ns: , asm: Assembly-CSharp}
       data:
-        spreadAngle: 60
-    - rid: 8867963934459297798
-      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+        spreadAngle: 30
+    - rid: 3102418934778823394
+      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823395
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
       data:
-        startAngle: 0
-    - rid: 8867963934459297799
-      type: {class: CircularShooter, ns: , asm: Assembly-CSharp}
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823396
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823397
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
       data:
-        startAngle: 0
-    - rid: 8867963934459297804
+        spreadAngle: 30
+    - rid: 3102418934778823398
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: 
-    - rid: 8867963934459297805
+    - rid: 3102418934778823399
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823400
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823401
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 45
+    - rid: 3102418934778823402
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: 
-    - rid: 8867963934459297806
+    - rid: 3102418934778823403
+      type: {class: SlowEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1.5
+        applicationChance: 100
+        useEffectStats: 0
+        slowFraction: 0.3
+    - rid: 3102418934778823404
+      type: {class: NearestTarget, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 3102418934778823405
+      type: {class: FanShooter, ns: , asm: Assembly-CSharp}
+      data:
+        spreadAngle: 45
+    - rid: 3102418934778823406
       type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
       data: 
-    - rid: 8867963934459297807
-      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
-      data: 
-    - rid: 8867963934459297808
-      type: {class: StraightProjectileMove, ns: , asm: Assembly-CSharp}
-      data: 
+    - rid: 3102418934778823407
+      type: {class: FreezeEffect, ns: , asm: Assembly-CSharp}
+      data:
+        duration: 1
+        applicationChance: 100
+        useEffectStats: 0
